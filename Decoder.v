@@ -41,6 +41,17 @@ Section Decoder.
     Definition Minor_ORI       := WO~1~1~0.
     Definition Minor_ANDI      := WO~1~1~1.
 
+    Definition Minor_ADD       := WO~0~0~0.
+    Definition Minor_SUB       := WO~0~0~0.
+    Definition Minor_SLL       := WO~0~0~1.
+    Definition Minor_SLT       := WO~0~1~0.
+    Definition Minor_SLTU      := WO~0~1~1.
+    Definition Minor_XOR       := WO~1~0~0.
+    Definition Minor_SRL       := WO~1~0~1.
+    Definition Minor_SRA       := WO~1~0~1.
+    Definition Minor_OR        := WO~1~1~0.
+    Definition Minor_AND       := WO~1~1~1.
+
 (* Records *)
 
     Definition Maybe : Kind -> Kind := fun k => STRUCT {
@@ -83,6 +94,7 @@ Section Decoder.
     Definition dInstPartial := STRUCT {
         "alumode" :: Bit 2  ;
         "funct3"  :: Bit 3  ;
+        "aluopt"  :: Bit 1  ;
         "rs1?"    :: Bool   ;
         "rs2?"    :: Bool   ;
         "rd?"     :: Bool   ;
@@ -105,14 +117,17 @@ Section Decoder.
         LET rd        <- instr $[ 11 :  7 ];
         LET rs1       <- instr $[ 19 : 15 ];
         LET rs2       <- instr $[ 24 : 20 ];
-        LET funct7a   <- instr $[ 30 : 30 ];
-        LET funct7s   <- instr $[ 25 : 25 ];
-        LET funct7z   <- {< (instr $[ 31 : 31 ]) ,
+        LET funct7a   <- instr $[ 30 : 30 ];       (* becomes aluopt        *)
+        LET funct7s   <- instr $[ 25 : 25 ];       (* part of shamt in RV64 *)
+        LET funct7z   <- {< (instr $[ 31 : 31 ]) , (* remainder of funct7   *)
                           (instr $[ 29 : 26 ]) >};
         LET i_imm     <- SignExtend 52 (instr $[ 31 : 20 ]);
         LET u_imm     <- SignExtend 32 ({< instr $[ 31 : 12 ] , $$ twelve0 >});
-        LET OP_IMM_ok <- (  (#funct3r != $$ WO~0~1)
-                         || (#funct7z == $0) (* || ({<#funct7z, #funct7s>} == $0) -- RV32 *)
+        LET OP_IMM_ok <- (  (#funct3r != $$ WO~0~1) (* 0b?01 are the shift instructions          *)
+                         || (#funct7z == $0)        (* || ({<#funct7z, #funct7s>} == $0) in RV32 *)
+                         );
+        LET OP_ok     <- (  ((#funct3 != $$ Minor_ADD) && (#funct3 != $$ Minor_SRL))
+                         || (#funct7a == $0)
                          );
         LET JALR_ok   <- #funct3 == $0;
         LET illegal   <- (  (#opcode == $$ Major_LOAD)
@@ -124,7 +139,7 @@ Section Decoder.
                          || (#opcode == $$ Major_STORE)
                          || (#opcode == $$ Major_STORE_FP)
                          || (#opcode == $$ Major_AMO)
-                         || (#opcode == $$ Major_OP)
+                         || ((#opcode == $$ Major_OP) && #OP_ok)
                          || (#opcode == $$ Major_LUI)
                          || (#opcode == $$ Major_OP_32)
                          || (#opcode == $$ Major_MADD)
@@ -138,27 +153,30 @@ Section Decoder.
                          || (#opcode == $$ Major_SYSTEM)
                          );
         LET decoded   <- Switch #opcode Retn dInstPartial With {
-                             $$ Major_OP_IMM ::= STRUCT {"alumode" ::= $$ ARITH    ;
-                                                         "funct3"  ::= #funct3     ;
-                                                         "rs1?"    ::= $$ true     ;
-                                                         "rs2?"    ::= $$ false    ;
-                                                         "rd?"     ::= $$ true     ;
-                                                         "imm"     ::= #i_imm      ;
-                                                         "csradr?" ::= $$ false    };
-                             $$ Major_LUI    ::= STRUCT {"alumode" ::= $$ OFF      ;
-                                                         "funct3"  ::= #funct3     ;
-                                                         "rs1?"    ::= $$ false    ;
-                                                         "rs2?"    ::= $$ false    ;
-                                                         "rd?"     ::= $$ true     ;
-                                                         "imm"     ::= #u_imm      ;
-                                                         "csradr?" ::= $$ false    };
-                             $$ Major_AUIPC  ::= STRUCT {"alumode" ::= $$ ARITH    ;
-                                                         "funct3"  ::= $$ WO~0~0~0 ;
-                                                         "rs1?"    ::= $$ false    ;
-                                                         "rs2?"    ::= $$ false    ;
-                                                         "rd?"     ::= $$ true     ;
-                                                         "imm"     ::= #u_imm      ;
-                                                         "csradr?" ::= $$ false    }
+                             $$ Major_OP_IMM ::= STRUCT {"alumode" ::= $$ ARITH     ;
+                                                         "funct3"  ::= #funct3      ;
+                                                         "aluopt"  ::= #funct7a     ;
+                                                         "rs1?"    ::= $$ true      ;
+                                                         "rs2?"    ::= $$ false     ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "imm"     ::= #i_imm       ;
+                                                         "csradr?" ::= $$ false     };
+                             $$ Major_LUI    ::= STRUCT {"alumode" ::= $$ OFF       ;
+                                                         "funct3"  ::= #funct3      ;
+                                                         "aluopt"  ::= #funct7a     ;
+                                                         "rs1?"    ::= $$ false     ;
+                                                         "rs2?"    ::= $$ false     ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "imm"     ::= #u_imm       ;
+                                                         "csradr?" ::= $$ false     };
+                             $$ Major_AUIPC  ::= STRUCT {"alumode" ::= $$ ARITH     ;
+                                                         "funct3"  ::= $$ Minor_ADD ;
+                                                         "aluopt"  ::= $$ WO~0      ;
+                                                         "rs1?"    ::= $$ false     ;
+                                                         "rs2?"    ::= $$ false     ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "imm"     ::= #u_imm       ;
+                                                         "csradr?" ::= $$ false     }
                          };
         (*
         LET test    <- ((SignExtend _ (pack (#opcode == $$ Major_LUI)))   & $$ WO~1~1)
