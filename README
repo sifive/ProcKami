@@ -1,6 +1,2 @@
-Stages
-    Set up types
-    Decompress
-    Setup fields
-
-Detect illegal instructions as early as possible.
+Reference implementation of RV64IMA(FD)+C
+User and Machine modes
