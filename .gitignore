@@ -4,4 +4,8 @@
 *.vo
 Makefile.coq.all
 Makefile.coq.all.conf
-
+*.sv
+*.hi
+*.ho
+*.o
+*.hs

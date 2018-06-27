@@ -219,3 +219,13 @@ Section Decoder.
         ).
     Defined.
 End Decoder.
+
+Definition mkDecoder :=
+  MODULE {
+      Rule "decode" :=
+        ( Call inst : Bit 32 <- "getInst"();
+            LETA dInst <- Decode_action #inst;
+            Call "decodedInst"(#dInst: DInst);
+            Retv)
+    }%kami_expr.
+
