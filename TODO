@@ -1,0 +1,11 @@
+- Finish RV32I
+- Finish RV64I
+* REVIEW User level is correct
+* REVIEW Machine level is correct
+- Add M extension
+- Add A extension
+- Add C extension
+- Add F extension?
+- Add D extension?
+* REVIEW Extensions are correct
+- Parameterize

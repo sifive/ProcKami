@@ -136,19 +136,21 @@ Section Decoder.
         LET funct7a   <- instr $[ 30 : 30 ];        (* becomes aluopt        *)
         LET funct7s   <- instr $[ 25 : 25 ];        (* part of shamt in RV64 *)
         LET funct7z   <- {< (instr $[ 31 : 31 ]) ,  (* remainder of funct7   *)
-                          (instr $[ 29 : 26 ]) >};
+                            (instr $[ 29 : 26 ]) >};
+        LET funct7a0  <- #funct7a == $$ WO~0;
+        LET funct7z0  <- #funct7z == $$ (natToWord 5 0);
+        LET funct7sz0 <- #funct7z0 && (#funct7s == $$ WO~0);
         LET i_imm     <- SignExtend 52 (instr $[ 31 : 20 ]);
         LET u_imm     <- SignExtend 32 ({< instr $[ 31 : 12 ] , $$ (natToWord 12 0) >});
         LET j_imm     <- SignExtend 43 ({< (instr$[31:31]),(instr$[19:12]),(instr$[20:20]),(instr$[30:21]),$$WO~0>});
         LET b_imm     <- SignExtend 51 ({< (instr$[31:31]),(instr$[7:7]),(instr$[30:25]),(instr$[11:8]),$$WO~0>});
-        LET OP_IMM_ok <- (  (#funct3r != $$ WO~0~1) (* 0b?01 are the shift instructions          *)
-                         || (#funct7z == $0)        (* || ({<#funct7z, #funct7s>} == $0) in RV32 *)
-                         );
-        LET OP_ok     <- (  ((#funct3 != $$ Minor_ADD) && (#funct3 != $$ Minor_SRL))
-                         || (#funct7a == $0)
-                         );
+        LET OP_IMM_ok <- (#funct3r != $$ WO~0~1)    (* 0b?01 are the shift instructions *)
+                         || #funct7z0;              (* || #funct7sz0 in RV32            *)
+        LET OP_ok     <- (((#funct3 != $$ Minor_ADD) && (#funct3 != $$ Minor_SRL))
+                          || #funct7a0
+                         ) && #funct7sz0;
         LET BRANCH_ok <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
-        LET JALR_ok   <- #funct3 == $0;
+        LET JALR_ok   <- #funct3 == $$ WO~0~0~0;
         LET LOAD_ok   <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *)
         LET illegal   <- !( ((#opcode == $$ Major_LOAD) && #LOAD_ok)
                       (* || (#opcode == $$ Major_LOAD_FP) *)
@@ -178,6 +180,12 @@ Section Decoder.
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
                                                          "imm"     ::= #i_imm       ;
+                                                         "csradr?" ::= $$ false     };
+                             $$ Major_OP     ::= STRUCT {"alumode" ::= $$ ARITH     ;
+                                                         "rs1?"    ::= $$ true      ;
+                                                         "rs2?"    ::= $$ true      ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "imm"     ::= #i_imm       ; (* imm doesn't matter here *)
                                                          "csradr?" ::= $$ false     };
                              $$ Major_LUI    ::= STRUCT {"alumode" ::= $$ OFF       ;
                                                          "rs1?"    ::= $$ false     ;
