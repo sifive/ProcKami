@@ -124,8 +124,7 @@ Section Decoder.
     Variable instr : Bit 32 @# ty.
     Open Scope kami_action.
     Definition Decode_action : ActionT ty DInst.
-    exact(
-        let x := "test" in
+      refine(
         LET opcode    <- instr $[  6 :  2 ];
         LET funct3    <- instr $[ 14 : 12 ];
         LET funct3r   <- instr $[ 13 : 12 ];
@@ -216,6 +215,7 @@ Section Decoder.
                                                          "imm"     ::= #b_imm       ;
                                                          "csradr?" ::= $$ false     }
                          };
-        Ret $$ Default
-    ). Defined.
-
+        Ret ($$ (getDefaultConst DInst))
+        ).
+    Defined.
+End Decoder.
