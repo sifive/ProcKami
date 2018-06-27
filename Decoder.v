@@ -81,6 +81,15 @@ Section Decoder.
     Definition Minor_LWU       := WO~1~1~0. (* RV64 only *)
     Definition Unused_L1       := WO~1~1~1.
 
+    Definition Minor_SB        := WO~0~0~0.
+    Definition Minor_SH        := WO~0~0~1.
+    Definition Minor_SW        := WO~0~1~0.
+    Definition Minor_SD        := WO~0~1~1. (* RV64 only *)
+    Definition Unused_S1       := WO~1~0~0.
+    Definition Unused_S2       := WO~1~0~1.
+    Definition Unused_S3       := WO~1~1~0.
+    Definition Unused_S4       := WO~1~1~1.
+
 (* Records *)
 
     (* alumode switches between 0 := [ add / sll / slt / sltu / xor / sr* /  or  /  and ]
@@ -128,6 +137,7 @@ Section Decoder.
         let x := "test" in
         LET opcode    <- instr $[  6 :  2 ];
         LET funct3    <- instr $[ 14 : 12 ];
+        LET funct3l   <- instr $[ 14 : 14 ];
         LET funct3r   <- instr $[ 13 : 12 ];
         LET rd        <- instr $[ 11 :  7 ];
         LET rs1       <- instr $[ 19 : 15 ];
@@ -141,8 +151,9 @@ Section Decoder.
         LET funct7sz0 <- #funct7z0 && (#funct7s == $$ WO~0);
         LET i_imm     <- SignExtend 52 (instr $[ 31 : 20 ]);
         LET u_imm     <- SignExtend 32 ({< instr $[ 31 : 12 ] , $$ (natToWord 12 0) >});
-        LET j_imm     <- SignExtend 43 ({< (instr$[31:31]),(instr$[19:12]),(instr$[20:20]),(instr$[30:21]),$$WO~0>});
-        LET b_imm     <- SignExtend 51 ({< (instr$[31:31]),(instr$[7:7]),(instr$[30:25]),(instr$[11:8]),$$WO~0>});
+        LET j_imm     <- SignExtend 43 ({<(instr$[31:31]),(instr$[19:12]),(instr$[20:20]),(instr$[30:21]),$$WO~0>});
+        LET b_imm     <- SignExtend 51 ({<(instr$[31:31]),(instr$[7:7]),(instr$[30:25]),(instr$[11:8]),$$WO~0>});
+        LET s_imm     <- SignExtend 52 ({< (instr $[ 31 : 25 ]) , (instr $[ 11 : 7 ]) >});
         LET OP_IMM_ok <- (#funct3r != $$ WO~0~1)    (* 0b?01 are the shift instructions *)
                          || #funct7z0;              (* || #funct7sz0 in RV32            *)
         LET OP_ok     <- (((#funct3 != $$ Minor_ADD) && (#funct3 != $$ Minor_SRL))
@@ -151,13 +162,14 @@ Section Decoder.
         LET BRANCH_ok <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
         LET JALR_ok   <- #funct3 == $$ WO~0~0~0;
         LET LOAD_ok   <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *)
+        LET STORE_ok  <- #funct3l != $$ WO~0;       (* In RV32 remember to add check for SD          *)
         LET illegal   <- !( ((#opcode == $$ Major_LOAD) && #LOAD_ok)
                       (* || (#opcode == $$ Major_LOAD_FP) *)
                          || (#opcode == $$ Major_MISC_MEM)
                          || ((#opcode == $$ Major_OP_IMM) && #OP_IMM_ok)
                          || (#opcode == $$ Major_AUIPC)
                          || (#opcode == $$ Major_OP_IMM_32)
-                         || (#opcode == $$ Major_STORE)
+                         || ((#opcode == $$ Major_STORE) && #STORE_ok)
                       (* || (#opcode == $$ Major_STORE_FP) *)
                          || (#opcode == $$ Major_AMO)
                          || ((#opcode == $$ Major_OP) && #OP_ok)
@@ -219,9 +231,15 @@ Section Decoder.
                                                          "csradr?" ::= $$ false     };
                              $$ Major_LOAD   ::= STRUCT {"alumode" ::= $$ AADD      ;
                                                          "rs1?"    ::= $$ true      ;
+                                                         "rs2?"    ::= $$ false     ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "imm"     ::= #i_imm       ;
+                                                         "csradr?" ::= $$ false     };
+                             $$ Major_STORE  ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ true      ;
                                                          "rd?"     ::= $$ false     ;
-                                                         "imm"     ::= #b_imm       ;
+                                                         "imm"     ::= #s_imm       ;
                                                          "csradr?" ::= $$ false     }
                          };
         Ret $$ (getDefaultConst DInst)
