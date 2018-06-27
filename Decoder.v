@@ -90,30 +90,24 @@ Section Decoder.
     Definition Unused_S3       := WO~1~1~0.
     Definition Unused_S4       := WO~1~1~1.
 
+    Definition Minor_ECALL     := WO~0~0~0.
+    Definition Minor_EBREAK    := WO~0~0~0.
+    Definition Minor_CSRRW     := WO~0~0~1.
+    Definition Minor_CSRRS     := WO~0~1~0.
+    Definition Minor_CSRRC     := WO~0~1~1.
+    Definition Unused_C1       := WO~1~0~0.
+    Definition Minor_CSRRWI    := WO~1~0~1.
+    Definition Minor_CSRRSI    := WO~1~1~0.
+    Definition Minor_CSRRCI    := WO~1~1~1.
+
 (* Records *)
 
-    (* alumode switches between 0 := [ add / sll / slt / sltu / xor / sr* /  or  /  and ]
-                            and 1 := [ beq / bne /  ?  /  ??  / blt / bge / bltu / bgeu ]
-                            and 2 := See comment about AADD below
-                            and 3 := Disabled
-
-       aluopt always is instr[30] and switches between 0 := [ add / srl ]
-                                                       1 := [ sub / sra ]
-         for other OP instructions it should be 0
-    *)
-    Definition ARITH := WO~0~0.
-    Definition COMP  := WO~0~1.
-    Definition AADD  := WO~1~0. (* Address Addition - Used in instructions besides OP and OP-IMM, *)
-    Definition OFF   := WO~1~1. (*                      funct3 and aluopt must ignored by the ALU *)
-                                (*                      since they might be used by other units   *)
-
     Definition DInstKeys := STRUCT {
-        "alumode" :: Bit 2  ;
+        "imm"     :: Bit 64 ;
         "rs1?"    :: Bool   ;
         "rs2?"    :: Bool   ;
         "rd?"     :: Bool   ;
-        "imm"     :: Bit 64 ;
-        "csradr?" :: Bool
+        "csr?"    :: Bool
     }.
 
     Definition DInst := STRUCT {
@@ -142,6 +136,7 @@ Section Decoder.
         LET rd        <- instr $[ 11 :  7 ];
         LET rs1       <- instr $[ 19 : 15 ];
         LET rs2       <- instr $[ 24 : 20 ];
+        LET csradr    <- instr $[ 31 : 20 ];
         LET funct7a   <- instr $[ 30 : 30 ];        (* becomes aluopt        *)
         LET funct7s   <- instr $[ 25 : 25 ];        (* part of shamt in RV64 *)
         LET funct7z   <- {< (instr $[ 31 : 31 ]) ,  (* remainder of funct7   *)
@@ -154,6 +149,7 @@ Section Decoder.
         LET j_imm     <- SignExtend 43 ({<(instr$[31:31]),(instr$[19:12]),(instr$[20:20]),(instr$[30:21]),$$WO~0>});
         LET b_imm     <- SignExtend 51 ({<(instr$[31:31]),(instr$[7:7]),(instr$[30:25]),(instr$[11:8]),$$WO~0>});
         LET s_imm     <- SignExtend 52 ({< (instr $[ 31 : 25 ]) , (instr $[ 11 : 7 ]) >});
+        LET z_imm     <- ZeroExtend 59 #rs1;        (* TODO : Verify ZEXT to 64 not 32  *)
         LET OP_IMM_ok <- (#funct3r != $$ WO~0~1)    (* 0b?01 are the shift instructions *)
                          || #funct7z0;              (* || #funct7sz0 in RV32            *)
         LET OP_ok     <- (((#funct3 != $$ Minor_ADD) && (#funct3 != $$ Minor_SRL))
@@ -162,19 +158,23 @@ Section Decoder.
         LET BRANCH_ok <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
         LET JALR_ok   <- #funct3 == $$ WO~0~0~0;
         LET LOAD_ok   <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *)
-        LET STORE_ok  <- #funct3l != $$ WO~0;       (* In RV32 remember to add check for SD          *)
+        LET STORE_ok  <- #funct3l == $$ WO~0;       (* In RV32 remember to add check for SD          *)
+        LET E0        <- {<(instr$[31:21]),(instr$[19:15]),(instr$[11:7])>} == $$ (natToWord 21 0);
+        LET SYSTEM_ok <- ((#funct3 != $$ Minor_ECALL)
+                          || #E0
+                         ) && #funct3 != $$ Unused_C1;
         LET illegal   <- !( ((#opcode == $$ Major_LOAD) && #LOAD_ok)
                       (* || (#opcode == $$ Major_LOAD_FP) *)
-                         || (#opcode == $$ Major_MISC_MEM)
+                         ||  (#opcode == $$ Major_MISC_MEM)
                          || ((#opcode == $$ Major_OP_IMM) && #OP_IMM_ok)
-                         || (#opcode == $$ Major_AUIPC)
-                         || (#opcode == $$ Major_OP_IMM_32)
+                         ||  (#opcode == $$ Major_AUIPC)
+                         ||  (#opcode == $$ Major_OP_IMM_32)
                          || ((#opcode == $$ Major_STORE) && #STORE_ok)
                       (* || (#opcode == $$ Major_STORE_FP) *)
-                         || (#opcode == $$ Major_AMO)
+                         ||  (#opcode == $$ Major_AMO)
                          || ((#opcode == $$ Major_OP) && #OP_ok)
-                         || (#opcode == $$ Major_LUI)
-                         || (#opcode == $$ Major_OP_32)
+                         ||  (#opcode == $$ Major_LUI)
+                         ||  (#opcode == $$ Major_OP_32)
                       (* || (#opcode == $$ Major_MADD) *)
                       (* || (#opcode == $$ Major_MSUB) *)
                       (* || (#opcode == $$ Major_NMSUB) *)
@@ -182,65 +182,60 @@ Section Decoder.
                       (* || (#opcode == $$ Major_OP_FP) *)
                          || ((#opcode == $$ Major_BRANCH) && #BRANCH_ok)
                          || ((#opcode == $$ Major_JALR) && #JALR_ok)
-                         || (#opcode == $$ Major_JAL)
-                         || (#opcode == $$ Major_SYSTEM)
+                         ||  (#opcode == $$ Major_JAL)
+                         || ((#opcode == $$ Major_SYSTEM) && #SYSTEM_ok)
                          );
         LET decoded   <- Switch #opcode Retn DInstKeys With {
-                             $$ Major_OP_IMM ::= STRUCT {"alumode" ::= $$ ARITH     ;
+                             $$ Major_OP_IMM ::= STRUCT {"imm"     ::= #i_imm       ;
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #i_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_OP     ::= STRUCT {"alumode" ::= $$ ARITH     ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_OP     ::= STRUCT {"imm"     ::= #i_imm       ; (* OP : imm doesn't matter here *)
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ true      ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #i_imm       ; (* imm doesn't matter here *)
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_LUI    ::= STRUCT {"alumode" ::= $$ OFF       ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_LUI    ::= STRUCT {"imm"     ::= #u_imm       ;
                                                          "rs1?"    ::= $$ false     ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #u_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_AUIPC  ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_AUIPC  ::= STRUCT {"imm"     ::= #u_imm       ;
                                                          "rs1?"    ::= $$ false     ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #u_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_JAL    ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_JAL    ::= STRUCT {"imm"     ::= #j_imm       ;
                                                          "rs1?"    ::= $$ false     ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #j_imm       ;
-                                                         "csradr?" ::= $$ false     };
-(* JALR - Don't forget that the LSB should be set to 0 after rs1 and imm are added! *)
-                             $$ Major_JALR   ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_JALR   ::= STRUCT {"imm"     ::= #i_imm       ; (* JALR : Don't forget that the LSB should be set to 0 after rs1 and imm are added! *)
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #i_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_BRANCH ::= STRUCT {"alumode" ::= $$ COMP      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_BRANCH ::= STRUCT {"imm"     ::= #b_imm       ;
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ true      ;
                                                          "rd?"     ::= $$ false     ;
-                                                         "imm"     ::= #b_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_LOAD   ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_LOAD   ::= STRUCT {"imm"     ::= #i_imm       ;
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ false     ;
                                                          "rd?"     ::= $$ true      ;
-                                                         "imm"     ::= #i_imm       ;
-                                                         "csradr?" ::= $$ false     };
-                             $$ Major_STORE  ::= STRUCT {"alumode" ::= $$ AADD      ;
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_STORE  ::= STRUCT {"imm"     ::= #s_imm       ;
                                                          "rs1?"    ::= $$ true      ;
                                                          "rs2?"    ::= $$ true      ;
                                                          "rd?"     ::= $$ false     ;
-                                                         "imm"     ::= #s_imm       ;
-                                                         "csradr?" ::= $$ false     }
+                                                         "csr?"    ::= $$ false     };
+                             $$ Major_SYSTEM ::= STRUCT {"imm"     ::= #z_imm       ; (* SYSTEM : NOTE! The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
+                                                         "rs1?"    ::= $$ true      ; (* SYSTEM : NOTE! The E* instructions don't use rs1 or rd! TODO : Split the E* instruction case? *)
+                                                         "rs2?"    ::= $$ false     ;
+                                                         "rd?"     ::= $$ true      ;
+                                                         "csr?"    ::= $$ true      }
                          };
         Ret $$ (getDefaultConst DInst)
     ). Defined.

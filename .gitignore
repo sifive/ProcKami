@@ -9,3 +9,4 @@ Makefile.coq.all.conf
 *.ho
 *.o
 *.hs
+.lia.cache
