@@ -1,15 +1,15 @@
 Require Import Kami.Syntax.
 
 Definition Maybe : Kind -> Kind := fun k => STRUCT {
-                                                "valid" :: Bool;
-                                                "data"  :: k
-                                              }.
+    "valid" :: Bool;
+    "data"  :: k
+}.
 
 Notation "'Valid' x" := (STRUCT { "valid" ::= $$ true ; "data" ::= # x })%kami_expr
-                                                                         (at level 100) : kami_expr_scope.
+    (at level 100) : kami_expr_scope.
 
 Notation "'Invalid' x" := (STRUCT { "valid" ::= $$ false ; "data" ::= # x })%kami_expr
-                                                                            (at level 100) : kami_expr_scope.
+    (at level 100) : kami_expr_scope.
 
 Section Decoder.
     Variable ty : Kind -> Type.
@@ -108,14 +108,14 @@ Section Decoder.
     }.
 
     Definition DInst := STRUCT {
-        "illegal" :: Bool     ;
-        "opcode"  :: Bit 5    ;
-        "funct3"  :: Bit 3    ;
-        "aluopt"  :: Bit 1    ;
-        "rs1Val"  :: Bit 5    ;
-        "rs2Val"  :: Bit 5    ;
-        "rdVal"   :: Bit 5    ;
-        "csradr"  :: Bit 12   ;
+        "illegal" :: Bool   ;
+        "opcode"  :: Bit 5  ;
+        "funct3"  :: Bit 3  ;
+        "aluopt"  :: Bit 1  ;
+        "rs1"     :: Bit 5  ;
+        "rs2"     :: Bit 5  ;
+        "rd"      :: Bit 5  ;
+        "csradr"  :: Bit 12 ;
         "keys"    :: DInstKeys
     }.
 
@@ -124,7 +124,8 @@ Section Decoder.
     Variable instr : Bit 32 @# ty.
     Open Scope kami_action.
     Definition Decode_action : ActionT ty DInst.
-      refine(
+    exact(
+        let x := "test" in
         LET opcode    <- instr $[  6 :  2 ];
         LET funct3    <- instr $[ 14 : 12 ];
         LET funct3r   <- instr $[ 13 : 12 ];
@@ -223,17 +224,17 @@ Section Decoder.
                                                          "imm"     ::= #b_imm       ;
                                                          "csradr?" ::= $$ false     }
                          };
-        Ret ($$ (getDefaultConst DInst))
-        ).
-    Defined.
+        Ret $$ (getDefaultConst DInst)
+    ). Defined.
 End Decoder.
 
 Definition mkDecoder :=
-  MODULE {
-      Rule "decode" :=
-        ( Call inst : Bit 32 <- "getInst"();
-            LETA dInst <- Decode_action #inst;
-            Call "decodedInst"(#dInst: DInst);
-            Retv)
+    MODULE {
+        Rule "decode" :=
+            ( Call inst : Bit 32 <- "getInst"();
+              LETA dInst <- Decode_action #inst;
+              Call "decodedInst"(#dInst: DInst);
+              Retv
+            )
     }%kami_expr.
 
