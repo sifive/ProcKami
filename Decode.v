@@ -138,6 +138,7 @@ Section Decoder.
 (* Decoder for RV64IMAC(FD) *)
 
     Variable instr : Bit 32 @# ty.
+    Open Scope kami_expr.
     Open Scope kami_action.
     Definition Decode_action : ActionT ty DInst.
     exact(

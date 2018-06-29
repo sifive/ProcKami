@@ -28,19 +28,15 @@ Section Control.
     Definition Mem_load     := WO~1~0.
     Definition Mem_store    := WO~1~1.
 
-    (* csrSetClear *)
-    Definition CsrSC_set    := WO~0.   (* currently an optimization relies on this order *)
-    Definition CsrSC_clear  := WO~1.
-
     (* csrMask *)
-    Definition Mask_rs1     := WO~0.
+    Definition Mask_rs1     := WO~0.   (* currently an optimization relies on this order *)
     Definition Mask_imm     := WO~1.
 
     (* csrSrc *)
-    Definition Csr_rs1      := WO~0~0.
-    Definition Csr_imm      := WO~0~1.
-    Definition Csr_SC       := WO~1~0.
-    Definition Csr_Reserved := WO~1~1.
+    Definition Csr_Reserved := WO~0~0. (* currently an optimization relies on this order *)
+    Definition Csr_write    := WO~0~1.
+    Definition Csr_set      := WO~1~0.
+    Definition Csr_clear    := WO~1~1.
 
     Definition CtrlSig := STRUCT {
         "pcSrc"   :: Bit 2  ;
@@ -52,7 +48,6 @@ Section Control.
         "rdSrc"   :: Bit 2  ;
         "memOp"   :: Bit 2  ;
         "wecsr"   :: Bool   ; (* write enable control status register                 *)
-        "csrSC"   :: Bit 1  ;
         "csrMask" :: Bit 1  ;
         "csrSrc"  :: Bit 2
     }.
@@ -68,7 +63,7 @@ Section Control.
     Variable dInst : DInst @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
-    Definition Control_action : ActionT ty (Bit 0).
+    Definition Control_action : ActionT ty CtrlSig.
     exact(
         LET illegal  <- dInst @% "illegal";
         LET opcode   <- dInst @% "opcode";
@@ -81,7 +76,7 @@ Section Control.
         LET isSYSTEM <- #opcode == $$ Major_SYSTEM;
         LET isLOAD   <- #opcode == $$ Major_LOAD;
         LET isSTORE  <- #opcode == $$ Major_STORE;
-        LET funct3_0 <- #funct3 == $$ WO~0~0~0;  (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE      *)
+        LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE      *)
         LET pcSrc    <- IF #illegal
                         then $$ PC_Exception
                         else (IF #isJ
@@ -92,12 +87,12 @@ Section Control.
                               )
                         );
         LET lsb0     <- #isJALR;
-        LET aluOP    <- IF #opcode == $$ Major_OP_IMM
+        LET aluOp    <- IF #opcode == $$ Major_OP_IMM
                         || #isOP
                         || #opcode == $$ Major_OP_IMM_32
                         || #isOP_32
                         then #funct3
-                        else $$ Minor_ADD;       (* aluopt should be guaranteed 0 in this case by #illegal *)
+                        else $$ Minor_ADD;      (* aluopt should be guaranteed 0 in this case by #illegal *)
         LET aluInA   <- IF #opcode == $$ Major_AUIPC
                         then $$ InA_pc
                         else $$ InA_rs1;
@@ -122,6 +117,21 @@ Section Control.
                               else $$ Mem_off
                         );
         LET wecsr    <- (! #illegal) && #isSYSTEM && (! #funct3_0);
-        LET csrSC    <- #funct3 $[ 0 : 0 ];      (* perhaps a premature optimization                       *)
-        Retv
-    ).
+        LET csrMask  <- #funct3 $[ 2 : 2 ];
+        LET csrSrc   <- #funct3 $[ 1 : 0 ];
+        LET ctrlSig : CtrlSig <- STRUCT {
+                            "pcSrc"   ::= #pcSrc   ;
+                            "lsb0"    ::= #lsb0    ;
+                            "aluOp"   ::= #aluOp   ;
+                            "aluInA"  ::= #aluInA  ;
+                            "aluInB"  ::= #aluInB  ;
+                            "werf"    ::= #werf    ;
+                            "rdSrc"   ::= #rdSrc   ;
+                            "memOp"   ::= #memOp   ;
+                            "wecsr"   ::= #wecsr   ;
+                            "csrMask" ::= #csrMask ;
+                            "csrSrc"  ::= #csrSrc
+                        };
+        Ret #ctrlSig
+    ). Defined.
+End Control.
