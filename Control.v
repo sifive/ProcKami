@@ -29,8 +29,8 @@ Section Control.
     Definition Mem_store    := WO~1~1.
 
     (* csrSetClear *)
-    Definition CsrSC_clear  := WO~0.
-    Definition CsrSC_set    := WO~1.
+    Definition CsrSC_set    := WO~0.   (* currently an optimization relies on this order *)
+    Definition CsrSC_clear  := WO~1.
 
     (* csrMask *)
     Definition Mask_rs1     := WO~0.
@@ -51,16 +51,22 @@ Section Control.
         "werf"    :: Bool   ; (* write enable register file                           *)
         "rdSrc"   :: Bit 2  ;
         "memOp"   :: Bit 2  ;
-        "memAdr"  :: Bit 64 ;
-        "memDat"  :: Bit 64 ;
-        "memEn"   :: Bit 8  ; (* write enable mask for bytes within the word          *)
         "wecsr"   :: Bool   ; (* write enable control status register                 *)
         "csrSC"   :: Bit 1  ;
         "csrMask" :: Bit 1  ;
         "csrSrc"  :: Bit 2
     }.
 
+    (* Memory Interface
+       ------------------------ IN ------------------------
+        op = OFF|LD|ST
+       adr = Bit 64     the last three bits are ignored, always rs1+imm
+       dat = Bit 64     always rs2
+        en = Bit 8      write enable mask for bytes within the word
+    *)
+
     Variable dInst : DInst @# ty.
+    Open Scope kami_expr.
     Open Scope kami_action.
     Definition Control_action : ActionT ty (Bit 0).
     exact(
@@ -73,6 +79,8 @@ Section Control.
         LET isOP     <- #opcode == $$ Major_OP;
         LET isOP_32  <- #opcode == $$ Major_OP_32;
         LET isSYSTEM <- #opcode == $$ Major_SYSTEM;
+        LET isLOAD   <- #opcode == $$ Major_LOAD;
+        LET isSTORE  <- #opcode == $$ Major_STORE;
         LET funct3_0 <- #funct3 == $$ WO~0~0~0;  (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE      *)
         LET pcSrc    <- IF #illegal
                         then $$ PC_Exception
@@ -97,15 +105,23 @@ Section Control.
                         || #isOP_32
                         then $$ InB_rs2
                         else $$ InB_imm;
-        LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #opcode == $$ Major_STORE || (#isSYSTEM && #funct3_0));
+        LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #isSTORE || (#isSYSTEM && #funct3_0));
         LET rdSrc    <- IF #isJ
                         then $$ Rd_pcPlus4
                         else (IF #isSYSTEM
                               then $$ Rd_csr
-                              else (IF #opcode == $$ Major_LOAD
+                              else (IF #isLOAD
                                     then $$ Rd_memRead
                                     else $$ Rd_aluOut
                               )
                         );
+        LET memOp    <- IF #isLOAD
+                        then $$ Mem_load
+                        else (IF #isSTORE
+                              then $$ Mem_store
+                              else $$ Mem_off
+                        );
+        LET wecsr    <- (! #illegal) && #isSYSTEM && (! #funct3_0);
+        LET csrSC    <- #funct3 $[ 0 : 0 ];      (* perhaps a premature optimization                       *)
         Retv
     ).
