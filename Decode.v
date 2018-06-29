@@ -114,6 +114,7 @@ Section Decoder.
 
 (* Records *)
 
+    (* These booleans are provided for hazard detection    *)
     Definition DInstKeys := STRUCT {
         "imm"     :: Bit 64 ;
         "rs1?"    :: Bool   ;
@@ -176,7 +177,7 @@ Section Decoder.
         LET succ         <- instr $[ 23 : 20 ];
         LET not_sr       <- #funct3 != $$ WO~1~0~1;
         LET not_add      <- #funct3_not0;
-        LET not_ecall    <- #funct3_not0;              (* Note that ECALL and EBREAK have same funct3   *)
+        LET not_ecall    <- #funct3_not0;
 
     (* Format Checks     *)
         LET OP_IMM_ok    <- #not_sr                    (* 0b?01 are the shift instructions              *)
@@ -195,7 +196,7 @@ Section Decoder.
         LET LOAD_ok      <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *)
         LET STORE_ok     <- #funct3m1_0;               (* In RV32 remember to add check for SD          *)
         LET e0           <- {<(instr$[31:21]),(instr$[19:15]),(instr$[11:7])>} == $$ (natToWord 21 0);
-        LET SYSTEM_ok    <- ( #not_ecall
+        LET SYSTEM_ok    <- ( #not_ecall               (* Note that ECALL and EBREAK have same funct3   *)
                              || #e0
                             ) && #funct3 != $$ Unused_C1;
         LET MISC_MEM_ok  <- ((#fm == $$ (natToWord 4 0))
