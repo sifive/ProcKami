@@ -1,16 +1,5 @@
 Require Import Kami.Syntax.
 
-Definition Maybe : Kind -> Kind := fun k => STRUCT {
-    "valid" :: Bool;
-    "data"  :: k
-}.
-
-Notation "'Valid' x" := (STRUCT { "valid" ::= $$ true ; "data" ::= # x })%kami_expr
-    (at level 100) : kami_expr_scope.
-
-Notation "'Invalid' x" := (STRUCT { "valid" ::= $$ false ; "data" ::= # x })%kami_expr
-    (at level 100) : kami_expr_scope.
-
 Section Decoder.
     Variable ty : Kind -> Type.
 
@@ -127,7 +116,7 @@ Section Decoder.
         "illegal" :: Bool   ;
         "opcode"  :: Bit 5  ;
         "funct3"  :: Bit 3  ;
-        "aluopt"  :: Bit 1  ;
+        "bit30"   :: Bit 1  ;
         "rs1"     :: Bit 5  ;
         "rs2"     :: Bit 5  ;
         "rd"      :: Bit 5  ;
@@ -152,7 +141,7 @@ Section Decoder.
         LET rs1          <- instr $[ 19 : 15 ];
         LET rs2          <- instr $[ 24 : 20 ];
         LET csradr       <- instr $[ 31 : 20 ];
-        LET funct7a      <- instr $[ 30 : 30 ];        (* becomes aluopt        *)
+        LET funct7a      <- instr $[ 30 : 30 ];
         LET funct7s      <- instr $[ 25 : 25 ];        (* part of shamt in RV64 *)
         LET funct7z      <- {< (instr $[ 31 : 31 ]) ,  (* remainder of funct7   *)
                                (instr $[ 29 : 26 ]) >};
@@ -232,7 +221,7 @@ Section Decoder.
         LET SYS_rs1      <- #not_ecall && #funct3m1_0;
         LET SYS_rd       <- #not_ecall;
         LET SYS_csr      <- ! #not_ecall;
-        LET decoded      <- Switch #opcode Retn DInstKeys With {
+        LET keys         <- Switch #opcode Retn DInstKeys With {
                                 $$ Major_OP_IMM    ::= STRUCT {"imm"     ::= #i_imm              ;
                                                                "rs1?"    ::= $$ true             ;
                                                                "rs2?"    ::= $$ false            ;
@@ -299,7 +288,18 @@ Section Decoder.
                                                                "rd?"     ::= $$ true             ;
                                                                "csr?"    ::= $$ false            }
                             };
-        Ret $$ (getDefaultConst DInst)
+        LET decoded : DInst <- STRUCT {
+                                "illegal" ::= #illegal ;
+                                "opcode"  ::= #opcode  ;
+                                "funct3"  ::= #funct3  ;
+                                "bit30"   ::= #funct7a ;
+                                "rs1"     ::= #rs1     ;
+                                "rs2"     ::= #rs2     ;
+                                "rd"      ::= #rd      ;
+                                "csradr"  ::= #csradr  ;
+                                "keys"    ::= #keys
+                            };
+        Ret #decoded
     ). Defined.
 End Decoder.
 

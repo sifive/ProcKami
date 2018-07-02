@@ -38,10 +38,15 @@ Section Control.
     Definition Csr_set      := WO~1~0.
     Definition Csr_clear    := WO~1~1.
 
+    Definition AluCfg := STRUCT {
+        "opr" :: Bit 3 ;
+        "opt" :: Bit 1
+    }.
+
     Definition CtrlSig := STRUCT {
         "pcSrc"   :: Bit 2  ;
         "lsb0"    :: Bool   ; (* set LSB of [rs1+imm] as part of the JALR instruction *)
-        "aluOp"   :: Bit 3  ;
+        "aluCfg"  :: AluCfg ;
         "aluInA"  :: Bit 1  ;
         "aluInB"  :: Bit 1  ;
         "werf"    :: Bool   ; (* write enable register file                           *)
@@ -68,15 +73,17 @@ Section Control.
         LET illegal  <- dInst @% "illegal";
         LET opcode   <- dInst @% "opcode";
         LET funct3   <- dInst @% "funct3";
+        LET bit30    <- dInst @% "bit30";
         LET isJALR   <- #opcode == $$ Major_JALR;
         LET isJAL    <- #opcode == $$ Major_JAL;
         LET isJ      <- #isJALR || #isJAL;
-        LET isOP     <- #opcode == $$ Major_OP;
-        LET isOP_32  <- #opcode == $$ Major_OP_32;
+        LET isOP     <- #opcode == $$ Major_OP     || #opcode == $$ Major_OP_32;
+        LET isIMM    <- #opcode == $$ Major_OP_IMM || #opcode == $$ Major_OP_IMM_32;
         LET isSYSTEM <- #opcode == $$ Major_SYSTEM;
         LET isLOAD   <- #opcode == $$ Major_LOAD;
         LET isSTORE  <- #opcode == $$ Major_STORE;
         LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE      *)
+        LET isShift  <- (#funct3 $[ 1 : 0 ]) == $$ WO~0~1;
         LET pcSrc    <- IF #illegal
                         then $$ PC_Exception
                         else (IF #isJ
@@ -87,17 +94,14 @@ Section Control.
                               )
                         );
         LET lsb0     <- #isJALR;
-        LET aluOp    <- IF #opcode == $$ Major_OP_IMM
-                        || #isOP
-                        || #opcode == $$ Major_OP_IMM_32
-                        || #isOP_32
-                        then #funct3
-                        else $$ Minor_ADD;      (* aluopt should be guaranteed 0 in this case by #illegal *)
+        LET aluCfg   <- IF #isOP
+                        || #isIMM
+                        then STRUCT { "opr" ::= #funct3      ; "opt" ::= IF (#isIMM && !#isShift) then $$WO~0 else #bit30 }
+                        else STRUCT { "opr" ::= $$ Minor_ADD ; "opt" ::= $$WO~0 };
         LET aluInA   <- IF #opcode == $$ Major_AUIPC
                         then $$ InA_pc
                         else $$ InA_rs1;
         LET aluInB   <- IF #isOP
-                        || #isOP_32
                         then $$ InB_rs2
                         else $$ InB_imm;
         LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #isSTORE || (#isSYSTEM && #funct3_0));
@@ -110,11 +114,14 @@ Section Control.
                                     else $$ Rd_aluOut
                               )
                         );
-        LET memOp    <- IF #isLOAD
-                        then $$ Mem_load
-                        else (IF #isSTORE
-                              then $$ Mem_store
-                              else $$ Mem_off
+        LET memOp    <- IF #illegal
+                        then $$ Mem_off
+                        else (IF #isLOAD
+                              then $$ Mem_load
+                              else (IF #isSTORE
+                                    then $$ Mem_store
+                                    else $$ Mem_off
+                             )
                         );
         LET wecsr    <- (! #illegal) && #isSYSTEM && (! #funct3_0);
         LET csrMask  <- #funct3 $[ 2 : 2 ];
@@ -122,7 +129,7 @@ Section Control.
         LET ctrlSig : CtrlSig <- STRUCT {
                             "pcSrc"   ::= #pcSrc   ;
                             "lsb0"    ::= #lsb0    ;
-                            "aluOp"   ::= #aluOp   ;
+                            "aluCfg"  ::= #aluCfg  ;
                             "aluInA"  ::= #aluInA  ;
                             "aluInB"  ::= #aluInB  ;
                             "werf"    ::= #werf    ;
