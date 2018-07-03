@@ -57,13 +57,6 @@ Section Control.
         "csrSrc"  :: Bit 2
     }.
 
-    (* Memory Interface
-       ------------------------ IN ------------------------
-        op = OFF|LD|ST
-       adr = Bit 64     the last three bits are ignored, always rs1+imm
-       dat = Bit 64     always rs2
-        en = Bit 8      write enable mask for bytes within the word
-    *)
 
     Variable dInst : DInst @# ty.
     Open Scope kami_expr.
@@ -82,7 +75,7 @@ Section Control.
         LET isSYSTEM <- #opcode == $$ Major_SYSTEM;
         LET isLOAD   <- #opcode == $$ Major_LOAD;
         LET isSTORE  <- #opcode == $$ Major_STORE;
-        LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE      *)
+        LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE *)
         LET isShift  <- (#funct3 $[ 1 : 0 ]) == $$ WO~0~1;
         LET pcSrc    <- IF #illegal
                         then $$ PC_Exception
@@ -96,8 +89,8 @@ Section Control.
         LET lsb0     <- #isJALR;
         LET aluCfg   <- IF #isOP
                         || #isIMM
-                        then STRUCT { "opr" ::= #funct3      ; "opt" ::= IF (#isIMM && !#isShift) then $$WO~0 else #bit30 }
-                        else STRUCT { "opr" ::= $$ Minor_ADD ; "opt" ::= $$WO~0 };
+                        then STRUCT { "opr" ::= #funct3 ; "opt" ::= IF (#isIMM && !#isShift) then $$WO~0 else #bit30 }
+                        else STRUCT { "opr" ::= $$ Minor_ADD_SUB ; "opt" ::= $$WO~0 };
         LET aluInA   <- IF #opcode == $$ Major_AUIPC
                         then $$ InA_pc
                         else $$ InA_rs1;

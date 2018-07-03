@@ -98,6 +98,12 @@ Section Decoder.
     Definition Unused_F5     := WO~1~1~0.
     Definition Unused_F6     := WO~1~1~1.
 
+(* Miscellaneous Definitions *)
+
+    Definition Minor_ADD_SUB      := WO~0~0~0.
+    Definition Minor_SRL_SRA      := WO~1~0~1.
+    Definition Minor_ECALL_EBREAK := WO~0~0~0.
+
     (*                             ---fm-- --pred- --succ- *)
     Definition FENCE_RW_RW   := WO~1~0~0~0~0~0~1~1~0~0~1~1.
 
