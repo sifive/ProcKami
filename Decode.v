@@ -183,7 +183,7 @@ Section Decoder.
                             );
         LET BRANCH_ok    <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
         LET JALR_ok      <- ! #funct3_not0;
-        LET LOAD_ok      <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *)
+        LET LOAD_ok      <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *) (* TODO : IMPORTANT! : Check if LOAD destination is x0 *)
         LET STORE_ok     <- #funct3m1_0;               (* In RV32 remember to add check for SD          *)
         LET e0           <- {<(instr$[31:21]),(instr$[19:15]),(instr$[11:7])>} == $$ (natToWord 21 0);
         LET SYSTEM_ok    <- ( #not_ecall               (* Note that ECALL and EBREAK have same funct3   *)

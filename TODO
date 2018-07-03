@@ -5,13 +5,13 @@ x - Write second stage
   - Write third stage
   * REVIEW User level is correct
   * DEBUG Working single-application
-  - Add M extension
-  - Add C extension
-  - Add F extension?
-  - Add D extension?
-  * DEBUG Extensions are correct
-  - Add machine mode
-  * DEBUG Machine mode is correct
+  - Add M extension                                 )
+  - Add C extension                                 )
+  - Add F extension?                                )
+  - Add D extension?                                ) Same priority
+  * DEBUG Extensions are correct                    )
+  - Add machine mode || add CSR support             )
+  * DEBUG Machine mode is correct                   )
   - Add supervisor mode || Implement E2 series core
 
 ADDITIONAL GOALS
