@@ -171,12 +171,12 @@ Section Decoder.
         LET fm           <- instr $[ 31 : 28 ];
         LET pred         <- instr $[ 27 : 24 ];
         LET succ         <- instr $[ 23 : 20 ];
-        LET not_sr       <- #funct3 != $$ WO~1~0~1;
+        LET not_sr       <- #funct3 != $$ WO~1~0~1;    (* 0b?01 are the shift instructions              *)
         LET not_add      <- #funct3_not0;
         LET not_ecall    <- #funct3_not0;
 
     (* Format Checks     *)
-        LET OP_IMM_ok    <- #not_sr                    (* 0b?01 are the shift instructions              *)
+        LET OP_IMM_ok    <- #not_sr
                             || #funct7z0;              (* || #funct7sz0 in RV32                         *)
         LET OP_IMM_32_ok <- #not_sr
                             || #funct7sz0;
@@ -189,7 +189,8 @@ Section Decoder.
                             );
         LET BRANCH_ok    <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
         LET JALR_ok      <- ! #funct3_not0;
-        LET LOAD_ok      <- #funct3 != $$ Unused_L1;   (* In RV32 remember to add checks for LD and LWU *) (* TODO : IMPORTANT! : Check if LOAD destination is x0 *)
+        LET LOAD_ok      <- #funct3 != $$ Unused_L1    (* In RV32 remember to add checks for LD and LWU *)
+                            && #rd != $$ (natToWord 5 0);
         LET STORE_ok     <- #funct3m1_0;               (* In RV32 remember to add check for SD          *)
         LET e0           <- {<(instr$[31:21]),(instr$[19:15]),(instr$[11:7])>} == $$ (natToWord 21 0);
         LET SYSTEM_ok    <- ( #not_ecall               (* Note that ECALL and EBREAK have same funct3   *)
@@ -308,14 +309,4 @@ Section Decoder.
         Ret #decoded
     ). Defined.
 End Decoder.
-
-Definition mkDecoder :=
-    MODULE {
-        Rule "decode" :=
-            ( Call inst : Bit 32 <- "getInst"();
-              LETA dInst <- Decode_action #inst;
-              Call "decodedInst"(#dInst: DInst);
-              Retv
-            )
-    }%kami_expr.
 

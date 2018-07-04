@@ -22,3 +22,5 @@ clean:: Makefile.coq.all Makefile.coq.src
 	rm -f *.hi *.o
 	rm -f Makefile.coq.all
 	rm -f Makefile.coq.src
+	rm -f Makefile.coq.all.conf
+	rm -f Makefile.coq.src.conf
