@@ -1,6 +1,5 @@
 Require Import Kami.Syntax Decode Control Execute bbv.HexNotationWord.
 
-
 Section Process.
     Definition MemCtrl := STRUCT {
         "memOp"  :: Bit 2  ;
@@ -13,9 +12,28 @@ Section Process.
         "rd_val" :: Bit 64
     }.
     Open Scope kami_expr.
+    Definition RegisterFile_module :=
+        MODULE {
+            Register "rf" : Array 32 (Bit 64) <- ConstArray (fun _ => (64'h"0000000000000000"))
+        with Method "rfRead1" (r1 : Bit 5) : (Bit 64) :=
+                Read  rf  : Array 32 (Bit 64) <- "rf";
+                LET   val : _                 <- #rf @[ #r1 ];
+                Ret  #val
+        with Method "rfRead2" (r2 : Bit 5) : (Bit 64) :=
+                Read  rf  : Array 32 (Bit 64) <- "rf";
+                LET   val : _                 <- #rf @[ #r2 ];
+                Ret  #val
+        with Method "rfWrite" (c : RFCtrl) : (Bit 0) :=
+                If (#c @% "werf") then
+                    Read  rf  : Array 32 (Bit 64) <- "rf";
+                    LET   new                     <- #rf @[ (#c @% "rd") <- (#c @% "rd_val") ];
+                    Write "rf"                    <- #new;
+                    Retv;
+                Retv
+        }.
     Definition Processor :=
         MODULE {
-            Register "pc" : (Bit 64) <- (64'h"10000000") with
+            Register "pc" : (Bit 64) <- (64'h"0000000010000000") with
             Rule "step" :=
                 Read  pc      : _ <- "pc";
                 Call  instr   : _ <- "getInstr"(#pc : _);
@@ -39,6 +57,6 @@ Section Process.
                                      };
                 Call                 "rfWrite"(#rfCtrl : _);
                 Write "pc"        <- #update @% "new_pc";
-            Retv
+                Retv
         }.
 End Process.
