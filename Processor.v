@@ -49,3 +49,5 @@ Definition rtlMod := getRtl (nil, (RegFile "data"
                                    Processor
                             )).
 Close Scope string.
+
+Extraction "Target.hs" rtlMod size RtlModule WriteRegFile.
