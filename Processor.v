@@ -6,31 +6,7 @@ Section Process.
         "memAdr" :: Bit 64 ;
         "memDat" :: Bit 64
     }.
-    Definition RFCtrl := STRUCT {
-        "werf"   :: Bool   ;
-        "rd"     :: Bit 5  ;
-        "rd_val" :: Bit 64
-    }.
     Open Scope kami_expr.
-    Definition RegisterFile_module :=
-        MODULE {
-            Register "rf" : Array 32 (Bit 64) <- ConstArray (fun _ => (64'h"0000000000000000"))
-        with Method "rfRead1" (r1 : Bit 5) : (Bit 64) :=
-                Read  rf  : Array 32 (Bit 64) <- "rf";
-                LET   val : _                 <- #rf @[ #r1 ];
-                Ret  #val
-        with Method "rfRead2" (r2 : Bit 5) : (Bit 64) :=
-                Read  rf  : Array 32 (Bit 64) <- "rf";
-                LET   val : _                 <- #rf @[ #r2 ];
-                Ret  #val
-        with Method "rfWrite" (c : RFCtrl) : (Bit 0) :=
-                If (#c @% "werf") then
-                    Read  rf  : Array 32 (Bit 64) <- "rf";
-                    LET   new                     <- #rf @[ (#c @% "rd") <- (#c @% "rd_val") ];
-                    Write "rf"                    <- #new;
-                    Retv;
-                Retv
-        }.
     Definition Processor :=
         MODULE {
             Register "pc" : (Bit 64) <- (64'h"0000000010000000") with
@@ -51,12 +27,25 @@ Section Process.
                 Call  memResp : _ <- "memAction"(#memCtrl : _);
                 LETA  update      <- Execute2_action #ctrlSig #csr_val #eInst #memResp;
                 LET   rfCtrl      <- STRUCT {
-                                       "werf"   ::= #ctrlSig @% "werf";
-                                       "rd"     ::= #dInst @% "rd";
-                                       "rd_val" ::= #update @% "new_rd"
+                                       "addr" ::= #dInst @% "rd";
+                                       "data" ::= #update @% "new_rd"
                                      };
-                Call                 "rfWrite"(#rfCtrl : _);
+                If (#ctrlSig @% "werf")
+                then (Call "rfWrite"(#rfCtrl : _); Retv)
+                else Retv;
                 Write "pc"        <- #update @% "new_pc";
                 Retv
         }.
 End Process.
+
+Require Import Kami.Compile Kami.Extraction.
+
+Open Scope string.
+Definition rtlMod := getRtl (nil, (RegFile "data"
+                                           ("rfRead1" :: "rfRead2" :: nil)
+                                           "rfWrite"
+                                           32
+                                           (Some (ConstBit (natToWord 64 0))) :: nil,
+                                   Processor
+                            )).
+Close Scope string.
