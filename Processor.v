@@ -3,6 +3,7 @@ Require Import Kami.Syntax Decode Control Execute.
 Section Process.
     Definition MemCtrl := STRUCT {
         "memWrEn" :: Bool   ;
+        "memMask" :: Bit 8  ;
         "memAdr"  :: Bit 64 ;
         "memDat"  :: Bit 64
     }.
@@ -21,6 +22,7 @@ Section Process.
                 LETA  eInst       <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
                 LET   memCtrl     <- STRUCT {
                                        "memWrEn" ::= (#ctrlSig @% "memOp" == $$ Mem_store);
+                                       "memMask" ::= #eInst @% "memMask";
                                        "memAdr"  ::= #eInst @% "memAdr";
                                        "memDat"  ::= #eInst @% "memDat"
                                      };
@@ -29,7 +31,7 @@ Section Process.
                                                             Ret #memResp)
                                                        else Ret $$ (natToWord 64 0) as memResp;
 
-                LETA  update      <- Execute2_action #ctrlSig #csr_val #eInst #memResp;
+                LETA  update      <- Execute2_action #dInst #ctrlSig #csr_val #eInst #memResp;
                 LET   rfCtrl      <- STRUCT {
                                        "addr" ::= #dInst @% "rd";
                                        "data" ::= #update @% "new_rd"

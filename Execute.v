@@ -9,7 +9,8 @@ Section Execute1.
         "twiddleOut" :: Bit 64 ;
         "compOut"    :: Bool   ;
         "memAdr"     :: Bit 64 ;
-        "memDat"     :: Bit 64
+        "memDat"     :: Bit 64 ;
+        "memMask"    :: Bit 8
     }.
 
     Variable pc : Bit 64 @# ty.
@@ -86,6 +87,12 @@ Section Execute1.
 
         LET memAdr   <- #aluOut;
         LET memDat   <- rs2_val;
+        LET memMask  <- Switch (#funct3 $[ 1 : 0 ]) Retn (Bit 8) With {
+                            $$ WO~0~0 ::= $$ WO~0~0~0~0~0~0~0~1;
+                            $$ WO~0~1 ::= $$ WO~0~0~0~0~0~0~1~1;
+                            $$ WO~1~0 ::= $$ WO~0~0~0~0~1~1~1~1;
+                            $$ WO~1~1 ::= $$ WO~1~1~1~1~1~1~1~1
+                        };
 
         (* BREAK *)
 
@@ -95,7 +102,8 @@ Section Execute1.
                                 "twiddleOut" ::= #twiddleOut ;
                                 "compOut"    ::= #compOut    ;
                                 "memAdr"     ::= #memAdr     ;
-                                "memDat"     ::= #memDat
+                                "memDat"     ::= #memDat     ;
+                                "memMask"    ::= #memMask
                             };
         Ret #eInst
     ). Defined.
@@ -109,6 +117,7 @@ Section Execute2.
         "rd_val" :: Bit 64
     }.
 
+    Variable dInst   : DInst   @# ty.
     Variable ctrlSig : CtrlSig @# ty.
     Variable csr_val : Bit 64  @# ty.
     Variable eInst   : EInst   @# ty.
@@ -117,6 +126,7 @@ Section Execute2.
     Open Scope kami_action.
     Definition Execute2_action : ActionT ty Update.
     exact(
+        LET funct3   <- dInst @% "funct3"    ;
         LET pcSrc    <- ctrlSig @% "pcSrc" ;
         LET lsb0     <- ctrlSig @% "lsb0"  ;
         LET rdSrc    <- ctrlSig @% "rdSrc" ;
@@ -125,6 +135,17 @@ Section Execute2.
         LET compOut  <- eInst @% "compOut" ;
 
         (* STATE UPDATE *)
+
+        LET low8     <- memResp $[ 7 : 0 ];
+        LET low16    <- memResp $[ 15 : 0 ];
+        LET low32    <- memResp $[ 31 : 0 ];
+        LET uext     <- #funct3 $[ 2 : 2] == $$ WO~1;
+        LET memLoad  <- Switch (#funct3 $[ 1 : 0 ]) Retn (Bit 64) With {
+                            $$ WO~0~0 ::= IF #uext then (ZeroExtend 56 #low8) else (SignExtend 56 #low8);
+                            $$ WO~0~1 ::= IF #uext then (ZeroExtend 48 #low16) else (SignExtend 48 #low16);
+                            $$ WO~1~0 ::= IF #uext then (ZeroExtend 32 #low32) else (SignExtend 32 #low32);
+                            $$ WO~1~1 ::= memResp
+                        };
 
         LET aligned  <- {< (#aluOut $[ 63 : 1 ]) , $$ WO~0 >};
         LET new_pc   <- Switch #pcSrc Retn (Bit 64) With {
@@ -137,7 +158,7 @@ Section Execute2.
         LET rd_val   <- Switch #rdSrc Retn (Bit 64) With {
                             $$ Rd_aluOut  ::= #aluOut;
                             $$ Rd_pcPlus4 ::= #pcPlus4;
-                            $$ Rd_memRead ::= memResp;
+                            $$ Rd_memRead ::= #memLoad;
                             $$ Rd_csr     ::= csr_val
                         };
         LET update : Update <- STRUCT {
