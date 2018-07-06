@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Decode Control Execute bbv.HexNotationWord.
+Require Import Kami.Syntax Decode Control Execute.
 
 Section Process.
     Definition MemCtrl := STRUCT {
@@ -9,7 +9,7 @@ Section Process.
     Open Scope kami_expr.
     Definition Processor :=
         MODULE {
-            Register "pc" : (Bit 64) <- (64'h"0000000010000000") with
+            Register "pc" : (Bit 64) <- (WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0) with
             Rule "step" :=
                 Read  pc      : _ <- "pc";
                 Call  instr   : _ <- "getInstr"(#pc : _);
@@ -30,9 +30,9 @@ Section Process.
                                        "addr" ::= #dInst @% "rd";
                                        "data" ::= #update @% "new_rd"
                                      };
-                If (#ctrlSig @% "werf")
-                then (Call "rfWrite"(#rfCtrl : _); Retv)
-                else Retv;
+                If (#ctrlSig @% "werf") then Call "rfWrite"(#rfCtrl : _);
+                                             Retv
+                                        else Retv;
                 Write "pc"        <- #update @% "new_pc";
                 Retv
         }.
@@ -46,8 +46,7 @@ Definition rtlMod := getRtl (nil, (RegFile "data"
                                            "rfWrite"
                                            32
                                            (Some (ConstBit (natToWord 64 0))) :: nil,
-                                   Processor
-                            )).
+                                   Processor)).
 Close Scope string.
 
 Extraction "Target.hs" rtlMod size RtlModule WriteRegFile.

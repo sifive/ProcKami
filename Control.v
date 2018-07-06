@@ -97,7 +97,7 @@ Section Control.
         LET aluInB   <- IF #isOP
                         then $$ InB_rs2
                         else $$ InB_imm;
-        LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #isSTORE || (#isSYSTEM && #funct3_0));
+        LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #isSTORE || (#isSYSTEM && #funct3_0) || #opcode == $$ Major_MISC_MEM || dInst @% "rd" == $$ (natToWord 5 0));
         LET rdSrc    <- IF #isJ
                         then $$ Rd_pcPlus4
                         else (IF #isSYSTEM
