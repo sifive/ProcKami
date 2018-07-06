@@ -1,3 +1,4 @@
+obj_dir
 .*.aux
 .coqdeps.d
 *.glob
