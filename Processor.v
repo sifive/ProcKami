@@ -2,14 +2,14 @@ Require Import Kami.Syntax Decode Control Execute.
 
 Section Process.
     Definition MemCtrl := STRUCT {
-        "memOp"  :: Bit 2  ;
-        "memAdr" :: Bit 64 ;
-        "memDat" :: Bit 64
+        "memWrEn" :: Bool   ;
+        "memAdr"  :: Bit 64 ;
+        "memDat"  :: Bit 64
     }.
     Open Scope kami_expr.
     Definition Processor :=
         MODULE {
-            Register "pc" : (Bit 64) <- (WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0) with
+            Register "pc" : (Bit 64) <- (natToWord 64 0) with
             Rule "step" :=
                 Read  pc      : _ <- "pc";
                 Call  instr   : _ <- "getInstr"(#pc : _);
@@ -20,11 +20,15 @@ Section Process.
                 LET   csr_val     <- $$ (natToWord 64 0);
                 LETA  eInst       <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
                 LET   memCtrl     <- STRUCT {
-                                       "memOp"  ::= #ctrlSig @% "memOp";
-                                       "memAdr" ::= #eInst @% "memAdr";
-                                       "memDat" ::= #eInst @% "memDat"
+                                       "memWrEn" ::= (#ctrlSig @% "memOp" == $$ Mem_store);
+                                       "memAdr"  ::= #eInst @% "memAdr";
+                                       "memDat"  ::= #eInst @% "memDat"
                                      };
-                Call  memResp : _ <- "memAction"(#memCtrl : _);
+
+                If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call  memResp : _ <- "memAction"(#memCtrl : _);
+                                                            Ret #memResp)
+                                                       else Ret $$ (natToWord 64 0) as memResp;
+
                 LETA  update      <- Execute2_action #ctrlSig #csr_val #eInst #memResp;
                 LET   rfCtrl      <- STRUCT {
                                        "addr" ::= #dInst @% "rd";
