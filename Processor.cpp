@@ -28,7 +28,7 @@ int main(int argc, char ** argv, char **env) {
   int ready_top = 0;
   uint32_t outtop, outchisel;
 
-  uint64_t iMem = 240;
+  uint64_t iMem = 0x00108093;
   uint64_t dMem = 0;
 
 
@@ -47,7 +47,7 @@ int main(int argc, char ** argv, char **env) {
     top->eval();
 
     printf("memAction_en: %d\n", top->memAction__024_enable);
-    printf("memAction_argument %x%x%x%x%x\n",
+    printf("memAction_argument %x %x %x %x %x\n",
       top->memAction__024_argument[4],
       top->memAction__024_argument[3],
       top->memAction__024_argument[2],
