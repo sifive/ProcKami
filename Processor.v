@@ -41,7 +41,7 @@ End Process.
 Require Import Kami.Compile Kami.Extraction.
 
 Open Scope string.
-Definition rtlMod := getRtl (nil, (RegFile "data"
+Definition rtlMod := getRtl (nil, (RegFile "RF"
                                            ("rfRead1" :: "rfRead2" :: nil)
                                            "rfWrite"
                                            32
