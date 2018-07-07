@@ -4,18 +4,18 @@
 #include <cstdlib>
 #include "verilated_vcd_c.h"
 
-#include "Vtop.h"
+#include "Vsystem.h"
 
 int main(int argc, char ** argv, char **env) {
   Verilated::commandArgs(argc, argv);
   Verilated::traceEverOn(true);
 
-  Vtop* top = new Vtop;
+  Vsystem* top = new Vsystem;
   VerilatedVcdC* tfp = new VerilatedVcdC;
   top->trace(tfp,99);
   tfp->open("trace.vcd");
 
-  
+
   uint32_t in;
   uint8_t roundMode;
 
@@ -28,18 +28,18 @@ int main(int argc, char ** argv, char **env) {
   int ready_top = 0;
   uint32_t outtop, outchisel;
 
-  uint64_t iMem = 0x00108093;
-  uint64_t dMem = 0;
+  //uint64_t iMem = 0x00108093;
+  //uint64_t dMem = 0;
 
 
-  while(!Verilated::gotFinish() && main_time < 1000){
+  while(!Verilated::gotFinish() && main_time < 100){
     top->CLK = main_time%2;
     if(main_time < 10)
       top->RESET = 1;
     else top->RESET = 0;
-    
-    top->eval();
 
+    top->eval();
+    /*
     printf("inst: %x\n", top->getInstr__024_argument);
     top->getInstr__024_return = iMem;
     iMem ++;
@@ -56,7 +56,7 @@ int main(int argc, char ** argv, char **env) {
     );
     top->memAction__024_return = dMem;
     dMem ++;
-
+    */
     tfp->dump(main_time);
     main_time++;
   }

@@ -152,7 +152,7 @@ Section Execute2.
                             $$ PC_pcPlus4   ::= #pcPlus4;
                             $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
                             $$ PC_comp      ::= IF #compOut then #aluOut else #pcPlus4;
-                            $$ PC_Exception ::= $$ WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
+                            $$ PC_Exception ::= $$ WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
                         };
 
         LET rd_val   <- Switch #rdSrc Retn (Bit 64) With {
