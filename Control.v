@@ -67,6 +67,7 @@ Section Control.
         LET opcode   <- dInst @% "opcode";
         LET funct3   <- dInst @% "funct3";
         LET bit30    <- dInst @% "bit30";
+        LET isBRANCH <- #opcode == $$ Major_BRANCH;
         LET isJALR   <- #opcode == $$ Major_JALR;
         LET isJAL    <- #opcode == $$ Major_JAL;
         LET isJ      <- #isJALR || #isJAL;
@@ -81,7 +82,7 @@ Section Control.
                         then $$ PC_Exception
                         else (IF #isJ
                               then $$ PC_aluOut
-                              else (IF #opcode == $$ Major_BRANCH
+                              else (IF #isBRANCH
                                     then $$ PC_comp
                                     else $$ PC_pcPlus4
                               )
@@ -92,12 +93,14 @@ Section Control.
                         then STRUCT { "opr" ::= #funct3 ; "opt" ::= IF (#isIMM && !#isShift) then $$WO~0 else #bit30 }
                         else STRUCT { "opr" ::= $$ Minor_ADD_SUB ; "opt" ::= $$WO~0 };
         LET aluInA   <- IF #opcode == $$ Major_AUIPC
+                        || #isJAL
+                        || #isBRANCH
                         then $$ InA_pc
                         else $$ InA_rs1;
         LET aluInB   <- IF #isOP
                         then $$ InB_rs2
                         else $$ InB_imm;
-        LET werf     <- !(#illegal || #opcode == $$ Major_BRANCH || #isSTORE || (#isSYSTEM && #funct3_0) || #opcode == $$ Major_MISC_MEM || dInst @% "rd" == $$ (natToWord 5 0));
+        LET werf     <- !(#illegal || #isBRANCH || #isSTORE || (#isSYSTEM && #funct3_0) || #opcode == $$ Major_MISC_MEM || dInst @% "rd" == $$ (natToWord 5 0));
         LET rdSrc    <- IF #isJ
                         then $$ Rd_pcPlus4
                         else (IF #isSYSTEM
