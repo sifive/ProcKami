@@ -1,5 +1,13 @@
 Require Import Kami.Syntax Decode Control Execute.
 
+Open Scope kami_action.
+Definition IndexWrite ty A D
+    (addr: Bit A @# ty) (data: D @# ty) (regMap: list (word A * string)) :=
+    fold_right (fun (x : word A * string) acc => If (addr == $$ (fst x))
+                                                 then Write (snd x)%string <- data; Retv; acc
+                ) Retv regMap.
+Close Scope kami_action.
+
 Section Process.
     Definition MemCtrl := STRUCT {
         "memWrEn" :: Bool   ;
