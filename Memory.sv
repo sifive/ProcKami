@@ -1,4 +1,5 @@
 module mkRAM(input clk,
+             input reset,
 
              input [63:0] pc,
              output reg [31:0] instr,
@@ -31,7 +32,7 @@ module mkRAM(input clk,
 
     // Data Writeback
     always @(posedge clk) begin
-        if (wren) begin
+        if (wren && !reset) begin
             if (mask[7])
                 block[adL+7] <= data[63:56];
             if (mask[6])

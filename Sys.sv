@@ -27,7 +27,7 @@ module system(
     top theTop(.CLK(CLK), .RESET(RESET), .getInstr$_return(instr), .memAction$_return(resp),
         .getInstr$_argument(pc), .memAction$_argument(memCtrl), .getInstr$_enable(void0), .memAction$_enable(wren));
 
-    mkRAM theRAM(.clk(CLK), .pc(pc), .addr(addr), .data(data), .wren(wren), .mask(mask),
+    mkRAM theRAM(.clk(CLK), .reset(RESET), .pc(pc), .addr(addr), .data(data), .wren(wren), .mask(mask),
           .instr(instr), .iException(void1), .resp(resp), .dException(void2));
 
 endmodule
