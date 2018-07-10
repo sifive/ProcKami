@@ -17,8 +17,8 @@ module mkRAM(input clk,
 
     initial $readmemh("MemoryInit.hex", block);
 
-    assign iException = (pc[63:20] != 44'0);
-    assign dException = (addr[63:20] != 44'0);
+    assign iException = ({pc[63:32], pc[30:20]} != 43'0);    // Allows instructions in the ranges 0x0000,0000,000x,xxxx
+    assign dException = ({addr[63:32], addr[30:20} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
 
     wire wren;
     assign wren = memo[0];
