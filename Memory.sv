@@ -7,7 +7,7 @@ module mkRAM(input clk,
 
              input [63:0] addr,
              input [63:0] data,
-             input wren,
+             input [1:0] memo,
              input [7:0] mask,
              output [63:0] resp,
              output dException
@@ -19,6 +19,9 @@ module mkRAM(input clk,
 
     assign iException = (pc[63:20] != 44'0);
     assign dException = (addr[63:20] != 44'0);
+
+    wire wren;
+    assign wren = memo[0];
 
     // Instruction Read
     wire [19:0] pcL;

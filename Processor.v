@@ -25,7 +25,7 @@ End Test.
 
 Section Process.
     Definition MemCtrl := STRUCT {
-        "memWrEn" :: Bool   ;
+        "memOp"   :: Bit 2  ;
         "memMask" :: Bit 8  ;
         "memAdr"  :: Bit 64 ;
         "memDat"  :: Bit 64
@@ -49,7 +49,7 @@ Section Process.
 
                 LETA  eInst       <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
                 LET   memCtrl     <- STRUCT {
-                                       "memWrEn" ::= (#ctrlSig @% "memOp" == $$ Mem_store);
+                                       "memOp"   ::= #ctrlSig @% "memOp";
                                        "memMask" ::= #eInst @% "memMask";
                                        "memAdr"  ::= #eInst @% "memAdr";
                                        "memDat"  ::= #eInst @% "memDat"

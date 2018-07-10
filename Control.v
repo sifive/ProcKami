@@ -23,8 +23,8 @@ Section Control.
     Definition Rd_memRead   := WO~1~0.
     Definition Rd_csr       := WO~1~1.
 
-    (* memOp *)
-    Definition Mem_off      := WO~0~0. (* or WO~0~1 *)
+    (* memOp *)                        (* Remember to update Memory.sv if this order is changed *)
+    Definition Mem_off      := WO~0~0.
     Definition Mem_load     := WO~1~0.
     Definition Mem_store    := WO~1~1.
 
