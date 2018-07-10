@@ -6,7 +6,7 @@ module system(
     input RESET
 );
     wire [63:0] pc;
-    wire [63:0] instr;
+    wire [31:0] instr;
 
     wire wren;
     wire [63:0] addr;
