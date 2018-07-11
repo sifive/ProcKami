@@ -15,13 +15,13 @@ Definition IndexRead ty A D
                 ) regMap (Ret $$ (natToWord D 0)).
 Close Scope kami_action.
 
-Section Test.
+(*Section Test.
     Variable ty : Kind -> Type.
     Open Scope kami_expr.
     Compute IndexWrite ((WO~0~0, "foo") :: (WO~1~0, "bar") :: nil) ($$ WO~0~0) ($$ true).
     Compute IndexRead 8 ((WO~0~0, "foo") :: (WO~1~0, "bar") :: nil) ($$ WO~0~0).
     Close Scope kami_expr.
-End Test.
+End Test.*)
 
 Section Process.
     Definition MemCtrl := STRUCT {
@@ -67,16 +67,18 @@ Section Process.
                 If (#ctrlSig @% "werf") then Call "rfWrite"(#rfCtrl : _);
                                              Retv
                                         else Retv;
-                Write "pc"        <- #update @% "new_pc";
 
-                If (#ctrlSig @% "wecsr") then IndexWrite CSRmap
+                (* This section causes a combinational loop due to a bug in the compiler *)
+(*              If (#ctrlSig @% "wecsr") then IndexWrite CSRmap
                                                          (#dInst @% "csradr")
                                                          (#eInst @% "twiddleOut")
                                         else Retv;
-
+*)
                 If (#dInst @% "illegal") then Write "mepc" <- #pc;
                                               Retv
                                          else Retv;
+
+                Write "pc"        <- #update @% "new_pc";
 
                 Retv
         }.

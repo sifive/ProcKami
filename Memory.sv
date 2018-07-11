@@ -1,5 +1,6 @@
 module mkRAM(input clk,
              input reset,
+             input enable,
 
              input [63:0] pc,
              output reg [31:0] instr,
@@ -18,10 +19,10 @@ module mkRAM(input clk,
     initial $readmemh("MemoryInit.hex", block);
 
     assign iException = ({pc[63:32], pc[30:20]} != 43'0);    // Allows instructions in the ranges 0x0000,0000,000x,xxxx
-    assign dException = ({addr[63:32], addr[30:20} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
+    assign dException = ({addr[63:32], addr[30:20]} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
 
     wire wren;
-    assign wren = memo[0];
+    assign wren = memo[0] && enable;
 
     // Instruction Read
     wire [19:0] pcL;
@@ -31,7 +32,7 @@ module mkRAM(input clk,
     // Data Read
     wire [19:0] adL;
     assign adL = addr[19:0];
-    assign resp = wren ? 64'0 : ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
+    assign resp = (memo[0] || !enable) ? 64'0 : ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
 
     // Data Writeback
     always @(posedge clk) begin
