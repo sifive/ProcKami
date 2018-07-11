@@ -4,8 +4,8 @@ fn = ARGV[0]
 (puts "rv-hex: no file given"; exit) if fn.nil?
 fn = fn[0...-2] if fn[-2..-1]=='.S'
 
-as = '~/riscv64-unknown-elf-gcc-20171231-x86_64-apple-darwin/bin/riscv64-unknown-elf-as'
-oc = '~/riscv64-unknown-elf-gcc-20171231-x86_64-apple-darwin/bin/riscv64-unknown-elf-objcopy -O verilog'
+as = 'riscv64-unknown-elf-as'
+oc = 'riscv64-unknown-elf-objcopy -O verilog'
 
 system("#{as} #{fn}.S -o #{fn}.elf") || (puts "rv-hex: #{fn}.S: assembler failed"; exit)
 system("#{oc} #{fn}.elf #{fn}.hex") || (puts "rv-hex: #{fn}.elf: obj-copy failed"; exit)

@@ -10,7 +10,8 @@ module mkRAM(input clk,
              input [1:0] memo,
              input [7:0] mask,
              output [63:0] resp,
-             output dException
+             output dException,
+             input memEn
             );
 
     reg [7:0] block [1048575:0];  // 1 MiB mapped to 0x0000,0000,0000,0000 - 0x0000,0000,000F,FFFF
@@ -18,10 +19,9 @@ module mkRAM(input clk,
     initial $readmemh("MemoryInit.hex", block);
 
     assign iException = ({pc[63:32], pc[30:20]} != 43'0);    // Allows instructions in the ranges 0x0000,0000,000x,xxxx
-    assign dException = ({addr[63:32], addr[30:20} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
+    assign dException = ({addr[63:32], addr[30:20]} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
 
     wire wren;
-    assign wren = memo[0];
 
     // Instruction Read
     wire [19:0] pcL;
@@ -31,11 +31,12 @@ module mkRAM(input clk,
     // Data Read
     wire [19:0] adL;
     assign adL = addr[19:0];
+    assign wren = memo == 2'b11;
     assign resp = wren ? 64'0 : ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
 
     // Data Writeback
     always @(posedge clk) begin
-        if (wren && !reset) begin
+        if (memEn && wren && !reset) begin
             if (mask[7])
                 block[adL+7] <= data[63:56];
             if (mask[6])

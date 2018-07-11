@@ -4,5 +4,4 @@ fn = ARGV[0]
 (puts "rv-run: no file given"; exit) if fn.nil?
 fn = fn[0...-4] if fn[-4..-1]=='.hex'
 
-system("mv #{fn}.hex ~/ProcKami/MemoryInit.hex") || (puts "rv-run: #{fn}.hex: mv failed"; exit)
-system("cd ~/ProcKami && ./doGenerate.sh") || (puts "rv-run: doGenerate failed"; exit)
+system("mv #{fn}.hex ./MemoryInit.hex") || (puts "rv-run: #{fn}.hex: mv failed"; exit)
