@@ -68,12 +68,11 @@ Section Process.
                                              Retv
                                         else Retv;
 
-                (* This section causes a combinational loop due to a bug in the compiler *)
-(*              If (#ctrlSig @% "wecsr") then IndexWrite CSRmap
+                If (#ctrlSig @% "wecsr") then IndexWrite CSRmap
                                                          (#dInst @% "csradr")
                                                          (#eInst @% "twiddleOut")
                                         else Retv;
-*)
+
                 If (#dInst @% "illegal") then Write "mepc" <- #pc;
                                               Retv
                                          else Retv;
