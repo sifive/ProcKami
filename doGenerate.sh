@@ -10,7 +10,7 @@ riscv64-unknown-elf-as ${fn}.S -o ${fn}.elf
 riscv64-unknown-elf-objcopy -O verilog ${fn}.elf ./MemoryInit.hex
 rm ${fn}.elf
 rm -rf obj_dir
-verilator -O0 --top-module system -Wno-CMPCONST -Wno-WIDTH --cc Sys.sv --trace --trace-underscore -Wno-fatal --exe System.cpp
+verilator --top-module system -Wno-CMPCONST -Wno-WIDTH --cc Sys.sv --trace --trace-underscore -Wno-fatal --exe System.cpp
 make -j -C obj_dir -f Vsystem.mk Vsystem
 ./obj_dir/Vsystem
 
