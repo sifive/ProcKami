@@ -228,6 +228,7 @@ Section Decoder.
         LET SYS_rs1      <- #not_ecall && #funct3m1_0;
         LET SYS_rd       <- #not_ecall;
         LET SYS_csr      <- ! #not_ecall;
+        (* The keys struct is provided for tracking dependencies *)
         LET keys         <- Switch #opcode Retn DInstKeys With {
                                 $$ Major_OP_IMM    ::= STRUCT {"imm"     ::= #i_imm              ;
                                                                "rs1?"    ::= $$ true             ;
@@ -304,7 +305,8 @@ Section Decoder.
                                 "rs2"     ::= #rs2     ;
                                 "rd"      ::= #rd      ;
                                 "csradr"  ::= #csradr  ;
-                                "keys"    ::= #keys
+                                "keys"    ::= (#keys @%[ "rs1?" <- ((#keys @% "rs1?") && (#rs1 != $$ (natToWord 5 0))) ]
+                                                     @%[ "rs2?" <- ((#keys @% "rs2?") && (#rs2 != $$ (natToWord 5 0))) ])
                             };
         Ret #decoded
     ). Defined.

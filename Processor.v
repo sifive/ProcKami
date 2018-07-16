@@ -42,8 +42,22 @@ Section Process.
                 Call  instr   : _ <- "getInstr"(#pc : _);
                 LETA  dInst       <- Decode_action #instr ;
                 LETA  ctrlSig     <- Control_action #dInst ;
-                Call  rs1_val : _ <- "rfRead1"(#dInst @% "rs1" : _);
-                Call  rs2_val : _ <- "rfRead2"(#dInst @% "rs2" : _);
+
+                (* rdEn[1|2] covers both the case when (i) an instruction type
+                   does not require register reads, and when (ii) an instruction
+                   type ~does~ require register reads but the source register is x0
+                *)
+                LET   rdEn1       <- (#dInst @% "keys") @% "rs1?";
+                LET   rdEn2       <- (#dInst @% "keys") @% "rs2?";
+
+                If (#rdEn1) then (Call  rs1_val : _ <- "rfRead1"(#dInst @% "rs1" : _);
+                                  Ret #rs1_val)
+                            else Ret $$ (natToWord 64 0) as rs1_val;
+
+                If (#rdEn2) then (Call  rs2_val : _ <- "rfRead2"(#dInst @% "rs2" : _);
+                                  Ret #rs2_val)
+                            else Ret $$ (natToWord 64 0) as rs2_val;
+
 
                 LETA  csr_val     <- IndexRead _ CSRmap (#dInst @% "csradr");
 
@@ -56,7 +70,7 @@ Section Process.
                                      };
 
                 If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call  memResp : _ <- "memAction"(#memCtrl : _);
-                                                            Ret #memResp)
+                                                             Ret #memResp)
                                                        else Ret $$ (natToWord 64 0) as memResp;
 
                 LETA  update      <- Execute2_action #dInst #ctrlSig #csr_val #eInst #memResp;
@@ -71,7 +85,7 @@ Section Process.
                 If (#ctrlSig @% "wecsr") then IndexWrite CSRmap
                                                          (#dInst @% "csradr")
                                                          (#eInst @% "twiddleOut")
-                                        else Retv;
+                                         else Retv;
 
                 If (#dInst @% "illegal") then Write "mepc" <- #pc;
                                               Retv
