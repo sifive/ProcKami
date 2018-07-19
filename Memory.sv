@@ -4,22 +4,32 @@ module mkRAM(input clk,
 
              input [63:0] pc,
              output reg [31:0] instr,
-             output iException,
+             output [1:0] iException,
 
              input [63:0] addr,
              input [63:0] data,
              input [1:0] memo,
              input [7:0] mask,
              output [63:0] resp,
-             output dException
+             output [1:0] dException
             );
 
     reg [7:0] block [1048575:0];  // 1 MiB mapped to 0x0000,0000,0000,0000 - 0x0000,0000,000F,FFFF
 
     initial $readmemh("MemoryInit.hex", block);
 
-    assign iException = ({pc[63:32], pc[30:20]} != 43'0);    // Allows instructions in the ranges 0x0000,0000,000x,xxxx
-    assign dException = ({addr[63:32], addr[30:20]} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
+    wire iOutOfBounds;
+    wire dOutOfBounds;
+    assign iOutOfBounds = ({pc[63:32], pc[30:20]} != 43'0);    // Allows instructions in the ranges 0x0000,0000,000x,xxxx
+    assign dOutOfBounds = ({addr[63:32], addr[30:20]} != 43'0); // and 0x0000,0000,800x,xxxx. NOTE that they shadow each other.
+
+    wire iMisaligned;
+    wire dMisaligned;
+    assign iMisaligned = pc[0];
+    assign dMisaligned = 1'0;
+
+    assign iException = iOutOfBounds ? 2'b10 : (iMisaligned ? 2'b01 : 2'b00);
+    assign dException = dOutOfBounds ? 2'b10 : (dMisaligned ? 2'b01 : 2'b00);
 
     wire wren;
     assign wren = memo[0] && enable;

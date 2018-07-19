@@ -17,7 +17,7 @@ main:
 
 . = 0x100
 .ascii "1 DESSAP"
-.ascii "DELIAF.."
+.ascii "1 DELIAF"
 
 . = 0x400
 except:
@@ -26,6 +26,8 @@ except:
     beq     x2, x3, success
 
     ld      x1, 0x108(x0)
+    addi    x4, x1, 0x001
+    sd      x4, 0x108(x0)
     j       .
 
 success:
