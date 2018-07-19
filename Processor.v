@@ -23,7 +23,7 @@ Section Process.
         "memDat"  :: Bit 64
     }.
     Definition RFCtrl := WriteRq 32 (Bit 64).
-    Definition CSRmap := ((natToWord 12 833), "mepc") :: nil.
+    Definition CSRmap := ((natToWord 12 834), "mcause") :: ((natToWord 12 833), "mepc") :: nil.
     Open Scope kami_expr.
     Definition Processor :=
         MODULE {
@@ -89,9 +89,7 @@ Section Process.
                                                         (#eInst @% "twiddleOut")
                                         else Retv;
                 If (#update @% "except") then Write "mepc" <- #pc;
-                                              Retv
-                                         else Retv;
-                If (#update @% "except") then Write "mcause" <- #update @% "cause";
+                                              Write "mcause" <- ZeroExtend 60 (#update @% "cause");
                                               Retv
                                          else Retv;
                 Write "pc"        <- #update @% "new_pc";
@@ -109,4 +107,4 @@ Definition rtlMod := getRtl (nil, (RegFile "RF"
                                            (Some (ConstBit (natToWord 64 0))) :: nil,
                                    Processor)).
 
-Extraction "Target.hs" rtlMod size RtlModule WriteRegFile.
+Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit.

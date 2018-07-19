@@ -25,7 +25,7 @@ module mkRAM(input clk,
 
     wire iMisaligned;
     wire dMisaligned;
-    assign iMisaligned = pc[0];
+    assign iMisaligned = pc[1] || pc[0]; // = pc[0] only when running with the C extension
     assign dMisaligned = 1'0;
 
     assign iException = iOutOfBounds ? 2'b10 : (iMisaligned ? 2'b01 : 2'b00);

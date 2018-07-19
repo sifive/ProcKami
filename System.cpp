@@ -32,7 +32,7 @@ int main(int argc, char ** argv, char **env) {
   //uint64_t dMem = 0;
 
 
-  while(!Verilated::gotFinish() && main_time < 100){
+  while(!Verilated::gotFinish() && main_time < 1024){
     top->CLK = main_time%2;
     if(main_time < 10)
       top->RESET = 1;

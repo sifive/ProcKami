@@ -232,7 +232,7 @@ Section Decoder.
         LET LOAD_ok      <- #funct3 != $$ Unused_L1    (* In RV32 remember to add checks for LD and LWU *)
                             && #rd != $$ (natToWord 5 0);
         LET STORE_ok     <- #funct3msb0;               (* In RV32 remember to add check for SD          *)
-        LET e0           <- {<(#csradr$[11:1]),(#rs1),(#rs2)>} == $$ (natToWord 21 0);
+        LET e0           <- {<(#csradr$[11:1]),(#rs1),(#rd)>} == $$ (natToWord 21 0);
         LET SYSTEM_ok    <- ( #not_eca_ebr
                              || #e0
                             ) && (#funct3 != $$ Unused_C1);

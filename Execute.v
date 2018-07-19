@@ -159,7 +159,7 @@ Section Execute2.
                                   then $$ Exception_Ld_Access_Fault
                                   else (IF #misaligned
                                         then $$ Exception_Ld_Addr_Misal
-                                        else $$ (natToWord 4 0)
+                                        else $$ WO~0~0~0~0
                                   )
                             );
         LET final_OK     <- ! #final_except;
