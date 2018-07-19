@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Decode Control Execute.
+Require Import Kami.Syntax Kami.Extraction Decode Control Execute.
 
 Open Scope kami_action.
 Definition IndexWrite ty A D
@@ -102,15 +102,11 @@ Section Process.
         }.
 End Process.
 
-Require Import Kami.Compile Kami.Extraction.
-
-Open Scope string.
 Definition rtlMod := getRtl (nil, (RegFile "RF"
                                            ("rfRead1" :: "rfRead2" :: nil)
                                            "rfWrite"
                                            32
                                            (Some (ConstBit (natToWord 64 0))) :: nil,
                                    Processor)).
-Close Scope string.
 
 Extraction "Target.hs" rtlMod size RtlModule WriteRegFile.
