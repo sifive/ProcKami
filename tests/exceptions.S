@@ -22,7 +22,8 @@
 #   #7  Load access fault
 
 main:
-    j       test0
+    li      x16, 0x400
+    csrw    mtvec, x16
 
 test0:
     addi    x7, x0, 0x000   # set expected [mcause]

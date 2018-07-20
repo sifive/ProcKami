@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Decode Control.
+Require Import Kami.Syntax Decode Control bbv.HexNotationWord.
 
 Section Execute1.
     Variable ty : Kind -> Type.
@@ -118,14 +118,16 @@ Section Execute2.
     }.
 
     Definition Update := STRUCT {
-        "except" :: Bool   ;
-        "cause"  :: Bit 4  ;
-        "new_pc" :: Bit 64 ;
-        "werf"   :: Bool   ;
-        "rd_val" :: Bit 64 ;
-        "wecsr"  :: Bool
+        "except"    :: Bool   ;
+        "cause"     :: Bit 4  ;
+        "new_pc"    :: Bit 64 ;
+        "werf"      :: Bool   ;
+        "rd_val"    :: Bit 64 ;
+        "wecsr"     :: Bool   ;
+        "next_mode" :: Bit 2
     }.
 
+    Variable mode    : Bit 2   @# ty.
     Variable dInst   : DInst   @# ty.
     Variable ctrlSig : CtrlSig @# ty.
     Variable csr_val : Bit 64  @# ty.
@@ -185,7 +187,7 @@ Section Execute2.
                             $$ PC_pcPlus4   ::= #pcPlus4;
                             $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
                             $$ PC_comp      ::= IF #compOut then #aluOut else #pcPlus4;
-                            $$ PC_Exception ::= $$ (natToWord 64 1024) (* TODO: This needs to change! Depends on several factors. *)
+                            $$ PC_Exception ::= $$ (64'h"FFFFFFFFFFFFFFFF")
                         };
 
         LET rd_val   <- Switch #rdSrc Retn (Bit 64) With {
@@ -195,12 +197,13 @@ Section Execute2.
                             $$ Rd_csr     ::= csr_val
                         };
         LET update : Update <- STRUCT {
-                            "except" ::= #final_except ;
-                            "cause"  ::= #final_cause  ;
-                            "new_pc" ::= #new_pc       ;
-                            "werf"   ::= #final_werf   ;
-                            "rd_val" ::= #rd_val       ;
-                            "wecsr"  ::= #final_wecsr
+                            "except"    ::= #final_except ;
+                            "cause"     ::= #final_cause  ;
+                            "new_pc"    ::= #new_pc       ;
+                            "werf"      ::= #final_werf   ;
+                            "rd_val"    ::= #rd_val       ;
+                            "wecsr"     ::= #final_wecsr  ;
+                            "next_mode" ::= mode
                         };
         (* TODO: Add mode changes! *)
         Ret #update
