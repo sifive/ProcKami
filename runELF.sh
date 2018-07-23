@@ -1,7 +1,5 @@
 # !/bin/bash
 
-files=$(ls $1/*.dump)
-
 for g in $files; do
   f=${g%.dump}
   echo -ne "\x1B[31;1m"
