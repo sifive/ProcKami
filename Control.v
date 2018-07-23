@@ -4,10 +4,11 @@ Section Control.
     Variable ty : Kind -> Type.
 
     (* pcSrc *)
-    Definition PC_pcPlus4   := WO~0~0.
-    Definition PC_aluOut    := WO~0~1.
-    Definition PC_comp      := WO~1~0. (* pc+4 or aluOut depending on the result of the comparator *)
-    Definition PC_Exception := WO~1~1.
+    Definition PC_pcPlus4   := WO~0~0~0.
+    Definition PC_aluOut    := WO~0~0~1.
+    Definition PC_compare   := WO~0~1~0. (* pc+4 or aluOut depending on the result of the comparator *)
+    Definition PC_return    := WO~0~1~1. (* xepc if the instruction is xret *)
+    Definition PC_exception := WO~1~0~0. (* xtvec if an exception occurs *)
 
     (* aluInA *)
     Definition InA_rs1      := WO~0.
@@ -44,7 +45,7 @@ Section Control.
     }.
 
     Definition CtrlSig := STRUCT {
-        "pcSrc"   :: Bit 2  ;
+        "pcSrc"   :: Bit 3  ;
         "lsb0"    :: Bool   ; (* set LSB of [rs1+imm] as part of the JALR instruction *)
         "aluCfg"  :: AluCfg ;
         "aluInA"  :: Bit 1  ;
@@ -63,7 +64,7 @@ Section Control.
     Open Scope kami_action.
     Definition Control_action : ActionT ty CtrlSig.
     exact(
-        LET except   <- dInst @% "except";
+        LET except   <- dInst @% "except?";
         LET opcode   <- dInst @% "opcode";
         LET funct3   <- dInst @% "funct3";
         LET bit30    <- dInst @% "bit30";
@@ -78,13 +79,17 @@ Section Control.
         LET isSTORE  <- #opcode == $$ Major_STORE;
         LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE *)
         LET isShift  <- (#funct3 $[ 1 : 0 ]) == $$ WO~0~1;
+        LET isXret   <- #isSYSTEM && #funct3_0 && (dInst @% "rs2" == $$ WO~0~0~0~1~0);
         LET pcSrc    <- IF #except
-                        then $$ PC_Exception
-                        else (IF #isJ
-                              then $$ PC_aluOut
-                              else (IF #isBRANCH
-                                    then $$ PC_comp
-                                    else $$ PC_pcPlus4
+                        then $$ PC_exception
+                        else (IF #isXret
+                              then $$ PC_return
+                              else (IF #isJ
+                                    then $$ PC_aluOut
+                                    else (IF #isBRANCH
+                                          then $$ PC_compare
+                                          else $$ PC_pcPlus4
+                                    )
                               )
                         );
         LET lsb0     <- #isJALR;

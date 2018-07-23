@@ -40,9 +40,13 @@ Section Execute1.
 
         (* ARITHMETIC LOGIC UNIT *)
 
+        LET opcode   <- dInst @% "opcode";
+        LET w        <- (#opcode == $$ Major_OP_IMM_32) || (#opcode == $$ Major_OP_32);
+
         LET operandA : Bit (63+1) <- IF #aluInA == $$ InA_pc  then pc   else rs1_val;
         LET operandB : Bit (63+1) <- IF #aluInB == $$ InB_rs2 then rs2_val else #imm;
-        LET aluOut   <- Switch #aluOpr Retn (Bit 64) With {
+        LET lsw_opdA : Bit (63+1) <- {< ($$ (natToWord 32 0)), (#operandA $[ 31 : 0 ]) >};
+        LET full_aluOut <- Switch #aluOpr Retn (Bit 64) With {
                             $$ Minor_ADD  ::= IF #aluOpt == $$ WO~0
                                               then #operandA + #operandB
                                               else #operandA - #operandB;
@@ -56,10 +60,11 @@ Section Execute1.
                             $$ Minor_OR   ::= (#operandA | #operandB);
                             $$ Minor_XOR  ::= (#operandA ^ #operandB);
                             $$ Minor_SLL  ::= (#operandA << #operandB);
-                            $$ Minor_SRL  ::= IF #aluOpt == $$ WO~0
-                                              then (#operandA >> #operandB)
+                            $$ Minor_SR   ::= IF #aluOpt == $$ WO~0
+                                              then ((IF #w then #lsw_opdA else #operandA) >> #operandB)
                                               else (#operandA >>> #operandB)
                         };
+        LET aluOut   <- IF #w then (SignExtend 32 (#full_aluOut$[31:0])) else #full_aluOut;
 
         (* COMPARATOR *)
 
@@ -118,8 +123,9 @@ Section Execute2.
     }.
 
     Definition Update := STRUCT {
-        "except"    :: Bool   ;
+        "except?"   :: Bool   ;
         "cause"     :: Bit 4  ;
+        "ret?"      :: Bool   ;
         "new_pc"    :: Bit 64 ;
         "werf"      :: Bool   ;
         "rd_val"    :: Bit 64 ;
@@ -151,11 +157,13 @@ Section Execute2.
         LET aluOut   <- eInst @% "aluOut"  ;
         LET compOut  <- eInst @% "compOut" ;
 
+        LET ret      <- #pcSrc == $$ PC_return;
+
         LET access_fault <- #fault == $$ Memory_Access_Fault;
         LET misaligned   <- #fault == $$ Memory_Misaligned;
 
-        LET final_except <- (dInst @% "except") || #access_fault || #misaligned;
-        LET final_cause  <- IF dInst @% "except"
+        LET final_except <- (dInst @% "except?") || #access_fault || #misaligned;
+        LET final_cause  <- IF dInst @% "except?"
                             then dInst @% "cause"
                             else (IF #access_fault
                                   then $$ Exception_Ld_Access_Fault
@@ -165,7 +173,7 @@ Section Execute2.
                                   )
                             );
         LET final_OK     <- ! #final_except;
-        LET final_pcSrc  <- IF #final_except then $$ PC_Exception else #pcSrc;
+        LET final_pcSrc  <- IF #final_except then $$ PC_exception else #pcSrc;
         LET final_werf   <- #final_OK && #werf;
         LET final_wecsr  <- #final_OK && #wecsr;
 
@@ -186,8 +194,11 @@ Section Execute2.
         LET new_pc   <- Switch #final_pcSrc Retn (Bit 64) With {
                             $$ PC_pcPlus4   ::= #pcPlus4;
                             $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
-                            $$ PC_comp      ::= IF #compOut then #aluOut else #pcPlus4;
-                            $$ PC_Exception ::= $$ (64'h"FFFFFFFFFFFFFFFF")
+                            $$ PC_compare   ::= IF #compOut then #aluOut else #pcPlus4
+                            (* and because of the way Switch works, new_pc <- 0
+                               when #final_pcSrc is PC_return or PC_exception,
+                               although the value of new_pc in those cases does
+                               not matter *)
                         };
 
         LET rd_val   <- Switch #rdSrc Retn (Bit 64) With {
@@ -197,8 +208,9 @@ Section Execute2.
                             $$ Rd_csr     ::= csr_val
                         };
         LET update : Update <- STRUCT {
-                            "except"    ::= #final_except ;
+                            "except?"   ::= #final_except ;
                             "cause"     ::= #final_cause  ;
+                            "ret?"      ::= #ret          ;
                             "new_pc"    ::= #new_pc       ;
                             "werf"      ::= #final_werf   ;
                             "rd_val"    ::= #rd_val       ;
