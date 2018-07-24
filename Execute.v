@@ -47,6 +47,8 @@ Section Execute1.
         LET operandB : Bit (63+1) <- IF #aluInB == $$ InB_rs2 then rs2_val else #imm;
         LET zxt_opdA : Bit (63+1) <- ZeroExtend 32 (#operandA $[ 31 : 0 ]);
         LET sxt_opdA : Bit (63+1) <- SignExtend 32 (#operandA $[ 31 : 0 ]);
+        LET shamt    : Bit 6      <- IF #w then {< $$WO~0, (#operandB$[4:0]) >}
+                                           else #operandB $[ 5 : 0 ];
         LET full_aluOut <- Switch #aluOpr Retn (Bit 64) With {
                             $$ Minor_ADD  ::= IF #aluOpt == $$ WO~0
                                               then #operandA + #operandB
@@ -60,10 +62,10 @@ Section Execute1.
                             $$ Minor_AND  ::= (#operandA & #operandB);
                             $$ Minor_OR   ::= (#operandA | #operandB);
                             $$ Minor_XOR  ::= (#operandA ^ #operandB);
-                            $$ Minor_SLL  ::= (#operandA << #operandB);
+                            $$ Minor_SLL  ::= (#operandA << #shamt);
                             $$ Minor_SR   ::= IF #aluOpt == $$ WO~0
-                                              then ((IF #w then #zxt_opdA else #operandA) >> #operandB)
-                                              else ((IF #w then #sxt_opdA else #operandA) >>> #operandB)
+                                              then ((IF #w then #zxt_opdA else #operandA) >> #shamt)
+                                              else ((IF #w then #sxt_opdA else #operandA) >>> #shamt)
                         };
         LET aluOut   <- IF #w then (SignExtend 32 (#full_aluOut$[31:0])) else #full_aluOut;
 
@@ -75,8 +77,8 @@ Section Execute1.
                             $$ Minor_BNE  ::= ! #rsEq;
                             $$ Minor_BLT  ::= (rs1_val <s rs2_val);
                             $$ Minor_BLTU ::= (rs1_val < rs2_val);
-                            $$ Minor_BGE  ::= (rs2_val <s rs1_val);
-                            $$ Minor_BGEU ::= (rs2_val < rs1_val)
+                            $$ Minor_BGE  ::= (rs1_val >=s rs2_val);
+                            $$ Minor_BGEU ::= (rs1_val >= rs2_val)
                         };
 
         (* TWIDDLER *)

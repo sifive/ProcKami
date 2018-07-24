@@ -219,19 +219,21 @@ Section Decoder.
         LET fm           <- #instr $[ 31 : 28 ];
         LET pred         <- #instr $[ 27 : 24 ];
         LET succ         <- #instr $[ 23 : 20 ];
-        LET not_sr       <- #funct3 != $$ WO~1~0~1;    (* 0b?01 are the shift instructions              *)
-        LET not_add_sub  <- #funct3_not0;
+        LET sr           <- #funct3 == $$ WO~1~0~1;    (* 0b?01 are the shift instructions              *)
+        LET not_sr       <- ! #sr;
+        LET add_sub      <- #funct3_0;
 
     (* Format Checks     *)
         LET OP_IMM_ok    <- #not_sr
                             || #funct7z0;              (* || #funct7sz0 in RV32                         *)
         LET OP_IMM_32_ok <- #not_sr
                             || #funct7sz0;
-        LET OP_ok        <- (( #not_add_sub && #not_sr)
-                             || #funct7opt0
+        LET OP_ok        <-  ( #add_sub
+                            || #sr
+                            || #funct7opt0
                             ) && #funct7sz0;
-        LET OP_32_ok     <- (  ((! #not_add_sub) && #funct7sz0)
-                            || ((! #not_sr) && #funct7sz0)
+        LET OP_32_ok     <-  ( (#add_sub && #funct7sz0)
+                            || (#sr && #funct7sz0)
                             || ((#funct3 == $$ WO~0~0~1) && #funct7opt0)
                             );
         LET BRANCH_ok    <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
