@@ -276,7 +276,11 @@ Section Process.
               (******)
 
                 If ((#eInst @% "memAdr" == $$ (64'h"0000000080001000")) && (#ctrlSig @% "memOp" == $$ Mem_store))
-                    then Sys ((DispString _ "\033[34;1mWrite to Host ") :: (DispBit (#eInst @% "memDat") (2, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                    then (If #eInst @% "memDat" == $$ (64'h"0000000000000001")
+                          then Sys ((DispString _ "\033[32;1mWrite to Host ") :: (DispBit (#eInst @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                          else Sys ((DispString _ "\033[31;1mWrite to Host ") :: (DispBit (#eInst @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                        ; Retv
+                         )
                     else Retv;
 
                 Retv

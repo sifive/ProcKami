@@ -31,8 +31,9 @@ int main(int argc, char ** argv, char **env) {
   //uint64_t iMem = 0x00108093;
   //uint64_t dMem = 0;
 
+  uint32_t timeout = 2048;
 
-  while(!Verilated::gotFinish() && main_time < 1024){
+  while(!Verilated::gotFinish() && main_time < timeout){
     top->CLK = main_time%2;
     if(main_time < 10)
       top->RESET = 1;
@@ -59,6 +60,10 @@ int main(int argc, char ** argv, char **env) {
     */
     tfp->dump(main_time);
     main_time++;
+  }
+
+  if (main_time >= timeout) {
+      printf("\033[31;1mSimulation Timed Out\033[0m\n");
   }
 
   tfp->dump(main_time);

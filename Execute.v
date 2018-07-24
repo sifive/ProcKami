@@ -45,7 +45,8 @@ Section Execute1.
 
         LET operandA : Bit (63+1) <- IF #aluInA == $$ InA_pc  then pc   else rs1_val;
         LET operandB : Bit (63+1) <- IF #aluInB == $$ InB_rs2 then rs2_val else #imm;
-        LET lsw_opdA : Bit (63+1) <- {< ($$ (natToWord 32 0)), (#operandA $[ 31 : 0 ]) >};
+        LET zxt_opdA : Bit (63+1) <- ZeroExtend 32 (#operandA $[ 31 : 0 ]);
+        LET sxt_opdA : Bit (63+1) <- SignExtend 32 (#operandA $[ 31 : 0 ]);
         LET full_aluOut <- Switch #aluOpr Retn (Bit 64) With {
                             $$ Minor_ADD  ::= IF #aluOpt == $$ WO~0
                                               then #operandA + #operandB
@@ -61,8 +62,8 @@ Section Execute1.
                             $$ Minor_XOR  ::= (#operandA ^ #operandB);
                             $$ Minor_SLL  ::= (#operandA << #operandB);
                             $$ Minor_SR   ::= IF #aluOpt == $$ WO~0
-                                              then ((IF #w then #lsw_opdA else #operandA) >> #operandB)
-                                              else (#operandA >>> #operandB)
+                                              then ((IF #w then #zxt_opdA else #operandA) >> #operandB)
+                                              else ((IF #w then #sxt_opdA else #operandA) >>> #operandB)
                         };
         LET aluOut   <- IF #w then (SignExtend 32 (#full_aluOut$[31:0])) else #full_aluOut;
 
