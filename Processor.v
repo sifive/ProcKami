@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Kami.Extraction Decode Control Execute bbv.HexNotationWord.
+Require Import Kami.Syntax Kami.Extraction Decode Control Execute Retire bbv.HexNotationWord.
 
 Section ReadCSR.
     Variable ty : Kind -> Type.
