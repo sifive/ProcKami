@@ -1,4 +1,4 @@
-Require Import Kami.Syntax bbv.HexNotationWord.
+Require Import Kami.All.
 
     Definition N_EXTENSION_ENABLED := false.
 

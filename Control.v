@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Decode.
+Require Import Kami.All Decode.
 
 Section Control.
     Variable ty : Kind -> Type.

@@ -1,4 +1,4 @@
-Require Import Kami.Syntax Decode Control bbv.HexNotationWord.
+Require Import Kami.All Decode Control.
 
 Section Execute1.
     Variable ty : Kind -> Type.
