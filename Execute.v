@@ -117,7 +117,7 @@ Section Execute1.
     ). Defined.
 End Execute1.
 
-Section Execute2.
+Section Retire.
     Variable ty : Kind -> Type.
 
     Definition MemResp := STRUCT {
@@ -144,7 +144,7 @@ Section Execute2.
     Variable memResp : MemResp @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
-    Definition Execute2_action : ActionT ty Update.
+    Definition Retire_action : ActionT ty Update.
     exact(
         LET respValid <- ctrlSig @% "memOp" != $$ Mem_off;
         LET data      <- memResp @% "data";
@@ -223,5 +223,5 @@ Section Execute2.
         (* TODO: Add mode changes! *)
         Ret #update
     ). Defined.
-End Execute2.
+End Retire.
 

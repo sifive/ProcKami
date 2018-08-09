@@ -244,7 +244,7 @@ Section Process.
 
               (******)
 
-                LETA  update      <- Execute2_action #mode #dInst #ctrlSig #csr_val #eInst #memResp;
+                LETA  update      <- Retire_action #mode #dInst #ctrlSig #csr_val #eInst #memResp;
 
               (******)
 

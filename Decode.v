@@ -196,16 +196,16 @@ Section Decoder.
         LET csradr       <- #instr $[ 31 : 20 ];
         LET funct7opt    <- #instr $[ 30 : 30 ];
         LET funct7_64sh  <- #instr $[ 25 : 25 ];        (* part of shamt in RV64 *)
-        LET funct7z      <- {< (#instr $[ 31 : 31 ]) ,  (* remainder of funct7   *)
-                               (#instr $[ 29 : 26 ]) >};(*   ('z' for 'zero')    *)
+        LET funct7r      <- {< (#instr $[ 31 : 31 ]) ,  (* remainder of funct7   *)
+                               (#instr $[ 29 : 26 ]) >};
 
     (* Basic Tests       *)
         LET funct3msb0   <- #funct3 $[ 2 : 2 ] == $$ WO~0;
         LET funct3_0     <- #funct3 == $$ WO~0~0~0;
         LET funct3_not0  <- ! #funct3_0;
         LET funct7opt0   <- #funct7opt == $$ WO~0;
-        LET funct7z0     <- #funct7z == $$ (natToWord 5 0);
-        LET funct7sz0    <- #funct7z0 && (#funct7_64sh == $$ WO~0);
+        LET funct7r0     <- #funct7r == $$ (natToWord 5 0);
+        LET funct7sr0    <- #funct7r0 && (#funct7_64sh == $$ WO~0);
 
     (* Immediates        *)
         LET i_imm        <- SignExtend 52 (#instr $[ 31 : 20 ]);
@@ -225,15 +225,15 @@ Section Decoder.
 
     (* Format Checks     *)
         LET OP_IMM_ok    <- #not_sr
-                            || #funct7z0;              (* || #funct7sz0 in RV32                         *)
+                            || #funct7r0;              (* || #funct7sr0 in RV32                         *)
         LET OP_IMM_32_ok <- #not_sr
-                            || #funct7sz0;
+                            || #funct7sr0;
         LET OP_ok        <-  ( #add_sub
                             || #sr
                             || #funct7opt0
-                            ) && #funct7sz0;
-        LET OP_32_ok     <-  ( (#add_sub && #funct7sz0)
-                            || (#sr && #funct7sz0)
+                            ) && #funct7sr0;
+        LET OP_32_ok     <-  ( (#add_sub && #funct7sr0)
+                            || (#sr && #funct7sr0)
                             || ((#funct3 == $$ WO~0~0~1) && #funct7opt0)
                             );
         LET BRANCH_ok    <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));

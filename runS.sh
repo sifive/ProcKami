@@ -10,7 +10,7 @@ echo -ne "\x1B[0m"
 rm ${fn}.elf
 rm -rf obj_dir
 set -x
-verilator --top-module system -Wno-CMPCONST -Wno-WIDTH --cc Sys.sv --trace --trace-underscore -Wno-fatal --exe System.cpp
+verilator --top-module system -Wno-CMPCONST -Wno-WIDTH --cc System.sv --trace --trace-underscore -Wno-fatal --exe System.cpp
 make -j -C obj_dir -f Vsystem.mk Vsystem
 ./obj_dir/Vsystem
 
