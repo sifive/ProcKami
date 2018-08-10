@@ -1,8 +1,9 @@
 Require Import Kami.All Decode Control Execute Retire.
 
 Section Core.
+    Variable LABEL : string.
     Variable CORE_NUM : nat.
-    Definition NAME : string := ("Core" ++ (natToHexStr CORE_NUM))%string.
+    Definition NAME : string := (LABEL ++ (natToHexStr CORE_NUM))%string.
 
     Definition MXL := WO~1~0.
     (* See Table 3.2            Z Y X W V U T S R Q P O N M L K J I H G F E D C B A *)
@@ -92,6 +93,7 @@ Section Core.
     End ReadCSR.
 
     Section WriteCSR.
+        (* WriteCSR_action must be called every cycle! *)
         Definition CSRCtrl := STRUCT {
             "wecsr"      :: Bool   ;
             "csradr"     :: Bit 12 ;
@@ -126,7 +128,7 @@ Section Core.
                     If !(#wecsr && (#csradr == $$ (12'h"B02")))
                                 then    Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
-                    Read mtvec          <- `"mtvec";
+                    Read mtvec : Bit 64 <- `"mtvec";
                     Read mepc           <- `"mepc";
 
                     If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Write `"mstatus" <- #data;     Retv);
@@ -152,7 +154,7 @@ Section Core.
                                         Retv
                                        );
 
-                    LET final_pc        <- IF #except then #mtvec
+                    LET final_pc        <- IF #except then {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >}
                                            else (IF #ret then #mepc
                                                          else #reqPC);
 
@@ -326,6 +328,6 @@ Definition rtlMod := getRtl (nil, (RegFile "Core0.RF"
                                            "Core0.rfWrite"
                                            32
                                            (Some (ConstBit (natToWord 64 0))) :: nil,
-                                   Processor 0)).
+                                   Processor "Core" 0)).
 
 Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit.
