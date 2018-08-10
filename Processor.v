@@ -321,13 +321,14 @@ Section Core.
                     Retv
             }.
     End Process.
+
+    Definition rtlModModule := getRtl (nil, (RegFile `"RF"
+                                                     (`"rfRead1" :: `"rfRead2" :: nil)
+                                                     `"rfWrite"
+                                                     32
+                                                     (Some (ConstBit (natToWord 64 0))) :: nil,
+                                             Processor)).
 End Core.
 
-Definition rtlMod := getRtl (nil, (RegFile "Core0.RF"
-                                           ("Core0.rfRead1" :: "Core0.rfRead2" :: nil)
-                                           "Core0.rfWrite"
-                                           32
-                                           (Some (ConstBit (natToWord 64 0))) :: nil,
-                                   Processor "Core" 0)).
-
+Definition rtlMod := rtlModModule "Core" 0.
 Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit.
