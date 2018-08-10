@@ -1,67 +1,93 @@
 Require Import Kami.All Decode Control Execute Retire.
 
 Section Core.
-    Variable NAME : string.
+    Variable CORE_NUM : nat.
+    Definition NAME : string := ("Core" ++ (natToHexStr CORE_NUM))%string.
+
+    Definition MXL := WO~1~0.
+    (* See Table 3.2            Z Y X W V U T S R Q P O N M L K J I H G F E D C B A *)
+    Definition Extensions := WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0.
+    Definition VendorID := (natToWord 64 0).
+    Definition ArchID   := (natToWord 64 0).
+    Definition ImplID   := (natToWord 64 0).
+    Definition HartID   := (natToWord 64 CORE_NUM).
+
     Local Notation "` x" := (NAME ++ "." ++ x)%string (at level 0).
 
     Section ReadCSR.
         Variable ty : Kind -> Type.
+
+        Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
+
         Open Scope kami_expr.
         Open Scope kami_action.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
         exact(
-                    If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64   <- `"mstatus"; Ret #mstatus
+                    If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret #mstatus
                                                   else Ret $$ (natToWord 64 0)
                                                     as mstatus;
-                    If (csradr == $$ (12'h"301")) then Read misa : Bit 64   <- `"misa"; Ret #misa
+                    If (csradr == $$ (12'h"301")) then Ret $$ misa_hardwire
                                                   else Ret $$ (natToWord 64 0)
                                                     as misa;
-                    If (csradr == $$ (12'h"304")) then Read mie : Bit 64   <- `"mie"; Ret #mie
+                    If (csradr == $$ (12'h"304")) then Read mie : Bit 64         <- `"mie"; Ret #mie
                                                   else Ret $$ (natToWord 64 0)
                                                     as mie;
-                    If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64   <- `"mtvec"; Ret #mtvec
+                    If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret #mtvec
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvec;
-                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 64   <- `"mcounteren"; Ret #mcounteren
+                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 64  <- `"mcounteren"; Ret #mcounteren
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcounteren;
-                    If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64   <- `"mtvt"; Ret #mtvt
+                    If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret #mtvt
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvt;
-                    If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64   <- `"mscratch"; Ret #mscratch
+                    If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64    <- `"mscratch"; Ret #mscratch
                                                   else Ret $$ (natToWord 64 0)
                                                     as mscratch;
-                    If (csradr == $$ (12'h"341")) then Read mepc : Bit 64   <- `"mepc"; Ret #mepc
+                    If (csradr == $$ (12'h"341")) then Read mepc : Bit 64        <- `"mepc"; Ret #mepc
                                                   else Ret $$ (natToWord 64 0)
                                                     as mepc;
-                    If (csradr == $$ (12'h"342")) then Read mcause : Bit 64   <- `"mcause"; Ret #mcause
+                    If (csradr == $$ (12'h"342")) then Read mcause : Bit 64      <- `"mcause"; Ret #mcause
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcause;
-                    If (csradr == $$ (12'h"343")) then Read mtval : Bit 64   <- `"mtval"; Ret #mtval
+                    If (csradr == $$ (12'h"343")) then Read mtval : Bit 64       <- `"mtval"; Ret #mtval
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtval;
-                    If (csradr == $$ (12'h"344")) then Read mip : Bit 64   <- `"mip"; Ret #mip
+                    If (csradr == $$ (12'h"344")) then Read mip : Bit 64         <- `"mip"; Ret #mip
                                                   else Ret $$ (natToWord 64 0)
                                                     as mip;
-                    If (csradr == $$ (12'h"345")) then Read mnxti : Bit 64   <- `"mnxti"; Ret #mnxti
+                    If (csradr == $$ (12'h"345")) then Read mnxti : Bit 64       <- `"mnxti"; Ret #mnxti
                                                   else Ret $$ (natToWord 64 0)
                                                     as mnxti;
-                    If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64   <- `"mintstatus"; Ret #mintstatus
+                    If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret #mintstatus
                                                   else Ret $$ (natToWord 64 0)
                                                     as mintstatus;
-                    If (csradr == $$ (12'h"348")) then Read mscratchcsw : Bit 64   <- `"mscratchcsw"; Ret #mscratchcsw
+                    If (csradr == $$ (12'h"348")) then Read mscratchcsw : Bit 64 <- `"mscratchcsw"; Ret #mscratchcsw
                                                   else Ret $$ (natToWord 64 0)
                                                     as mscratchcsw;
-                    If (csradr == $$ (12'h"B00")) then Read mcycle : Bit 64   <- `"mcycle"; Ret #mcycle
+                    If (csradr == $$ (12'h"B00")) then Read mcycle : Bit 64      <- `"mcycle"; Ret #mcycle
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcycle;
-                    If (csradr == $$ (12'h"B02")) then Read minstret : Bit 64   <- `"minstret"; Ret #minstret
+                    If (csradr == $$ (12'h"B02")) then Read minstret : Bit 64    <- `"minstret"; Ret #minstret
                                                   else Ret $$ (natToWord 64 0)
                                                     as minstret;
+                    If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mvendorid;
+                    If (csradr == $$ (12'h"F12")) then Ret $$ ArchID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as marchid;
+                    If (csradr == $$ (12'h"F13")) then Ret $$ ImplID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mimpid;
+                    If (csradr == $$ (12'h"F14")) then Ret $$ HartID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mhartid;
                     Ret (#mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
                          #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
-                         #mintstatus | #mscratchcsw | #mcycle | #minstret)
+                         #mintstatus | #mscratchcsw | #mcycle | #minstret |
+                         #mvendorid | #marchid | #mimpid | #mhartid)
         ). Defined.
     End ReadCSR.
 
@@ -104,7 +130,7 @@ Section Core.
                     Read mepc           <- `"mepc";
 
                     If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Write `"mstatus" <- #data;     Retv);
-                                        If (#csradr == $$ (12'h"301")) then (Write `"misa" <- #data;        Retv);
+                                     (* If (#csradr == $$ (12'h"301")) then (Write `"misa" <- #data;        Retv); *)
                                         If (#csradr == $$ (12'h"304")) then (Write `"mie" <- #data;         Retv);
                                         If (#csradr == $$ (12'h"305")) then (Write `"mtvec" <- #data;       Retv);
                                         If (#csradr == $$ (12'h"306")) then (Write `"mcounteren" <- #data;  Retv);
@@ -165,7 +191,7 @@ Section Core.
                 (*       `"mhartid"                                        (* 0xF14 *)   *)  (* Read only *)
 
                 Register `"mstatus"    : (Bit 64) <- (natToWord 64 0) with (* 0x300 *)
-                Register `"misa"       : (Bit 64) <- (natToWord 64 0) with (* 0x301 *)
+             (* Register `"misa"       : (Bit 64) <- (natToWord 64 0) with (* 0x301 *) *)    (* MXL modification and extension disabling not currently supported *)
                 (*        "medeleg"                                        (* 0x302 *)   *)  (* In systems with only M-mode, or with M- and U-modes but w/o U-mode trap *)
                 (*        "mideleg"                                        (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
                 Register `"mie"        : (Bit 64) <- (natToWord 64 0) with (* 0x304 *)
@@ -300,6 +326,6 @@ Definition rtlMod := getRtl (nil, (RegFile "Core0.RF"
                                            "Core0.rfWrite"
                                            32
                                            (Some (ConstBit (natToWord 64 0))) :: nil,
-                                   Processor "Core0")).
+                                   Processor 0)).
 
 Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit.
