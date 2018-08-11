@@ -5,6 +5,8 @@ Section Core.
     Variable CORE_NUM : nat.
     Definition NAME : string := (LABEL ++ (natToHexStr CORE_NUM))%string.
 
+    Definition RESET_VECTOR := 64'h"0000000080000000".
+
     Definition MXL := WO~1~0.
     (* See Table 3.2            Z Y X W V U T S R Q P O N M L K J I H G F E D C B A *)
     Definition Extensions := WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0.
@@ -85,12 +87,19 @@ Section Core.
                     If (csradr == $$ (12'h"F14")) then Ret $$ HartID
                                                   else Ret $$ (natToWord 64 0)
                                                     as mhartid;
+                    (* WARL adjustments *)
+                    LET #mepc_rl <- {< (#mepc $[ 63 : 1 ]) , $$ WO~0 >};
+
                     Ret (#mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
-                         #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
+                         #mscratch | #mepc_rl | #mcause | #mtval | #mip | #mnxti |
                          #mintstatus | #mscratchcsw | #mcycle | #minstret |
                          #mvendorid | #marchid | #mimpid | #mhartid)
         ). Defined.
     End ReadCSR.
+
+    (* TODO Determine E2 mtval behavior (in the Scala code, it's still referred
+            to by the old name "mbadaddr"
+    *)
 
     Section WriteCSR.
         (* WriteCSR_action must be called every cycle! *)
@@ -154,7 +163,18 @@ Section Core.
                                         Retv
                                        );
 
-                    LET final_pc        <- IF #except then {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >}
+                    LET vector_base     <- {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >};
+                    LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
+                    LET exc_addr        <- IF #vectoring_mode == $0
+                                           then #vector_base
+                                           else (IF #vectoring_mode == $1
+                                                 then #vector_base + {< (ZeroExtend 58 #cause) , ($$ WO~0~0) >}
+                                                 else (IF #vectoring_mode == $2
+                                                       then #vector_base (* TODO add CLIC support *)
+                                                       else #vector_base (* TODO add CLIC support *)
+                                                      )
+                                                );
+                    LET final_pc        <- IF #except then #exc_addr
                                            else (IF #ret then #mepc
                                                          else #reqPC);
 
@@ -235,7 +255,7 @@ Section Core.
                 (*       `"mhpmevent31"                                    (* 0x33F *)   *)  (* Hardwired to 0 *)
 
                 Register `"mode"  : (Bit  2) <- WO~1~1 with
-                Register `"pc"    : (Bit 64) <- (64'h"0000000080000000") with
+                Register `"pc"    : (Bit 64) <- RESET_VECTOR with
                 Rule `"step" :=
                     Read  pc      : _ <- `"pc";
                     Read  mode    : _ <- `"mode";
