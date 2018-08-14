@@ -61,6 +61,7 @@ Inductive CSRField (ty : Kind -> Type) :=
 | WLRL     (msb lsb : nat)
 | WARLaon  (msb lsb : nat) (okay : (Bit (1 + msb - lsb) @# ty) -> (Bool @# ty))
 | WARLawm  (msb lsb : nat) (legalize : (Bit (1 + msb - lsb) @# ty) -> (Bit (1 + msb - lsb) @# ty))
+| Normal   (msb lsb : nat)
 .
 
 Definition correctRead' (ty : Kind -> Type) (name : string) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
@@ -73,6 +74,7 @@ Definition correctRead' (ty : Kind -> Type) (name : string) (field : (CSRField t
     | WLRL msb lsb => acc
     | WARLaon msb lsb okay => acc
     | WARLawm msb lsb leg => acc
+    | Normal msb lsb => acc
     end.
 Defined.
 
@@ -85,7 +87,8 @@ Definition correctWrite' (ty : Kind -> Type) (name : string) (field : (CSRField 
     | WPRIbc msb lsb => acc
     | WLRL msb lsb => acc
     | WARLaon msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
-    | WARLawm msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb prev)) acc
+    | WARLawm msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb acc)) acc
+    | Normal msb lsb => acc
     end.
 Defined.
 
