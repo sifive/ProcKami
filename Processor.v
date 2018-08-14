@@ -1,20 +1,5 @@
 Require Import Kami.All Decode Control Execute Retire.
 
-(* Mask "mtvec" (WARL, 18, 12, 0) :: (WARL, 36, 24, 1) :: nil
-  -> WARL "mtvec" (WARL "mtvec" "mtvec" 18 12 ...) 36 24 ... *)
-
-(*
-Definition ZeroExtendTruncMsb ty ni no (e : Expr ty (SyntaxKind (Bit ni))) : Expr ty (SyntaxKind (Bit no)).
-  refine
-    match Compare_dec.lt_dec ni no with
-    | left isLt => castBits _ (@ZeroExtend ty (no - ni) ni e)
-    | right isGe => UniBit (TruncMsb (ni - no) no) (castBits _ e)
-    end; abstract lia.
-Defined.
-
-Eval simpl in evalExpr (ZeroExtendTruncMsb 4 (Const _ (16'h"1234"))).
-*)
-
 Definition ClearBits ty w (lsb msb : nat) (e : Expr ty (SyntaxKind (Bit w))) : Expr ty (SyntaxKind (Bit w)).
   refine
     match Compare_dec.lt_dec msb w with
@@ -49,51 +34,66 @@ Definition ReplaceBits ty w (lsb msb : nat) (r : Expr ty (SyntaxKind (Bit (1+msb
     end; abstract Omega.omega.
 Defined.
 
-Eval simpl in evalExpr (ClearBits 5 7 (Const _ (16'h"FFFF"))).
-Eval simpl in evalExpr (ClearBits 5 20 (Const _ (16'h"FFFF"))).
-Eval simpl in evalExpr (ClearBits 16 20 (Const _ (16'h"FFFF"))).
-
 Inductive CSRField (ty : Kind -> Type) :=
 | HardZero (msb lsb : nat)
+| Unsupported (label : string) (msb lsb : nat)
 | WIRI     (msb lsb : nat)
 | WPRIfc   (msb lsb : nat)
 | WPRIbc   (msb lsb : nat)
-| WLRL     (msb lsb : nat)
-| WARLaon  (msb lsb : nat) (okay : (Bit (1 + msb - lsb) @# ty) -> (Bool @# ty))
-| WARLawm  (msb lsb : nat) (legalize : (Bit (1 + msb - lsb) @# ty) -> (Bit (1 + msb - lsb) @# ty))
-| Normal   (msb lsb : nat)
+| WLRL     (label : string) (msb lsb : nat)
+| WARLaon  (label : string) (msb lsb : nat) (okay : (Bit (1 + msb - lsb) @# ty) -> (Bool @# ty))
+| WARLawm  (label : string) (msb lsb : nat) (legalize : (Bit (1 + msb - lsb) @# ty) -> (Bit (1 + msb - lsb) @# ty))
+| Normal   (label : string) (msb lsb : nat)
 .
 
-Definition correctRead' (ty : Kind -> Type) (name : string) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+Definition correctRead'' (ty : Kind -> Type) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
   refine
     match field with
     | HardZero msb lsb => ClearBits lsb msb acc
+    | Unsupported n msb lsb => ClearBits lsb msb acc
     | WIRI msb lsb => ClearBits lsb msb acc
     | WPRIfc msb lsb => ClearBits lsb msb acc
     | WPRIbc msb lsb => acc
-    | WLRL msb lsb => acc
-    | WARLaon msb lsb okay => acc
-    | WARLawm msb lsb leg => acc
-    | Normal msb lsb => acc
+    | WLRL n msb lsb => acc
+    | WARLaon n msb lsb okay => acc
+    | WARLawm n msb lsb leg => acc
+    | Normal n msb lsb => acc
     end.
 Defined.
 
-Definition correctWrite' (ty : Kind -> Type) (name : string) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+Definition correctWrite'' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
   refine
     match field with
     | HardZero msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | Unsupported n msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WIRI msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WPRIfc msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WPRIbc msb lsb => acc
-    | WLRL msb lsb => acc
-    | WARLaon msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
-    | WARLawm msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb acc)) acc
-    | Normal msb lsb => acc
+    | WLRL n msb lsb => acc
+    | WARLaon n msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
+    | WARLawm n msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb acc)) acc
+    | Normal n msb lsb => acc
     end.
 Defined.
 
-Definition correctRead (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) := 0.
-Definition correctWrite (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) := 0.
+Definition correctRead' (ty : Kind -> Type) (fields : list (CSRField ty)) (uncorrectedRead : Expr ty (SyntaxKind (Bit 64))) :=
+    fold_left (fun a f =>
+        correctRead'' f a
+    ) fields uncorrectedRead.
+
+Eval simpl in evalExpr (correctRead' (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"FFFFFFFFFFFFFFFF"))).
+
+Definition correctWrite' (ty : Kind -> Type) (fields : list (CSRField ty)) (previousValue uncorrectedWrite : Expr ty (SyntaxKind (Bit 64))) :=
+    fold_left (fun a f =>
+        correctWrite'' f previousValue a
+    ) fields uncorrectedWrite.
+
+Eval simpl in evalExpr (correctWrite' (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFF"))).
+
+(*
+Definition correctRead (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) :=
+Definition correctWrite (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) :=
+*)
 
 Section Core.
     Variable LABEL : string.
@@ -111,9 +111,29 @@ Section Core.
     Definition ImplID   := (natToWord 64 0).
     Definition HartID   := (natToWord 64 CORE_NUM).
 
-    Section ReadCSR.
-        Variable ty : Kind -> Type.
+    Variable ty : Kind -> Type.
 
+    Definition mstatus_fields    := (Unsupported ty "SD" 63 63 :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
+                                     Unsupported _ "UXL" 33 32 :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
+                                     Unsupported _ "TW" 21 21  :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
+                                     Unsupported _ "SUM" 18 18 :: Unsupported _  "XS" 16 15 :: Unsupported _  "FS" 14 13 ::
+                                     WPRIfc _ 10 9             :: Unsupported _ "SPP"  8  8 :: WPRIfc _ 6 6              ::
+                                     Unsupported _ "SPIE" 5  5 :: WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: nil).
+    Definition mie_fields        := (WPRIfc ty 63 12           :: WPRIfc _ 10 10            :: Unsupported _ "SEIE" 9  9 :: nil).
+    (*
+    Definition mtvec_fields      :=
+    Definition mcounteren_fields :=
+    Definition mtvt_fields       :=
+    Definition mscratch_fields   :=
+    Definition mepc_fields       :=
+    Definition mcause_fields     :=
+    Definition mtval_fields      :=
+    Definition mip_fields        :=
+    Definition mcycle_fields     :=
+    Definition minstret_fields   :=
+    *)
+
+    Section ReadCSR.
         Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
 
         Open Scope kami_expr.
@@ -206,7 +226,6 @@ Section Core.
             "ret?"       :: Bool   ;
             "reqPC"      :: Bit 64
         }.
-        Variable ty : Kind -> Type.
         Open Scope kami_expr.
         Open Scope kami_action.
         Variable csrCtrl : CSRCtrl @# ty.
