@@ -1,9 +1,102 @@
 Require Import Kami.All Decode Control Execute Retire.
 
+(* Mask "mtvec" (WARL, 18, 12, 0) :: (WARL, 36, 24, 1) :: nil
+  -> WARL "mtvec" (WARL "mtvec" "mtvec" 18 12 ...) 36 24 ... *)
+
+(*
+Definition ZeroExtendTruncMsb ty ni no (e : Expr ty (SyntaxKind (Bit ni))) : Expr ty (SyntaxKind (Bit no)).
+  refine
+    match Compare_dec.lt_dec ni no with
+    | left isLt => castBits _ (@ZeroExtend ty (no - ni) ni e)
+    | right isGe => UniBit (TruncMsb (ni - no) no) (castBits _ e)
+    end; abstract lia.
+Defined.
+
+Eval simpl in evalExpr (ZeroExtendTruncMsb 4 (Const _ (16'h"1234"))).
+*)
+
+Definition ClearBits ty w (lsb msb : nat) (e : Expr ty (SyntaxKind (Bit w))) : Expr ty (SyntaxKind (Bit w)).
+  refine
+    match Compare_dec.lt_dec msb w with
+    | left isLt => match Compare_dec.lt_dec msb lsb with
+                   | left isLt => e
+                   | right isGe => castBits _ ({< (UniBit (TruncMsb (msb+1) (w-1-msb)) (castBits _ e)), (Const ty (natToWord (1+msb-lsb) 0)), (UniBit (TruncLsb lsb (w-lsb)) (castBits _ e)) >})%kami_expr
+                   end
+    | right isGe => match Compare_dec.lt_dec lsb w with
+                    | left isLt => castBits _ ({< (UniBit (TruncMsb w 0) (castBits _ e)), (Const ty (natToWord (w-lsb) 0)), (UniBit (TruncLsb lsb (w-lsb)) (castBits _ e)) >})%kami_expr
+                    | right isGe => e
+                    end
+    end; abstract Omega.omega.
+Defined.
+Definition ExtractBits ty w (lsb msb : nat) (e : Expr ty (SyntaxKind (Bit w))) : Expr ty (SyntaxKind (Bit (1+msb-lsb))).
+  refine
+    match Compare_dec.lt_dec msb w with
+    | left isLt => match Compare_dec.lt_dec msb lsb with
+                   | left isLt => Const ty (getDefaultConst (Bit _))
+                   | right isGe => ConstExtract lsb (1+msb-lsb) (w-1-msb) (castBits _ e)
+                   end
+    | right isGe => Const ty (getDefaultConst (Bit _))
+    end; abstract Omega.omega.
+Defined.
+Definition ReplaceBits ty w (lsb msb : nat) (r : Expr ty (SyntaxKind (Bit (1+msb-lsb)))) (e : Expr ty (SyntaxKind (Bit w))) : Expr ty (SyntaxKind (Bit w)).
+  refine
+    match Compare_dec.lt_dec msb w with
+    | left isLt => match Compare_dec.lt_dec msb lsb with
+                   | left isLt => e
+                   | right isGe => castBits _ ({< (UniBit (TruncMsb (msb+1) (w-1-msb)) (castBits _ e)), r, (UniBit (TruncLsb lsb (w-lsb)) (castBits _ e)) >})%kami_expr
+                   end
+    | right isGe => e
+    end; abstract Omega.omega.
+Defined.
+
+Eval simpl in evalExpr (ClearBits 5 7 (Const _ (16'h"FFFF"))).
+Eval simpl in evalExpr (ClearBits 5 20 (Const _ (16'h"FFFF"))).
+Eval simpl in evalExpr (ClearBits 16 20 (Const _ (16'h"FFFF"))).
+
+Inductive CSRField (ty : Kind -> Type) :=
+| HardZero (msb lsb : nat)
+| WIRI     (msb lsb : nat)
+| WPRIfc   (msb lsb : nat)
+| WPRIbc   (msb lsb : nat)
+| WLRL     (msb lsb : nat)
+| WARLaon  (msb lsb : nat) (okay : (Bit (1 + msb - lsb) @# ty) -> (Bool @# ty))
+| WARLawm  (msb lsb : nat) (legalize : (Bit (1 + msb - lsb) @# ty) -> (Bit (1 + msb - lsb) @# ty))
+.
+
+Definition correctRead' (ty : Kind -> Type) (name : string) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+  refine
+    match field with
+    | HardZero msb lsb => ClearBits lsb msb acc
+    | WIRI msb lsb => ClearBits lsb msb acc
+    | WPRIfc msb lsb => ClearBits lsb msb acc
+    | WPRIbc msb lsb => acc
+    | WLRL msb lsb => acc
+    | WARLaon msb lsb okay => acc
+    | WARLawm msb lsb leg => acc
+    end.
+Defined.
+
+Definition correctWrite' (ty : Kind -> Type) (name : string) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+  refine
+    match field with
+    | HardZero msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | WIRI msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | WPRIfc msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | WPRIbc msb lsb => acc
+    | WLRL msb lsb => acc
+    | WARLaon msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
+    | WARLawm msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb prev)) acc
+    end.
+Defined.
+
+Definition correctRead (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) := 0.
+Definition correctWrite (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) := 0.
+
 Section Core.
     Variable LABEL : string.
     Variable CORE_NUM : nat.
     Definition NAME : string := (LABEL ++ (natToHexStr CORE_NUM))%string.
+    Local Notation "` x" := (NAME ++ "." ++ x)%string (at level 0).
 
     Definition RESET_VECTOR := 64'h"0000000080000000".
 
@@ -14,8 +107,6 @@ Section Core.
     Definition ArchID   := (natToWord 64 0).
     Definition ImplID   := (natToWord 64 0).
     Definition HartID   := (natToWord 64 CORE_NUM).
-
-    Local Notation "` x" := (NAME ++ "." ++ x)%string (at level 0).
 
     Section ReadCSR.
         Variable ty : Kind -> Type.
@@ -88,10 +179,9 @@ Section Core.
                                                   else Ret $$ (natToWord 64 0)
                                                     as mhartid;
                     (* WARL adjustments *)
-                    LET #mepc_rl <- {< (#mepc $[ 63 : 1 ]) , $$ WO~0 >};
 
                     Ret (#mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
-                         #mscratch | #mepc_rl | #mcause | #mtval | #mip | #mnxti |
+                         #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
                          #mintstatus | #mscratchcsw | #mcycle | #minstret |
                          #mvendorid | #marchid | #mimpid | #mhartid)
         ). Defined.
@@ -139,6 +229,8 @@ Section Core.
 
                     Read mtvec : Bit 64 <- `"mtvec";
                     Read mepc           <- `"mepc";
+
+                    LET mstatus_wpri    <- #data & $$ (64'h"8000000f007ff9bb"); (* 62-36, 31-23, 10-9, 6, 2 hardwired to zero *)
 
                     If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Write `"mstatus" <- #data;     Retv);
                                      (* If (#csradr == $$ (12'h"301")) then (Write `"misa" <- #data;        Retv); *)

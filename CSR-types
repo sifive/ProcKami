@@ -1,0 +1,25 @@
+            Type                                    Read                    Write
+            --------------------------------        ----------------        ----------------
+Whole       Unimplemented                           Ignored                 Ignored
+Whole       Hardwired zero                          Ignored                 Ignored
+Whole       Read only                               Return constant         Ignored
+
+Field       Hardwired zero                          0                       None
+Field       WIRI                                    0                       None
+Field       WPRI (forward compatibility)            0                       None
+Field       WPRI (backward compatibility)           Normal                  Normal
+Field       WLRL                                    Normal **               Normal *
+Field       WARL, all-or-none                       Legalized †             Normal or None
+Field       WARL, accept with modification          Legalized †             Legalized
+Field       Normal                                  Normal                  Normal
+
+"Ignored" reads return 0, which is the default value when no CSR address matches.
+"Ignored" writes are simply not performed.
+"None" writes perform a read and then write back the value read.
+
+ * May raise illegal instruction exception if value is reserved (should depend on generator flag).
+** May be arbitrary if last written value was illegal (but should deterministically depend on value).
+ † For the sake of redundancy.
+
+N.B. CSRRS and CSRRC instructions are considered to modify entire registers, not just
+     individual fields.
