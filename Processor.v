@@ -46,7 +46,7 @@ Inductive CSRField (ty : Kind -> Type) :=
 | Normal   (label : string) (msb lsb : nat)
 .
 
-Definition correctRead'' (ty : Kind -> Type) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+Definition correctRead' (ty : Kind -> Type) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit XLEN))) : Expr ty (SyntaxKind (Bit XLEN)).
   refine
     match field with
     | HardZero msb lsb => ClearBits lsb msb acc
@@ -61,7 +61,7 @@ Definition correctRead'' (ty : Kind -> Type) (field : (CSRField ty)) (acc : Expr
     end.
 Defined.
 
-Definition correctWrite'' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit 64))) : Expr ty (SyntaxKind (Bit 64)).
+Definition correctWrite' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit XLEN))) : Expr ty (SyntaxKind (Bit XLEN)).
   refine
     match field with
     | HardZero msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
@@ -76,24 +76,19 @@ Definition correctWrite'' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc 
     end.
 Defined.
 
-Definition correctRead' (ty : Kind -> Type) (fields : list (CSRField ty)) (uncorrectedRead : Expr ty (SyntaxKind (Bit 64))) :=
+Definition correctRead (ty : Kind -> Type) (fields : list (CSRField ty)) (uncorrectedRead : Expr ty (SyntaxKind (Bit XLEN))) :=
     fold_left (fun a f =>
-        correctRead'' f a
+        correctRead' f a
     ) fields uncorrectedRead.
 
-Eval simpl in evalExpr (correctRead' (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"FFFFFFFFFFFFFFFF"))).
+(* Eval simpl in evalExpr (correctRead (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"FFFFFFFFFFFFFFFF"))). *)
 
-Definition correctWrite' (ty : Kind -> Type) (fields : list (CSRField ty)) (previousValue uncorrectedWrite : Expr ty (SyntaxKind (Bit 64))) :=
+Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previousValue uncorrectedWrite : Expr ty (SyntaxKind (Bit XLEN))) :=
     fold_left (fun a f =>
-        correctWrite'' f previousValue a
+        correctWrite' f previousValue a
     ) fields uncorrectedWrite.
 
-Eval simpl in evalExpr (correctWrite' (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFF"))).
-
-(*
-Definition correctRead (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) :=
-Definition correctWrite (ty : Kind -> Type) (name : string) (fields : list (CSRField ty)) :=
-*)
+(* Eval simpl in evalExpr (correctWrite (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFF"))). *)
 
 Section Core.
     Variable LABEL : string.
@@ -106,87 +101,118 @@ Section Core.
     Definition MXL := WO~1~0.
     (* See Table 3.2            Z Y X W V U T S R Q P O N M L K J I H G F E D C B A *)
     Definition Extensions := WO~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~1~0~0~0~0~0~0~0~0.
-    Definition VendorID := (natToWord 64 0).
-    Definition ArchID   := (natToWord 64 0).
-    Definition ImplID   := (natToWord 64 0).
-    Definition HartID   := (natToWord 64 CORE_NUM).
+    Definition VendorID := (natToWord XLEN 0).
+    Definition ArchID   := (natToWord XLEN 0).
+    Definition ImplID   := (natToWord XLEN 0).
+    Definition HartID   := (natToWord XLEN CORE_NUM).
 
-    Variable ty : Kind -> Type.
+    Section FieldsCSR.
+        Open Scope kami_expr.
+        Variable ty : Kind -> Type.
 
-    Definition mstatus_fields    := (Unsupported ty "SD" 63 63 :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
+        (* TODO mip and mie should appear hardwired to zero in CLIC mode *)
+
+        Definition mstatus_fields := Unsupported ty "SD" 63 63 :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
                                      Unsupported _ "UXL" 33 32 :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
-                                     Unsupported _ "TW" 21 21  :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
+                                     Unsupported _  "TW" 21 21 :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
                                      Unsupported _ "SUM" 18 18 :: Unsupported _  "XS" 16 15 :: Unsupported _  "FS" 14 13 ::
                                      WPRIfc _ 10 9             :: Unsupported _ "SPP"  8  8 :: WPRIfc _ 6 6              ::
-                                     Unsupported _ "SPIE" 5  5 :: WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: nil).
-    Definition mie_fields        := (WPRIfc ty 63 12           :: WPRIfc _ 10 10            :: Unsupported _ "SEIE" 9  9 :: nil).
-    (*
-    Definition mtvec_fields      :=
-    Definition mcounteren_fields :=
-    Definition mtvt_fields       :=
-    Definition mscratch_fields   :=
-    Definition mepc_fields       :=
-    Definition mcause_fields     :=
-    Definition mtval_fields      :=
-    Definition mip_fields        :=
-    Definition mcycle_fields     :=
-    Definition minstret_fields   :=
-    *)
+                                     Unsupported _ "SPIE" 5  5 :: WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: nil.
+
+        Definition mie_fields := WPRIfc ty 63 12          :: WPRIfc _ 10 10 :: Unsupported _ "SEIE" 9 9 ::
+                                 Unsupported _ "UEIE" 8 8 :: WPRIfc _  6  6 :: Unsupported _ "STIE" 5 5 ::
+                                 Unsupported _ "UTIE" 4 4 :: WPRIfc _  2  2 :: Unsupported _ "SSIE" 1 1 ::
+                                 Unsupported _ "USIE" 0 0 :: nil.
+
+        Definition mtvec_legalize := fun (m : Bit 6 @# ty) => IF m$[1:1] == $$ WO~1 then {<($$WO~0~0~0~0),(m$[1:0])>} else m.
+        Definition mtvec_fields := WARLawm "MODE" 5 0 mtvec_legalize :: nil.
+        (*Definition mtvec_legalize := fun (m : Bit 6 @# type) => IF m$[1:1] == Const _ WO~1 then {<(Const _ WO~0~0~0~0),(m$[1:0])>} else m.*)
+        (*Definition mtvec_fields := WARLawm "MODE" 5 0 mtvec_legalize :: nil.*)
+        (*Eval simpl in evalExpr (correctWrite mtvec_fields (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFE"))).*)
+
+        Definition mcounteren_fields := @nil (CSRField ty). (* Hardwire perf counter enables to zero? *)
+
+        Definition mtvt_legalize := fun (m : Bit 64 @# ty) => ClearBits 0 5 m.
+        Definition mtvt_fields := WARLawm "" 63 0 mtvt_legalize :: nil.
+
+        Definition mscratch_fields := @nil (CSRField ty).
+        Definition mepc_fields := HardZero ty 0 0 :: nil.
+        Definition mcause_fields := @nil (CSRField ty).
+        Definition mtval_fields := @nil (CSRField ty).
+
+        Definition mip_fields := WPRIfc ty 64 12          :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
+                                 Unsupported _ "UEIP" 8 8 :: WIRI _ 6 6   :: Unsupported _ "STIP" 5 5 ::
+                                 Unsupported _ "UTIP" 4 4 :: WIRI _ 2 2   :: Unsupported _ "SSIP" 1 1 ::
+                                 Unsupported _ "USIP" 0 0 :: nil.
+
+        Definition mintstatus_fields := @nil (CSRField ty).
+        Definition mscratchcsw_fields := @nil (CSRField ty).
+        Definition mcycle_fields := @nil (CSRField ty).
+        Definition minstret_fields := @nil (CSRField ty).
+
+        Close Scope kami_expr.
+    End FieldsCSR.
 
     Section ReadCSR.
         Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
 
         Open Scope kami_expr.
         Open Scope kami_action.
+        Variable ty : Kind -> Type.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
+        (* TODO mcounteren access - even if perf counters are hardwired to zero, access attempt may or may not raise exception *)
+        (* TODO time 0xC01 register *)
+        (* TODO deal with the mnxti business *)
         exact(
-                    If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret #mstatus
+                    If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret (correctRead (mstatus_fields _) #mstatus)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mstatus;
                     If (csradr == $$ (12'h"301")) then Ret $$ misa_hardwire
                                                   else Ret $$ (natToWord 64 0)
                                                     as misa;
-                    If (csradr == $$ (12'h"304")) then Read mie : Bit 64         <- `"mie"; Ret #mie
+                    If (csradr == $$ (12'h"304")) then Read mie : Bit 64         <- `"mie"; Ret (correctRead (mie_fields _) #mie)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mie;
-                    If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret #mtvec
+                    If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret (correctRead (mtvec_fields _) #mtvec)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvec;
-                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 64  <- `"mcounteren"; Ret #mcounteren
+                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 64  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) #mcounteren)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcounteren;
-                    If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret #mtvt
+                    If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret (correctRead (mtvt_fields _) #mtvt)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvt;
-                    If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64    <- `"mscratch"; Ret #mscratch
+                    If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mscratch;
-                    If (csradr == $$ (12'h"341")) then Read mepc : Bit 64        <- `"mepc"; Ret #mepc
+                    If (csradr == $$ (12'h"341")) then Read mepc : Bit 64        <- `"mepc"; Ret (correctRead (mepc_fields _) #mepc)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mepc;
-                    If (csradr == $$ (12'h"342")) then Read mcause : Bit 64      <- `"mcause"; Ret #mcause
+                    If (csradr == $$ (12'h"342")) then Read mcause : Bit 64      <- `"mcause"; Ret (correctRead (mcause_fields _) #mcause)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcause;
-                    If (csradr == $$ (12'h"343")) then Read mtval : Bit 64       <- `"mtval"; Ret #mtval
+                    If (csradr == $$ (12'h"343")) then Read mtval : Bit 64       <- `"mtval"; Ret (correctRead (mtval_fields _) #mtval)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtval;
-                    If (csradr == $$ (12'h"344")) then Read mip : Bit 64         <- `"mip"; Ret #mip
+                    If (csradr == $$ (12'h"344")) then Read mip : Bit 64         <- `"mip"; Ret (correctRead (mip_fields _) #mip)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mip;
                     If (csradr == $$ (12'h"345")) then Read mnxti : Bit 64       <- `"mnxti"; Ret #mnxti
                                                   else Ret $$ (natToWord 64 0)
                                                     as mnxti;
-                    If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret #mintstatus
+                    If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret (correctRead (mintstatus_fields _) #mintstatus)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mintstatus;
-                    If (csradr == $$ (12'h"348")) then Read mscratchcsw : Bit 64 <- `"mscratchcsw"; Ret #mscratchcsw
+                    If (csradr == $$ (12'h"348")) then Read mscratchcsw : Bit 64 <- `"mscratchcsw"; Ret (correctRead (mscratchcsw_fields _) #mscratchcsw)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mscratchcsw;
-                    If (csradr == $$ (12'h"B00")) then Read mcycle : Bit 64      <- `"mcycle"; Ret #mcycle
+                    If (csradr == $$ (12'h"B00")) ||
+                       (csradr == $$ (12'h"C00")) then Read mcycle : Bit 64      <- `"mcycle"; Ret (correctRead (mcycle_fields _) #mcycle)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcycle;
-                    If (csradr == $$ (12'h"B02")) then Read minstret : Bit 64    <- `"minstret"; Ret #minstret
+                    If (csradr == $$ (12'h"B02")) ||
+                       (csradr == $$ (12'h"C02")) then Read minstret : Bit 64    <- `"minstret"; Ret (correctRead (minstret_fields _) #minstret)
                                                   else Ret $$ (natToWord 64 0)
                                                     as minstret;
                     If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
@@ -228,6 +254,7 @@ Section Core.
         }.
         Open Scope kami_expr.
         Open Scope kami_action.
+        Variable ty : Kind -> Type.
         Variable csrCtrl : CSRCtrl @# ty.
         Definition WriteCSR_action : ActionT ty (Bit 64).
         exact(
@@ -307,9 +334,9 @@ Section Core.
         Open Scope kami_expr.
         Definition Processor :=
             MODULE {
-                (*       `"cycle"                                          (* 0xC00 *)   *)  (* Read Only *)
-                (*       `"time"                                           (* 0xC01 *)   *)  (* Read Only *)
-                (*       `"instret"                                        (* 0xC02 *)   *)  (* Read Only *)
+                (*       `"cycle"                                          (* 0xC00 *)   *)  (* Read Only, Shadows 0xB00 "mcycle" *)
+                (*       `"time"                                           (* 0xC01 *)   *)  (* Read Only, Memory-mapped *)
+                (*       `"instret"                                        (* 0xC02 *)   *)  (* Read Only, Shadow 0xB02 "minstret" *)
                 (*       `"hpmcounter3"                                    (* 0xC03 *)   *)  (* Hardwired to 0 *)
                 (*           ...                                           (*  ...  *)   *)  (*  ...           *)
                 (*       `"hpmcounter31"                                   (* 0xC1F *)   *)  (* Hardwired to 0 *)
@@ -327,9 +354,9 @@ Section Core.
                 (*       `"mhartid"                                        (* 0xF14 *)   *)  (* Read only *)
 
                 Register `"mstatus"    : (Bit 64) <- (natToWord 64 0) with (* 0x300 *)
-             (* Register `"misa"       : (Bit 64) <- (natToWord 64 0) with (* 0x301 *) *)    (* MXL modification and extension disabling not currently supported *)
-                (*        "medeleg"                                        (* 0x302 *)   *)  (* In systems with only M-mode, or with M- and U-modes but w/o U-mode trap *)
-                (*        "mideleg"                                        (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
+                (*       `"misa"                                           (* 0x301 *)   *)  (* MXL modification and extension disabling not currently supported *)
+                (*       `"medeleg"                                        (* 0x302 *)   *)  (* In systems with only M-mode, or with M- and U-modes but w/o U-mode trap *)
+                (*       `"mideleg"                                        (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
                 Register `"mie"        : (Bit 64) <- (natToWord 64 0) with (* 0x304 *)
                 Register `"mtvec"      : (Bit 64) <- (Ox"000")        with (* 0x305 *)
                 Register `"mcounteren" : (Bit 64) <- (natToWord 64 0) with (* 0x306 *)

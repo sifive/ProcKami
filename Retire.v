@@ -4,27 +4,27 @@ Section Retire.
     Variable ty : Kind -> Type.
 
     Definition MemResp := STRUCT {
-        "data"   :: Bit 64 ;
+        "data"   :: Bit XLEN ;
         "fault"  :: Bit 2
     }.
 
     Definition Update := STRUCT {
-        "except?"   :: Bool   ;
-        "cause"     :: Bit 4  ;
-        "ret?"      :: Bool   ;
-        "new_pc"    :: Bit 64 ;
-        "werf"      :: Bool   ;
-        "rd_val"    :: Bit 64 ;
-        "wecsr"     :: Bool   ;
+        "except?"   :: Bool     ;
+        "cause"     :: Bit 4    ;
+        "ret?"      :: Bool     ;
+        "new_pc"    :: Bit XLEN ;
+        "werf"      :: Bool     ;
+        "rd_val"    :: Bit XLEN ;
+        "wecsr"     :: Bool     ;
         "next_mode" :: Bit 2
     }.
 
-    Variable mode    : Bit 2   @# ty.
-    Variable dInst   : DInst   @# ty.
-    Variable ctrlSig : CtrlSig @# ty.
-    Variable csr_val : Bit 64  @# ty.
-    Variable eInst   : EInst   @# ty.
-    Variable memResp : MemResp @# ty.
+    Variable mode    : Bit 2    @# ty.
+    Variable dInst   : DInst    @# ty.
+    Variable ctrlSig : CtrlSig  @# ty.
+    Variable csr_val : Bit XLEN @# ty.
+    Variable eInst   : EInst    @# ty.
+    Variable memResp : MemResp  @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
     Definition Retire_action : ActionT ty Update.
@@ -69,15 +69,15 @@ Section Retire.
         LET low16    <- #data $[ 15 : 0 ];
         LET low32    <- #data $[ 31 : 0 ];
         LET uext     <- #funct3 $[ 2 : 2] == $$ WO~1;
-        LET memLoad  <- Switch (#funct3 $[ 1 : 0 ]) Retn (Bit 64) With {
-                            $$ WO~0~0 ::= IF #uext then (ZeroExtend 56 #low8) else (SignExtend 56 #low8);
-                            $$ WO~0~1 ::= IF #uext then (ZeroExtend 48 #low16) else (SignExtend 48 #low16);
-                            $$ WO~1~0 ::= IF #uext then (ZeroExtend 32 #low32) else (SignExtend 32 #low32);
+        LET memLoad  <- Switch (#funct3 $[ 1 : 0 ]) Retn (Bit XLEN) With {
+                            $$ WO~0~0 ::= IF #uext then (ZeroExtend (XLEN-8) #low8) else (SignExtend (XLEN-8) #low8);
+                            $$ WO~0~1 ::= IF #uext then (ZeroExtend (XLEN-16) #low16) else (SignExtend (XLEN-16) #low16);
+                            $$ WO~1~0 ::= IF #uext then (ZeroExtend (XLEN-32) #low32) else (SignExtend (XLEN-32) #low32);
                             $$ WO~1~1 ::= #data
                         };
 
-        LET aligned  <- {< (#aluOut $[ 63 : 1 ]) , $$ WO~0 >};
-        LET new_pc   <- Switch #final_pcSrc Retn (Bit 64) With {
+        LET aligned  <- {< (#aluOut $[ XLENm1 : 1 ]) , $$ WO~0 >};
+        LET new_pc   <- Switch #final_pcSrc Retn (Bit XLEN) With {
                             $$ PC_pcPlus4   ::= #pcPlus4;
                             $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
                             $$ PC_compare   ::= IF #compOut then #aluOut else #pcPlus4
@@ -87,7 +87,7 @@ Section Retire.
                                not matter *)
                         };
 
-        LET rd_val   <- Switch #rdSrc Retn (Bit 64) With {
+        LET rd_val   <- Switch #rdSrc Retn (Bit XLEN) With {
                             $$ Rd_aluOut  ::= #aluOut  ;
                             $$ Rd_pcPlus4 ::= #pcPlus4 ;
                             $$ Rd_memRead ::= #memLoad ;

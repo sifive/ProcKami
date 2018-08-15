@@ -1,4 +1,8 @@
+Definition RV32 := false.
+
 Require Import Kami.All.
+
+    Definition XLEN := if RV32 then 32 else 64.
 
     Definition N_EXTENSION_ENABLED := false.
 
@@ -156,7 +160,7 @@ Section Decoder.
 
     (* These booleans are provided for hazard detection    *)
     Definition DInstKeys := STRUCT {
-        "imm"     :: Bit 64 ;
+        "imm"     :: Bit XLEN ;
         "rs1?"    :: Bool   ;
         "rs2?"    :: Bool   ;
         "rd?"     :: Bool   ;
@@ -176,7 +180,7 @@ Section Decoder.
         "keys"    :: DInstKeys
     }.
 
-(* Decoder for RV64IMAC(FD) *)
+(* Decoder for RV64/32IMAC(FD) *)
 
     Variable mode   : Bit  2      @# ty.
     Variable iFetch : Instruction @# ty.
@@ -208,24 +212,24 @@ Section Decoder.
         LET funct7sr0    <- #funct7r0 && (#funct7_64sh == $$ WO~0);
 
     (* Immediates        *)
-        LET i_imm        <- SignExtend 52 (#instr $[ 31 : 20 ]);
-        LET u_imm        <- SignExtend 32 ({< #instr $[ 31 : 12 ] , $$ (natToWord 12 0) >});
-        LET j_imm        <- SignExtend 43 ({<(#instr$[31:31]),(#instr$[19:12]),(#instr$[20:20]),(#instr$[30:21]),$$WO~0>});
-        LET b_imm        <- SignExtend 51 ({<(#instr$[31:31]),(#instr$[7:7]),(#instr$[30:25]),(#instr$[11:8]),$$WO~0>});
-        LET s_imm        <- SignExtend 52 ({< (#instr $[ 31 : 25 ]) , (#instr $[ 11 : 7 ]) >});
-        LET z_imm        <- ZeroExtend 59 #rs1;
+        LET i_imm        <- SignExtend (XLEN-12) (#instr $[ 31 : 20 ]);
+        LET u_imm        <- SignExtend (XLEN-32) ({< #instr $[ 31 : 12 ] , $$ (natToWord 12 0) >});
+        LET j_imm        <- SignExtend (XLEN-21) ({<(#instr$[31:31]),(#instr$[19:12]),(#instr$[20:20]),(#instr$[30:21]),$$WO~0>});
+        LET b_imm        <- SignExtend (XLEN-13) ({<(#instr$[31:31]),(#instr$[7:7]),(#instr$[30:25]),(#instr$[11:8]),$$WO~0>});
+        LET s_imm        <- SignExtend (XLEN-12) ({< (#instr $[ 31 : 25 ]) , (#instr $[ 11 : 7 ]) >});
+        LET z_imm        <- ZeroExtend (XLEN-5)  #rs1;
 
     (* Misc Signals      *)
         LET fm           <- #instr $[ 31 : 28 ];
         LET pred         <- #instr $[ 27 : 24 ];
         LET succ         <- #instr $[ 23 : 20 ];
-        LET sr           <- #funct3 == $$ WO~1~0~1;    (* 0b?01 are the shift instructions              *)
+        LET sr           <- #funct3 == $$ WO~1~0~1;
         LET not_sr       <- ! #sr;
         LET add_sub      <- #funct3_0;
 
     (* Format Checks     *)
         LET OP_IMM_ok    <- #not_sr
-                            || #funct7r0;              (* || #funct7sr0 in RV32                         *)
+                            || (if RV32 then #funct7sr0 else #funct7r0);
         LET OP_IMM_32_ok <- #not_sr
                             || #funct7sr0;
         LET OP_ok        <-  ( #add_sub
@@ -238,9 +242,12 @@ Section Decoder.
                             );
         LET BRANCH_ok    <- ((#funct3 != $$ Unused_B1) && (#funct3 != $$ Unused_B2));
         LET JALR_ok      <- #funct3_0;
-        LET LOAD_ok      <- #funct3 != $$ Unused_L1    (* In RV32 remember to add checks for LD and LWU *)
+        LET LOAD_ok      <- #funct3 != $$ Unused_L1
+                            && (if RV32 then #funct3 != $$ Minor_LD else $$ true)
+                            && (if RV32 then #funct3 != $$ Minor_LWU else $$ true)
                             && #rd != $$ (natToWord 5 0);
-        LET STORE_ok     <- #funct3msb0;               (* In RV32 remember to add check for SD          *)
+        LET STORE_ok     <- #funct3msb0
+                            && (if RV32 then #funct3 != $$ Minor_SD else $$ true);
         LET MISC_MEM_ok  <- ((#fm == $$ (natToWord 4 0))
                              || ({<#fm,#pred,#succ>} == $$ FENCE_RW_RW) (* See vol I pg 24 of the spec  *)
                             ) && (#funct3 $[ 2 : 1 ] == $$ WO~0~0);
@@ -276,8 +283,8 @@ Section Decoder.
         LET debug_reserv <- #top7 == $$ WO~0~1~1~1~1~0~1;   (* 0x7A0 - 0x7BF                            *)
 
         (* Note: These are presented in the same order as in Status.v *)
-        LET csr_exists   <-      (#top7 == $$ WO~1~1~0~0~0~0~0)
-                         (* ||   #top7 == $$ WO~1~1~0~0~1~0~0 *)            (* RV32 only                *)
+        LET csr_exists   <-    (#top7 == $$ WO~1~1~0~0~0~0~0)
+                            || (if RV32 then #top7 == $$ WO~1~1~0~0~1~0~0 else $$ false)
                             || (#csradr == $$ (12'h"F11"))
                             || (#csradr == $$ (12'h"F12"))
                             || (#csradr == $$ (12'h"F13"))
@@ -296,13 +303,15 @@ Section Decoder.
                             || (#csradr == $$ (12'h"345"))
                             || (#csradr == $$ (12'h"346"))
                             || (#csradr == $$ (12'h"348"))
-                            || ((#top7 == $$ WO~0~0~1~1~1~0~1)              (* In RV32 remember to      *)
-                               && (#csradr != $$ (12'h"3A1"))               (* remove the 0x3A1 and     *)
-                               && (#csradr != $$ (12'h"3A3")))              (* 0x3A3 checks             *)
+                            || ((#top7 == $$ WO~0~0~1~1~1~0~1)
+                               && (if RV32 then $$ true else (#csradr != $$ (12'h"3A1")))
+                               && (if RV32 then $$ true else (#csradr != $$ (12'h"3A3"))))
                             || ((#top7 == $$ WO~1~0~1~1~0~0~0)
                                && (#csradr != $$ (12'h"B01")))
-                         (* || ((#top7 == $$ WO~1~0~1~1~1~0~0)              (* RV32 only                *)
-                               && (#csradr != $$ (natToWord 12 2945))) *)
+                            || (if RV32 then
+                                   ((#top7 == $$ WO~1~0~1~1~1~0~0)
+                                   && (#csradr != $$ (natToWord 12 2945)))
+                               else $$ false)
                             || ((#top7 == $$ WO~0~0~1~1~0~0~1)
                                && (#csradr != $$ (12'h"320"))
                                && (#csradr != $$ (12'h"321"))
@@ -318,12 +327,12 @@ Section Decoder.
                             || ((#opcode == $$ Major_MISC_MEM) && #MISC_MEM_ok)
                             || ((#opcode == $$ Major_OP_IMM) && #OP_IMM_ok)
                             ||  (#opcode == $$ Major_AUIPC)
-                            || ((#opcode == $$ Major_OP_IMM_32) && #OP_IMM_32_ok)
+                            || (if RV32 then $$ false else ((#opcode == $$ Major_OP_IMM_32) && #OP_IMM_32_ok))
                             || ((#opcode == $$ Major_STORE) && #STORE_ok)
                             ||  (#opcode == $$ Major_AMO)
                             || ((#opcode == $$ Major_OP) && #OP_ok)
                             ||  (#opcode == $$ Major_LUI)
-                            || ((#opcode == $$ Major_OP_32) && #OP_32_ok)
+                            || (if RV32 then $$ false else ((#opcode == $$ Major_OP_32) && #OP_32_ok))
                             || ((#opcode == $$ Major_BRANCH) && #BRANCH_ok)
                             || ((#opcode == $$ Major_JALR) && #JALR_ok)
                             ||  (#opcode == $$ Major_JAL)
@@ -375,80 +384,80 @@ Section Decoder.
         LET SYS_csr      <- #funct3_not0;
         (* The keys struct is provided for tracking dependencies *)
         LET keys         <- Switch #opcode Retn DInstKeys With {
-                                $$ Major_OP_IMM    ::= STRUCT {"imm"     ::= #i_imm              ;
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_OP        ::= STRUCT {"imm"     ::= #i_imm              ; (* OP : Note that imm doesn't matter here; [natToWord 64 0] would work just as well *)
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ true             ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_LUI       ::= STRUCT {"imm"     ::= #u_imm              ;
-                                                               "rs1?"    ::= $$ false            ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_AUIPC     ::= STRUCT {"imm"     ::= #u_imm              ;
-                                                               "rs1?"    ::= $$ false            ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_JAL       ::= STRUCT {"imm"     ::= #j_imm              ;
-                                                               "rs1?"    ::= $$ false            ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_JALR      ::= STRUCT {"imm"     ::= #i_imm              ; (* JALR : Don't forget that the LSB should be set to 0 after rs1 and imm are added! *)
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_BRANCH    ::= STRUCT {"imm"     ::= #b_imm              ;
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ true             ;
-                                                               "rd?"     ::= $$ false            ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_LOAD      ::= STRUCT {"imm"     ::= #i_imm              ;
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_STORE     ::= STRUCT {"imm"     ::= #s_imm              ;
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ true             ;
-                                                               "rd?"     ::= $$ false            ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm              ; (* SYSTEM : NOTE! The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
-                                                               "rs1?"    ::= #SYS_rs1            ; (* SYSTEM : NOTE! The E* instructions don't use rs1, rd, or a csr address!                       *)
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= #SYS_rd             ;
-                                                               "csr?"    ::= #SYS_csr            };
-                                $$ Major_MISC_MEM  ::= STRUCT {"imm"     ::= $$ (natToWord 64 0) ;
-                                                               "rs1?"    ::= $$ false            ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ false            ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_OP_IMM_32 ::= STRUCT {"imm"     ::= #i_imm              ;
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ false            ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            };
-                                $$ Major_OP_32     ::= STRUCT {"imm"     ::= #i_imm              ; (* OP-32 : Note that imm doesn't matter here; [natToWord 64 0] would work just as well *)
-                                                               "rs1?"    ::= $$ true             ;
-                                                               "rs2?"    ::= $$ true             ;
-                                                               "rd?"     ::= $$ true             ;
-                                                               "csr?"    ::= $$ false            }
+                                $$ Major_OP_IMM    ::= STRUCT {"imm"     ::= #i_imm    ;
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_OP        ::= STRUCT {"imm"     ::= #i_imm    ; (* OP : Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ true   ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_LUI       ::= STRUCT {"imm"     ::= #u_imm    ;
+                                                               "rs1?"    ::= $$ false  ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_AUIPC     ::= STRUCT {"imm"     ::= #u_imm    ;
+                                                               "rs1?"    ::= $$ false  ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_JAL       ::= STRUCT {"imm"     ::= #j_imm    ;
+                                                               "rs1?"    ::= $$ false  ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_JALR      ::= STRUCT {"imm"     ::= #i_imm    ; (* JALR : Don't forget that the LSB should be set to 0 after rs1 and imm are added! *)
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_BRANCH    ::= STRUCT {"imm"     ::= #b_imm    ;
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ true   ;
+                                                               "rd?"     ::= $$ false  ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_LOAD      ::= STRUCT {"imm"     ::= #i_imm    ;
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_STORE     ::= STRUCT {"imm"     ::= #s_imm    ;
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ true   ;
+                                                               "rd?"     ::= $$ false  ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm    ; (* SYSTEM : NOTE! The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
+                                                               "rs1?"    ::= #SYS_rs1  ; (* SYSTEM : NOTE! The E* instructions don't use rs1, rd, or a csr address!                       *)
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= #SYS_rd   ;
+                                                               "csr?"    ::= #SYS_csr  };
+                                $$ Major_MISC_MEM  ::= STRUCT {"imm"     ::= $$ (natToWord XLEN 0) ;
+                                                               "rs1?"    ::= $$ false  ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ false  ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_OP_IMM_32 ::= STRUCT {"imm"     ::= #i_imm    ;
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ false  ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  };
+                                $$ Major_OP_32     ::= STRUCT {"imm"     ::= #i_imm    ; (* OP-32 : Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
+                                                               "rs1?"    ::= $$ true   ;
+                                                               "rs2?"    ::= $$ true   ;
+                                                               "rd?"     ::= $$ true   ;
+                                                               "csr?"    ::= $$ false  }
                             };
         LET adjust_keys  <- (#keys @%[ "rs1?" <- ((#keys @% "rs1?") && (#rs1 != $$ (natToWord 5 0))) ]
                                    @%[ "rs2?" <- ((#keys @% "rs2?") && (#rs2 != $$ (natToWord 5 0))) ]);
         LET ret_keys     <- IF #except
-                            then STRUCT {"imm"     ::= $$ (natToWord 64 0) ;
-                                         "rs1?"    ::= $$ false            ;
-                                         "rs2?"    ::= $$ false            ;
-                                         "rd?"     ::= $$ false            ;
-                                         "csr?"    ::= $$ false            }
+                            then STRUCT {"imm"     ::= $$ (natToWord XLEN 0) ;
+                                         "rs1?"    ::= $$ false              ;
+                                         "rs2?"    ::= $$ false              ;
+                                         "rd?"     ::= $$ false              ;
+                                         "csr?"    ::= $$ false              }
                             else #adjust_keys;
         LET decoded : DInst <- STRUCT {
                                 "except?" ::= #except    ;
