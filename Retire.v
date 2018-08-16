@@ -103,7 +103,7 @@ Section Retire.
                             "wecsr"     ::= #final_wecsr  ;
                             "next_mode" ::= mode
                         };
-        (* TODO: Add mode changes! *)
+        (* TODO Add mode changes! *)
         Ret #update
     ). Defined.
 End Retire.

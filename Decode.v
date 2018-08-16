@@ -1,10 +1,15 @@
-Definition RV32 := false.
+Definition            RV32 := false.
+Definition       USER_MODE := false.
+
+(*           RISC-V FORMAL SPECIFICATION            *)
+(* RV64I/RV32I with MACHINE and optional USER modes *)
+(*                                                  *)
+(*   Written by Kade Phillips                       *)
+(*     Copyright 2018 SiFive, Inc.                  *)
+
+Definition XLEN := if RV32 then 32 else 64.
 
 Require Import Kami.All.
-
-    Definition XLEN := if RV32 then 32 else 64.
-
-    Definition N_EXTENSION_ENABLED := false.
 
     (* These 2-bit codes are internal definitions and not a part of the spec. *)
     (* They are also used in Execute.v                                        *)
@@ -12,8 +17,6 @@ Require Import Kami.All.
     Definition Memory_Misaligned   := WO~0~1.
     Definition Memory_Access_Fault := WO~1~0.
     Definition Memory_Page_Fault   := WO~1~1. (* Currently unused *)
-
-(* Supported Exception Codes *)
 
     (* Exceptions that are determined before decoding:
           0 Instruction Address Misaligned
@@ -28,6 +31,16 @@ Require Import Kami.All.
        Exceptions that are determined after a memory response:
           4 Load Address Misaligned
           5 Load Access Fault
+
+       TODO Unsupported exceptions that will be added:
+          6 Store/AMO address misaligned - will be added
+          7 Store/AMO access fault - will be added
+
+       Unsupported exceptions that will not be added:
+         12 Instruction page fault
+         13 Load page fault
+         15 Store/AMO page fault
+
     *)
     Definition Exception_I_Addr_Misal    := WO~0~0~0~0.
     Definition Exception_I_Access_Fault  := WO~0~0~0~1.
@@ -41,7 +54,7 @@ Require Import Kami.All.
 Section Decoder.
     Variable ty : Kind -> Type.
 
-(* Major Opcodes *)
+    (* Major Opcodes *)
     Definition Major_LOAD      := WO~0~0~0~0~0.
     Definition Major_LOAD_FP   := WO~0~0~0~0~1.
     Definition Major_MISC_MEM  := WO~0~0~0~1~1.
@@ -67,7 +80,7 @@ Section Decoder.
     Definition Major_JAL       := WO~1~1~0~1~1.
     Definition Major_SYSTEM    := WO~1~1~1~0~0.
 
-(* "Minor" Opcodes i.e. funct3 *)
+    (* "Minor" Opcodes i.e. funct3 *)
 
     Definition Minor_ADDI    := WO~0~0~0.
     Definition Minor_SLLI    := WO~0~0~1.
@@ -75,23 +88,24 @@ Section Decoder.
     Definition Minor_SLTIU   := WO~0~1~1.
     Definition Minor_XORI    := WO~1~0~0.
     Definition Minor_SRLI    := WO~1~0~1.
-    Definition Minor_SRAI    := WO~1~0~1. (* same as Minor_SRLI *)
+    Definition Minor_SRAI    := WO~1~0~1.
     Definition Minor_ORI     := WO~1~1~0.
     Definition Minor_ANDI    := WO~1~1~1.
 
     Definition Minor_SRI     := WO~1~0~1.
 
     Definition Minor_ADD     := WO~0~0~0.
-    Definition Minor_SUB     := WO~0~0~0. (* same as Minor_ADD *)
+    Definition Minor_SUB     := WO~0~0~0.
     Definition Minor_SLL     := WO~0~0~1.
     Definition Minor_SLT     := WO~0~1~0.
     Definition Minor_SLTU    := WO~0~1~1.
     Definition Minor_XOR     := WO~1~0~0.
     Definition Minor_SRL     := WO~1~0~1.
-    Definition Minor_SRA     := WO~1~0~1. (* same as Minor_SRL  *)
+    Definition Minor_SRA     := WO~1~0~1.
     Definition Minor_OR      := WO~1~1~0.
     Definition Minor_AND     := WO~1~1~1.
 
+    Definition Minor_ADD_SUB := WO~0~0~0.
     Definition Minor_SR      := WO~1~0~1.
 
     Definition Minor_BEQ     := WO~0~0~0.
@@ -122,7 +136,7 @@ Section Decoder.
     Definition Unused_S4     := WO~1~1~1.
 
     Definition Minor_ECALL   := WO~0~0~0.
-    Definition Minor_EBREAK  := WO~0~0~0. (* same as Minor_ECALL *)
+    Definition Minor_EBREAK  := WO~0~0~0.
     Definition Minor_CSRRW   := WO~0~0~1.
     Definition Minor_CSRRS   := WO~0~1~0.
     Definition Minor_CSRRC   := WO~0~1~1.
@@ -130,6 +144,8 @@ Section Decoder.
     Definition Minor_CSRRWI  := WO~1~0~1.
     Definition Minor_CSRRSI  := WO~1~1~0.
     Definition Minor_CSRRCI  := WO~1~1~1.
+
+    Definition Minor_ECALL_EBREAK := WO~0~0~0.
 
     Definition Minor_FENCE   := WO~0~0~0.
     Definition Minor_FENCE_I := WO~0~0~1.
@@ -140,25 +156,21 @@ Section Decoder.
     Definition Unused_F5     := WO~1~1~0.
     Definition Unused_F6     := WO~1~1~1.
 
-(* Miscellaneous Definitions *)
-
-    Definition Minor_ADD_SUB      := WO~0~0~0.
-    Definition Minor_SRL_SRA      := WO~1~0~1.
-    Definition Minor_ECALL_EBREAK := WO~0~0~0.
+    (* Miscellaneous Definitions *)
 
     (*                             ---fm-- --pred- --succ- *)
     Definition FENCE_RW_RW   := WO~1~0~0~0~0~0~1~1~0~0~1~1.
 
     Definition WFI           := WO~0~0~0~1~0~0~0~0~0~1~0~1.
 
-(* Records *)
+    (* Records *)
 
     Definition Instruction := STRUCT {
         "instr"   :: Bit 32 ;
         "fault"   :: Bit  2
     }.
 
-    (* These booleans are provided for hazard detection    *)
+    (* These booleans are provided for hazard detection / dependency tracking    *)
     Definition DInstKeys := STRUCT {
         "imm"     :: Bit XLEN ;
         "rs1?"    :: Bool   ;
@@ -179,8 +191,6 @@ Section Decoder.
         "csradr"  :: Bit 12 ;
         "keys"    :: DInstKeys
     }.
-
-(* Decoder for RV64/32IMAC(FD) *)
 
     Variable mode   : Bit  2      @# ty.
     Variable iFetch : Instruction @# ty.
@@ -262,7 +272,7 @@ Section Decoder.
                              && (#rs2 == $$ WO~0~0~0~1~0)
                              && #rs1_rd_0
                              && (#ret_mode <= mode)
-                             && ((#ret_mode != $$ WO~0~0) || $$ N_EXTENSION_ENABLED);
+                             && (#ret_mode != $$ WO~0~0);
         LET wfi_ok       <- (#csradr == $$ WFI) && #rs1_rd_0;
         LET SYSTEM_ok    <- ( #funct3_not0             (* not ECALL, EBREAK, xRET, WFI, or SFENCE.VMA   *)
                              || #eca_ebr_ok            (* ECALL & EBREAK field requirements             *)
@@ -270,7 +280,8 @@ Section Decoder.
                              || #wfi_ok
                             ) && (#funct3 != $$ Unused_C1);
 
-        (* TODO: add support for SFENCE.VMA *)
+        (* TODO add support for SFENCE.VMA *)
+        (* TODO add support for privileged instructions *)
 
     (* CSR Checks        *)
         LET modify_csr   <- (#funct3 $[ 0 : 0 ] | #funct3 $[ 1 : 1 ]) == $$ WO~1;
@@ -281,6 +292,8 @@ Section Decoder.
         LET priv_ok      <- #csr_priv <= mode;
         LET top7         <- #csradr $[ 11 : 5];
         LET debug_reserv <- #top7 == $$ WO~0~1~1~1~1~0~1;   (* 0x7A0 - 0x7BF                            *)
+
+        (* TODO access permissions in user mode based on CSR settings *)
 
         (* Note: These are presented in the same order as in Status.v *)
         LET csr_exists   <-    (#top7 == $$ WO~1~1~0~0~0~0~0)
@@ -337,13 +350,6 @@ Section Decoder.
                             || ((#opcode == $$ Major_JALR) && #JALR_ok)
                             ||  (#opcode == $$ Major_JAL)
                             || (#is_SYSTEM && #SYSTEM_ok && #csr_ok)
-                         (* || (#opcode == $$ Major_LOAD_FP) *)
-                         (* || (#opcode == $$ Major_STORE_FP) *)
-                         (* || (#opcode == $$ Major_MADD) *)
-                         (* || (#opcode == $$ Major_MSUB) *)
-                         (* || (#opcode == $$ Major_NMSUB) *)
-                         (* || (#opcode == $$ Major_NMADD) *)
-                         (* || (#opcode == $$ Major_OP_FP) *)
                             );
         LET is_ecall_ebr <- #is_SYSTEM && #funct3_0 && #eca_ebr_sel;
         LET is_break     <- #instr $[ 20 : 20 ] == $$ WO~1;
@@ -355,8 +361,6 @@ Section Decoder.
 
         (* Precedence, first prevailing over last:
              access_fault > misaligned > illegal > [breakpoint | env_call_m | env_call_u]
-
-           Should access_fault and misaligned be switched?
         *)
         LET except       <- #access_fault || #misaligned || #illegal || #breakpoint || #env_call_m || #env_call_u;
         LET cause        <- IF #access_fault
@@ -382,7 +386,6 @@ Section Decoder.
         LET SYS_rs1      <- #funct3_not0 && #funct3msb0;
         LET SYS_rd       <- #funct3_not0;
         LET SYS_csr      <- #funct3_not0;
-        (* The keys struct is provided for tracking dependencies *)
         LET keys         <- Switch #opcode Retn DInstKeys With {
                                 $$ Major_OP_IMM    ::= STRUCT {"imm"     ::= #i_imm    ;
                                                                "rs1?"    ::= $$ true   ;
@@ -409,7 +412,7 @@ Section Decoder.
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= $$ true   ;
                                                                "csr?"    ::= $$ false  };
-                                $$ Major_JALR      ::= STRUCT {"imm"     ::= #i_imm    ; (* JALR : Don't forget that the LSB should be set to 0 after rs1 and imm are added! *)
+                                $$ Major_JALR      ::= STRUCT {"imm"     ::= #i_imm    ;
                                                                "rs1?"    ::= $$ true   ;
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= $$ true   ;
