@@ -31,7 +31,7 @@ int main(int argc, char ** argv, char **env) {
   //uint64_t iMem = 0x00108093;
   //uint64_t dMem = 0;
 
-  uint32_t timeout = 2048;
+  uint32_t timeout = 4096;
 
   while(!Verilated::gotFinish() && main_time < timeout){
     top->CLK = main_time%2;
