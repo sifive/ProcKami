@@ -281,7 +281,7 @@ Section Decoder.
                             ) && (#funct3 != $$ Unused_C1);
 
         (* TODO add support for SFENCE.VMA *)
-        (* TODO add support for privileged instructions *)
+        (* TODO verify support for privileged instructions *)
 
     (* CSR Checks        *)
         LET modify_csr   <- (#funct3 $[ 0 : 0 ] | #funct3 $[ 1 : 1 ]) == $$ WO~1;
