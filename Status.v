@@ -92,6 +92,9 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
 
 (* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *)
 
+(* TODO Would it be worth creating a dependency list? Things which a CSR
+        read or write might depend on or modify.
+*)
 Section ControlStatusRegisters.
     Variable LABEL : string.
     Variable CORE_NUM : nat.
@@ -174,7 +177,7 @@ Section ControlStatusRegisters.
                                                     as misa;
                     If (csradr == $$ (12'h"304")) then Read mtvec : Bit 64 <- `"mtvec";
                                                        If #mtvec $[ 1 : 1 ] == $0
-                                                       then Read mie : Bit 64         <- `"mie"; Ret (correctRead (mie_fields _) #mie)
+                                                       then Read mie : Bit 64    <- `"mie"; Ret (correctRead (mie_fields _) #mie)
                                                        else Ret $$ (natToWord 64 0)
                                                        as mie;
                                                        Ret #mie
