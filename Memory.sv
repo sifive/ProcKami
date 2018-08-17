@@ -42,7 +42,8 @@ module mkRAM(input clk,
     // Data Read
     wire [19:0] adL;
     assign adL = addr[19:0];
-    assign resp = (memo[0] || !enable) ? 64'0 : ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
+    assign resp = ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
+    //assign resp = (memo[0] || !enable) ? 64'0 : ({block[adL+7], block[adL+6], block[adL+5], block[adL+4], block[adL+3], block[adL+2], block[adL+1], block[adL]});
 
     // Data Writeback
     always @(posedge clk) begin
