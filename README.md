@@ -27,3 +27,4 @@ To run programs
 - Although User mode exists, it is not possible to switch into it.
 - Most CSR special behavior is incomplete, although rudimentary exception handling works.
 - There is no mechanism for injecting interrupts.
+- `minstret` increments on discarded (exception-causing) instructions
