@@ -34,8 +34,8 @@ module system(
     assign dResp.data = resp;
     assign dResp.fault = dException;
 
-    top theTop(.CLK(CLK), .RESET(RESET), .getInstr$_return(iResp), .memAction$_return(dResp),
-        .getInstr$_argument(pc), .memAction$_argument(memCtrl), .getInstr$_enable(void0), .memAction$_enable(mem_enable));
+    top theTop(.CLK(CLK), .RESET(RESET), .getInstr$Core0$_return(iResp), .memAction$Core0$_return(dResp),
+        .getInstr$Core0$_argument(pc), .memAction$Core0$_argument(memCtrl), .getInstr$Core0$_enable(void0), .memAction$Core0$_enable(mem_enable));
 
     mkRAM theRAM(.clk(CLK), .reset(RESET), .enable(mem_enable), .pc(pc), .addr(addr), .data(data), .memo(memo), .mask(mask),
           .instr(instr), .iException(iException), .resp(resp), .dException(dException));
