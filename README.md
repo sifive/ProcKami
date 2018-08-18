@@ -7,7 +7,7 @@ Future inclusion of the C, M, A, F, and D extensions is expected (in roughly tha
 
 ## Building
 
-ProcKami requires [Coq](https://coq.inria.fr) (version 8.8.1 tested) and [Kami](https://github.com/sifive/Kami]) (which relies on [bbv](https://github.com/mit-plv/bbv)). Extracting Verilog requires [GHC](https://www.haskell.org/downloads) and simulation requires [Verilator](https://www.veripool.org/wiki/verilator).
+ProcKami requires [Coq](https://coq.inria.fr), [bbv](https://github.com/mit-plv/bbv), and [Kami](https://github.com/sifive/Kami]). Extracting Verilog requires [GHC](https://www.haskell.org/downloads) and simulation requires [Verilator](https://www.veripool.org/wiki/verilator).
 
 To compile the Coq objects, simply run `make`.
 
