@@ -52,9 +52,9 @@ Section Process.
             Register `"mcause"     : (Bit 64) <- (natToWord 64 0) with (* 0x342 *)
             Register `"mtval"      : (Bit 64) <- (natToWord 64 0) with (* 0x343 *)
             Register `"mip"        : (Bit 64) <- (natToWord 64 0) with (* 0x344 *)
-            Register `"mnxti"      : (Bit 64) <- (natToWord 64 0) with (* 0x345 *)       (* See the SiFive CLIC Proposal *)
+            (*       `"mnxti"                                          (* 0x345 *)   *)  (* See the SiFive CLIC Proposal *)
             Register `"mintstatus" : (Bit 64) <- (natToWord 64 0) with (* 0x346 *)       (* See the SiFive CLIC Proposal *)
-            Register `"mscratchcsw": (Bit 64) <- (natToWord 64 0) with (* 0x348 *)       (* See the SiFive CLIC Proposal *)
+            (*       `"mscratchcsw"                                    (* 0x348 *)   *)  (* See the SiFive CLIC Proposal *)
 
             (*       `"pmpcfg0"                                        (* 0x3A0 *)   *)  (* Hardwired to 0 *)
             (*       `"pmpcfg1"                                        (* 0x3A1 *)   *)  (* Unimplemented - RV32 only *)

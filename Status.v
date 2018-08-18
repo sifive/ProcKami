@@ -90,11 +90,55 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
 
     (* Eval simpl in evalExpr (correctWrite (HardZero _ 9 8 :: HardZero _ 5 4 :: nil) (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFF"))). *)
 
-(* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *)
+(* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *)
+(*
+   DEPENDENCY TABLE
+   Interactions that only exist with S mode, an FPU, or additional extensions are NOT included.
 
-(* TODO Would it be worth creating a dependency list? Things which a CSR
-        read or write might depend on or modify.
+   CSR              Implicitly Read for         Implicitly Set by           Write Side-Effects          Comments
+   ---------------  --------------------------  --------------------------  --------------------------  --------------------------------------------------------------------------------
+   cycle[h]          --                          --                          --                         Read only, shadows "mcycle", accessibility-in-User-mode set by "mstatus"
+   time[h]           --                          --                          --                         Read only, memory-mapped
+   instret[h]        --                          --                          --                         Read only, shadows "minstret", accessibility-in-User-mode set by "mstatus"
+   hpmcounter*[h]    --                          --                          --                         Hardwired to 0, accessibility-in-User-mode set by "mstatus"
+
+   mvendorid         --                          --                          --                         Read only
+   marchid           --                          --                          --                         Read only
+   mimpid            --                          --                          --                         Read only
+   mhartid           --                          --                          --                         Read only
+
+   mstatus          Intpt En, *RET Instrs,      *RET Instructions            --                          --
+    ..              Ld/St Privelege,
+    ..              mcause (in CLIC mode)
+   misa              --                          --                          --                         Read only in this implementation
+   medeleg           --                          --                          --                         Does not exist (see RISC-V Manual version 1.1 vol II pg 26 last paragraph)
+   mideleg           --                          --                          --                         Does not exist (see RISC-V Manual version 1.1 vol II pg 26 last paragraph)
+   mie              Intpt En                     --                          --                         Appears as 0 in CLIC mode (including reads for the purpose of CSR modification)
+   mtvec            Exceptions,                  --                          --                          --
+    ..              mie/mip (in CLIC mode),
+    ..              mcause (in CLIC mode)
+   mcounteren       CSR Accessibility            --                          --                          --
+   mtvt             Exceptions, mnxti            --                          --                          --
+
+   mscratch          --                          --                          --                          --
+   mepc              --                         Exceptions                   --                          --
+   mcause           Trap Vectoring              Exceptions                   --                         Some fields appear as 0 in CLIC mode (including reads for ... modification?)
+   mtval             --                         Exceptions                   --                          --
+   mip              (Exceptions)                Exceptions                  Exceptions                  Appears as 0 in CLIC mode (including reads for the purpose of CSR modification)
+   mnxti             --                          --                          --                         Not a physical register
+   mintstatus        --                         Exceptions                   --                          --
+   mscratchcsw       --                          --                          --                         Not a physical register
+
+   pmpcfg*           --                          --                          --                         Hardwired to 0
+   pmpaddr*          --                          --                          --                         Hardwired to 0
+
+   mcycle[h]         --                         All Instructions             --                          --
+   minstret[h]       --                         Retired Instructions         --                          --
+   mhpmcounter*[h]   --                          --                          --                         Hardwired to 0
+
+   mhpmevent*        --                          --                          --                         Hardwired to 0
 *)
+
 Section ControlStatusRegisters.
     Variable LABEL : string.
     Variable CORE_NUM : nat.
@@ -110,7 +154,7 @@ Section ControlStatusRegisters.
     Definition HartID     := (natToWord XLEN CORE_NUM).
     Definition MXL        := if RV32 then WO~0~1 else WO~1~0.
 
-    Section CSRFields.
+    Section CSRSpecialFields.
         Open Scope kami_expr.
         Variable ty : Kind -> Type.
 
@@ -142,6 +186,7 @@ Section ControlStatusRegisters.
         Definition mcause_fields := @nil (CSRField ty).
         Definition mtval_fields := @nil (CSRField ty).
 
+        (* TODO read-only fields in mip *)
         Definition mip_fields := WPRIfc ty 64 12          :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
                                  Unsupported _ "UEIP" 8 8 :: WIRI _ 6 6   :: Unsupported _ "STIP" 5 5 ::
                                  Unsupported _ "UTIP" 4 4 :: WIRI _ 2 2   :: Unsupported _ "SSIP" 1 1 ::
@@ -153,7 +198,7 @@ Section ControlStatusRegisters.
         Definition minstret_fields := @nil (CSRField ty).
 
         Close Scope kami_expr.
-    End CSRFields.
+    End CSRSpecialFields.
 
     Section ReadCSR.
         Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
@@ -167,6 +212,7 @@ Section ControlStatusRegisters.
         (*        should this kind of exception be raised in decode, or here? *)
         (* TODO time 0xC01 memory mapped register *)
         (* TODO deal with the mnxti business - involves passing 0 or mtvt+offset into Retire, or ignoring the CSR writeback given by Retire *)
+        (* TODO deal with the mscratchcsw business *)
         (* TODO figure out mtval behavior - in the Scala code this is still called "mbadaddr" *)
         exact(
                     If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret (correctRead (mstatus_fields _) #mstatus)
