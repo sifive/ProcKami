@@ -25,7 +25,7 @@ To run programs
 _Estimates for completion time given in parentheses._
 
 - XLEN parametrization is not supported for CSRs (1 day).
-- `SFENCE.VMA` instructions are not supported (1 day).
+- `SFENCE.VMA` instructions are not supported (4 hr).
 - Access permission for some CSRs depends upon the contents of other CSRs (e.g. `mcounteren`); this is not currently supported (2–4 hr).
 - Although User mode exists, it is not possible to switch into it (1 day).
 - Most CSR special behavior is incomplete, although rudimentary exception handling works (1 wk).
