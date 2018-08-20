@@ -35,6 +35,7 @@ Definition ReplaceBits ty w (lsb msb : nat) (r : Expr ty (SyntaxKind (Bit (1+msb
 Defined.
 
 Inductive CSRField (ty : Kind -> Type) :=
+| ReadOnly (label : string) (msb lsb : nat)
 | HardZero (msb lsb : nat)
 | Unsupported (label : string) (msb lsb : nat)
 | WIRI     (msb lsb : nat)
@@ -43,36 +44,35 @@ Inductive CSRField (ty : Kind -> Type) :=
 | WLRL     (label : string) (msb lsb : nat)
 | WARLaon  (label : string) (msb lsb : nat) (okay : (Bit (1 + msb - lsb) @# ty) -> (Bool @# ty))
 | WARLawm  (label : string) (msb lsb : nat) (legalize : (Bit (1 + msb - lsb) @# ty) -> (Bit (1 + msb - lsb) @# ty))
-| Normal   (label : string) (msb lsb : nat)
 .
 
 Definition correctRead' (ty : Kind -> Type) (field : (CSRField ty)) (acc : Expr ty (SyntaxKind (Bit XLEN))) : Expr ty (SyntaxKind (Bit XLEN)).
   refine
     match field with
-    | HardZero msb lsb => ClearBits lsb msb acc
+    | ReadOnly n msb lsb    => acc
+    | HardZero msb lsb      => ClearBits lsb msb acc
     | Unsupported n msb lsb => ClearBits lsb msb acc
-    | WIRI msb lsb => ClearBits lsb msb acc
+    | WIRI msb lsb   => ClearBits lsb msb acc
     | WPRIfc msb lsb => ClearBits lsb msb acc
     | WPRIbc msb lsb => acc
     | WLRL n msb lsb => acc
     | WARLaon n msb lsb okay => acc
-    | WARLawm n msb lsb leg => acc
-    | Normal n msb lsb => acc
+    | WARLawm n msb lsb leg  => acc
     end.
 Defined.
 
 Definition correctWrite' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc : Expr ty (SyntaxKind (Bit XLEN))) : Expr ty (SyntaxKind (Bit XLEN)).
   refine
     match field with
-    | HardZero msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | ReadOnly n msb lsb    => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | HardZero msb lsb      => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | Unsupported n msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
-    | WIRI msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | WIRI msb lsb   => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WPRIfc msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WPRIbc msb lsb => acc
     | WLRL n msb lsb => acc
     | WARLaon n msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
-    | WARLawm n msb lsb leg => ReplaceBits lsb msb (leg (ExtractBits lsb msb acc)) acc
-    | Normal n msb lsb => acc
+    | WARLawm n msb lsb leg  => ReplaceBits lsb msb (leg (ExtractBits lsb msb acc)) acc
     end.
 Defined.
 
@@ -98,7 +98,7 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
    CSR              Implicitly Read for         Implicitly Set by           Write Side-Effects          Comments
    ---------------  --------------------------  --------------------------  --------------------------  --------------------------------------------------------------------------------
    cycle[h]          --                          --                          --                         Read only, shadows "mcycle", accessibility-in-User-mode set by "mstatus"
-   time[h]           --                          --                          --                         Read only, memory-mapped
+   time[h]           --                          --                          --                         Read only, memory-mapped, accessibility-in-User-mode set by "mstatus"
    instret[h]        --                          --                          --                         Read only, shadows "minstret", accessibility-in-User-mode set by "mstatus"
    hpmcounter*[h]    --                          --                          --                         Hardwired to 0, accessibility-in-User-mode set by "mstatus"
 
@@ -117,12 +117,12 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
    mtvec            Exceptions,                  --                          --                          --
     ..              mie/mip (in CLIC mode),
     ..              mcause (in CLIC mode)
-   mcounteren       CSR Accessibility            --                          --                          --
+   mcounteren       CSR Accessibility            --                          --                          32-bit register (not MXLEN)
    mtvt             Exceptions, mnxti            --                          --                          --
 
    mscratch          --                          --                          --                          --
    mepc              --                         Exceptions                   --                          --
-   mcause           Trap Vectoring              Exceptions                   --                         Some fields appear as 0 in CLIC mode (including reads for ... modification?)
+   mcause           Trap Vectoring              Exceptions                   --                         Some fields appear as 0 in CLIC mode
    mtval             --                         Exceptions                   --                          --
    mip              (Exceptions)                Exceptions                  Exceptions                  Appears as 0 in CLIC mode (including reads for the purpose of CSR modification)
    mnxti             --                          --                          --                         Not a physical register
@@ -176,7 +176,8 @@ Section ControlStatusRegisters.
         (*Definition mtvec_fields := WARLawm "MODE" 5 0 mtvec_legalize :: nil.*)
         (*Eval simpl in evalExpr (correctWrite mtvec_fields (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFE"))).*)
 
-        Definition mcounteren_fields := @nil (CSRField ty). (* TODO Hardwire perf counter enables to zero? *)
+        (* NOTE! mcounteren is a 32-bit register *)
+        Definition mcounteren_fields := Unsupported ty "HPM" 31 3 :: Unsupported _ "TM" 1 1 :: nil.
 
         Definition mtvt_legalize := fun (m : Bit 64 @# ty) => ClearBits 0 5 m.
         Definition mtvt_fields := WARLawm "" 63 0 mtvt_legalize :: nil.
@@ -186,14 +187,12 @@ Section ControlStatusRegisters.
         Definition mcause_fields := @nil (CSRField ty).
         Definition mtval_fields := @nil (CSRField ty).
 
-        (* TODO read-only fields in mip *)
-        Definition mip_fields := WPRIfc ty 64 12          :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
-                                 Unsupported _ "UEIP" 8 8 :: WIRI _ 6 6   :: Unsupported _ "STIP" 5 5 ::
-                                 Unsupported _ "UTIP" 4 4 :: WIRI _ 2 2   :: Unsupported _ "SSIP" 1 1 ::
+        Definition mip_fields := WPRIfc ty 64 12          :: ReadOnly _ "MEIP" 11 11 :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
+                                 Unsupported _ "UEIP" 8 8 :: ReadOnly _ "MTIP"  7  7 :: WIRI _  6  6 :: Unsupported _ "STIP" 5 5 ::
+                                 Unsupported _ "UTIP" 4 4 :: ReadOnly _ "MSIP"  3  3 :: WIRI _ 2 2   :: Unsupported _ "SSIP" 1 1 ::
                                  Unsupported _ "USIP" 0 0 :: nil.
 
         Definition mintstatus_fields := @nil (CSRField ty).
-        Definition mscratchcsw_fields := @nil (CSRField ty).
         Definition mcycle_fields := @nil (CSRField ty).
         Definition minstret_fields := @nil (CSRField ty).
 
@@ -209,12 +208,24 @@ Section ControlStatusRegisters.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
         (* TODO mcounteren access - even if perf counters are hardwired to zero, user mode access attempts may or may not raise exception *)
-        (*        should this kind of exception be raised in decode, or here? *)
-        (* TODO time 0xC01 memory mapped register *)
+        (*        Should this kind of exception be raised in decode, or here? *)
+        (* TODO time 0xC01 memory mapped register - may be accessed in M mode *)
         (* TODO deal with the mnxti business - involves passing 0 or mtvt+offset into Retire, or ignoring the CSR writeback given by Retire *)
         (* TODO deal with the mscratchcsw business *)
         (* TODO figure out mtval behavior - in the Scala code this is still called "mbadaddr" *)
         exact(
+                    If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mvendorid;
+                    If (csradr == $$ (12'h"F12")) then Ret $$ ArchID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as marchid;
+                    If (csradr == $$ (12'h"F13")) then Ret $$ ImplID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mimpid;
+                    If (csradr == $$ (12'h"F14")) then Ret $$ HartID
+                                                  else Ret $$ (natToWord 64 0)
+                                                    as mhartid;
                     If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret (correctRead (mstatus_fields _) #mstatus)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mstatus;
@@ -232,7 +243,7 @@ Section ControlStatusRegisters.
                     If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret (correctRead (mtvec_fields _) #mtvec)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvec;
-                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 64  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) #mcounteren)
+                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 32  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) (SignExtend (XLEN-32) #mcounteren))
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcounteren;
                     If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret (correctRead (mtvt_fields _) #mtvt)
@@ -275,24 +286,11 @@ Section ControlStatusRegisters.
                        (csradr == $$ (12'h"C02")) then Read minstret : Bit 64    <- `"minstret"; Ret (correctRead (minstret_fields _) #minstret)
                                                   else Ret $$ (natToWord 64 0)
                                                     as minstret;
-                    If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mvendorid;
-                    If (csradr == $$ (12'h"F12")) then Ret $$ ArchID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as marchid;
-                    If (csradr == $$ (12'h"F13")) then Ret $$ ImplID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mimpid;
-                    If (csradr == $$ (12'h"F14")) then Ret $$ HartID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mhartid;
-                    (* WARL adjustments *)
 
-                    Ret (#mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
+                    Ret (#mvendorid | #marchid | #mimpid | #mhartid |
+                         #mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
                          #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
-                         #mintstatus | #mscratchcsw | #mcycle | #minstret |
-                         #mvendorid | #marchid | #mimpid | #mhartid)
+                         #mintstatus | #mscratchcsw | #mcycle | #minstret)
         ). Defined.
     End ReadCSR.
 
@@ -329,14 +327,13 @@ Section ControlStatusRegisters.
                     If !(#wecsr && (#csradr == $$ (12'h"B00")))
                                 then    Write `"mcycle" <- #mcycle + $$ (natToWord 64 1); Retv;
 
-                    If !(#wecsr && (#csradr == $$ (12'h"B02")))
+                    If !(#wecsr && (#csradr == $$ (12'h"B02"))) && !#except
                                 then    Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
                     Read mtvec : Bit 64 <- `"mtvec";
                     Read mepc           <- `"mepc";
 
                     If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Write `"mstatus" <- #data;     Retv);
-                                     (* If (#csradr == $$ (12'h"301")) then (Write `"misa" <- #data;        Retv); *)
                                         If (#csradr == $$ (12'h"304")) then (Write `"mie" <- #data;         Retv);
                                         If (#csradr == $$ (12'h"305")) then (Write `"mtvec" <- #data;       Retv);
                                         If (#csradr == $$ (12'h"306")) then (Write `"mcounteren" <- #data;  Retv);

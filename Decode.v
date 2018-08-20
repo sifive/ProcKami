@@ -392,7 +392,7 @@ Section Decoder.
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= $$ true   ;
                                                                "csr?"    ::= $$ false  };
-                                $$ Major_OP        ::= STRUCT {"imm"     ::= #i_imm    ; (* OP : Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
+                                $$ Major_OP        ::= STRUCT {"imm"     ::= #i_imm    ; (* Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
                                                                "rs1?"    ::= $$ true   ;
                                                                "rs2?"    ::= $$ true   ;
                                                                "rd?"     ::= $$ true   ;
@@ -432,8 +432,8 @@ Section Decoder.
                                                                "rs2?"    ::= $$ true   ;
                                                                "rd?"     ::= $$ false  ;
                                                                "csr?"    ::= $$ false  };
-                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm    ; (* SYSTEM : NOTE! The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
-                                                               "rs1?"    ::= #SYS_rs1  ; (* SYSTEM : NOTE! The E* instructions don't use rs1, rd, or a csr address!                       *)
+                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm    ; (* NOTE The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
+                                                               "rs1?"    ::= #SYS_rs1  ; (* NOTE The E* instructions don't use rs1, rd, or a csr address!                       *)
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= #SYS_rd   ;
                                                                "csr?"    ::= #SYS_csr  };
@@ -447,7 +447,7 @@ Section Decoder.
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= $$ true   ;
                                                                "csr?"    ::= $$ false  };
-                                $$ Major_OP_32     ::= STRUCT {"imm"     ::= #i_imm    ; (* OP-32 : Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
+                                $$ Major_OP_32     ::= STRUCT {"imm"     ::= #i_imm    ; (* Note that imm doesn't matter here; [natToWord XLEN 0] would work just as well *)
                                                                "rs1?"    ::= $$ true   ;
                                                                "rs2?"    ::= $$ true   ;
                                                                "rd?"     ::= $$ true   ;

@@ -30,4 +30,3 @@ _Estimates for completion time given in parentheses._
 - Although User mode exists, it is not possible to switch into it (1 day).
 - Most CSR special behavior is incomplete, although rudimentary exception handling works (1 wk).
 - There is no mechanism for injecting interrupts (1–2 day).
-- `minstret` increments on discarded (exception-causing) instructions (1–2 hr).
