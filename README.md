@@ -3,7 +3,8 @@
 ## Description
 
 Reference implementation of **RV64I** and **RV32I** with **M** and **M+U** privilege modes.  
-Future inclusion of the C, M, A, F, and D extensions is expected (in roughly that order).
+Future inclusion of the C, M, A, F, and D extensions is expected (in roughly that order).  
+The feature set of the implementation is driven by SiFive's E2 core series.
 
 ## Building
 
