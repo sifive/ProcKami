@@ -21,6 +21,20 @@ To run programs
 
 (On our machine, `ISA-TEST-PATH` looks like `.../target/share/riscv-tests/isa/`)
 
+## What's Included
+
+ProcKami is organized in the way that most processors are, viz.:
+
+**Decode** (_Decode.v, Control.v_)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**↓**  
+**Execute** (_Execute1.v, Execute2.v_)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**↓**  
+**Retire** (_Status.v_)
+
+The file _CSR-types_ includes a table of fields found in RISC-V control status registers, and is useful to have in mind when reading _Status.v_.
+
+The files _Processor.v_, _Memory.sv_, and _System.sv_ put all of these together.
+
 ## Known Issues
 _Estimates for completion time given in parentheses._
 
@@ -30,3 +44,5 @@ _Estimates for completion time given in parentheses._
 - Although User mode exists, it is not possible to switch into it (1 day).
 - Most CSR special behavior is incomplete, although rudimentary exception handling works (1 wk).
 - There is no mechanism for injecting interrupts (1–2 day).
+
+For more details, see the `TODO`s sprinkled throughout the source.
