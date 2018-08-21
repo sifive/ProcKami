@@ -31,7 +31,7 @@ ProcKami is organized in the way that most processors are, viz.:
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**↓**  
 **Retire** (_Status.v_)
 
-The file _CSR-types_ includes a table of fields found in RISC-V control status registers, and is useful to have in mind when reading _Status.v_.
+The file _CSR-Types_ includes a table of fields found in RISC-V control status registers, and is useful to have in mind when reading _Status.v_.
 
 The files _Processor.v_, _Memory.sv_, and _System.sv_ put all of these together.
 
