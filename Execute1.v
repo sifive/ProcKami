@@ -5,7 +5,7 @@ Definition XLENm1 := if RV32 then 31 else 63.
 Section Execute1.
     Variable ty : Kind -> Type.
 
-    Definition EInst := STRUCT {
+    Definition Results := STRUCT {
         "pcPlus4"    :: Bit XLEN ;
         "aluOut"     :: Bit XLEN ;
         "twiddleOut" :: Bit XLEN ;
@@ -23,7 +23,7 @@ Section Execute1.
     Variable csr_val : Bit XLEN @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
-    Definition Execute1_action : ActionT ty EInst.
+    Definition Execute1_action : ActionT ty Results.
     exact(
         LET funct3   <- dInst @% "funct3"    ;
         LET keys     <- dInst @% "keys"      ;
@@ -114,7 +114,7 @@ Section Execute1.
 
         (* BREAK *)
 
-        LET eInst : EInst <- STRUCT {
+        LET results : Results <- STRUCT {
                                 "pcPlus4"    ::= #pcPlus4    ;
                                 "aluOut"     ::= #aluOut     ;
                                 "twiddleOut" ::= #twiddleOut ;
@@ -123,7 +123,7 @@ Section Execute1.
                                 "memDat"     ::= #memDat     ;
                                 "memMask"    ::= #memMask
                             };
-        Ret #eInst
+        Ret #results
     ). Defined.
 End Execute1.
 

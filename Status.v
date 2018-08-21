@@ -176,7 +176,7 @@ Section ControlStatusRegisters.
         (*Definition mtvec_fields := WARLawm "MODE" 5 0 mtvec_legalize :: nil.*)
         (*Eval simpl in evalExpr (correctWrite mtvec_fields (Const _ (64'h"0000000000000000")) (Const _ (64'h"FFFFFFFFFFFFFFFE"))).*)
 
-        (* NOTE! mcounteren is a 32-bit register *)
+        (* Note that mcounteren is a 32-bit register *)
         Definition mcounteren_fields := Unsupported ty "HPM" 31 3 :: Unsupported _ "TM" 1 1 :: nil.
 
         Definition mtvt_legalize := fun (m : Bit 64 @# ty) => ClearBits 0 5 m.
@@ -312,10 +312,10 @@ Section ControlStatusRegisters.
         Variable cause : Bit 4 @# ty.
         Definition ClicVector_action : ActionT ty TableLookup.
         exact(
-            (* Should these reads be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
+            (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
             Read mtvec : Bit 64 <- `"mtvec";
             LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
-            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) (* && not a synchronous exception *);
+            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) (* TODO && not a synchronous exception *);
             If #clic_vectoring then
                 Read mtvt : Bit 64 <- `"mtvt";
                 LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 57 cause) , ($$ WO~0~0~0) >} else {< (ZeroExtend 58 cause) , ($$ WO~0~0) >});
@@ -343,22 +343,35 @@ Section ControlStatusRegisters.
             "reqPC"      :: Bit 64
         }.
 
+        Definition RInst := STRUCT {
+            "mode"   :: Bit 2;
+            "pc"     :: Bit XLEN;
+            "werf"   :: Bool;
+            "rd_val" :: Bit XLEN
+        }.
+
         Open Scope kami_expr.
         Open Scope kami_action.
         Variable ty : Kind -> Type.
+        Variable mode : Bit 2 @# ty.
         Variable csrCtrl : CSRCtrl @# ty.
         Variable mtvtMemResp : MemResp @# ty.
-        Definition WriteCSRandRetire_action : ActionT ty (Bit 64).
+        Variable req_werf : Bool @# ty.
+        Variable req_rd_val : Bit XLEN @# ty.
+        Definition WriteCSRandRetire_action : ActionT ty RInst.
         exact(
                     LET wecsr           <- csrCtrl @% "wecsr";
                     LET csradr          <- csrCtrl @% "csradr";
                     LET data            <- csrCtrl @% "twiddleOut";
-                    LET data32          <- #data $[ 31 : 0 ];
                     LET pc              <- csrCtrl @% "pc";
                     LET except          <- csrCtrl @% "except?";
                     LET cause           <- csrCtrl @% "cause";
                     LET ret             <- csrCtrl @% "ret?";
                     LET reqPC           <- csrCtrl @% "reqPC";
+
+                    LET data32          <- #data $[ 31 : 0 ];
+
+                    (* TODO faults during mtvt table access *)
 
                     Read mcycle         <- `"mcycle";
                     Read minstret       <- `"minstret";
@@ -369,8 +382,8 @@ Section ControlStatusRegisters.
                     If !(#wecsr && (#csradr == $$ (12'h"B02"))) && !#except
                                 then    Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
-                    (* Should these reads be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
-                    (* They could also be passed from ClicVectoring_action to avoid a double read, but the trouble is not worth it, and in any case
+                    (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
+                    (* They could also be passed from ClicVector_action to avoid a double read, but the trouble is not worth it, and in any case
                        the synthesized hardware ought to be identical, barring pipeline issues.                                                     *)
                     Read mtvec : Bit 64 <- `"mtvec";
                     Read mepc           <- `"mepc";
@@ -392,7 +405,7 @@ Section ControlStatusRegisters.
                                         If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data; Retv);
                                         Retv
                                        );
-                    (* Should these writes be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
+                    (* Should these writes be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
                     If (#except) then  (Write `"mepc" <- #pc;
                                         Write `"mcause" <- ZeroExtend 60 #cause;
                                         Retv
@@ -404,16 +417,22 @@ Section ControlStatusRegisters.
                                            then #vector_base
                                            else (IF #vectoring_mode == $1
                                                  then #vector_base + {< (ZeroExtend 58 #cause) , ($$ WO~0~0) >}
-                                                 else (IF (#vectoring_mode == $2) || ( (* synchronous exception *) )
+                                                 else (IF (#vectoring_mode == $2) (* TODO || synchronous exception *) )
                                                        then #vector_base
-                                                       else (* TODO get response from memory access and then clear last bit *)
+                                                       else {< ((#mtvtMemResp @% "data") $[ 63 : 1 ]) , ($$ WO~0) >}
                                                       )
                                                 );
                     LET final_pc        <- IF #except then #exc_addr
                                            else (IF #ret then #mepc
                                                          else #reqPC);
 
-                    Ret #final_pc
+                    LET rInst : RInst   <- STRUCT {
+                                            "mode"   ::=
+                                            "pc"     ::=
+                                            "werf"   ::=
+                                            "rd_val" ::=
+                                            };
+                    Ret #rInst
         ). Defined.
     End WriteCSR.
 End ControlStatusRegisters.

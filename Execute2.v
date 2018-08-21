@@ -8,7 +8,7 @@ Section Execute2.
         "fault"  :: Bit 2
     }.
 
-    Definition Update := STRUCT {
+    Definition EInst := STRUCT {
         "except?"   :: Bool     ;
         "cause"     :: Bit 4    ;
         "ret?"      :: Bool     ;
@@ -26,7 +26,7 @@ Section Execute2.
     Variable memResp : MemResp  @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
-    Definition Execute2_action : ActionT ty Update.
+    Definition Execute2_action : ActionT ty EInst.
     exact(
         LET respValid <- ctrlSig @% "memOp" != $$ Mem_off;
         LET data      <- memResp @% "data";
@@ -92,7 +92,7 @@ Section Execute2.
                             $$ Rd_memRead ::= #memLoad ;
                             $$ Rd_csr     ::= csr_val
                         };
-        LET update : Update <- STRUCT {
+        LET eInst : EInst <- STRUCT {
                             "except?"   ::= #penult_except ;
                             "cause"     ::= #penult_cause  ;
                             "ret?"      ::= #ret          ;
@@ -101,7 +101,7 @@ Section Execute2.
                             "rd_val"    ::= #rd_val       ;
                             "wecsr"     ::= #penult_wecsr  ;
                         };
-        Ret #update
+        Ret #eInst
     ). Defined.
 End Execute2.
 

@@ -94,8 +94,8 @@ Section Process.
                    does not require register reads, and when (ii) an instruction
                    type ~does~ require register reads but the source register is x0
                 *)
-                LET   rdEn1       <- (#dInst @% "keys") @% "rs1?";
-                LET   rdEn2       <- (#dInst @% "keys") @% "rs2?";
+                LET rdEn1 <- (#dInst @% "keys") @% "rs1?";
+                LET rdEn2 <- (#dInst @% "keys") @% "rs2?";
 
                 If (#rdEn1) then (Call  rs1_val : _ <- `"rfRead1"(#dInst @% "rs1" : _);
                                   Ret #rs1_val)
@@ -108,28 +108,28 @@ Section Process.
 
               (******)
 
-                LETA  ctrlSig     <- Control_action #dInst ;
-                LETA  eInst       <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
+                LETA  ctrlSig <- Control_action #dInst;
+                LETA  calcRes <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
 
               (******)
 
-                LET   memReq      <- STRUCT {
-                                       "memOp"   ::= #ctrlSig @% "memOp";
-                                       "memMask" ::= #eInst @% "memMask";
-                                       "memAdr"  ::= #eInst @% "memAdr";
-                                       "memDat"  ::= #eInst @% "memDat"
-                                     };
+                LET   memReq <- STRUCT {
+                                  "memOp"   ::= #ctrlSig @% "memOp";
+                                  "memMask" ::= #calcRes @% "memMask";
+                                  "memAdr"  ::= #calcRes @% "memAdr";
+                                  "memDat"  ::= #calcRes @% "memDat"
+                                };
                 If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call  memResp : _ <- `"memAction"(#memReq : _);
                                                              Ret #memResp)
                                                        else Ret $$ (getDefaultConst MemResp) as memResp;
 
               (******)
 
-                LETA  update      <- Execute2_action #mode #dInst #ctrlSig #csr_val #eInst #memResp;
+                LETA  eInst <- Execute2_action #mode #dInst #ctrlSig #csr_val #calcRes #memResp;
 
               (******)
 
-                LETA tableLookup <- ClicVector_action LABEL CORE_NUM (#update @% "except?") (#update @% "cause");
+                LETA tableLookup <- ClicVector_action LABEL CORE_NUM (#eInst @% "except?") (#eInst @% "cause");
                 LET mtvtMemReq <- STRUCT {
                                        "memOp"   ::= $$ Mem_load;
                                        "memMask" ::= $$ WO~1~1~1~1~1~1~1~1; (* WO~1~1~1~1 in RV32 *)
@@ -141,36 +141,35 @@ Section Process.
                                                else Ret $$ (getDefaultConst MemResp) as #mtvtMemResp;
 
                 LET   csrCtrl     <- STRUCT {
-                                       "wecsr"      ::= #update @% "wecsr"     ;
-                                       "csradr"     ::= #dInst @% "csradr"     ;
-                                       "twiddleOut" ::= #eInst @% "twiddleOut" ;
-                                       "pc"         ::= #pc                    ;
-                                       "except?"    ::= #update @% "except?"   ;
-                                       "cause"      ::= #update @% "cause"     ;
-                                       "ret?"       ::= #update @% "ret?"      ;
-                                       "reqPC"      ::= #update @% "new_pc"
+                                       "wecsr"      ::= #eInst @% "wecsr"        ;
+                                       "csradr"     ::= #dInst @% "csradr"       ;
+                                       "twiddleOut" ::= #calcRes @% "twiddleOut" ;
+                                       "pc"         ::= #pc                      ;
+                                       "except?"    ::= #eInst @% "except?"      ;
+                                       "cause"      ::= #eInst @% "cause"        ;
+                                       "ret?"       ::= #eInst @% "ret?"         ;
+                                       "reqPC"      ::= #eInst @% "new_pc"
                                      };
-                LETA  next_pc : Bit 64 <- WriteCSRandRetire_action LABEL CORE_NUM #csrCtrl #mtvtMemResp;
+                LETA final <- WriteCSRandRetire_action LABEL CORE_NUM #mode #csrCtrl #mtvtMemResp (#eInst @% "werf") (#eInst @% "rd_val");
 
-                (* TODO writeback data might be changed because of mnxti *)
-                (* TODO writeback might cancelled because of a memory fault around mtvt *)
-                LET   rfCtrl      <- STRUCT {
-                                       "addr" ::= #dInst @% "rd";
-                                       "data" ::= #update @% "rd_val"
-                                     };
-                If (#update @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit 64));
+                LET rfCtrl <- STRUCT {
+                                "addr" ::= #dInst @% "rd";
+                                "data" ::= #final @% "rd_val"
+                              };
+                If (#final @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit 64));
                                             Retv
                                        else Retv;
 
-                Write `"mode"      <- #__ @% "next_mode"; (* TODO mode change should come from WriteCSR_action *)
-                Write `"pc"        <- #next_pc;
+                Write `"mode" <- #final @% "next_mode";
+                Write `"pc"   <- #final @% "pc";
 
               (******)
 
-                If ((#eInst @% "memAdr" == $$ (64'h"0000000080001000")) && (#ctrlSig @% "memOp" == $$ Mem_store))
-                    then (If #eInst @% "memDat" == $$ (64'h"0000000000000001")
-                          then Sys ((DispString _ "\033[32;1mWrite to Host ") :: (DispBit (#eInst @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
-                          else Sys ((DispString _ "\033[31;1mWrite to Host ") :: (DispBit (#eInst @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                (* Note that this displays even if the instruction does not retire *)
+                If ((#calcRes @% "memAdr" == $$ (64'h"0000000080001000")) && (#ctrlSig @% "memOp" == $$ Mem_store))
+                    then (If #calcRes @% "memDat" == $$ (64'h"0000000000000001")
+                          then Sys ((DispString _ "\033[32;1mWrite to Host ") :: (DispBit (#calcRes @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                          else Sys ((DispString _ "\033[31;1mWrite to Host ") :: (DispBit (#calcRes @% "memDat") (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
                         ; Retv
                          )
                     else Retv;
