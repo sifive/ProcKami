@@ -1,4 +1,4 @@
-Require Import Kami.All Decode Control Execute Retire Status.
+Require Import Kami.All Decode Control Execute1 Execute2 Status.
 
 Section Process.
     Variable LABEL : string.
@@ -125,18 +125,20 @@ Section Process.
 
               (******)
 
-                LETA  update      <- Retire_action #mode #dInst #ctrlSig #csr_val #eInst #memResp;
+                LETA  update      <- Execute2_action #mode #dInst #ctrlSig #csr_val #eInst #memResp;
 
               (******)
 
-                LET   rfCtrl      <- STRUCT {
-                                       "addr" ::= #dInst @% "rd";
-                                       "data" ::= #update @% "rd_val"
-                                     };
-
-                If (#update @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit 64));
-                                            Retv
-                                       else Retv;
+                LETA tableLookup <- ClicVector_action LABEL CORE_NUM (#update @% "except?") (#update @% "cause");
+                LET mtvtMemReq <- STRUCT {
+                                       "memOp"   ::= $$ Mem_load;
+                                       "memMask" ::= $$ WO~1~1~1~1~1~1~1~1; (* WO~1~1~1~1 in RV32 *)
+                                       "memAdr"  ::= #tableLookup @% "addr";
+                                       "memDat"  ::= $$ (natToWord 64 0)
+                                    };
+                IF (#tableLookup @% "needed?") then (Call mtvtMemResp : _ <- `"lateMemAction"(#mtvtMemReq : _);
+                                                     Ret #mtvtMemResp)
+                                               else Ret $$ (getDefaultConst MemResp) as #mtvtMemResp;
 
                 LET   csrCtrl     <- STRUCT {
                                        "wecsr"      ::= #update @% "wecsr"     ;
@@ -148,10 +150,19 @@ Section Process.
                                        "ret?"       ::= #update @% "ret?"      ;
                                        "reqPC"      ::= #update @% "new_pc"
                                      };
+                LETA  next_pc : Bit 64 <- WriteCSRandRetire_action LABEL CORE_NUM #csrCtrl #mtvtMemResp;
 
-                LETA  next_pc : Bit 64 <- WriteCSR_action LABEL CORE_NUM #csrCtrl;
+                (* TODO writeback data might be changed because of mnxti *)
+                (* TODO writeback might cancelled because of a memory fault around mtvt *)
+                LET   rfCtrl      <- STRUCT {
+                                       "addr" ::= #dInst @% "rd";
+                                       "data" ::= #update @% "rd_val"
+                                     };
+                If (#update @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit 64));
+                                            Retv
+                                       else Retv;
 
-                Write `"mode"      <- #update @% "next_mode";
+                Write `"mode"      <- #__ @% "next_mode"; (* TODO mode change should come from WriteCSR_action *)
                 Write `"pc"        <- #next_pc;
 
               (******)

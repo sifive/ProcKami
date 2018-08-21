@@ -18,6 +18,8 @@ Require Import Kami.All.
     Definition Memory_Access_Fault := WO~1~0.
     Definition Memory_Page_Fault   := WO~1~1. (* Currently unused *)
 
+    (* TODO Misalignment faults should be determined
+            by the processor, not the memory. *)
     (* Exceptions that are determined before decoding:
           0 Instruction Address Misaligned
           1 Instruction Access Fault
@@ -36,7 +38,8 @@ Require Import Kami.All.
           6 Store/AMO address misaligned - will be added
           7 Store/AMO access fault - will be added
 
-       Unsupported exceptions that will not be added:
+       Unsupported exceptions that will not be added (because
+       the E2 series doesn't have virtual memory):
          12 Instruction page fault
          13 Load page fault
          15 Store/AMO page fault
@@ -281,7 +284,6 @@ Section Decoder.
                             ) && (#funct3 != $$ Unused_C1);
 
         (* TODO add support for SFENCE.VMA *)
-        (* TODO verify support for privileged instructions *)
 
     (* CSR Checks        *)
         LET modify_csr   <- (#funct3 $[ 0 : 0 ] | #funct3 $[ 1 : 1 ]) == $$ WO~1;
@@ -292,8 +294,6 @@ Section Decoder.
         LET priv_ok      <- #csr_priv <= mode;
         LET top7         <- #csradr $[ 11 : 5];
         LET debug_reserv <- #top7 == $$ WO~0~1~1~1~1~0~1;   (* 0x7A0 - 0x7BF                            *)
-
-        (* TODO access permissions in user mode based on CSR settings *)
 
         (* Note: These are presented in the same order as in Status.v *)
         LET csr_exists   <-    (#top7 == $$ WO~1~1~0~0~0~0~0)
@@ -432,8 +432,8 @@ Section Decoder.
                                                                "rs2?"    ::= $$ true   ;
                                                                "rd?"     ::= $$ false  ;
                                                                "csr?"    ::= $$ false  };
-                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm    ; (* NOTE The non-*I instructions don't use zimm, and the *I instructions don't use rs1! *)
-                                                               "rs1?"    ::= #SYS_rs1  ; (* NOTE The E* instructions don't use rs1, rd, or a csr address!                       *)
+                                $$ Major_SYSTEM    ::= STRUCT {"imm"     ::= #z_imm    ; (* Note that the non-*I instructions don't use zimm, and the *I instructions don't use rs1 *)
+                                                               "rs1?"    ::= #SYS_rs1  ; (* Note that the E* instructions don't use rs1, rd, or a csr address                       *)
                                                                "rs2?"    ::= $$ false  ;
                                                                "rd?"     ::= #SYS_rd   ;
                                                                "csr?"    ::= #SYS_csr  };

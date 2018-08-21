@@ -184,7 +184,7 @@ Section ControlStatusRegisters.
 
         Definition mscratch_fields := @nil (CSRField ty).
         Definition mepc_fields := HardZero ty 0 0 :: nil.
-        Definition mcause_fields := @nil (CSRField ty).
+        Definition mcause_fields := @nil (CSRField ty). 
         Definition mtval_fields := @nil (CSRField ty).
 
         Definition mip_fields := WPRIfc ty 64 12          :: ReadOnly _ "MEIP" 11 11 :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
@@ -208,11 +208,15 @@ Section ControlStatusRegisters.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
         (* TODO mcounteren access - even if perf counters are hardwired to zero, user mode access attempts may or may not raise exception *)
-        (*        Should this kind of exception be raised in decode, or here? *)
+        (*        This sort of exception is raised here, and not in Decode, since in a pipeline an older instruction may modify mcounteren
+                  while a user counter access is in flight.                                                                               *)
         (* TODO time 0xC01 memory mapped register - may be accessed in M mode *)
-        (* TODO deal with the mnxti business - involves passing 0 or mtvt+offset into Retire, or ignoring the CSR writeback given by Retire *)
-        (* TODO deal with the mscratchcsw business *)
+        (* TODO deal with the mnxti business: modify returned data struct *)
+        (* TODO deal with the mscratchcsw business: rd <- (mpp = current privilege mode ? rs1 : mscratch), mscratch <- mscratch * other source IF mpp != current privilege mode *)
         (* TODO figure out mtval behavior - in the Scala code this is still called "mbadaddr" *)
+        (* TODO "When CLINT mode is written to mtvec, the new mcause state fields are zeroed. The other new mcause fields appear as zero in
+                  the mcause CSR but the corresponding state bits in the mstatus register are not cleared."
+                "The new CLIC-specific fields appear to be hardwired to zero in CLINT mode" *)
         exact(
                     If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
                                                   else Ret $$ (natToWord 64 0)
@@ -243,7 +247,7 @@ Section ControlStatusRegisters.
                     If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret (correctRead (mtvec_fields _) #mtvec)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mtvec;
-                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 32  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) (SignExtend (XLEN-32) #mcounteren))
+                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 32  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) (ZeroExtend (XLEN-32) #mcounteren))
                                                   else Ret $$ (natToWord 64 0)
                                                     as mcounteren;
                     If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret (correctRead (mtvt_fields _) #mtvt)
@@ -294,6 +298,39 @@ Section ControlStatusRegisters.
         ). Defined.
     End ReadCSR.
 
+    Section CLICVector.
+        (* TODO look at CLIC interrupt to determine vectoring (nvbits and all that) *)
+        Definition TableLookup := STRUCT {
+            "needed?" :: Bool;
+            "addr"    :: Bit 64
+        }.
+
+        Open Scope kami_expr.
+        Open Scope kami_action.
+        Variable ty : Kind -> Type.
+        Variable except : Bool @# ty.
+        Variable cause : Bit 4 @# ty.
+        Definition ClicVector_action : ActionT ty TableLookup.
+        exact(
+            (* Should these reads be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
+            Read mtvec : Bit 64 <- `"mtvec";
+            LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
+            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) (* && not a synchronous exception *);
+            If #clic_vectoring then
+                Read mtvt : Bit 64 <- `"mtvt";
+                LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 57 cause) , ($$ WO~0~0~0) >} else {< (ZeroExtend 58 cause) , ($$ WO~0~0) >});
+                Ret #pointer_addr
+            else
+                Ret $$ (natToWord 64 0)
+            as pointer_addr;
+            LET table_lookup : TableLookup <- STRUCT {
+                                                "needed?" ::= #clic_vectoring;
+                                                "addr"    ::= #pointer_addr
+                                              };
+            Ret #table_lookup
+        ). Defined.
+    End CLICVector.
+
     Section WriteCSR.
         Definition CSRCtrl := STRUCT {
             "wecsr"      :: Bool   ;
@@ -310,11 +347,13 @@ Section ControlStatusRegisters.
         Open Scope kami_action.
         Variable ty : Kind -> Type.
         Variable csrCtrl : CSRCtrl @# ty.
-        Definition WriteCSR_action : ActionT ty (Bit 64).
+        Variable mtvtMemResp : MemResp @# ty.
+        Definition WriteCSRandRetire_action : ActionT ty (Bit 64).
         exact(
                     LET wecsr           <- csrCtrl @% "wecsr";
                     LET csradr          <- csrCtrl @% "csradr";
                     LET data            <- csrCtrl @% "twiddleOut";
+                    LET data32          <- #data $[ 31 : 0 ];
                     LET pc              <- csrCtrl @% "pc";
                     LET except          <- csrCtrl @% "except?";
                     LET cause           <- csrCtrl @% "cause";
@@ -330,26 +369,30 @@ Section ControlStatusRegisters.
                     If !(#wecsr && (#csradr == $$ (12'h"B02"))) && !#except
                                 then    Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
+                    (* Should these reads be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
+                    (* They could also be passed from ClicVectoring_action to avoid a double read, but the trouble is not worth it, and in any case
+                       the synthesized hardware ought to be identical, barring pipeline issues.                                                     *)
                     Read mtvec : Bit 64 <- `"mtvec";
                     Read mepc           <- `"mepc";
 
-                    If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Write `"mstatus" <- #data;     Retv);
-                                        If (#csradr == $$ (12'h"304")) then (Write `"mie" <- #data;         Retv);
-                                        If (#csradr == $$ (12'h"305")) then (Write `"mtvec" <- #data;       Retv);
-                                        If (#csradr == $$ (12'h"306")) then (Write `"mcounteren" <- #data;  Retv);
-                                        If (#csradr == $$ (12'h"307")) then (Write `"mtvt" <- #data;        Retv);
-                                        If (#csradr == $$ (12'h"340")) then (Write `"mscratch" <- #data;    Retv);
-                                        If (#csradr == $$ (12'h"341")) then (Write `"mepc" <- #data;        Retv);
-                                        If (#csradr == $$ (12'h"342")) then (Write `"mcause" <- #data;      Retv);
-                                        If (#csradr == $$ (12'h"343")) then (Write `"mtval" <- #data;       Retv);
-                                        If (#csradr == $$ (12'h"344")) then (Write `"mip" <- #data;         Retv);
-                                        If (#csradr == $$ (12'h"345")) then (Write `"mcause" <- #data;      Retv);
-                                        If (#csradr == $$ (12'h"346")) then (Write `"mintstatus" <- #data;  Retv);
-                                        If (#csradr == $$ (12'h"348")) then (Write `"mscratchcsw" <- #data; Retv);
-                                        If (#csradr == $$ (12'h"B00")) then (Write `"mcycle" <- #data;      Retv);
-                                        If (#csradr == $$ (12'h"B02")) then (Write `"minstret" <- #data;    Retv);
+                    If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Read mstatus    : Bit 64 <- `"mstatus"   ; Write `"mstatus"    <- (correctWrite (mstatus_fields _) #mstatus #data); Retv);
+                                        If (#csradr == $$ (12'h"304")) then (Read mie        : Bit 64 <- `"mie"       ; Write `"mie"        <- (correctWrite (mie_fields _) #mie #data; Retv);
+                                        If (#csradr == $$ (12'h"305")) then (                                           Write `"mtvec"      <- (correctWrite (mtvec_fields _) #mtvec #data; Retv);
+                                        If (#csradr == $$ (12'h"306")) then (Read mcounteren : Bit 32 <- `"mcounteren"; Write `"mcounteren" <- (correctWrite (mcounteren_fields _) #mcounteren #data32; Retv);
+                                        If (#csradr == $$ (12'h"307")) then (Read mtvt       : Bit 64 <- `"mtvt"      ; Write `"mtvt"       <- (correctWrite (mtvt_fields _) #mtvt #data; Retv);
+                                        If (#csradr == $$ (12'h"340")) then (Read mscratch   : Bit 64 <- `"mscratch"  ; Write `"mscratch"   <- (correctWrite (mscratch_fields _) #mscratch #data; Retv);
+                                        If (#csradr == $$ (12'h"341")) then (                                           Write `"mepc"       <- (correctWrite (mepc_fields _) #mepc #data; Retv);
+                                        If (#csradr == $$ (12'h"342")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
+                                        If (#csradr == $$ (12'h"343")) then (Read mtval      : Bit 64 <- `"mtval"     ; Write `"mtval"      <- (correctWrite (mtval_fields _) #mtval #data; Retv);
+                                        If (#csradr == $$ (12'h"344")) then (Read mip        : Bit 64 <- `"mip"       ; Write `"mip"        <- (correctWrite (mip_fields _) #mip #data; Retv);
+                                        If (#csradr == $$ (12'h"345")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
+                                        If (#csradr == $$ (12'h"346")) then (Read mintstatus : Bit 64 <- `"mintstatus"; Write `"mintstatus" <- (correctWrite (mintstatus_fields _) #mintstatus #data; Retv);
+                                        (* 12'h"348" mscratchcsw *)
+                                        If (#csradr == $$ (12'h"B00")) then (Read mcycle     : Bit 64 <- `"mcycle"    ; Write `"mcycle"     <- (correctWrite (mcycle_fields _) #mcycle #data; Retv);
+                                        If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data; Retv);
                                         Retv
                                        );
+                    (* Should these writes be corrected? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
                     If (#except) then  (Write `"mepc" <- #pc;
                                         Write `"mcause" <- ZeroExtend 60 #cause;
                                         Retv
@@ -361,9 +404,9 @@ Section ControlStatusRegisters.
                                            then #vector_base
                                            else (IF #vectoring_mode == $1
                                                  then #vector_base + {< (ZeroExtend 58 #cause) , ($$ WO~0~0) >}
-                                                 else (IF #vectoring_mode == $2
-                                                       then #vector_base (* TODO add CLIC support *)
-                                                       else #vector_base (* TODO add CLIC support *)
+                                                 else (IF (#vectoring_mode == $2) || ( (* synchronous exception *) )
+                                                       then #vector_base
+                                                       else (* TODO get response from memory access and then clear last bit *)
                                                       )
                                                 );
                     LET final_pc        <- IF #except then #exc_addr

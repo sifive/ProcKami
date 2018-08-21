@@ -1,6 +1,6 @@
 Require Import Kami.All Decode Control Execute.
 
-Section Retire.
+Section Execute2.
     Variable ty : Kind -> Type.
 
     Definition MemResp := STRUCT {
@@ -16,7 +16,6 @@ Section Retire.
         "werf"      :: Bool     ;
         "rd_val"    :: Bit XLEN ;
         "wecsr"     :: Bool     ;
-        "next_mode" :: Bit 2
     }.
 
     Variable mode    : Bit 2    @# ty.
@@ -27,7 +26,7 @@ Section Retire.
     Variable memResp : MemResp  @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
-    Definition Retire_action : ActionT ty Update.
+    Definition Execute2_action : ActionT ty Update.
     exact(
         LET respValid <- ctrlSig @% "memOp" != $$ Mem_off;
         LET data      <- memResp @% "data";
@@ -48,8 +47,8 @@ Section Retire.
         LET access_fault <- #fault == $$ Memory_Access_Fault;
         LET misaligned   <- #fault == $$ Memory_Misaligned;
 
-        LET final_except <- (dInst @% "except?") || #access_fault || #misaligned;
-        LET final_cause  <- IF dInst @% "except?"
+        LET penult_except <- (dInst @% "except?") || #access_fault || #misaligned;
+        LET penult_cause  <- IF dInst @% "except?"
                             then dInst @% "cause"
                             else (IF #access_fault
                                   then $$ Exception_Ld_Access_Fault
@@ -58,10 +57,10 @@ Section Retire.
                                         else $$ WO~0~0~0~0
                                   )
                             );
-        LET final_OK     <- ! #final_except;
-        LET final_pcSrc  <- IF #final_except then $$ PC_exception else #pcSrc;
-        LET final_werf   <- #final_OK && #werf;
-        LET final_wecsr  <- #final_OK && #wecsr;
+        LET penult_OK     <- ! #penult_except;
+        LET penult_pcSrc  <- IF #penult_except then $$ PC_exception else #pcSrc;
+        LET penult_werf   <- #penult_OK && #werf;
+        LET penult_wecsr  <- #penult_OK && #wecsr;
 
         (* STATE UPDATE *)
 
@@ -77,12 +76,12 @@ Section Retire.
                         };
 
         LET aligned  <- {< (#aluOut $[ XLENm1 : 1 ]) , $$ WO~0 >};
-        LET new_pc   <- Switch #final_pcSrc Retn (Bit XLEN) With {
+        LET new_pc   <- Switch #penult_pcSrc Retn (Bit XLEN) With {
                             $$ PC_pcPlus4   ::= #pcPlus4;
                             $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
                             $$ PC_compare   ::= IF #compOut then #aluOut else #pcPlus4
                             (* and because of the way Switch works, new_pc <- 0
-                               when #final_pcSrc is PC_return or PC_exception,
+                               when #penult_pcSrc is PC_return or PC_exception,
                                although the value of new_pc in those cases does
                                not matter *)
                         };
@@ -94,17 +93,15 @@ Section Retire.
                             $$ Rd_csr     ::= csr_val
                         };
         LET update : Update <- STRUCT {
-                            "except?"   ::= #final_except ;
-                            "cause"     ::= #final_cause  ;
+                            "except?"   ::= #penult_except ;
+                            "cause"     ::= #penult_cause  ;
                             "ret?"      ::= #ret          ;
                             "new_pc"    ::= #new_pc       ;
-                            "werf"      ::= #final_werf   ;
+                            "werf"      ::= #penult_werf   ;
                             "rd_val"    ::= #rd_val       ;
-                            "wecsr"     ::= #final_wecsr  ;
-                            "next_mode" ::= mode
+                            "wecsr"     ::= #penult_wecsr  ;
                         };
-        (* TODO Add mode changes! *)
         Ret #update
     ). Defined.
-End Retire.
+End Execute2.
 

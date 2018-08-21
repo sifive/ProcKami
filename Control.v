@@ -30,12 +30,12 @@ Section Control.
     Definition Mem_store    := WO~1~1.
 
     (* csrMask *)
-    Definition Mask_rs1     := WO~0.   (* currently an optimization relies on this order *)
-    Definition Mask_imm     := WO~1.
+    Definition Mask_rs1     := WO~0.   (* currently an optimization relies on this order - do not change *)
+    Definition Mask_imm     := WO~1.   (*   these definitions without changing the later code            *)
 
     (* csrSrc *)
-    Definition Csr_Reserved := WO~0~0. (* currently an optimization relies on this order *)
-    Definition Csr_write    := WO~0~1.
+    Definition Csr_Reserved := WO~0~0. (* currently an optimization relies on this order - do not change *)
+    Definition Csr_write    := WO~0~1. (*   these definitions without changing the later code            *)
     Definition Csr_set      := WO~1~0.
     Definition Csr_clear    := WO~1~1.
 
