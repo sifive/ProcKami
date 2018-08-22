@@ -80,6 +80,8 @@ Section Process.
             (*           ...                                           (*  ...  *)   *)  (*  ...           *)
             (*       `"mhpmevent31"                                    (* 0x33F *)   *)  (* Hardwired to 0 *)
 
+            (* TODO misalignment faults should be caught by the processor, not the memory *)
+
             Register `"mode"  : (Bit  2) <- WO~1~1 with
             Register `"pc"    : (Bit 64) <- RESET_VECTOR with
             Rule `"step" :=
@@ -104,7 +106,7 @@ Section Process.
                                   Ret #rs2_val)
                             else Ret $$ (natToWord 64 0) as rs2_val;
 
-                LETA csr_val : Bit 64 <- ReadCSR_action LABEL CORE_NUM (#dInst @% "csradr");
+                LETA csr_val : Bit 64 <- ReadCSR_action LABEL CORE_NUM #mode (#dInst @% "csradr");
 
               (******)
 

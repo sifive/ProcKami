@@ -158,12 +158,15 @@ Section ControlStatusRegisters.
         Open Scope kami_expr.
         Variable ty : Kind -> Type.
 
+        (* Note that UXL is hardwired to MXL - shadowing in general is handled in ReadCSR_action *)
+        Definition mpp_okay := fun (m : Bit 2 @# ty) => if USER_MODE then (m == $$ WO~0~0 || m == $$ WO~1~1) else (m == $$ WO~1~1).
         Definition mstatus_fields := Unsupported ty "SD" 63 63 :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
-                                     Unsupported _ "UXL" 33 32 :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
+                                     ReadOnly    _ "UXL" 33 32 :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
                                      Unsupported _  "TW" 21 21 :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
                                      Unsupported _ "SUM" 18 18 :: Unsupported _  "XS" 16 15 :: Unsupported _  "FS" 14 13 ::
-                                     WPRIfc _ 10 9             :: Unsupported _ "SPP"  8  8 :: WPRIfc _ 6 6              ::
-                                     Unsupported _ "SPIE" 5  5 :: WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: nil.
+                                     WARLaon _ "MPP" 12 11 mpp_okay :: WPRIfc _ 10 9        :: Unsupported _ "SPP"  8  8 ::
+                                     WPRIfc _ 6 6              :: Unsupported _ "SPIE" 5  5 :: Unsupported _ "UPIE" 4  4 ::
+                                     WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: Unsupported _  "UIE" 0  0 :: nil.
 
         Definition mie_fields := WPRIfc ty 63 12          :: WPRIfc _ 10 10 :: Unsupported _ "SEIE" 9 9 ::
                                  Unsupported _ "UEIE" 8 8 :: WPRIfc _  6  6 :: Unsupported _ "STIE" 5 5 ::
@@ -199,24 +202,27 @@ Section ControlStatusRegisters.
         Close Scope kami_expr.
     End CSRSpecialFields.
 
+    (* TODO time 0xC01 memory mapped register - may be accessed in M mode *)
+    (* TODO deal with the mnxti business: modify returned data struct *)
+    (* TODO deal with the mscratchcsw business: rd <- (mpp = current privilege mode ? rs1 : mscratch), mscratch <- mscratch * other source IF mpp != current privilege mode *)
+    (* TODO figure out mtval behavior - in the Scala code this is still called "mbadaddr" *)
+    (* TODO "When CLINT mode is written to mtvec, the new mcause state fields are zeroed. The other new mcause fields appear as zero in
+              the mcause CSR but the corresponding state bits in the mstatus register are not cleared."
+            "The new CLIC-specific fields appear to be hardwired to zero in CLINT mode" *)
+
     Section ReadCSR.
         Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
 
         Open Scope kami_expr.
         Open Scope kami_action.
         Variable ty : Kind -> Type.
+        Variable mode : Bit 2 @# ty.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
         (* TODO mcounteren access - even if perf counters are hardwired to zero, user mode access attempts may or may not raise exception *)
         (*        This sort of exception is raised here, and not in Decode, since in a pipeline an older instruction may modify mcounteren
                   while a user counter access is in flight.                                                                               *)
-        (* TODO time 0xC01 memory mapped register - may be accessed in M mode *)
-        (* TODO deal with the mnxti business: modify returned data struct *)
-        (* TODO deal with the mscratchcsw business: rd <- (mpp = current privilege mode ? rs1 : mscratch), mscratch <- mscratch * other source IF mpp != current privilege mode *)
-        (* TODO figure out mtval behavior - in the Scala code this is still called "mbadaddr" *)
-        (* TODO "When CLINT mode is written to mtvec, the new mcause state fields are zeroed. The other new mcause fields appear as zero in
-                  the mcause CSR but the corresponding state bits in the mstatus register are not cleared."
-                "The new CLIC-specific fields appear to be hardwired to zero in CLINT mode" *)
+        (* TODO UXL shadowing *)
         exact(
                     If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
                                                   else Ret $$ (natToWord 64 0)
@@ -279,7 +285,7 @@ Section ControlStatusRegisters.
                     If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret (correctRead (mintstatus_fields _) #mintstatus)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mintstatus;
-                    If (csradr == $$ (12'h"348")) then Read mscratchcsw : Bit 64 <- `"mscratchcsw"; Ret (correctRead (mscratchcsw_fields _) #mscratchcsw)
+                    If (csradr == $$ (12'h"348")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
                                                   else Ret $$ (natToWord 64 0)
                                                     as mscratchcsw;
                     If (csradr == $$ (12'h"B00")) ||
@@ -371,7 +377,7 @@ Section ControlStatusRegisters.
 
                     LET data32          <- #data $[ 31 : 0 ];
 
-                    (* TODO faults during mtvt table access *)
+                    (* TODO? faults during mtvt table access *)
 
                     Read mcycle         <- `"mcycle";
                     Read minstret       <- `"minstret";
@@ -401,6 +407,9 @@ Section ControlStatusRegisters.
                                         If (#csradr == $$ (12'h"345")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
                                         If (#csradr == $$ (12'h"346")) then (Read mintstatus : Bit 64 <- `"mintstatus"; Write `"mintstatus" <- (correctWrite (mintstatus_fields _) #mintstatus #data; Retv);
                                         (* 12'h"348" mscratchcsw *)
+                    If (csradr == $$ (12'h"348")) then Read mstatus : Bit 64 <- `"mstatus";
+                                                       LET mpp : Bit 2 <- #mstatus $[ 12 : 11 ];
+                                                       IF 
                                         If (#csradr == $$ (12'h"B00")) then (Read mcycle     : Bit 64 <- `"mcycle"    ; Write `"mcycle"     <- (correctWrite (mcycle_fields _) #mcycle #data; Retv);
                                         If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data; Retv);
                                         Retv
