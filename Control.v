@@ -37,7 +37,7 @@ Section Control.
     Definition Csr_Reserved := WO~0~0. (* currently an optimization relies on this order - do not change *)
     Definition Csr_write    := WO~0~1. (*   these definitions without changing the later code            *)
     Definition Csr_set      := WO~1~0.
-    Definition Csr_clear    := WO~1~1.
+    Definition Csr_clear    := WO~1~1. (* TODO remove the optimizations - they're not worth it           *)
 
     Definition AluCfg := STRUCT {
         "opr" :: Bit 3 ;

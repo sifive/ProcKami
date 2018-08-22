@@ -44,7 +44,7 @@ Section Process.
             (*       `"mideleg"                                        (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
             Register `"mie"        : (Bit 64) <- (natToWord 64 0) with (* 0x304 *)
             Register `"mtvec"      : (Bit 64) <- (Ox"000")        with (* 0x305 *)
-            Register `"mcounteren" : (Bit 64) <- (natToWord 64 0) with (* 0x306 *)
+            Register `"mcounteren" : (Bit 32) <- (natToWord 32 0) with (* 0x306 *)
             Register `"mtvt"       : (Bit 64) <- (natToWord 64 0) with (* 0x307 *)       (* See the SiFive CLIC Proposal *)
 
             Register `"mscratch"   : (Bit 64) <- (natToWord 64 0) with (* 0x340 *)
@@ -80,15 +80,18 @@ Section Process.
             (*           ...                                           (*  ...  *)   *)  (*  ...           *)
             (*       `"mhpmevent31"                                    (* 0x33F *)   *)  (* Hardwired to 0 *)
 
-            (* TODO misalignment faults should be caught by the processor, not the memory *)
-
             Register `"mode"  : (Bit  2) <- WO~1~1 with
             Register `"pc"    : (Bit 64) <- RESET_VECTOR with
             Rule `"step" :=
-                Read  pc      : _ <- `"pc";
-                Read  mode    : _ <- `"mode";
-                Call  iFetch  : _ <- `"getInstr"(#pc : _);
-                LETA  dInst       <- Decode_action #mode #iFetch;
+                Read  pc       : _ <- `"pc";
+                Read  mode     : _ <- `"mode";
+                LET misaligned : _ <- if IALIGNW then #pc $[ 1 : 0 ] == $$ WO~0~0
+                                                 else #pc $[ 0 : 0 ] == $$ WO~0;
+
+                If #misaligned then Ret $$ (natToWord 32 0)
+                               else Call instr : _ <- `"getInstr"(#pc : _); Ret #instr
+                                 as instr;
+                LETA dInst <- Decode_action #misaligned #mode #instr;
 
               (******)
 
@@ -121,7 +124,7 @@ Section Process.
                                   "memAdr"  ::= #calcRes @% "memAdr";
                                   "memDat"  ::= #calcRes @% "memDat"
                                 };
-                If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call  memResp : _ <- `"memAction"(#memReq : _);
+                If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call memResp : _ <- `"memAction"(#memReq : _);
                                                              Ret #memResp)
                                                        else Ret $$ (getDefaultConst MemResp) as memResp;
 

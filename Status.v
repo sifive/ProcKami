@@ -65,10 +65,10 @@ Definition correctWrite' (ty : Kind -> Type) (field : (CSRField ty)) (prev acc :
   refine
     match field with
     | ReadOnly n msb lsb    => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
-    | HardZero msb lsb      => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | HardZero msb lsb      => ClearBits lsb msb acc
     | Unsupported n msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
     | WIRI msb lsb   => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
-    | WPRIfc msb lsb => ReplaceBits lsb msb (ExtractBits lsb msb prev) acc
+    | WPRIfc msb lsb => ClearBits lsb msb acc
     | WPRIbc msb lsb => acc
     | WLRL n msb lsb => acc
     | WARLaon n msb lsb okay => (IF okay (ExtractBits lsb msb acc) then acc else ReplaceBits lsb msb (ExtractBits lsb msb prev) acc)%kami_expr
@@ -97,10 +97,10 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
 
    CSR              Implicitly Read for         Implicitly Set by           Write Side-Effects          Comments
    ---------------  --------------------------  --------------------------  --------------------------  --------------------------------------------------------------------------------
-   cycle[h]          --                          --                          --                         Read only, shadows "mcycle", accessibility-in-User-mode set by "mstatus"
-   time[h]           --                          --                          --                         Read only, memory-mapped, accessibility-in-User-mode set by "mstatus"
-   instret[h]        --                          --                          --                         Read only, shadows "minstret", accessibility-in-User-mode set by "mstatus"
-   hpmcounter*[h]    --                          --                          --                         Hardwired to 0, accessibility-in-User-mode set by "mstatus"
+   cycle[h]          --                          --                          --                         Read only, shadows "mcycle", accessibility-in-User-mode set by "mscounteren"
+   time[h]           --                          --                          --                         Read only, memory-mapped, accessibility-in-User-mode set by "mcounteren"
+   instret[h]        --                          --                          --                         Read only, shadows "minstret", accessibility-in-User-mode set by "mcounteren"
+   hpmcounter*[h]    --                          --                          --                         Hardwired to 0, accessibility-in-User-mode set by "mcounteren"
 
    mvendorid         --                          --                          --                         Read only
    marchid           --                          --                          --                         Read only
@@ -160,13 +160,13 @@ Section ControlStatusRegisters.
 
         (* Note that UXL is hardwired to MXL - shadowing in general is handled in ReadCSR_action *)
         Definition mpp_okay := fun (m : Bit 2 @# ty) => if USER_MODE then (m == $$ WO~0~0 || m == $$ WO~1~1) else (m == $$ WO~1~1).
-        Definition mstatus_fields := Unsupported ty "SD" 63 63 :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
-                                     ReadOnly    _ "UXL" 33 32 :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
-                                     Unsupported _  "TW" 21 21 :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
-                                     Unsupported _ "SUM" 18 18 :: Unsupported _  "XS" 16 15 :: Unsupported _  "FS" 14 13 ::
-                                     WARLaon _ "MPP" 12 11 mpp_okay :: WPRIfc _ 10 9        :: Unsupported _ "SPP"  8  8 ::
-                                     WPRIfc _ 6 6              :: Unsupported _ "SPIE" 5  5 :: Unsupported _ "UPIE" 4  4 ::
-                                     WPRIfc _ 2 2              :: Unsupported _ "SIE"  1  1 :: Unsupported _  "UIE" 0  0 :: nil.
+        Definition mstatus_fields := Unsupported ty "SD" 63 63    :: WPRIfc _ 62 36            :: Unsupported _ "SXL" 35 34 ::
+                                     ReadOnly    _ "UXL" 33 32    :: WPRIfc _ 31 23            :: Unsupported _ "TSR" 22 22 ::
+                                     Unsupported _  "TW" 21 21    :: Unsupported _ "TVM" 20 20 :: Unsupported _ "MXR" 19 19 ::
+                                     Unsupported _ "SUM" 18 18    :: Unsupported _  "XS" 16 15 :: Unsupported _  "FS" 14 13 ::
+                                     WARLaon "MPP" 12 11 mpp_okay :: WPRIfc _ 10 9             :: Unsupported _ "SPP"  8  8 ::
+                                     WPRIfc _ 6 6                 :: Unsupported _ "SPIE" 5  5 :: Unsupported _ "UPIE" 4  4 ::
+                                     WPRIfc _ 2 2                 :: Unsupported _ "SIE"  1  1 :: Unsupported _ "UIE"  0  0 :: nil.
 
         Definition mie_fields := WPRIfc ty 63 12          :: WPRIfc _ 10 10 :: Unsupported _ "SEIE" 9 9 ::
                                  Unsupported _ "UEIE" 8 8 :: WPRIfc _  6  6 :: Unsupported _ "STIE" 5 5 ::
@@ -407,9 +407,9 @@ Section ControlStatusRegisters.
                                         If (#csradr == $$ (12'h"345")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
                                         If (#csradr == $$ (12'h"346")) then (Read mintstatus : Bit 64 <- `"mintstatus"; Write `"mintstatus" <- (correctWrite (mintstatus_fields _) #mintstatus #data; Retv);
                                         (* 12'h"348" mscratchcsw *)
-                    If (csradr == $$ (12'h"348")) then Read mstatus : Bit 64 <- `"mstatus";
+                  (*If (csradr == $$ (12'h"348")) then Read mstatus : Bit 64 <- `"mstatus";
                                                        LET mpp : Bit 2 <- #mstatus $[ 12 : 11 ];
-                                                       IF 
+                                                       IF *)
                                         If (#csradr == $$ (12'h"B00")) then (Read mcycle     : Bit 64 <- `"mcycle"    ; Write `"mcycle"     <- (correctWrite (mcycle_fields _) #mcycle #data; Retv);
                                         If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data; Retv);
                                         Retv
