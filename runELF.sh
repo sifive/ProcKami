@@ -1,6 +1,5 @@
 # !/bin/bash
 
-./doGenerate.sh
 echo -ne "\x1B[31;1m"
 riscv64-unknown-elf-objcopy -O verilog "$1" ./MemoryInit.hex
 sed -i '' 's/@800/@000/g;' ./MemoryInit.hex

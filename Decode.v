@@ -1,6 +1,6 @@
 Definition            RV32 := false.  (* true = RV32,   false = RV64 *)
 Definition       USER_MODE := false.  (* true = M+U,    false = M    *)
-Definition         IALIGNW := false.  (* true = 4 byte, false = 2 byte *)
+Definition         IALIGNW := true.   (* true = 4 byte, false = 2 byte *)
 
 (*           RISC-V FORMAL SPECIFICATION            *)
 (* RV64I/RV32I with MACHINE and optional USER modes *)

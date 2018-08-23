@@ -210,97 +210,137 @@ Section ControlStatusRegisters.
               the mcause CSR but the corresponding state bits in the mstatus register are not cleared."
             "The new CLIC-specific fields appear to be hardwired to zero in CLINT mode" *)
 
+    Section ValidateUserAccess.
+        Definition UserAccess := STRUCT {
+                                    "except?" :: Bool;
+                                    "cause"  :: Bit 11
+                                }.
+        Open Scope kami_expr.
+        Open Scope kami_action.
+        Variable ty : Kind -> Type.
+        Variable mode : Bit 2 @# ty.
+        Variable except : Bool @# ty.
+        Variable cause : Bit 11 @# ty.
+        Variable csr : Bool @# ty.
+        Variable csradr : Bit 12 @# ty.
+        Definition OkayUserAccess_action : ActionT ty UserAccess.
+        exact(
+            (* This sort of exception is raised here, and not in Decode, since in a pipeline an older instruction may modify mcounteren
+               while a user counter access is in flight.                                                                                *)
+            (* See "csr_exists" in Decode.v - maybe this should be passed from there rather than copied? *)
+            LET top7 <- csradr $[ 11 : 5 ];
+            LET bot5 <- csradr $[  4 : 0 ];
+            LET user_counter : Bool <- (#top7 == $$ WO~1~1~0~0~0~0~0) || (if RV32 then #top7 == $$ WO~1~1~0~0~1~0~0 else $$ false);
+            LET user_mode : Bool <- mode == $$ WO~0~0;
+            If ((!except) && csr && #user_counter && #user_mode)
+                then Read mcounteren : Bit 32 <- `"mcounteren";
+                     Ret ( (#mcounteren $[ 0 : 0 ] == $$ WO~1) && (#bot5 == $$ (natToWord 5 0)) ||
+                           (#mcounteren $[ 1 : 1 ] == $$ WO~1) && (#bot5 == $$ (natToWord 5 1)) ||
+                           (#mcounteren $[ 2 : 2 ] == $$ WO~1) && (#bot5 == $$ (natToWord 5 2)) )
+                         (* and so on - TODO write a little Gallina function that does the whole thing *)
+                else Ret $$ false as forbidden;
+            LET new_except <- except || #forbidden;
+            LET new_cause  <- IF except
+                                 then cause
+                                 else (IF #forbidden
+                                       then $$ Exception_Illegal_Instr
+                                       else $$ (natToWord 11 0)
+                                 );
+            LET userAccess : UserAccess <- STRUCT {
+                                            "except?" ::= #new_except;
+                                            "cause"  ::= #new_cause
+                                           };
+            Ret #userAccess
+        ). Defined.
+    End ValidateUserAccess.
+
     Section ReadCSR.
         Definition misa_hardwire : word 64 := Word.combine (Word.combine Extensions (natToWord 36 0)) MXL.
 
         Open Scope kami_expr.
         Open Scope kami_action.
         Variable ty : Kind -> Type.
-        Variable mode : Bit 2 @# ty.
         Variable csradr : Bit 12 @# ty.
         Definition ReadCSR_action : ActionT ty (Bit 64).
-        (* TODO mcounteren access - even if perf counters are hardwired to zero, user mode access attempts may or may not raise exception *)
-        (*        This sort of exception is raised here, and not in Decode, since in a pipeline an older instruction may modify mcounteren
-                  while a user counter access is in flight.                                                                               *)
-        (* TODO UXL shadowing *)
+        (* TODO UXL shadowing in mstatus *)
         exact(
-                    If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mvendorid;
-                    If (csradr == $$ (12'h"F12")) then Ret $$ ArchID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as marchid;
-                    If (csradr == $$ (12'h"F13")) then Ret $$ ImplID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mimpid;
-                    If (csradr == $$ (12'h"F14")) then Ret $$ HartID
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mhartid;
-                    If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret (correctRead (mstatus_fields _) #mstatus)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mstatus;
-                    If (csradr == $$ (12'h"301")) then Ret $$ misa_hardwire
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as misa;
-                    If (csradr == $$ (12'h"304")) then Read mtvec : Bit 64 <- `"mtvec";
-                                                       If #mtvec $[ 1 : 1 ] == $0
-                                                       then Read mie : Bit 64    <- `"mie"; Ret (correctRead (mie_fields _) #mie)
-                                                       else Ret $$ (natToWord 64 0)
-                                                       as mie;
-                                                       Ret #mie
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mie;
-                    If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret (correctRead (mtvec_fields _) #mtvec)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mtvec;
-                    If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 32  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) (ZeroExtend (XLEN-32) #mcounteren))
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mcounteren;
-                    If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret (correctRead (mtvt_fields _) #mtvt)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mtvt;
-                    If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mscratch;
-                    If (csradr == $$ (12'h"341")) then Read mepc : Bit 64        <- `"mepc"; Ret (correctRead (mepc_fields _) #mepc)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mepc;
-                    If (csradr == $$ (12'h"342")) then Read mcause : Bit 64      <- `"mcause"; Ret (correctRead (mcause_fields _) #mcause)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mcause;
-                    If (csradr == $$ (12'h"343")) then Read mtval : Bit 64       <- `"mtval"; Ret (correctRead (mtval_fields _) #mtval)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mtval;
-                    If (csradr == $$ (12'h"344")) then Read mtvec : Bit 64 <- `"mtvec";
-                                                       If #mtvec $[ 1 : 1 ] == $0
-                                                       then Read mip : Bit 64    <- `"mip"; Ret (correctRead (mip_fields _) #mip)
-                                                       else Ret $$ (natToWord 64 0)
-                                                       as mip;
-                                                       Ret #mip
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mip;
-                    If (csradr == $$ (12'h"345")) then Read mcause : Bit 64      <- `"mcause"; Ret (correctRead (mcause_fields _) #mcause)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mnxti;
-                    If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret (correctRead (mintstatus_fields _) #mintstatus)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mintstatus;
-                    If (csradr == $$ (12'h"348")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mscratchcsw;
-                    If (csradr == $$ (12'h"B00")) ||
-                       (csradr == $$ (12'h"C00")) then Read mcycle : Bit 64      <- `"mcycle"; Ret (correctRead (mcycle_fields _) #mcycle)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as mcycle;
-                    If (csradr == $$ (12'h"B02")) ||
-                       (csradr == $$ (12'h"C02")) then Read minstret : Bit 64    <- `"minstret"; Ret (correctRead (minstret_fields _) #minstret)
-                                                  else Ret $$ (natToWord 64 0)
-                                                    as minstret;
+            If (csradr == $$ (12'h"F11")) then Ret $$ VendorID
+                                          else Ret $$ (natToWord 64 0)
+                                            as mvendorid;
+            If (csradr == $$ (12'h"F12")) then Ret $$ ArchID
+                                          else Ret $$ (natToWord 64 0)
+                                            as marchid;
+            If (csradr == $$ (12'h"F13")) then Ret $$ ImplID
+                                          else Ret $$ (natToWord 64 0)
+                                            as mimpid;
+            If (csradr == $$ (12'h"F14")) then Ret $$ HartID
+                                          else Ret $$ (natToWord 64 0)
+                                            as mhartid;
+            If (csradr == $$ (12'h"300")) then Read mstatus : Bit 64     <- `"mstatus"; Ret (correctRead (mstatus_fields _) #mstatus)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mstatus;
+            If (csradr == $$ (12'h"301")) then Ret $$ misa_hardwire
+                                          else Ret $$ (natToWord 64 0)
+                                            as misa;
+            If (csradr == $$ (12'h"304")) then Read mtvec : Bit 64 <- `"mtvec";
+                                               If #mtvec $[ 1 : 1 ] == $0
+                                               then Read mie : Bit 64    <- `"mie"; Ret (correctRead (mie_fields _) #mie)
+                                               else Ret $$ (natToWord 64 0)
+                                               as mie;
+                                               Ret #mie
+                                          else Ret $$ (natToWord 64 0)
+                                            as mie;
+            If (csradr == $$ (12'h"305")) then Read mtvec : Bit 64       <- `"mtvec"; Ret (correctRead (mtvec_fields _) #mtvec)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mtvec;
+            If (csradr == $$ (12'h"306")) then Read mcounteren : Bit 32  <- `"mcounteren"; Ret (correctRead (mcounteren_fields _) (ZeroExtend (XLEN-32) #mcounteren))
+                                          else Ret $$ (natToWord 64 0)
+                                            as mcounteren;
+            If (csradr == $$ (12'h"307")) then Read mtvt : Bit 64        <- `"mtvt"; Ret (correctRead (mtvt_fields _) #mtvt)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mtvt;
+            If (csradr == $$ (12'h"340")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mscratch;
+            If (csradr == $$ (12'h"341")) then Read mepc : Bit 64        <- `"mepc"; Ret (correctRead (mepc_fields _) #mepc)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mepc;
+            If (csradr == $$ (12'h"342")) then Read mcause : Bit 64      <- `"mcause"; Ret (correctRead (mcause_fields _) #mcause)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mcause;
+            If (csradr == $$ (12'h"343")) then Read mtval : Bit 64       <- `"mtval"; Ret (correctRead (mtval_fields _) #mtval)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mtval;
+            If (csradr == $$ (12'h"344")) then Read mtvec : Bit 64 <- `"mtvec";
+                                               If #mtvec $[ 1 : 1 ] == $0
+                                               then Read mip : Bit 64    <- `"mip"; Ret (correctRead (mip_fields _) #mip)
+                                               else Ret $$ (natToWord 64 0)
+                                               as mip;
+                                               Ret #mip
+                                          else Ret $$ (natToWord 64 0)
+                                            as mip;
+            If (csradr == $$ (12'h"345")) then Read mcause : Bit 64      <- `"mcause"; Ret (correctRead (mcause_fields _) #mcause)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mnxti;
+            If (csradr == $$ (12'h"346")) then Read mintstatus : Bit 64  <- `"mintstatus"; Ret (correctRead (mintstatus_fields _) #mintstatus)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mintstatus;
+            If (csradr == $$ (12'h"348")) then Read mscratch : Bit 64    <- `"mscratch"; Ret (correctRead (mscratch_fields _) #mscratch)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mscratchcsw;
+            If (csradr == $$ (12'h"B00")) ||
+               (csradr == $$ (12'h"C00")) then Read mcycle : Bit 64      <- `"mcycle"; Ret (correctRead (mcycle_fields _) #mcycle)
+                                          else Ret $$ (natToWord 64 0)
+                                            as mcycle;
+            If (csradr == $$ (12'h"B02")) ||
+               (csradr == $$ (12'h"C02")) then Read minstret : Bit 64    <- `"minstret"; Ret (correctRead (minstret_fields _) #minstret)
+                                          else Ret $$ (natToWord 64 0)
+                                            as minstret;
 
-                    Ret (#mvendorid | #marchid | #mimpid | #mhartid |
-                         #mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
-                         #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
-                         #mintstatus | #mscratchcsw | #mcycle | #minstret)
+            Ret (#mvendorid | #marchid | #mimpid | #mhartid |
+                 #mstatus | #misa | #mie | #mtvec | #mcounteren | #mtvt |
+                 #mscratch | #mepc | #mcause | #mtval | #mip | #mnxti |
+                 #mintstatus | #mscratchcsw | #mcycle | #minstret)
         ). Defined.
     End ReadCSR.
 
@@ -315,16 +355,17 @@ Section ControlStatusRegisters.
         Open Scope kami_action.
         Variable ty : Kind -> Type.
         Variable except : Bool @# ty.
-        Variable cause : Bit 4 @# ty.
+        Variable cause : Bit 11 @# ty.
         Definition ClicVector_action : ActionT ty TableLookup.
         exact(
             (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
-            Read mtvec : Bit 64 <- `"mtvec";
-            LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
+            Read mtvec  : Bit 64 <- `"mtvec";
+            LET vectoring_mode   <- #mtvec $[ 1 : 0 ];
+            LET exccode : Bit 10 <- cause $[ 9 : 0 ];
             LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) (* TODO && not a synchronous exception *);
             If #clic_vectoring then
                 Read mtvt : Bit 64 <- `"mtvt";
-                LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 57 cause) , ($$ WO~0~0~0) >} else {< (ZeroExtend 58 cause) , ($$ WO~0~0) >});
+                LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 51 #exccode) , ($$ WO~0~0~0) >} else {< (ZeroExtend 52 #exccode) , ($$ WO~0~0) >});
                 Ret #pointer_addr
             else
                 Ret $$ (natToWord 64 0)
@@ -344,7 +385,7 @@ Section ControlStatusRegisters.
             "twiddleOut" :: Bit 64 ;
             "pc"         :: Bit 64 ;
             "except?"    :: Bool   ;
-            "cause"      :: Bit  4 ;
+            "cause"      :: Bit 11 ;
             "ret?"       :: Bool   ;
             "reqPC"      :: Bit 64
         }.
@@ -361,87 +402,84 @@ Section ControlStatusRegisters.
         Variable ty : Kind -> Type.
         Variable mode : Bit 2 @# ty.
         Variable csrCtrl : CSRCtrl @# ty.
-        Variable mtvtMemResp : MemResp @# ty.
+        Variable mtvtMemResp : Bit XLEN @# ty.
         Variable req_werf : Bool @# ty.
         Variable req_rd_val : Bit XLEN @# ty.
         Definition WriteCSRandRetire_action : ActionT ty RInst.
         exact(
-                    LET wecsr           <- csrCtrl @% "wecsr";
-                    LET csradr          <- csrCtrl @% "csradr";
-                    LET data            <- csrCtrl @% "twiddleOut";
-                    LET pc              <- csrCtrl @% "pc";
-                    LET except          <- csrCtrl @% "except?";
-                    LET cause           <- csrCtrl @% "cause";
-                    LET ret             <- csrCtrl @% "ret?";
-                    LET reqPC           <- csrCtrl @% "reqPC";
+            LET wecsr            <- csrCtrl @% "wecsr";
+            LET csradr           <- csrCtrl @% "csradr";
+            LET data             <- csrCtrl @% "twiddleOut";
+            LET pc               <- csrCtrl @% "pc";
+            LET except           <- csrCtrl @% "except?";
+            LET cause            <- csrCtrl @% "cause";
+            LET intpt   : Bit  1 <- #cause $[ 10 : 10 ];
+            LET exccode : Bit 10 <- #cause $[ 9 : 0 ];
+            LET ret              <- csrCtrl @% "ret?";
+            LET reqPC            <- csrCtrl @% "reqPC";
 
-                    LET data32          <- #data $[ 31 : 0 ];
+            (* TODO? faults during mtvt table access *)
 
-                    (* TODO? faults during mtvt table access *)
+            Read mcycle         <- `"mcycle";
+            Read minstret       <- `"minstret";
 
-                    Read mcycle         <- `"mcycle";
-                    Read minstret       <- `"minstret";
+            If !(#wecsr && (#csradr == $$ (12'h"B00")))
+                        then Write `"mcycle" <- #mcycle + $$ (natToWord 64 1); Retv;
 
-                    If !(#wecsr && (#csradr == $$ (12'h"B00")))
-                                then    Write `"mcycle" <- #mcycle + $$ (natToWord 64 1); Retv;
+            If (!(#wecsr && (#csradr == $$ (12'h"B02")))) && !#except
+                        then Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
-                    If !(#wecsr && (#csradr == $$ (12'h"B02"))) && !#except
-                                then    Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
+            (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
+            (* They could also be passed from ClicVector_action to avoid a double read, but the trouble is not worth it, and in any case
+               the synthesized hardware ought to be identical, barring pipeline issues.                                                     *)
+            Read mtvec : Bit 64 <- `"mtvec";
+            Read mepc           <- `"mepc";
 
-                    (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
-                    (* They could also be passed from ClicVector_action to avoid a double read, but the trouble is not worth it, and in any case
-                       the synthesized hardware ought to be identical, barring pipeline issues.                                                     *)
-                    Read mtvec : Bit 64 <- `"mtvec";
-                    Read mepc           <- `"mepc";
+            If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Read mstatus    : Bit 64 <- `"mstatus"   ; Write `"mstatus"    <- (correctWrite (mstatus_fields _) #mstatus #data); Retv);
+                                If (#csradr == $$ (12'h"304")) then (Read mie        : Bit 64 <- `"mie"       ; Write `"mie"        <- (correctWrite (mie_fields _) #mie #data); Retv);
+                                If (#csradr == $$ (12'h"305")) then (                                           Write `"mtvec"      <- (correctWrite (mtvec_fields _) #mtvec #data); Retv);
+                                If (#csradr == $$ (12'h"306")) then (Read mcounteren : Bit 32 <- `"mcounteren"; Write `"mcounteren" <- (correctWrite (mcounteren_fields _) (ZeroExtend 32 #mcounteren) #data) $[ 31 : 0 ]; Retv);
+                                If (#csradr == $$ (12'h"307")) then (Read mtvt       : Bit 64 <- `"mtvt"      ; Write `"mtvt"       <- (correctWrite (mtvt_fields _) #mtvt #data); Retv);
+                                If (#csradr == $$ (12'h"340")) then (Read mscratch   : Bit 64 <- `"mscratch"  ; Write `"mscratch"   <- (correctWrite (mscratch_fields _) #mscratch #data); Retv);
+                                If (#csradr == $$ (12'h"341")) then (                                           Write `"mepc"       <- (correctWrite (mepc_fields _) #mepc #data); Retv);
+                                If (#csradr == $$ (12'h"342")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data); Retv);
+                                If (#csradr == $$ (12'h"343")) then (Read mtval      : Bit 64 <- `"mtval"     ; Write `"mtval"      <- (correctWrite (mtval_fields _) #mtval #data); Retv);
+                                If (#csradr == $$ (12'h"344")) then (Read mip        : Bit 64 <- `"mip"       ; Write `"mip"        <- (correctWrite (mip_fields _) #mip #data); Retv);
+                                If (#csradr == $$ (12'h"345")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data); Retv);
+                                If (#csradr == $$ (12'h"346")) then (Read mintstatus : Bit 64 <- `"mintstatus"; Write `"mintstatus" <- (correctWrite (mintstatus_fields _) #mintstatus #data); Retv);
+                                (* 12'h"348" mscratchcsw *)
+                                If (#csradr == $$ (12'h"B00")) then (Read mcycle     : Bit 64 <- `"mcycle"    ; Write `"mcycle"     <- (correctWrite (mcycle_fields _) #mcycle #data); Retv);
+                                If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data); Retv);
+                                Retv
+                               );
+            (* Should these writes be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
+            If (#except) then  (Write `"mepc" <- #pc;
+                                Write `"mcause" <- {< #intpt , (ZeroExtend 53 #exccode) >};
+                                Retv
+                               );
 
-                    If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Read mstatus    : Bit 64 <- `"mstatus"   ; Write `"mstatus"    <- (correctWrite (mstatus_fields _) #mstatus #data); Retv);
-                                        If (#csradr == $$ (12'h"304")) then (Read mie        : Bit 64 <- `"mie"       ; Write `"mie"        <- (correctWrite (mie_fields _) #mie #data; Retv);
-                                        If (#csradr == $$ (12'h"305")) then (                                           Write `"mtvec"      <- (correctWrite (mtvec_fields _) #mtvec #data; Retv);
-                                        If (#csradr == $$ (12'h"306")) then (Read mcounteren : Bit 32 <- `"mcounteren"; Write `"mcounteren" <- (correctWrite (mcounteren_fields _) #mcounteren #data32; Retv);
-                                        If (#csradr == $$ (12'h"307")) then (Read mtvt       : Bit 64 <- `"mtvt"      ; Write `"mtvt"       <- (correctWrite (mtvt_fields _) #mtvt #data; Retv);
-                                        If (#csradr == $$ (12'h"340")) then (Read mscratch   : Bit 64 <- `"mscratch"  ; Write `"mscratch"   <- (correctWrite (mscratch_fields _) #mscratch #data; Retv);
-                                        If (#csradr == $$ (12'h"341")) then (                                           Write `"mepc"       <- (correctWrite (mepc_fields _) #mepc #data; Retv);
-                                        If (#csradr == $$ (12'h"342")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
-                                        If (#csradr == $$ (12'h"343")) then (Read mtval      : Bit 64 <- `"mtval"     ; Write `"mtval"      <- (correctWrite (mtval_fields _) #mtval #data; Retv);
-                                        If (#csradr == $$ (12'h"344")) then (Read mip        : Bit 64 <- `"mip"       ; Write `"mip"        <- (correctWrite (mip_fields _) #mip #data; Retv);
-                                        If (#csradr == $$ (12'h"345")) then (Read mcause     : Bit 64 <- `"mcause"    ; Write `"mcause"     <- (correctWrite (mcause_fields _) #mcause #data; Retv);
-                                        If (#csradr == $$ (12'h"346")) then (Read mintstatus : Bit 64 <- `"mintstatus"; Write `"mintstatus" <- (correctWrite (mintstatus_fields _) #mintstatus #data; Retv);
-                                        (* 12'h"348" mscratchcsw *)
-                  (*If (csradr == $$ (12'h"348")) then Read mstatus : Bit 64 <- `"mstatus";
-                                                       LET mpp : Bit 2 <- #mstatus $[ 12 : 11 ];
-                                                       IF *)
-                                        If (#csradr == $$ (12'h"B00")) then (Read mcycle     : Bit 64 <- `"mcycle"    ; Write `"mcycle"     <- (correctWrite (mcycle_fields _) #mcycle #data; Retv);
-                                        If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data; Retv);
-                                        Retv
-                                       );
-                    (* Should these writes be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
-                    If (#except) then  (Write `"mepc" <- #pc;
-                                        Write `"mcause" <- ZeroExtend 60 #cause;
-                                        Retv
-                                       );
+            LET vector_base     <- {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >};
+            LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
+            LET exc_addr        <- IF #vectoring_mode == $0
+                                   then #vector_base
+                                   else (IF #vectoring_mode == $1
+                                         then #vector_base + {< (ZeroExtend 52 #exccode) , ($$ WO~0~0) >}
+                                         else (IF (#vectoring_mode == $2) (* TODO || synchronous exception *)
+                                               then #vector_base
+                                               else {< (mtvtMemResp $[ 63 : 1 ]) , ($$ WO~0) >}
+                                              )
+                                        );
+            LET final_pc        <- IF #except then #exc_addr
+                                   else (IF #ret then #mepc
+                                                 else #reqPC);
 
-                    LET vector_base     <- {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >};
-                    LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
-                    LET exc_addr        <- IF #vectoring_mode == $0
-                                           then #vector_base
-                                           else (IF #vectoring_mode == $1
-                                                 then #vector_base + {< (ZeroExtend 58 #cause) , ($$ WO~0~0) >}
-                                                 else (IF (#vectoring_mode == $2) (* TODO || synchronous exception *) )
-                                                       then #vector_base
-                                                       else {< ((#mtvtMemResp @% "data") $[ 63 : 1 ]) , ($$ WO~0) >}
-                                                      )
-                                                );
-                    LET final_pc        <- IF #except then #exc_addr
-                                           else (IF #ret then #mepc
-                                                         else #reqPC);
-
-                    LET rInst : RInst   <- STRUCT {
-                                            "mode"   ::=
-                                            "pc"     ::=
-                                            "werf"   ::=
-                                            "rd_val" ::=
-                                            };
-                    Ret #rInst
+            LET rInst : RInst   <- STRUCT {
+                                    "mode"   ::= mode;
+                                    "pc"     ::= #final_pc;
+                                    "werf"   ::= req_werf;  (* May be modified if the mtvt lookup faults *)
+                                    "rd_val" ::= req_rd_val (* May be modified because of mnxti          *)
+                                    };
+            Ret #rInst
         ). Defined.
     End WriteCSR.
 End ControlStatusRegisters.

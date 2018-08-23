@@ -58,13 +58,12 @@ Section Control.
         "csrSrc"  :: Bit 2
     }.
 
-
+    Variable except : Bool @# ty.
     Variable dInst : DInst @# ty.
     Open Scope kami_expr.
     Open Scope kami_action.
     Definition Control_action : ActionT ty CtrlSig.
     exact(
-        LET except   <- dInst @% "except?";
         LET opcode   <- dInst @% "opcode";
         LET funct3   <- dInst @% "funct3";
         LET bit30    <- dInst @% "bit30";
@@ -80,7 +79,7 @@ Section Control.
         LET funct3_0 <- #funct3 == $$ WO~0~0~0; (* ADDI, ADD, SUB, BEQ, LB, SB, ECALL, EBREAK, FENCE *)
         LET isShift  <- (#funct3 $[ 1 : 0 ]) == $$ WO~0~1;
         LET isXret   <- #isSYSTEM && #funct3_0 && (dInst @% "rs2" == $$ WO~0~0~0~1~0);
-        LET pcSrc    <- IF #except
+        LET pcSrc    <- IF except
                         then $$ PC_exception
                         else (IF #isXret
                               then $$ PC_return
@@ -105,7 +104,7 @@ Section Control.
         LET aluInB   <- IF #isOP
                         then $$ InB_rs2
                         else $$ InB_imm;
-        LET werf     <- !(#except || #isBRANCH || #isSTORE || (#isSYSTEM && #funct3_0) || #opcode == $$ Major_MISC_MEM || dInst @% "rd" == $$ (natToWord 5 0));
+        LET werf     <- !(except || #isBRANCH || #isSTORE || (#isSYSTEM && #funct3_0) || #opcode == $$ Major_MISC_MEM || dInst @% "rd" == $$ (natToWord 5 0));
         LET rdSrc    <- IF #isJ
                         then $$ Rd_pcPlus4
                         else (IF #isSYSTEM
@@ -115,7 +114,7 @@ Section Control.
                                     else $$ Rd_aluOut
                               )
                         );
-        LET memOp    <- IF #except
+        LET memOp    <- IF except
                         then $$ Mem_off
                         else (IF #isLOAD
                               then $$ Mem_load
@@ -124,7 +123,7 @@ Section Control.
                                     else $$ Mem_off
                              )
                         );
-        LET wecsr    <- (! #except) && #isSYSTEM && (! #funct3_0);
+        LET wecsr    <- (! except) && #isSYSTEM && (! #funct3_0);
         LET csrMask  <- #funct3 $[ 2 : 2 ];
         LET csrSrc   <- #funct3 $[ 1 : 0 ];
         LET ctrlSig : CtrlSig <- STRUCT {

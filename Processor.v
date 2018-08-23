@@ -83,10 +83,10 @@ Section Process.
             Register `"mode"  : (Bit  2) <- WO~1~1 with
             Register `"pc"    : (Bit 64) <- RESET_VECTOR with
             Rule `"step" :=
-                Read  pc       : _ <- `"pc";
+                Read  pc  : Bit 64 <- `"pc";
                 Read  mode     : _ <- `"mode";
-                LET misaligned : _ <- if IALIGNW then #pc $[ 1 : 0 ] == $$ WO~0~0
-                                                 else #pc $[ 0 : 0 ] == $$ WO~0;
+                LET misaligned : _ <- if IALIGNW then #pc $[ 1 : 0 ] != $$ WO~0~0
+                                                 else #pc $[ 0 : 0 ] != $$ WO~0;
 
                 If #misaligned then Ret $$ (natToWord 32 0)
                                else Call instr : _ <- `"getInstr"(#pc : _); Ret #instr
@@ -94,6 +94,9 @@ Section Process.
                 LETA dInst <- Decode_action #misaligned #mode #instr;
 
               (******)
+
+                LETA userCheck <- OkayUserAccess_action LABEL CORE_NUM #mode (#dInst @% "except?") (#dInst @% "cause")
+                                                              (#dInst @% "keys" @% "csr?") (#dInst @% "csradr");
 
                 (* rdEn[1|2] covers both the case when (i) an instruction type
                    does not require register reads, and when (ii) an instruction
@@ -109,28 +112,32 @@ Section Process.
                                   Ret #rs2_val)
                             else Ret $$ (natToWord 64 0) as rs2_val;
 
-                LETA csr_val : Bit 64 <- ReadCSR_action LABEL CORE_NUM #mode (#dInst @% "csradr");
+                LETA csr_val : Bit 64 <- ReadCSR_action LABEL CORE_NUM (#dInst @% "csradr");
 
               (******)
 
-                LETA  ctrlSig <- Control_action #dInst;
+                LETA  ctrlSig <- Control_action (#userCheck @% "except?") #dInst;
                 LETA  calcRes <- Execute1_action #pc #dInst #ctrlSig #rs1_val #rs2_val #csr_val;
 
               (******)
 
-                LET   memReq <- STRUCT {
-                                  "memOp"   ::= #ctrlSig @% "memOp";
-                                  "memMask" ::= #calcRes @% "memMask";
-                                  "memAdr"  ::= #calcRes @% "memAdr";
-                                  "memDat"  ::= #calcRes @% "memDat"
-                                };
-                If (#ctrlSig @% "memOp" != $$ Mem_off) then (Call memResp : _ <- `"memAction"(#memReq : _);
-                                                             Ret #memResp)
-                                                       else Ret $$ (getDefaultConst MemResp) as memResp;
+                LET ldMisaligned : Bool <- $$ false;
+                LET stMisaligned : Bool <- $$ false;
+                LET memReq <- STRUCT {
+                                "memOp"   ::= #ctrlSig @% "memOp";
+                                "memMask" ::= #calcRes @% "memMask";
+                                "memAdr"  ::= #calcRes @% "memAdr";
+                                "memDat"  ::= #calcRes @% "memDat"
+                              };
+                If (#ctrlSig @% "memOp" != $$ Mem_off) && (!#ldMisaligned) && (!#stMisaligned)
+                            then (Call memResp : _ <- `"memAction"(#memReq : _);
+                                  Ret #memResp)
+                            else Ret $$ (getDefaultConst (Bit 64)) as memResp;
 
               (******)
 
-                LETA  eInst <- Execute2_action #mode #dInst #ctrlSig #csr_val #calcRes #memResp;
+                LETA  eInst <- Execute2_action #ldMisaligned #stMisaligned (#userCheck @% "except?") (#userCheck @% "cause")
+                                               #dInst #ctrlSig #csr_val #calcRes #memResp;
 
               (******)
 
@@ -141,9 +148,9 @@ Section Process.
                                        "memAdr"  ::= #tableLookup @% "addr";
                                        "memDat"  ::= $$ (natToWord 64 0)
                                     };
-                IF (#tableLookup @% "needed?") then (Call mtvtMemResp : _ <- `"lateMemAction"(#mtvtMemReq : _);
-                                                     Ret #mtvtMemResp)
-                                               else Ret $$ (getDefaultConst MemResp) as #mtvtMemResp;
+                If (#tableLookup @% "needed?") then Call mtvtMemResp : _ <- `"lateMemAction"(#mtvtMemReq : _);
+                                                    Ret #mtvtMemResp
+                                               else Ret $$ (getDefaultConst (Bit 64)) as mtvtMemResp;
 
                 LET   csrCtrl     <- STRUCT {
                                        "wecsr"      ::= #eInst @% "wecsr"        ;
@@ -165,7 +172,7 @@ Section Process.
                                             Retv
                                        else Retv;
 
-                Write `"mode" <- #final @% "next_mode";
+                Write `"mode" <- #final @% "mode";
                 Write `"pc"   <- #final @% "pc";
 
               (******)
