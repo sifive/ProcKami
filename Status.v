@@ -186,7 +186,7 @@ Section ControlStatusRegisters.
         Definition mtvt_fields := WARLawm "" 63 0 mtvt_legalize :: nil.
 
         Definition mscratch_fields := @nil (CSRField ty).
-        Definition mepc_fields := HardZero ty 0 0 :: nil.
+        Definition mepc_fields := HardZero ty 0 0 :: nil. (* TODO depends upon IALIGN *)
         Definition mcause_fields := @nil (CSRField ty). 
         Definition mtval_fields := @nil (CSRField ty).
 
@@ -429,11 +429,12 @@ Section ControlStatusRegisters.
             If (!(#wecsr && (#csradr == $$ (12'h"B02")))) && !#except
                         then Write `"minstret" <- #minstret + $$ (natToWord 64 1); Retv;
 
-            (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line.     *)
-            (* They could also be passed from ClicVector_action to avoid a double read, but the trouble is not worth it, and in any case
+            (* These could also be passed from ClicVector_action to avoid a double read, but the trouble is not worth it, and in any case
                the synthesized hardware ought to be identical, barring pipeline issues.                                                     *)
-            Read mtvec : Bit 64 <- `"mtvec";
-            Read mepc           <- `"mepc";
+            Read mtvec_un       <- `"mtvec";
+            Read mepc_un        <- `"mepc";
+            LET mtvec           <- correctRead (mtvec_fields _) #mtvec_un;
+            LET mepc            <- correctRead (mepc_fields _) #mepc_un;
 
             If (#wecsr) then   (If (#csradr == $$ (12'h"300")) then (Read mstatus    : Bit 64 <- `"mstatus"   ; Write `"mstatus"    <- (correctWrite (mstatus_fields _) #mstatus #data); Retv);
                                 If (#csradr == $$ (12'h"304")) then (Read mie        : Bit 64 <- `"mie"       ; Write `"mie"        <- (correctWrite (mie_fields _) #mie #data); Retv);
@@ -452,11 +453,37 @@ Section ControlStatusRegisters.
                                 If (#csradr == $$ (12'h"B02")) then (Read minstret   : Bit 64 <- `"minstret"  ; Write `"minstret"   <- (correctWrite (minstret_fields _) #minstret #data); Retv);
                                 Retv
                                );
-            (* Should these writes be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
-            If (#except) then  (Write `"mepc" <- #pc;
+            If (#except) then   Write `"mepc" <- #pc;
                                 Write `"mcause" <- {< #intpt , (ZeroExtend 53 #exccode) >};
-                                Retv
-                               );
+                                (* MPIE = 7
+                                   MIE = 3
+                                   MPP = 12:11
+                                 Trap from y into x (x will always be M mode)
+                                   xPIE <- xIE
+                                   xIE  <- 0
+                                   xPP  <- y
+                                   mode <- x
+                                *)
+                                Read mstatus : Bit 64 <- `"mstatus";
+                                Write `"mstatus" <- ReplaceBits 11 12 (mode)
+                                                   (ReplaceBits  3  3 ($$ WO~0)
+                                                   (ReplaceBits  7  7 (ExtractBits 3 3 #mstatus) #mstatus));
+                                Ret $$ WO~1~1
+                                (* xRET instruction, xPP = y
+                                     xPIE <- 1
+                                     xIE  <- xPIE
+                                     xPP  <- User mode supported ? U : M
+                                     mode <- y
+                                *)
+                         else   If #ret then Read mstatus : Bit 64 <- `"mstatus";
+                                             Write `"mstatus" <- ReplaceBits 11 12 (if USER_MODE then $$ WO~0~0 else $$ WO~1~1)
+                                                                (ReplaceBits  7  7 ($$ WO~1)
+                                                                (ReplaceBits  3  3 (ExtractBits 7 7 #mstatus) #mstatus));
+                                             Ret (ExtractBits 11 12 #mstatus)
+                                       else Ret mode
+                                         as next_mode;
+                                Ret #next_mode
+                           as   next_mode;
 
             LET vector_base     <- {< (#mtvec $[ 63 : 2 ]) , ($$ WO~0~0) >};
             LET vectoring_mode  <- #mtvec $[ 1 : 0 ];
@@ -474,7 +501,7 @@ Section ControlStatusRegisters.
                                                  else #reqPC);
 
             LET rInst : RInst   <- STRUCT {
-                                    "mode"   ::= mode;
+                                    "mode"   ::= #next_mode;
                                     "pc"     ::= #final_pc;
                                     "werf"   ::= req_werf;  (* May be modified if the mtvt lookup faults *)
                                     "rd_val" ::= req_rd_val (* May be modified because of mnxti          *)
