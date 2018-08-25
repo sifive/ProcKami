@@ -186,8 +186,8 @@ Section ControlStatusRegisters.
         Definition mtvt_fields := WARLawm "" 63 0 mtvt_legalize :: nil.
 
         Definition mscratch_fields := @nil (CSRField ty).
-        Definition mepc_fields := HardZero ty 0 0 :: nil. (* TODO depends upon IALIGN *)
-        Definition mcause_fields := @nil (CSRField ty). 
+        Definition mepc_fields := HardZero ty (if IALIGNW the 1 else 0) 0 :: nil.
+        Definition mcause_fields := @nil (CSRField ty).
         Definition mtval_fields := @nil (CSRField ty).
 
         Definition mip_fields := WPRIfc ty 64 12          :: ReadOnly _ "MEIP" 11 11 :: WIRI _ 10 10 :: Unsupported _ "SEIP" 9 9 ::
@@ -362,7 +362,7 @@ Section ControlStatusRegisters.
             Read mtvec  : Bit 64 <- `"mtvec";
             LET vectoring_mode   <- #mtvec $[ 1 : 0 ];
             LET exccode : Bit 10 <- cause $[ 9 : 0 ];
-            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) (* TODO && not a synchronous exception *);
+            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) && ($intpt == $$ WO~1);
             If #clic_vectoring then
                 Read mtvt : Bit 64 <- `"mtvt";
                 LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 51 #exccode) , ($$ WO~0~0~0) >} else {< (ZeroExtend 52 #exccode) , ($$ WO~0~0) >});
@@ -491,7 +491,7 @@ Section ControlStatusRegisters.
                                    then #vector_base
                                    else (IF #vectoring_mode == $1
                                          then #vector_base + {< (ZeroExtend 52 #exccode) , ($$ WO~0~0) >}
-                                         else (IF (#vectoring_mode == $2) (* TODO || synchronous exception *)
+                                         else (IF (#vectoring_mode == $2) || (#intpt == $$ WO~0)
                                                then #vector_base
                                                else {< (mtvtMemResp $[ 63 : 1 ]) , ($$ WO~0) >}
                                               )
