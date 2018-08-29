@@ -122,11 +122,11 @@ Definition correctWrite (ty : Kind -> Type) (fields : list (CSRField ty)) (previ
 
    mscratch          --                          --                          --                          --
    mepc              --                         Exceptions                   --                          --
-   mcause           Trap Vectoring              Exceptions                   --                         Some fields appear as 0 in CLIC mode
+   mcause           Trap Vectoring, mstatus     Exceptions, mnxti            --                         Some fields appear as 0 in CLIC mode
    mtval             --                         Exceptions                   --                          --
    mip              (Exceptions)                Exceptions                  Exceptions                  Appears as 0 in CLIC mode (including reads for the purpose of CSR modification)
-   mnxti             --                          --                          --                         Not a physical register
-   mintstatus        --                         Exceptions                   --                          --
+   mnxti             --                          --                         mcause, minstatus           Not a physical register
+   mintstatus        --                         Exceptions, mnxti            --                          --
    mscratchcsw       --                          --                          --                         Not a physical register
 
    pmpcfg*           --                          --                          --                         Hardwired to 0
@@ -186,7 +186,7 @@ Section ControlStatusRegisters.
         Definition mtvt_fields := WARLawm "" 63 0 mtvt_legalize :: nil.
 
         Definition mscratch_fields := @nil (CSRField ty).
-        Definition mepc_fields := HardZero ty (if IALIGNW the 1 else 0) 0 :: nil.
+        Definition mepc_fields := HardZero ty (if IALIGNW then 1 else 0) 0 :: nil.
         Definition mcause_fields := @nil (CSRField ty).
         Definition mtval_fields := @nil (CSRField ty).
 
@@ -361,8 +361,9 @@ Section ControlStatusRegisters.
             (* Should these reads be legalized? It wouldn't matter for correctness now, but may save someone's oversight down the line. *)
             Read mtvec  : Bit 64 <- `"mtvec";
             LET vectoring_mode   <- #mtvec $[ 1 : 0 ];
+            LET intpt   : Bit  1 <- cause $[ 10 : 10 ];
             LET exccode : Bit 10 <- cause $[ 9 : 0 ];
-            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) && ($intpt == $$ WO~1);
+            LET clic_vectoring : Bool <- except && (#vectoring_mode == $3) && (#intpt == $$ WO~1);
             If #clic_vectoring then
                 Read mtvt : Bit 64 <- `"mtvt";
                 LET pointer_addr : Bit 64 <- #mtvt + (if RV32 then {< (ZeroExtend 51 #exccode) , ($$ WO~0~0~0) >} else {< (ZeroExtend 52 #exccode) , ($$ WO~0~0) >});
@@ -499,6 +500,16 @@ Section ControlStatusRegisters.
             LET final_pc        <- IF #except then #exc_addr
                                    else (IF #ret then #mepc
                                                  else #reqPC);
+            (* #rdSrc == $$ Rd_csr
+               csrAdr == mnxti
+
+               mstatus <- mstatus * mask
+               rd <- IF (no suitable interrupt to service) or (highest ranked interrupt is Selective Hardware Vectoring) or (system is ~not~ in a CLIC mode)
+                     THEN 0
+                     ELSE Address of the entry in the trap handler table for software trap vectoring
+
+               mcause.exccode and minstatus.mil can be updated with new interrupt ID and level respectively
+            *)
 
             LET rInst : RInst   <- STRUCT {
                                     "mode"   ::= #next_mode;
