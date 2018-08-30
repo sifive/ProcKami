@@ -195,7 +195,8 @@ Section ControlStatusRegisters.
                                  Unsupported _ "UTIP" 4 4 :: ReadOnly _ "MSIP"  3  3 :: WIRI _ 2 2   :: Unsupported _ "SSIP" 1 1 ::
                                  Unsupported _ "USIP" 0 0 :: nil.
 
-        Definition mintstatus_fields := @nil (CSRField ty).
+                                     (* this HardZero is an inference on my part *)
+        Definition mintstatus_fields := HardZero ty 63 16 :: ReadOnly _ "MIL" 15 12 :: WPRIfc _ 11 8 :: Unsupported _ "SIL" 7 4 :: ReadOnly _ "UIL" 3 0 :: nil.
         Definition mcycle_fields := @nil (CSRField ty).
         Definition minstret_fields := @nil (CSRField ty).
 
