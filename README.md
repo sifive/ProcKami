@@ -12,7 +12,7 @@ ProcKami requires [Coq](https://coq.inria.fr), [bbv](https://github.com/mit-plv/
 
 To compile the Coq objects, simply run `make`.
 
-To synthesize Verilog, run `doGenerate.sh`.
+To synthesize Verilog, run `doGenerate.sh` (this will also run `make`).
 
 To run programs
 - with a .S extension, type `runS.sh FILENAME`
@@ -40,7 +40,7 @@ _Estimates for completion time given in parentheses._
 
 - XLEN parametrization is not supported for CSRs (1 day).
 - `SFENCE.VMA` instructions are not supported (4 hr).
-- Most CSR special behavior is incomplete, although rudimentary exception handling works (1 wk).
-- There is no mechanism for injecting interrupts (1–2 day).
+- Some CSR special behavior is incomplete, although exception handling works (½ wk).
+- There is no mechanism for injecting interrupts (1–3 day).
 
 For more details, see the `TODO`s sprinkled throughout the source.
