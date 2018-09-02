@@ -9,6 +9,7 @@ Definition         IALIGNW := true.   (* true = 4 byte, false = 2 byte *)
 (*     Copyright 2018 SiFive, Inc.                  *)
 
 Definition XLEN := if RV32 then 32 else 64.
+Definition XLENm1 := if RV32 then 31 else 63.
 
 (* TODO Add interrupt sources *)
 
@@ -317,9 +318,13 @@ Section Decoder.
                             || ((#top7 == $$ WO~0~0~1~1~0~0~1)
                                && (#csradr != $$ (12'h"320"))
                                && (#csradr != $$ (12'h"321"))
-                               && (#csradr != $$ (12'h"322")));
+                               && (#csradr != $$ (12'h"322")))
+                            || (#csradr == $$ (12'h"7A0"))
+                            || (#csradr == $$ (12'h"7A1"))
+                            || (#csradr == $$ (12'h"7A2"))
+                            || (#csradr == $$ (12'h"7A3"));
 
-        LET csr_ok       <- (! #modify_csr) || (#write_ok && #priv_ok && (! #debug_reserv) && #csr_exists);
+        LET csr_ok       <- (! #modify_csr) || (#write_ok && #priv_ok && #csr_exists);
 
     (* Exceptions        *)
         LET is_SYSTEM    <- #opcode == $$ Major_SYSTEM;

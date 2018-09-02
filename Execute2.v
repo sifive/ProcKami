@@ -30,6 +30,7 @@ Section Execute2.
         LET ldMisaligned <- #respValid && ldMisal;
         LET stMisaligned <- #respValid && stMisal;
 
+
         LET funct3   <- dInst @% "funct3"  ;
         LET pcSrc    <- ctrlSig @% "pcSrc" ;
         LET lsb0     <- ctrlSig @% "lsb0"  ;
@@ -42,15 +43,30 @@ Section Execute2.
 
         LET ret      <- #pcSrc == $$ PC_return;
 
-        LET penult_except <- except || #ldMisaligned || #stMisaligned;
+        LET aligned     <- {< (#aluOut $[ XLENm1 : 1 ]) , $$ WO~0 >};
+        LET dest        <- IF #lsb0 then #aligned else #aluOut;
+
+        LET jump        <- #pcSrc == $$ PC_aluOut;
+        LET jMisaligned <- #jump && (if IALIGNW then #dest $[ 1 : 0 ] != $$ WO~0~0
+                                                else #dest $[ 0 : 0 ] != $$ WO~0);
+
+        LET branch      <- #pcSrc == $$ PC_compare;
+        LET take_branch <- #branch && #compOut;
+        LET bMisaligned <- #take_branch && (if IALIGNW then #aluOut $[ 1 : 0 ] != $$ WO~0~0
+                                                       else #aluOut $[ 0 : 0 ] != $$ WO~0);
+
+        LET penult_except <- except || #jMisaligned || #bMisaligned || #ldMisaligned || #stMisaligned;
         LET penult_cause  <- IF except
                              then cause
-                             else (IF #stMisaligned
-                                   then $$ Exception_St_Addr_Misal
-                                   else (IF #ldMisaligned
-                                         then $$ Exception_Ld_Addr_Misal
-                                         else $$ (natToWord 11 0)
-                                   )
+                             else (IF (#jMisaligned || #bMisaligned)
+                                   then $$ Exception_I_Addr_Misal
+                                   else (IF #stMisaligned
+                                         then $$ Exception_St_Addr_Misal
+                                         else (IF #ldMisaligned
+                                               then $$ Exception_Ld_Addr_Misal
+                                               else $$ (natToWord 11 0)
+                                         )
+                                  )
                              );
         LET penult_OK     <- ! #penult_except;
         LET penult_pcSrc  <- IF #penult_except then $$ PC_exception else #pcSrc;
@@ -70,10 +86,9 @@ Section Execute2.
                             $$ WO~1~1 ::= memResp
                         };
 
-        LET aligned  <- {< (#aluOut $[ XLENm1 : 1 ]) , $$ WO~0 >};
         LET new_pc   <- Switch #penult_pcSrc Retn (Bit XLEN) With {
                             $$ PC_pcPlus4   ::= #pcPlus4;
-                            $$ PC_aluOut    ::= IF #lsb0 then #aligned else #aluOut;
+                            $$ PC_aluOut    ::= #dest;
                             $$ PC_compare   ::= IF #compOut then #aluOut else #pcPlus4
                             (* and because of the way Switch works, new_pc <- 0
                                when #penult_pcSrc is PC_return or PC_exception,

@@ -10,83 +10,83 @@ Section Process.
     Definition RESET_VECTOR := 64'h"0000000080000000".
 
     Definition MemReq := STRUCT {
-        "memOp"   :: Bit 2  ;
-        "memMask" :: Bit 8  ;
-        "memAdr"  :: Bit 64 ;
-        "memDat"  :: Bit 64
+        "memOp"   :: Bit 2    ;
+        "memMask" :: Bit 8    ;
+        "memAdr"  :: Bit XLEN ;
+        "memDat"  :: Bit XLEN
     }.
-    Definition RFCtrl := WriteRq 32 (Bit 64).
+    Definition RFCtrl := WriteRq 32 (Bit XLEN).
     Open Scope kami_expr.
     Definition Processor :=
         MODULE {
-            (*       `"cycle"                                          (* 0xC00 *)   *)  (* Read Only, Shadows 0xB00 "mcycle" *)
-            (*       `"time"                                           (* 0xC01 *)   *)  (* Read Only, Memory-mapped *)
-            (*       `"instret"                                        (* 0xC02 *)   *)  (* Read Only, Shadow 0xB02 "minstret" *)
-            (*       `"hpmcounter3"                                    (* 0xC03 *)   *)  (* Hardwired to 0 *)
-            (*           ...                                           (*  ...  *)   *)  (*  ...           *)
-            (*       `"hpmcounter31"                                   (* 0xC1F *)   *)  (* Hardwired to 0 *)
+            (*       `"cycle"                                              (* 0xC00 *)   *)  (* Read Only, Shadows 0xB00 "mcycle" *)
+            (*       `"time"                                               (* 0xC01 *)   *)  (* Read Only, Memory-mapped *)
+            (*       `"instret"                                            (* 0xC02 *)   *)  (* Read Only, Shadow 0xB02 "minstret" *)
+            (*       `"hpmcounter3"                                        (* 0xC03 *)   *)  (* Hardwired to 0 *)
+            (*           ...                                               (*  ...  *)   *)  (*  ...           *)
+            (*       `"hpmcounter31"                                       (* 0xC1F *)   *)  (* Hardwired to 0 *)
 
-            (*       `"cycleh"                                         (* 0xC80 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"timeh"                                          (* 0xC81 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"instreth"                                       (* 0xC82 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"hpmcounter3h"                                   (* 0xC83 *)   *)  (* Unimplemented - RV32 only *)
-            (*           ...                                           (*  ...  *)   *)  (*  ...                      *)
-            (*       `"hpmcounter31h"                                  (* 0xC9F *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"cycleh"                                             (* 0xC80 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"timeh"                                              (* 0xC81 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"instreth"                                           (* 0xC82 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"hpmcounter3h"                                       (* 0xC83 *)   *)  (* Unimplemented - RV32 only *)
+            (*           ...                                               (*  ...  *)   *)  (*  ...                      *)
+            (*       `"hpmcounter31h"                                      (* 0xC9F *)   *)  (* Unimplemented - RV32 only *)
 
-            (*       `"mvendorid"                                      (* 0xF11 *)   *)  (* Read only *)
-            (*       `"marchid"                                        (* 0xF12 *)   *)  (* Read only *)
-            (*       `"mimpid"                                         (* 0xF13 *)   *)  (* Read only *)
-            (*       `"mhartid"                                        (* 0xF14 *)   *)  (* Read only *)
+            (*       `"mvendorid"                                          (* 0xF11 *)   *)  (* Read only *)
+            (*       `"marchid"                                            (* 0xF12 *)   *)  (* Read only *)
+            (*       `"mimpid"                                             (* 0xF13 *)   *)  (* Read only *)
+            (*       `"mhartid"                                            (* 0xF14 *)   *)  (* Read only *)
 
-            Register `"mstatus"    : (Bit 64) <- (natToWord 64 0) with (* 0x300 *)
-            (*       `"misa"                                           (* 0x301 *)   *)  (* MXL modification and extension disabling not currently supported *)
-            (*       `"medeleg"                                        (* 0x302 *)   *)  (* In systems with only M-mode, or with M- and U-modes but w/o U-mode trap *)
-            (*       `"mideleg"                                        (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
-            Register `"mie"        : (Bit 64) <- (natToWord 64 0) with (* 0x304 *)
-            Register `"mtvec"      : (Bit 64) <- (Ox"000")        with (* 0x305 *)
-            Register `"mcounteren" : (Bit 32) <- (natToWord 32 0) with (* 0x306 *)
-            Register `"mtvt"       : (Bit 64) <- (natToWord 64 0) with (* 0x307 *)       (* See the SiFive CLIC Proposal *)
+            Register `"mstatus"    : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x300 *)
+            (*       `"misa"                                               (* 0x301 *)   *)  (* MXL modification and extension disabling not currently supported *)
+            (*       `"medeleg"                                            (* 0x302 *)   *)  (* In systems with only M-mode, or with M- and U-modes but w/o U-mode trap *)
+            (*       `"mideleg"                                            (* 0x303 *)   *)  (*   support, the medeleg and mideleg registers should not exist           *)
+            Register `"mie"        : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x304 *)
+            Register `"mtvec"      : (Bit XLEN) <- (Ox"000")          with (* 0x305 *)
+            Register `"mcounteren" : (Bit 32)   <- (natToWord 32 0)   with (* 0x306 *)
+            Register `"mtvt"       : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x307 *)       (* See the SiFive CLIC Proposal *)
 
-            Register `"mscratch"   : (Bit 64) <- (natToWord 64 0) with (* 0x340 *)
-            Register `"mepc"       : (Bit 64) <- (natToWord 64 0) with (* 0x341 *)
-            Register `"mcause"     : (Bit 64) <- (natToWord 64 0) with (* 0x342 *)
-            Register `"mtval"      : (Bit 64) <- (natToWord 64 0) with (* 0x343 *)
-            Register `"mip"        : (Bit 64) <- (natToWord 64 0) with (* 0x344 *)
-            (*       `"mnxti"                                          (* 0x345 *)   *)  (* See the SiFive CLIC Proposal *)
-            Register `"mintstatus" : (Bit 64) <- (natToWord 64 0) with (* 0x346 *)       (* See the SiFive CLIC Proposal *)
-            (*       `"mscratchcsw"                                    (* 0x348 *)   *)  (* See the SiFive CLIC Proposal *)
+            Register `"mscratch"   : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x340 *)
+            Register `"mepc"       : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x341 *)
+            Register `"mcause"     : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x342 *)
+            Register `"mtval"      : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x343 *)
+            Register `"mip"        : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x344 *)
+            (*       `"mnxti"                                              (* 0x345 *)   *)  (* See the SiFive CLIC Proposal *)
+            Register `"mintstatus" : (Bit XLEN) <- (natToWord XLEN 0) with (* 0x346 *)       (* See the SiFive CLIC Proposal *)
+            (*       `"mscratchcsw"                                        (* 0x348 *)   *)  (* See the SiFive CLIC Proposal *)
 
-            (*       `"pmpcfg0"                                        (* 0x3A0 *)   *)  (* Hardwired to 0 *)
-            (*       `"pmpcfg1"                                        (* 0x3A1 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"pmpcfg2"                                        (* 0x3A2 *)   *)  (* Hardwired to 0 *)
-            (*       `"pmpcfg3"                                        (* 0x3A3 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"pmpaddr0"                                       (* 0x3B0 *)   *)  (* Hardwired to 0 *)
-            (*           ...                                           (*  ...  *)   *)  (* Hardwired to 0 *)
-            (*       `"pmpaddr15"                                      (* 0x3BF *)   *)  (* Hardwired to 0 *)
+            (*       `"pmpcfg0"                                            (* 0x3A0 *)   *)  (* Hardwired to 0 *)
+            (*       `"pmpcfg1"                                            (* 0x3A1 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"pmpcfg2"                                            (* 0x3A2 *)   *)  (* Hardwired to 0 *)
+            (*       `"pmpcfg3"                                            (* 0x3A3 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"pmpaddr0"                                           (* 0x3B0 *)   *)  (* Hardwired to 0 *)
+            (*           ...                                               (*  ...  *)   *)  (* Hardwired to 0 *)
+            (*       `"pmpaddr15"                                          (* 0x3BF *)   *)  (* Hardwired to 0 *)
 
-            Register `"mcycle"     : (Bit 64) <- (natToWord 64 0) with (* 0xB00 *)
-            Register `"minstret"   : (Bit 64) <- (natToWord 64 0) with (* 0xB02 *)
-            (*       `"mhpmcounter3"                                   (* 0xB03 *)   *)  (* Hardwired to 0 *)
-            (*           ...                                           (*  ...  *)   *)  (*  ...           *)
-            (*       `"mhpmcounter31"                                  (* 0xB1F *)   *)  (* Hardwired to 0 *)
+            Register `"mcycle"     : (Bit 64)   <- (natToWord 64 0)   with (* 0xB00 *)
+            Register `"minstret"   : (Bit 64)   <- (natToWord 64 0)   with (* 0xB02 *)
+            (*       `"mhpmcounter3"                                       (* 0xB03 *)   *)  (* Hardwired to 0 *)
+            (*           ...                                               (*  ...  *)   *)  (*  ...           *)
+            (*       `"mhpmcounter31"                                      (* 0xB1F *)   *)  (* Hardwired to 0 *)
 
-            (*       `"mcycleh"                                        (* 0xB80 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"minstreth"                                      (* 0xB82 *)   *)  (* Unimplemented - RV32 only *)
-            (*       `"mhpmcounter3h"                                  (* 0xB83 *)   *)  (* Unimplemented - RV32 only *)
-            (*           ...                                           (*  ...  *)   *)  (*  ...                      *)
-            (*       `"mhpmcounter31h"                                 (* 0xB9F *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"mcycleh"                                            (* 0xB80 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"minstreth"                                          (* 0xB82 *)   *)  (* Unimplemented - RV32 only *)
+            (*       `"mhpmcounter3h"                                      (* 0xB83 *)   *)  (* Unimplemented - RV32 only *)
+            (*           ...                                               (*  ...  *)   *)  (*  ...                      *)
+            (*       `"mhpmcounter31h"                                     (* 0xB9F *)   *)  (* Unimplemented - RV32 only *)
 
-            (*       `"mhpmevent3"                                     (* 0x323 *)   *)  (* Hardwired to 0 *)
-            (*           ...                                           (*  ...  *)   *)  (*  ...           *)
-            (*       `"mhpmevent31"                                    (* 0x33F *)   *)  (* Hardwired to 0 *)
+            (*       `"mhpmevent3"                                         (* 0x323 *)   *)  (* Hardwired to 0 *)
+            (*           ...                                               (*  ...  *)   *)  (*  ...           *)
+            (*       `"mhpmevent31"                                        (* 0x33F *)   *)  (* Hardwired to 0 *)
 
             Register `"mode"  : (Bit  2) <- WO~1~1 with
-            Register `"pc"    : (Bit 64) <- RESET_VECTOR with
+            Register `"pc"    : (Bit XLEN) <- RESET_VECTOR with
             Rule `"step" :=
-                Read  pc  : Bit 64 <- `"pc";
-                Read  mode     : _ <- `"mode";
-                LET misaligned : _ <- if IALIGNW then #pc $[ 1 : 0 ] != $$ WO~0~0
-                                                 else #pc $[ 0 : 0 ] != $$ WO~0;
+                Read  pc : Bit XLEN <- `"pc";
+                Read  mode      : _ <- `"mode";
+                LET misaligned  : _ <- if IALIGNW then #pc $[ 1 : 0 ] != $$ WO~0~0
+                                                  else #pc $[ 0 : 0 ] != $$ WO~0;
 
                 If #misaligned then Ret $$ (natToWord 32 0)
                                else Call instr : _ <- `"getInstr"(#pc : _); Ret #instr
@@ -107,12 +107,12 @@ Section Process.
 
                 If (#rdEn1) then (Call  rs1_val : _ <- `"rfRead1"(#dInst @% "rs1" : _);
                                   Ret #rs1_val)
-                            else Ret $$ (natToWord 64 0) as rs1_val;
+                            else Ret $$ (natToWord XLEN 0) as rs1_val;
                 If (#rdEn2) then (Call  rs2_val : _ <- `"rfRead2"(#dInst @% "rs2" : _);
                                   Ret #rs2_val)
-                            else Ret $$ (natToWord 64 0) as rs2_val;
+                            else Ret $$ (natToWord XLEN 0) as rs2_val;
 
-                LETA csr_val : Bit 64 <- ReadCSR_action LABEL CORE_NUM (#dInst @% "csradr");
+                LETA csr_val : Bit XLEN <- ReadCSR_action LABEL CORE_NUM (#dInst @% "csradr");
 
               (******)
 
@@ -132,7 +132,7 @@ Section Process.
                 If (#ctrlSig @% "memOp" != $$ Mem_off) && (!#ldMisaligned) && (!#stMisaligned)
                             then (Call memResp : _ <- `"memAction"(#memReq : _);
                                   Ret #memResp)
-                            else Ret $$ (getDefaultConst (Bit 64)) as memResp;
+                            else Ret $$ (getDefaultConst (Bit XLEN)) as memResp;
 
               (******)
 
@@ -146,11 +146,11 @@ Section Process.
                                        "memOp"   ::= $$ Mem_load;
                                        "memMask" ::= $$ WO~1~1~1~1~1~1~1~1; (* WO~1~1~1~1 in RV32 *)
                                        "memAdr"  ::= #tableLookup @% "addr";
-                                       "memDat"  ::= $$ (natToWord 64 0)
+                                       "memDat"  ::= $$ (natToWord XLEN 0)
                                     };
                 If (#tableLookup @% "needed?") then Call mtvtMemResp : _ <- `"lateMemAction"(#mtvtMemReq : _);
                                                     Ret #mtvtMemResp
-                                               else Ret $$ (getDefaultConst (Bit 64)) as mtvtMemResp;
+                                               else Ret $$ (getDefaultConst (Bit XLEN)) as mtvtMemResp;
 
                 LET   csrCtrl     <- STRUCT {
                                        "wecsr"      ::= #eInst @% "wecsr"        ;
@@ -168,7 +168,7 @@ Section Process.
                                 "addr" ::= #dInst @% "rd";
                                 "data" ::= #final @% "rd_val"
                               };
-                If (#final @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit 64));
+                If (#final @% "werf") then Call `"rfWrite"(#rfCtrl : WriteRq 32 (Bit XLEN));
                                             Retv
                                        else Retv;
 
@@ -193,7 +193,7 @@ Section Process.
                                                      (`"rfRead1" :: `"rfRead2" :: nil)
                                                      `"rfWrite"
                                                      32
-                                                     (Some (ConstBit (natToWord 64 0))) :: nil,
+                                                     (Some (ConstBit (natToWord XLEN 0))) :: nil,
                                              Processor)).
 End Process.
 

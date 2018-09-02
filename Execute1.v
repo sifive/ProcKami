@@ -1,7 +1,5 @@
 Require Import Kami.All Decode Control.
 
-Definition XLENm1 := if RV32 then 31 else 63.
-
 Section Execute1.
     Variable ty : Kind -> Type.
 
