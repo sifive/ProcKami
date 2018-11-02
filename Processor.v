@@ -198,4 +198,4 @@ Section Process.
 End Process.
 
 Definition rtlMod := rtlModModule "Core" 0.
-Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit.
+Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins.
