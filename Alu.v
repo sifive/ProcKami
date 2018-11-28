@@ -61,8 +61,6 @@ Section Alu.
   Local Open Scope kami_expr.
   Definition AluEntry :=
     {| fuName := "alu" ;
-       input := AluType ;
-       output := Bit n ;
        instEntries :=
          (Build_InstEntry "addi" (IType ('b"0010011") ('b"000"))
                           (fun i =>
