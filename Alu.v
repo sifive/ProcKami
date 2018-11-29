@@ -1,4 +1,6 @@
 Require Import Kami.All FU.
+Require Import List.
+Import ListNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
@@ -12,37 +14,133 @@ Section Alu.
 
   Definition AluType := STRUCT {"arg1" :: Data ; "arg2" :: Data}.
 
+  Local Open Scope list_scope.
   Local Open Scope kami_expr.
+
+  (* Represents standard bit ranges. *)
+
+  Definition bit_range_trunc_opcode := (6, 2).
+  Definition bit_range_funct7 := (31, 25).
+  Definition bit_range_funct3 := (14, 12).
+  Definition bit_range_rd     := (11, 6).
+  Definition bit_range_rs1    := (19, 15).
+  Definition bit_range_rs2    := (24, 20).
+
+  Definition binary_field_type : Type := {range : (nat * nat) & word (fst range - snd range + 1)}.
+
+  Definition binary_field (range : nat * nat) (value : word (fst range - snd range + 1))
+    :  binary_field_type
+    := existT _ (fst range, snd range) value.
+
+  (*
+    Represents the value stored in structure
+    fields that are not used.
+  *)
+  Definition not_used := 0.
+
+  (*
+    Constructs structs that represent the
+    state updates that result from executing
+    an instruction.
+  *)
+
+
+  (*
+    Accepts a value returned by an integer
+    arithmetic instruction and returns a struct
+    that represents the state updates that should
+    result from the instruction.
+  *)
+  Definition state_update_packet_int_inst (value : ty VAddr)
+    :  GenContextUpdPkt Xlen_over_8 @# ty
+    := STRUCT {
+         "tag"        ::= $IntInst;
+         "val1"       ::= #value;
+         "val2"       ::= $not_used;
+         "memOp"      ::= $not_used;
+         "memBitMask" ::= $not_used;
+         "exception"  ::= invalidException ty
+       }.
+
+  (*
+    Provides information about RISC-V
+    instructions that are semantically equivalent
+    to addition.
+  *)
   Definition AddEntry: FUEntry Xlen_over_8 ty :=
-    {| fuName := "add" ;
-       fuFunc := (fun i =>
-                    LETE x: AluType <- i;
-                      RetE ((#x @% "arg1") + (#x @% "arg2"))) ;
-       fuInsts :=
-         {| instName := "addi" ;
-            uniqId   := (Normal, (existT _ (6, 2) ('b"00100"))
-                                   :: (existT _ (14, 12) ('b"000")) :: nil) ;
-            inputXform :=
-              (fun gcpin =>
-                 LETE gcp: GenContextPkt Xlen_over_8 <- gcpin ;
-                   RetE ((STRUCT {
-                              "arg1" ::= #gcp @% "reg1" ;
-                              "arg2" ::= SignExtendTruncLsb
-                                           Xlen ((#gcp @% "instNoOpcode")$[24:13])
-                         }): AluType @# _)
-              ) ;
-            outputXform :=
-              (fun outarg =>
-                 LETE out: Data <- outarg ;
-                   RetE ((STRUCT {
-                              "tag"        ::= $IntInst ;
-                              "val1"       ::= #out ;
-                              "val2"       ::= $0 ;
-                              "memOp"      ::= $0 ;
-                              "memBitMask" ::= $0 ;
-                              "exception"  ::= invalidException _
-                         }): GenContextUpdPkt Xlen_over_8 @# ty));
-            optLoadXform := None |} :: nil
+    {|
+      fuName
+        := "add";
+      fuFunc
+        := fun i
+             => LETE x: AluType <- i;
+                RetE ((#x @% "arg1") + (#x @% "arg2"));
+      fuInsts
+        := [
+             {|
+               instName := "addi";
+               uniqId
+                 := (Normal,
+                      [binary_field bit_range_trunc_opcode ('b"00100");
+                       binary_field bit_range_funct3 ('b"000")]);
+               inputXform
+                 := fun gcpin
+                      => LETE gcp: GenContextPkt Xlen_over_8 <- gcpin;
+                         RetE ((STRUCT {
+                                 "arg1" ::= #gcp @% "reg1";
+                                 "arg2" ::= SignExtendTruncLsb Xlen ((#gcp @% "instNoOpcode")$[24:13])
+                                }): AluType @# _);
+               outputXform
+                 := fun outarg
+                      => LETE out: Data <- outarg ;
+                         RetE (state_update_packet_int_inst out);
+               optLoadXform := None
+             |};
+             {|
+               instName := "add";
+               uniqId
+                 := (Normal,
+                      [binary_field bit_range_trunc_opcode ('b"01100");
+                       binary_field bit_range_funct7 ('b"0000000");
+                       binary_field bit_range_funct3 ('b"000")]);
+               (* maps the context onto the semantic function arguments and reformats the context values as necessary. *)
+               inputXform
+                 := fun contextExpr : LetExprSyntax ty (GenContextPkt Xlen_over_8)
+                      => LETE context: GenContextPkt Xlen_over_8 <- contextExpr;
+                         RetE ((STRUCT {
+                                  "arg1" ::= #context @% "reg1";
+                                  "arg2" ::= #context @% "reg2"
+                                }): AluType @# _);
+               (* takes the value generated by the semantic function and returns a structure summarizing the state updates resulting from executing the instruction. *)
+               outputXform
+                 := fun resultExpr : LetExprSyntax ty (Bit Xlen)
+                      => LETE result: Data <- resultExpr;
+                         RetE (state_update_packet_int_inst result);
+               optLoadXform := None
+             |};
+             {|
+               instName := "sub";
+               uniqId
+                 := (Normal,
+                      [binary_field bit_range_trunc_opcode ('b"01100");
+                       binary_field bit_range_funct7 ('b"0100000");
+                       binary_field bit_range_funct3 ('b"000")]);
+               inputXform
+                 := fun contextExpr : LetExprSyntax ty (GenContextPkt Xlen_over_8)
+                      => LETE context : GenContextPkt Xlen_over_8 <- contextExpr;
+                         RetE ((STRUCT {
+                                 "arg1" ::= #context @% "reg1";
+                                 "arg2" ::= ~ (#context @% "reg2") + $1 (* twos complement *)
+                               }) : AluType @# _);
+               outputXform
+                 := fun resultExpr : LetExprSyntax ty (Bit Xlen)
+                      => LETE result: Data <- resultExpr;
+                         RetE (state_update_packet_int_inst result);
+               optLoadXform := None
+             |}
+           ]
     |}.
+
+  Local Close Scope list_scope.
   Local Close Scope kami_expr.
 End Alu.
