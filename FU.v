@@ -15,7 +15,6 @@ Section Params.
   Definition PrivMode := (Bit 2).
 
   Definition Inst := (Bit 32).
-  Definition InstNoOpcode := (Bit 25).
 
   Definition Exception := (Bit 4).
 
@@ -36,7 +35,7 @@ Section Params.
              "freg1"        :: Data ;
              "freg2"        :: Data ;
              "csr"          :: Data ;
-             "instNoOpcode" :: InstNoOpcode ;
+             "inst"         :: Inst ;
              "mode"         :: PrivMode }.
 
   Definition GenContextUpdPkt :=
@@ -72,4 +71,27 @@ Section Params.
         fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
         fuInsts   : list (InstEntry fuInputK fuOutputK) }.
   End Ty.
+
+  Definition DecoderInput :=
+    STRUCT { "pc"   :: VAddr ;
+             "inst" :: Inst ;
+             "mode" :: PrivMode }.
+
+  Definition DecoderOutput :=
+    STRUCT { "inst"            :: Inst ; (* Normal (Uncompressed) instruction *)
+             "rs1?"            :: Bool ;
+             "rs2?"            :: Bool ;
+             "rd?"             :: Bool ;
+             "csr?"            :: Bool ;
+             "isBranch?"       :: Bool ;
+             "jump"            :: Maybe VAddr ;
+             "system?"         :: Bool ;
+             "compressed?"     :: Bool ;
+             "illegal?"        :: Bool ; (* opcode[1:0] is not Compressed or Normal, or instruction is not valid *)
+             "misalignedJump?" :: Bool ; (* Generated Jump is not aligned to N byte boundaries,
+                                            N is 4 or 8 depending on support for compressed instructions *)
+             "misaligned?"     :: Bool ; (* Current instruction is not aligned to N byte boundaries
+                                            N is 4 or 8 depending on support for compressed instructions *)
+             "privilegeFault"  :: Bool   (* Current Privilege mode not sufficient *)
+           }.
 End Params.

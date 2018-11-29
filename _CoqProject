@@ -1,1 +1,1 @@
--R . ProcKami -R ../Kami Kami -R ../bbv/theories bbv
+-R . ProcKami -R ../Kami Kami -R ../bbv/theories bbv -R ../ModulesKami ModulesKami
