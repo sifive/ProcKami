@@ -85,8 +85,9 @@ Section Params.
              "csr?"            :: Bool ;
              "isBranch?"       :: Bool ;
              "jump"            :: Maybe VAddr ;
-             "isSystem"        :: Bool ;
-             "illegal"         :: Bool ; (* opcode[1:0] is not Compressed or Normal, or instruction is not valid *)
+             "system?"         :: Bool ;
+             "compressed?"     :: Bool ;
+             "illegal?"        :: Bool ; (* opcode[1:0] is not Compressed or Normal, or instruction is not valid *)
              "misalignedJump?" :: Bool ; (* Generated Jump is not aligned to N byte boundaries,
                                             N is 4 or 8 depending on support for compressed instructions *)
              "misaligned?"     :: Bool ; (* Current instruction is not aligned to N byte boundaries
