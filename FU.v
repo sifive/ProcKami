@@ -18,7 +18,21 @@ Section Params.
 
   Definition Exception := (Bit 4).
 
-  Definition MemOp := (Bit 4).
+  Definition MemOp :=
+    STRUCT { "sub_opcode" :: Bit 2 ;
+             "funct3"     :: Bit 3 ;
+             "funct5"     :: Bit 5 }.
+
+  Section Fields.
+    Variable ty: Kind -> Type.
+    Variable inst: Inst @# ty.
+    Local Open Scope kami_expr.
+    Definition opcode := inst$[6:2].
+    Definition funct3 := inst$[14:12].
+    Definition funct5 := inst$[31:27].
+    Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
+    Local Close Scope kami_expr.
+  End Fields.
 
   Definition GenContextUpdTag := Bit 3.
 
@@ -47,10 +61,77 @@ Section Params.
              "exception"  :: Maybe Exception }.
 
   Section Ty.
-    Variable ty: Kind -> Type.
+    Context {ty: Kind -> Type}.
 
-    Definition invalidException := (STRUCT { "valid" ::= $$ false ;
-                                             "data" ::= $$ (getDefaultConst Exception)})%kami_expr.
+    Local Open Scope kami_expr.
+
+    Definition LoadOp funct3 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"00") ;
+                                                       "funct3"     ::= funct3 ;
+                                                       "funct5"     ::= $0
+                                                     }.
+    
+    Definition StoreOp funct3 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"10") ;
+                                                        "funct3"     ::= funct3 ;
+                                                        "funct5"     ::= $0
+                                                      }.
+    
+    Definition AmoOp funct3 funct5 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"11") ;
+                                                             "funct3"     ::= funct3 ;
+                                                             "funct5"     ::= funct5
+                                                           }.
+    
+    Definition invalidException := STRUCT { "valid" ::= $$ false ;
+                                            "data" ::= $$ (getDefaultConst Exception)}.
+    
+    Definition createControl pc : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $ControlInst ;
+               "val1"       ::= pc ;
+               "val2"       ::= $0 ;
+               "memOp"      ::= $$ (getDefaultConst MemOp) ;
+               "memBitMask" ::= $0 ;
+               "exception"  ::= invalidException }.
+
+    Definition createInt val : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $IntInst ;
+               "val1"       ::= val ;
+               "val2"       ::= $0 ;
+               "memOp"      ::= $$ (getDefaultConst MemOp) ;
+               "memBitMask" ::= $0 ;
+               "exception"  ::= invalidException }.
+
+    Definition createFloat floatVal intVal exception : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $FloatInst ;
+               "val1"       ::= intVal ;
+               "val2"       ::= floatVal ;
+               "memOp"      ::= $$ (getDefaultConst MemOp) ;
+               "memBitMask" ::= $0 ;
+               "exception"  ::= exception }.
+
+    Definition createSimpleFloat floatVal exception : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $FloatInst ;
+               "val1"       ::= $0 ;
+               "val2"       ::= floatVal ;
+               "memOp"      ::= $$ (getDefaultConst MemOp) ;
+               "memBitMask" ::= $0 ;
+               "exception"  ::= exception }.
+
+    Definition createCsr csrVal intVal exception : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $CsrInst ;
+               "val1"       ::= intVal ;
+               "val2"       ::= csrVal ;
+               "memOp"      ::= $$ (getDefaultConst MemOp) ;
+               "memBitMask" ::= $0 ;
+               "exception"  ::= exception }.
+
+    Definition createMem memOp memAddr memBitMask memData exception : GenContextUpdPkt @# ty :=
+      STRUCT { "tag"        ::= $MemInst ;
+               "val1"       ::= memAddr ;
+               "val2"       ::= memData ;
+               "memOp"      ::= memOp ;
+               "memBitMask" ::= memBitMask ;
+               "exception"  ::= exception }.
+
+    Local Close Scope kami_expr.
     
     Record LoadXform :=
       { loadK: Kind ;
