@@ -1,8 +1,8 @@
-Require Import Kami.All.
+Require Import Kami.All RecordUpdate.RecordSet.
 
 Inductive InstSize := Compressed | Normal.
 
-Definition UniqId := (InstSize * list {x: (nat * nat) & word (fst x - snd x + 1)})%type.
+Definition UniqId := (InstSize * list {x: (nat * nat) & word (fst x + 1 - snd x)})%type.
 
 Section Params.
   Variable Xlen_over_8: nat.
@@ -14,7 +14,8 @@ Section Params.
 
   Definition PrivMode := (Bit 2).
 
-  Definition Inst := (Bit 32).
+  Definition InstSz := 32.
+  Definition Inst := (Bit InstSz).
 
   Definition Exception := (Bit 4).
 
@@ -24,25 +25,32 @@ Section Params.
              "funct5"     :: Bit 5 }.
 
   Section Fields.
+    Definition opcodeField := (6, 2).
+    Definition funct3Field := (14,12).
+    Definition funct7Field := (31,25).
+    Definition funct6Field := (31,26).
+    Definition funct5Field := (31,27).
+    Definition rs1Field := (19,15).
+    Definition rs2Field := (24,20).
+    Definition rdField := (11,7).
+    
     Variable ty: Kind -> Type.
     Variable inst: Inst @# ty.
+    
     Local Open Scope kami_expr.
-    Definition opcode := inst$[6:2].
-    Definition funct3 := inst$[14:12].
-    Definition funct5 := inst$[31:27].
+    Definition opcode := inst$[fst opcodeField: snd opcodeField].
+    Definition funct3 := inst$[fst funct3Field: snd funct3Field].
+    Definition funct7 := inst$[fst funct7Field: snd funct5Field].
+    Definition funct6 := inst$[fst funct6Field: snd funct6Field].
+    Definition funct5 := inst$[fst funct5Field: snd funct5Field].
+    Definition rs1 := inst$[fst rs1Field: snd rs1Field].
+    Definition rs2 := inst$[fst rs2Field: snd rs2Field].
+    Definition rd := inst$[fst rdField: snd rdField].
     Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
     Local Close Scope kami_expr.
   End Fields.
 
-  Definition GenContextUpdTag := Bit 3.
-
-  Definition ControlInst := 0.
-  Definition IntInst := 1.
-  Definition FloatInst := 2.
-  Definition CsrInst := 3.
-  Definition MemInst := 4.
-
-  Definition GenContextPkt :=
+  Definition ExecContextPkt :=
     STRUCT { "pc"           :: VAddr ;
              "reg1"         :: Data ;
              "reg2"         :: Data ;
@@ -52,8 +60,16 @@ Section Params.
              "inst"         :: Inst ;
              "mode"         :: PrivMode }.
 
-  Definition GenContextUpdPkt :=
-    STRUCT { "tag"        :: GenContextUpdTag ;
+  Definition ExecContextUpdTag := Bit 3.
+
+  Definition ControlInst := 0.
+  Definition IntInst := 1.
+  Definition FloatInst := 2.
+  Definition CsrInst := 3.
+  Definition MemInst := 4.
+
+  Definition ExecContextUpdPkt :=
+    STRUCT { "tag"        :: ExecContextUpdTag ;
              "val1"       :: Data ;
              "val2"       :: Data ;
              "memOp"      :: MemOp ;
@@ -65,25 +81,25 @@ Section Params.
 
     Local Open Scope kami_expr.
 
-    Definition LoadOp funct3 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"00") ;
-                                                       "funct3"     ::= funct3 ;
-                                                       "funct5"     ::= $0
+    Definition LoadOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"00") ;
+                                                          "funct3"     ::= funct3Val ;
+                                                          "funct5"     ::= $0
                                                      }.
     
-    Definition StoreOp funct3 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"10") ;
-                                                        "funct3"     ::= funct3 ;
-                                                        "funct5"     ::= $0
-                                                      }.
+    Definition StoreOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"10") ;
+                                                           "funct3"     ::= funct3Val ;
+                                                           "funct5"     ::= $0
+                                                         }.
     
-    Definition AmoOp funct3 funct5 : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"11") ;
-                                                             "funct3"     ::= funct3 ;
-                                                             "funct5"     ::= funct5
-                                                           }.
+    Definition AmoOp funct3Val funct5Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"11") ;
+                                                                   "funct3"     ::= funct3Val ;
+                                                                   "funct5"     ::= funct5Val
+                                                                 }.
     
     Definition invalidException := STRUCT { "valid" ::= $$ false ;
                                             "data" ::= $$ (getDefaultConst Exception)}.
     
-    Definition createControl pc : GenContextUpdPkt @# ty :=
+    Definition createControl pc : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $ControlInst ;
                "val1"       ::= pc ;
                "val2"       ::= $0 ;
@@ -91,7 +107,7 @@ Section Params.
                "memBitMask" ::= $0 ;
                "exception"  ::= invalidException }.
 
-    Definition createInt val : GenContextUpdPkt @# ty :=
+    Definition createInt val : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $IntInst ;
                "val1"       ::= val ;
                "val2"       ::= $0 ;
@@ -99,7 +115,7 @@ Section Params.
                "memBitMask" ::= $0 ;
                "exception"  ::= invalidException }.
 
-    Definition createFloat floatVal intVal exception : GenContextUpdPkt @# ty :=
+    Definition createFloat floatVal intVal exception : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $FloatInst ;
                "val1"       ::= intVal ;
                "val2"       ::= floatVal ;
@@ -107,7 +123,7 @@ Section Params.
                "memBitMask" ::= $0 ;
                "exception"  ::= exception }.
 
-    Definition createSimpleFloat floatVal exception : GenContextUpdPkt @# ty :=
+    Definition createSimpleFloat floatVal exception : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $FloatInst ;
                "val1"       ::= $0 ;
                "val2"       ::= floatVal ;
@@ -115,7 +131,7 @@ Section Params.
                "memBitMask" ::= $0 ;
                "exception"  ::= exception }.
 
-    Definition createCsr csrVal intVal exception : GenContextUpdPkt @# ty :=
+    Definition createCsr csrVal intVal exception : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $CsrInst ;
                "val1"       ::= intVal ;
                "val2"       ::= csrVal ;
@@ -123,7 +139,7 @@ Section Params.
                "memBitMask" ::= $0 ;
                "exception"  ::= exception }.
 
-    Definition createMem memOp memAddr memBitMask memData exception : GenContextUpdPkt @# ty :=
+    Definition createMem memOp memAddr memBitMask memData exception : ExecContextUpdPkt @# ty :=
       STRUCT { "tag"        ::= $MemInst ;
                "val1"       ::= memAddr ;
                "val2"       ::= memData ;
@@ -137,13 +153,45 @@ Section Params.
       { loadK: Kind ;
         loadXform: loadK @# ty -> Data ## ty }.
     
-    
+    Record InstHints :=
+      { hasRs1      : bool ;
+        hasRs2      : bool ;
+        hasRd       : bool ;
+        hasFrs1     : bool ;
+        hasFrs2     : bool ;
+        hasFrd      : bool ;
+        isBranch    : bool ;
+        isJumpImm   : bool ;
+        isJumpReg   : bool ;
+        isSystem    : bool ;
+        isCsr       : bool }.
+
+    Global Instance etaX : Settable _ :=
+      mkSettable
+        (pure Build_InstHints
+              <*> hasRs1 <*> hasRs2 <*> hasRd <*> hasFrs1 <*> hasFrs2 <*> hasFrd
+              <*> isBranch <*> isJumpImm <*> isJumpReg <*> isSystem <*> isCsr).
+
+    Definition falseHints :=
+      {| hasRs1      := false ;
+         hasRs2      := false ;
+         hasRd       := false ;
+         hasFrs1     := false ;
+         hasFrs2     := false ;
+         hasFrd      := false ;
+         isBranch    := false ;
+         isJumpImm   := false ;
+         isJumpReg   := false ;
+         isSystem    := false ;
+         isCsr       := false |}.
+
     Record InstEntry ik ok :=
       { instName     : string ;
         uniqId       : UniqId ;
-        inputXform   : GenContextPkt ## ty -> ik ## ty ;
-        outputXform  : ok ## ty -> GenContextUpdPkt ## ty ;
-        optLoadXform : option LoadXform }.
+        inputXform   : ExecContextPkt ## ty -> ik ## ty ;
+        outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
+        optLoadXform : option LoadXform ;
+        instHints    : InstHints }.
 
     Record FUEntry :=
       { fuName    : string ;
@@ -176,3 +224,11 @@ Section Params.
              "privilegeFault"  :: Bool   (* Current Privilege mode not sufficient *)
            }.
 End Params.
+
+Module RecordNotations.
+  Notation "x [ proj  :=  v ]" := (set proj (pure v) x)
+                                    (at level 14, left associativity).
+  Notation "x [ proj  ::=  f ]" := (set proj f x)
+                                     (at level 14, f at next level, left associativity).
+End RecordNotations.
+

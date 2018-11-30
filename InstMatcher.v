@@ -50,8 +50,5 @@ Section Ty.
             RetE ((# matchCurrent) && (# matchRemaining)))
        funct_units.
 
-  Section alignment.
-    Variable 
-  
   Local Close Scope kami_expr.
 End Ty.

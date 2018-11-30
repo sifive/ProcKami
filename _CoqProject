@@ -1,1 +1,1 @@
--R . ProcKami -R ../Kami Kami -R ../bbv/theories bbv -R ../ModulesKami ModulesKami
+-R . ProcKami -R ../Kami Kami -R ../bbv/theories bbv -R ../ModulesKami ModulesKami -R ../coq-record-update/src RecordUpdate
