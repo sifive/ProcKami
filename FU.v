@@ -2,7 +2,27 @@ Require Import Kami.All RecordUpdate.RecordSet.
 
 Inductive InstSize := Compressed | Normal.
 
-Definition UniqId := (InstSize * list {x: (nat * nat) & word (fst x + 1 - snd x)})%type.
+Inductive Extension := RV32I
+                     | RV64I
+                     | Zifencei
+                     | Zicsr
+                     | RV32M
+                     | RV64M
+                     | RV32A
+                     | RV64A
+                     | RV32F
+                     | RV64F
+                     | RV32D
+                     | RV64D
+                     | RV32C
+                     | RV64C.
+
+Definition Extension_dec: forall e1 e2: Extension, {e1 = e2} + {e1 <> e2}.
+Proof.
+  decide equality.
+Defined.
+
+Definition UniqId := (list {x: (nat * nat) & word (fst x + 1 - snd x)})%type.
 
 Section Params.
   Variable Xlen_over_8: nat.
@@ -25,6 +45,7 @@ Section Params.
              "funct5"     :: Bit 5 }.
 
   Section Fields.
+    Definition instSizeField := (1, 0).
     Definition opcodeField := (6, 2).
     Definition funct3Field := (14,12).
     Definition funct7Field := (31,25).
@@ -33,11 +54,13 @@ Section Params.
     Definition rs1Field := (19,15).
     Definition rs2Field := (24,20).
     Definition rdField := (11,7).
+    Definition immField := (31,20).
     
     Variable ty: Kind -> Type.
     Variable inst: Inst @# ty.
     
     Local Open Scope kami_expr.
+    Definition instSize := inst$[fst instSizeField: snd instSizeField].
     Definition opcode := inst$[fst opcodeField: snd opcodeField].
     Definition funct3 := inst$[fst funct3Field: snd funct3Field].
     Definition funct7 := inst$[fst funct7Field: snd funct5Field].
@@ -46,6 +69,7 @@ Section Params.
     Definition rs1 := inst$[fst rs1Field: snd rs1Field].
     Definition rs2 := inst$[fst rs2Field: snd rs2Field].
     Definition rd := inst$[fst rdField: snd rdField].
+    Definition imm := inst$[fst immField: snd immField].
     Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
     Local Close Scope kami_expr.
   End Fields.
@@ -187,7 +211,8 @@ Section Params.
 
     Record InstEntry ik ok :=
       { instName     : string ;
-        uniqId       : UniqId ;
+        extensions   : list Extension ;
+        uniqId       : UniqId ;        
         inputXform   : ExecContextPkt ## ty -> ik ## ty ;
         outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
         optLoadXform : option LoadXform ;

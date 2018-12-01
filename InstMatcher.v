@@ -3,18 +3,25 @@ Require Import Kami.All FU.
 Section Ty.
   Variable Xlen_over_8: nat.
   Variable ty: Kind -> Type.
-
+  Variable extensionsParams: list Extension.
+  
   Local Open Scope kami_expr.
+  
   Definition raw_inst_match_range_fields (inst: Inst ## ty)
              (range: {x: (nat * nat) & word (fst x + 1 - snd x)}) :=
     LETE x <- extractArbitraryRange inst (projT1 range);
-     RetE (#x == $$ (projT2 range)).
+      RetE (#x == $$ (projT2 range)).
+
+  Definition isExtensionPresent (instExtensions: list Extension) :=
+    fold_left (fun accum val =>
+                 andb accum (getBool (in_dec Extension_dec val extensionsParams))) instExtensions true.
 
   Definition raw_inst_match_inst (inst: Inst ## ty) ik ok (instEntry: InstEntry Xlen_over_8 ik ok) :=
     fold_left (fun accum range =>
                  LETE old <- accum;
                    LETE new <- raw_inst_match_range_fields inst range;
-                   RetE (#old && #new)) (snd (uniqId (ty := ty) instEntry)) (RetE ($$ true)).
+                   RetE (#old && #new && Const ty (isExtensionPresent (extensions instEntry))))
+              (uniqId (ty := ty) instEntry) (RetE ($$ true)).
 
   Definition raw_inst_match_insts
              (sem_input_kind : Kind)
