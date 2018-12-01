@@ -13,9 +13,8 @@ Section Ty.
       RetE (#x == $$ (projT2 range)).
 
   Definition isExtensionPresent (instExtensions: list Extension) :=
-    fold_left (fun accum val =>
-                 andb accum (getBool (in_dec Extension_dec val extensionsParams))) instExtensions true.
-
+    existsb (fun val => getBool (in_dec Extension_dec val extensionsParams)) instExtensions.
+  
   Definition raw_inst_match_inst (inst: Inst ## ty) ik ok (instEntry: InstEntry Xlen_over_8 ik ok) :=
     fold_left (fun accum range =>
                  LETE old <- accum;
