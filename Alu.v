@@ -4,7 +4,6 @@ Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
-  Variable Xlen_over_8_ge_2: Xlen_over_8 >= 2.
 
   Notation Xlen := (8 * Xlen_over_8).
 
@@ -29,8 +28,7 @@ Section Alu.
   Definition fieldVal range value :=
     existT (fun x => word (fst x + 1 - snd x)) range value.
 
-  Definition AddEntry: @FUEntry Xlen_over_8 ty.
-    refine
+  Definition Add: @FUEntry Xlen_over_8 ty :=
     {| fuName := "add" ;
        fuFunc := (fun i => LETE x: AluType <- i;
                              RetE ((#x @% "arg1") + (#x @% "arg2")));
@@ -59,10 +57,10 @@ Section Alu.
                                                                                       Xlen (imm (#gcp @% "inst"))) + $1
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
-                                                           LETC resultMsb: Bit 1 <-
-                                                                               (UniBit (TruncMsb (Xlen-1) 1)
-                                                                                       (castBits _ #result));
-                                                           RetE (createInt (castBits _ (ZeroExtend (Xlen-1) (~#resultMsb))))) ;
+                                                           LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
+                                                                               (* (UniBit (TruncMsb (Xlen-1) 1) *)
+                                                                               (*         (castBits _ #result)); *)
+                                                           RetE (createInt (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
                         optLoadXform := None ;
                         instHints    := falseHints[hasRs1 := true][hasRd := true]
                      |} ::
@@ -77,10 +75,10 @@ Section Alu.
                                                                                       Xlen (imm (#gcp @% "inst"))) + $1
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
-                                                           LETC resultMsb: Bit 1 <-
-                                                                               (UniBit (TruncMsb (Xlen-1) 1)
-                                                                                       (castBits _ #result));
-                                                           RetE (createInt (castBits _ (ZeroExtend (Xlen-1) (~#resultMsb))))) ;
+                                                           LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
+                                                                               (* (UniBit (TruncMsb (Xlen-1) 1) *)
+                                                                               (*         (castBits _ #result)); *)
+                                                           RetE (createInt (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
                         optLoadXform := None ;
                         instHints    := falseHints[hasRs1 := true][hasRd := true]
                      |} ::
@@ -125,10 +123,10 @@ Section Alu.
                                                                       "arg2" ::= #gcp @% "reg2"
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
-                                                           LETC resultMsb: Bit 1 <-
-                                                                               (UniBit (TruncMsb (Xlen-1) 1)
-                                                                                       (castBits _ #result));
-                                                           RetE (createInt (castBits _ (ZeroExtend (Xlen-1) (~#resultMsb))))) ;
+                                                           LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
+                                                                               (* (UniBit (TruncMsb (Xlen-1) 1) *)
+                                                                               (*         (castBits _ #result)); *)
+                                                           RetE (createInt (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
                         optLoadXform := None ;
                         instHints    := falseHints[hasRs1 := true][hasRd := true]
                      |} ::
@@ -143,10 +141,10 @@ Section Alu.
                                                                       "arg2" ::= #gcp @% "reg2"
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
-                                                           LETC resultMsb: Bit 1 <-
-                                                                               (UniBit (TruncMsb (Xlen-1) 1)
-                                                                                       (castBits _ #result));
-                                                           RetE (createInt (castBits _ (ZeroExtend (Xlen-1) (~#resultMsb))))) ;
+                                                           LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
+                                                                               (* (UniBit (TruncMsb (Xlen-1) 1) *)
+                                                                               (*         (castBits _ #result)); *)
+                                                           RetE (createInt (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
                         optLoadXform := None ;
                         instHints    := falseHints[hasRs1 := true][hasRd := true]
                      |} ::
@@ -156,10 +154,7 @@ Section Alu.
                                                  fieldVal opcodeField ('b"00110") ::
                                                  fieldVal funct3Field ('b"000") :: nil ;
                         inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                      RetE ((STRUCT { "arg1" ::=
-                                                                        SignExtendTruncLsb
-                                                                          Xlen (SignExtendTruncLsb (Xlen/2)
-                                                                                                   (#gcp @% "reg1")) ;
+                                                      RetE ((STRUCT { "arg1" ::= #gcp @% "reg1" ;
                                                                       "arg2" ::= SignExtendTruncLsb Xlen
                                                                                                     (imm (#gcp @% "inst"))
                                                             }): AluType @# _)) ;
@@ -177,14 +172,8 @@ Section Alu.
                                                  fieldVal opcodeField ('b"00110") ::
                                                  fieldVal funct3Field ('b"000") :: nil ;
                         inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                      RetE ((STRUCT { "arg1" ::=
-                                                                        SignExtendTruncLsb
-                                                                          Xlen (SignExtendTruncLsb (Xlen/2)
-                                                                                                   (#gcp @% "reg1")) ;
-                                                                      "arg2" ::=
-                                                                        SignExtendTruncLsb
-                                                                          Xlen (SignExtendTruncLsb (Xlen/2)
-                                                                                                   (#gcp @% "reg2"))
+                                                      RetE ((STRUCT { "arg1" ::= #gcp @% "reg1" ;
+                                                                      "arg2" ::= #gcp @% "reg2"
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                            LETC resultExt <-
@@ -200,14 +189,9 @@ Section Alu.
                                                  fieldVal opcodeField ('b"00110") ::
                                                  fieldVal funct3Field ('b"000") :: nil ;
                         inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                      RetE ((STRUCT { "arg1" ::=
-                                                                        SignExtendTruncLsb
-                                                                          Xlen (SignExtendTruncLsb (Xlen/2)
-                                                                                                   (#gcp @% "reg1")) ;
+                                                      RetE ((STRUCT { "arg1" ::= #gcp @% "reg1" ;
                                                                       "arg2" ::=
-                                                                        SignExtendTruncLsb
-                                                                          Xlen (~(SignExtendTruncLsb (Xlen/2)
-                                                                                                     (#gcp @% "reg2")) + $1)
+                                                                        ~(SignExtendTruncLsb Xlen (#gcp @% "reg2")) + $1
                                                             }): AluType @# _)) ;
                         outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                            LETC resultExt <-
@@ -219,8 +203,7 @@ Section Alu.
                      |} ::
                      nil
                   
-    |}; try abstract (Omega.omega).
-  Defined.
+    |}.
 
   Local Close Scope kami_expr.
   End Ty.
