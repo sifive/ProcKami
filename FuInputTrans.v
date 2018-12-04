@@ -40,7 +40,6 @@ Definition exec_context_packet_kind : Kind
 Definition exec_context_packet_type : Type
   := Expr ty (SyntaxKind exec_context_packet_kind).
 
-(* *)
 Definition exec_context_packet_expr_type : Type
   := LetExprSyntax ty exec_context_packet_kind.
 
@@ -204,29 +203,7 @@ Definition trans_func_unit
        (fuInsts func_unit)
        func_unit_insts_not_empty.
 
-(*
-  The problem here is that we cannot return different kinds in a Kami
-  ITE expression. both branches must return the same Kami kind. One
-  way around this is to define a struct in which each element in the
-  struct corresponds to a functional unit and consists of a pair
-  of the sem_input kind associated with the functional unit and a
-  "selected" signal indicating that this is the substruct carrying
-  the packet.
 
-  To use this approach, we must define a generator function that
-  accepts a list of functional units and returns a Kami struct
-  definition that has the required structure.
-
-  For example:
-
-  STRUCT {
-    "ALU" :: STRUCT {
-      "selected" :: Bool;
-      "packet"   :: _
-    };
-    _
-  }
-*)
 
 (* Appends a value to the end of generated sequence. *)
 Definition vec_append (A : Set) (x : A) (n : nat) (ref : Fin.t n -> A) (k : Fin.t (S n))
@@ -241,17 +218,19 @@ Definition vec_append (A : Set) (x : A) (n : nat) (ref : Fin.t n -> A) (k : Fin.
        (eq_refl (S n)).
 
 (*
-Compute (@vec_append nat 5 4 (fun k => let (n, _) := @Fin.to_nat 4 k in n) (Fin.F1)).
-Compute (@vec_append nat 5 4 (fun k => let (n, _) := @Fin.to_nat 4 k in n) (Fin.FS (Fin.F1))).
-Compute (@vec_append nat 5 4 (fun k => let (n, _) := @Fin.to_nat 4 k in n) (Fin.FS (Fin.FS (Fin.F1)))).
-Compute (@vec_append nat 5 4 (fun k => let (n, _) := @Fin.to_nat 4 k in n) (Fin.FS (Fin.FS (Fin.FS (Fin.F1))))).
-Compute (@vec_append nat 5 4 (fun k => let (n, _) := @Fin.to_nat 4 k in n) (Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.F1)))))).
-*)
-
-(*
   Accepts a list of functional units and returns a struct that lists
   the optional packet structures associated with each functional
   unit keyed by name.
+
+  Example:
+
+  STRUCT {
+    "ALU" :: STRUCT {
+      "selected" :: Bool;
+      "packet"   :: _
+    };
+    _
+  }
 
   Note: the order in which functional units are listed is reversed.
 *)
@@ -288,157 +267,5 @@ Definition trans_func_units_packet_kind (func_units : list func_unit_entry_type)
                    })
               (Compare_dec.lt_dec 0 (length func_units)))
        func_units.
-
-(*
-*)
-Definition trans_func_units_packet
-  (HI : forall func_unit, 0 < length (fuInsts func_unit))
-  (func_units : list func_unit_entry_type)
-  (exec_context_packet : exec_context_packet_expr_type)
-  :  0 < length func_units ->
-     trans_func_units_packet_kind func_units
-  := list_rect 
-       (fun func_units
-         => 0 < length func_unts -> trans_func_units_packet_kind func_units)
-       (fun H : 0 < 0
-         => False_rec _
-              (Nat.nlt_0_r 0 H))
-       (fun func_unit func_units
-         (F : 0 < length func_units -> trans_func_units_packet_kind func_units)
-         (_ : 0 < length (func_unit :: func_units))
-         => sumbool_rec
-              (fun _ => trans_func_units_packet_kind (func_unit :: func_units))
-              (fun H : 0 < length func_units
-                => Struct
-                     (@vec_append (optional_packet_kind (fuInputK func_unit)) 
-                       (trans_func_unit
-                         func_unit
-                         (HI func_unit)
-                         exec_context_packet)
-                       (length func_units)
-                       
-
-(*
-  Now I need a way to create a value of the given type. It's just a struct of optional packets.
-
-  One option would be to accept
-
-  [(functional unit entry, optional packet), ...]
-
-  and then return a struct having the expected form.
-
-*)
-(*
-Variable trans_func_units_packet
-  : forall packets : list ({entry : func_unit_entry_type & (pair func_unit_entry_type (Expr ty (SyntaxKind (fuInputK entry))))}), bool.
-*)
-
-(*
-  (packets : list (sigT (
-    fun fun_unit_entry_type => (pair func_unit_entry_type) 
-*)
-
-(*
-  Accepts a set of functional units, an assertion that all of these
-  units has one or more associated instructions, a raw instruction
-  expression, an assertion that the raw instruction matches one
-  of the entries associated with the given functional units, and
-  returns a Kami let expression that accepts an
-*)
-(*
-Definition trans_func_units
-  (func_units : list func_unit_entry_type)
-  (exec_context_packet : exec_context_packet_expr_type)
-  :  0 < length func_units ->
-     (forall func_unit, In func_unit func_units -> 0 < length (fuInsts func_unit)) ->
-     valid_optional_packet_expr_type func_units
-  := list_rect
-       (fun func_units
-         => 0 < length func_units ->
-            (forall func_unit, In func_unit func_units -> 0 < length (fuInsts func_unit)) ->
-            valid_optional_packet_expr_type func_units)
-       (fun (H : 0 < length nil) _
-         => False_rect _
-              (Nat.nlt_0_r 0 H))
-       (fun func_unit func_units
-           (F : 0 < length func_units ->
-                (forall func_unit, In func_unit func_units -> 0 < length (fuInsts func_unit)) ->
-                (valid_optional_packet_expr_type func_units))
-           (_ : 0 < length (func_unit :: func_units))
-           (H : forall fu, In fu (func_unit :: func_units) -> 0 < length (fuInsts fu))
-         => let H0
-              :  In func_unit (func_unit :: func_units)
-              := or_introl (In func_unit func_units) (eq_refl func_unit) in
-            let H1
-              :  forall fu, In fu func_units -> 0 < length (fuInsts fu)
-              := fun fu H2
-                   => H fu (or_intror (func_unit = fu) H2) in
-            sumbool_rect
-              (fun _ => valid_optional_packet_expr_type (func_unit :: func_units))
-              (fun H2 : 0 < length func_units
-                => sigT_rect
-                     (fun _ : valid_optional_packet_expr_type func_units
-                       => valid_optional_packet_expr_type (func_unit :: func_units))
-                     (sig_rect
-                       (fun packet_type : valid_packet_type (func_unit :: func_units)
-                         => optional_packet_expr_type (proj1_sig packet_type) ->
-                            valid_optional_packet_expr_type (func_unit :: func_units))
-                       (fun (sem_input_kind : Kind)
-                            (_ : exists fu, In fu (func_unit :: func_units) /\ fuInputK fu = sem_input_kind)
-                            (sem_input_expr : optional_packet_expr_type sem_input_kind)
-                         => LETE func_unit_packet
-                              :  optional_packet_kind (fuInputK func_unit)
-                              <- trans_func_unit func_unit (H func_unit H0) exec_context_packet;
-                            LETE func_units_packet
-                              :  optional_packet_kind sem_input_kind
-                              <- sem_input_expr;
-                            RetE ((ITE
-                                   (ReadStruct (#func_unit_packet) Fin.F1)
-                                   (#func_unit_packet)
-                                   (#func_units_packet))))%kami_expr)
-                     (F H2 H1))
-              (fun _
-                => LETE func_unit_packet
-                     :  optional_packet_kind (fuInputK func_unit)
-                     <- trans_func_unit func_unit (H H0) exec_context_packet;
-                   RetE (#func_unit_packet))%kami_expr
-              (Compare_dec.lt_dec 0 (length func_units))).
-*)
-(*
-  The enabled flag is set by the raw_inst_match_inst function defined in InstMatcher.v. I can prove that if the enabled flag returns true for any of the above functions, raw_inst_match_funct_units must return true. I can also prove the equivalence the other way - i.e. that raw_inst_match_funct_units implies that the enabled flag returned by the optional packet must be true.
-
-  I want to remove the optional packet wrapper and know that the packet returned for valid instructions is transformed by the correct transform function.
-
-  The transformer is correct iff the correct transformer is applied to the execution context packet when the instruction is valid.
-
-  let's formalize this correctness property.
-
-  Also verify that the enabled flag is always true of valid instructions.
-*)
-
-(*
-  Accepts an execution exception packet and returns a functional
-  unit-specific execution packet that stores the formatted argument
-  values.
-*)
-(*
-Variable trans_func_units
-  : forall (func_units : list func_unit_entry_type),
-      (forall func_unit, In func_unit func_units -> 0 < length (fuInsts func_unit)) ->
-      exec_context_packet_expr_type ->
-      sigT (fun packet_kind : valid_packet_type func_units
-             => optional_packet_expr_type (proj1_sig packet_kind)).
-*)
-(*
-  If I have a valid instruction, then I know that one of the functional units contains an instruction that matches the given raw instruction.
-  The decoder should return a dependent type with a property that exists func_unit, exists instr in func_unit where instr_match instr raw string.
-  We still need to compare the instr against each of the instruction records listed under each func unit to find the matching instruction record, but we know that in the end, the enabled flag in the optional packet must be true. That is, we cannot return "nothing".
-
-  Additionally, the functional units all contain one or more instructions. None of the functional units contain no instructions. We should change the type of fuInsts to a nonempty list or add a hypothesis asserting this fact.
-  Once the functional unit records have been hard coded, I can add a theorem asserting that none of the functional units in the database have no entries.
-
-  
-*)
-
 
 End input_trans.
