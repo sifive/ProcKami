@@ -11,8 +11,6 @@ Variable Xlen_over_8 : nat.
 
 Variable ty : Kind -> Type.
 
-Let raw_inst_type : Type := LetExprSyntax ty Inst.
-
 Let func_unit_entry_type : Type := @FUEntry Xlen_over_8 ty.
 
 Let inst_entry_type (sem_input_kind sem_output_kind : Kind)
