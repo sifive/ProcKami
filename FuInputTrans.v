@@ -62,29 +62,29 @@ Definition trans_inst
          exec_context_packet;
      (optional_packet (#packet) (#enabled)).
 
-Definition trans_insts_aux (sem_input_kind sem_output_kind : Kind)
+Fixpoint trans_insts_aux (sem_input_kind sem_output_kind : Kind)
   (inst_entries : list (inst_entry_type sem_input_kind sem_output_kind))
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Bit (size (Maybe sem_input_kind)) ## ty
-  := list_rect
-       (fun _
-         => Bit (size (Maybe sem_input_kind)) ## ty)
-       (RetE (Const ty (wzero _)))
-       (fun inst_entry inst_entries (F : _)
+  := match inst_entries
+       return Bit (size (Maybe sem_input_kind)) ## ty with
+       | nil
+         => RetE (Const ty (wzero _))
+       | cons inst_entry inst_entries
          => LETE inst_entry_packet
               :  Maybe sem_input_kind
               <- trans_inst inst_entry exec_context_packet;
             LETE insts_entry_packet_bstring
               :  Bit (size (Maybe sem_input_kind))
-              <- F;
+              <- trans_insts_aux inst_entries exec_context_packet;
             RetE
               (CABit Bor
                 (cons
                   (ITE (ReadStruct (#inst_entry_packet) Fin.F1)
                     (pack (#inst_entry_packet))
                     $0)
-                  (cons (#insts_entry_packet_bstring) nil))))
-       inst_entries.
+                  (cons (#insts_entry_packet_bstring) nil)))
+     end.
 
 Definition trans_insts (sem_input_kind sem_output_kind : Kind)
   (inst_entries : list (inst_entry_type sem_input_kind sem_output_kind))
