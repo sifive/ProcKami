@@ -130,13 +130,10 @@ Fixpoint func_unit_by_name
   (func_units : list func_unit_entry_type)
   (func_unit_name : string)
   :  option func_unit_entry_type
-  := match func_units with
-       | nil => None
-       | cons func_unit func_units
-         => if string_dec func_unit_name (fuName func_unit)
-            then Some func_unit
-            else func_unit_by_name func_units func_unit_name
-       end.
+  := find
+       (fun func_unit
+         => Properties.strcmp func_unit_name (fuName func_unit))
+       func_units.
 
 Definition func_unit_input_type
   (func_units : list func_unit_entry_type)
