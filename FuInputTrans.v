@@ -1,10 +1,8 @@
 (*
   TODO: Replace the optional packet type with the Maybe kind
-  TODO: Use Kami notations where applicable.
-  TODO: Replace ITEs with ORs. unpack (IF (input-uniqid == current-inst-id) then pack inputVal else 0 || ...)
-  
 *)
 Require Import Kami.All.
+Import Syntax.
 Require Import FU.
 
 Section input_trans.
@@ -24,10 +22,23 @@ Definition exec_context_packet_kind : Kind
   := ExecContextPkt Xlen_over_8.
 
 Definition exec_context_packet_type : Type
-  := Expr ty (SyntaxKind exec_context_packet_kind).
+  := exec_context_packet_kind @# ty.
 
 Definition exec_context_packet_expr_type : Type
-  := LetExprSyntax ty exec_context_packet_kind.
+  := exec_context_packet_kind ## ty.
+
+Open Scope kami_expr.
+
+Definition optional_packet
+  (packet_type : Kind)
+  (input_packet : packet_type @# ty)
+  (enabled : Bool @# ty)
+  :  Maybe packet_type ## ty
+  := RetE (
+       STRUCT {
+         "valid" ::= enabled;
+         "data"  ::= input_packet
+       }).
 
 Variable trans_optional_packet_enabled
   : forall sem_input_kind sem_output_kind : Kind,
@@ -35,42 +46,11 @@ Variable trans_optional_packet_enabled
     exec_context_packet_expr_type ->
     LetExprSyntax ty Bool.
 
-Definition optional_packet_kind (packet_kind : Kind) : Kind
-  := STRUCT {"enabled" :: Bool; "packet" :: packet_kind}.
-
-Definition optional_packet_type (packet_kind : Kind) : Type
-  := Expr ty (SyntaxKind (optional_packet_kind packet_kind)).
-
-Definition optional_packet_expr_type (packet_kind : Kind) : Type
-  := LetExprSyntax ty (optional_packet_kind packet_kind).
-
-Definition valid_packet_type (func_units : list func_unit_entry_type) : Type
-  := {packet_kind : Kind |
-       exists func_unit, In func_unit func_units /\
-                         fuInputK func_unit = packet_kind}.
-
-Definition valid_optional_packet_expr_type (func_units : list func_unit_entry_type) : Type
-  := sigT (fun packet_kind : valid_packet_type func_units
-            => optional_packet_expr_type (proj1_sig packet_kind)).
-
-Open Scope kami_expr.
-
-Definition optional_packet
-  (packet_type : Kind)
-  (input_packet : Expr ty (SyntaxKind packet_type))
-  (enabled : Expr ty (SyntaxKind Bool))
-  :  optional_packet_expr_type packet_type
-  := RetE (
-       STRUCT {
-         "enabled" ::= enabled;
-         "packet"  ::= input_packet
-       }).
-
 Definition trans_inst
   (sem_input_kind sem_output_kind : Kind)
   (inst_entry : inst_entry_type sem_input_kind sem_output_kind)
   (exec_context_packet : exec_context_packet_expr_type)
-  :  optional_packet_expr_type sem_input_kind
+  :  Maybe sem_input_kind ## ty
   := LETE packet : sem_input_kind <- inputXform inst_entry exec_context_packet;
      LETE enabled : Bool <-
        trans_optional_packet_enabled
@@ -80,105 +60,102 @@ Definition trans_inst
 
 Close Scope kami_expr.
 
-Definition trans_insts (sem_input_kind sem_output_kind : Kind)
-  : forall inst_entries : list (inst_entry_type sem_input_kind sem_output_kind),
-    0 < length inst_entries ->
-    exec_context_packet_expr_type ->
-    optional_packet_expr_type sem_input_kind
-  := list_rect
-       (fun inst_entries
-         => 0 < length inst_entries ->
-            exec_context_packet_expr_type ->
-            optional_packet_expr_type sem_input_kind)
-       (fun H _
-         => False_rect (optional_packet_expr_type sem_input_kind)
-              ((Nat.nlt_0_r 0) H)) 
-       (fun inst_entry inst_entries
-         (F : 0 < length inst_entries ->
-              exec_context_packet_expr_type ->
-              optional_packet_expr_type sem_input_kind)
-         _ exec_context_packet
-         => sumbool_rect 
-              (fun _ => optional_packet_expr_type sem_input_kind)
-              (fun H : 0 < length inst_entries
-                => (LETE inst_entry_packet
-                     :  optional_packet_kind sem_input_kind
-                     <- trans_inst inst_entry exec_context_packet;
-                   LETE insts_entry_packet
-                     :  optional_packet_kind sem_input_kind
-                     <- F H exec_context_packet;
-                   RetE ((ITE
-                          (ReadStruct (#inst_entry_packet) Fin.F1) 
-                          (#inst_entry_packet)
-                          (#insts_entry_packet) : optional_packet_type sem_input_kind)))%kami_expr)
-              (fun _ 
-                => LETE inst_entry_packet
-                     :  optional_packet_kind sem_input_kind
-                     <- trans_inst inst_entry exec_context_packet;
-                   RetE (#inst_entry_packet))%kami_expr
-              (Compare_dec.lt_dec 0 (length inst_entries))).
-
-Definition trans_func_unit
-  (func_unit : func_unit_entry_type)
-  (func_unit_insts_not_empty : 0 < length (fuInsts func_unit))
+Definition trans_insts_aux (sem_input_kind sem_output_kind : Kind)
+  (inst_entries : list (inst_entry_type sem_input_kind sem_output_kind))
   (exec_context_packet : exec_context_packet_expr_type)
-  :  optional_packet_expr_type (fuInputK func_unit)
+  :  Bit (size (Maybe sem_input_kind)) ## ty
   := list_rect
-       (fun insts => 0 < length insts -> optional_packet_expr_type (fuInputK func_unit))
-       (fun H : 0 < length nil
-         => False_rect (optional_packet_expr_type (fuInputK func_unit))
-              (Nat.nlt_0_r 0 H))
-       (fun inst insts _ (H : 0 < length (inst :: insts))
-         => trans_insts
-              (inst :: insts)
-              H
-              exec_context_packet)
-       (fuInsts func_unit)
-       func_unit_insts_not_empty.
+       (fun _
+         => Bit (size (Maybe sem_input_kind)) ## ty)
+       (RetE (Const ty (wzero _)))%kami_expr
+       (fun inst_entry inst_entries (F : _)
+         => LETE inst_entry_packet
+              :  Maybe sem_input_kind
+              <- trans_inst inst_entry exec_context_packet;
+            LETE insts_entry_packet_bstring
+              :  Bit (size (Maybe sem_input_kind))
+              <- F;
+            RetE
+              (CABit Bor
+                (cons
+                  (ITE (ReadStruct (#inst_entry_packet) Fin.F1)
+                    (pack (#inst_entry_packet))
+                    $0)
+                  (cons (#insts_entry_packet_bstring) nil))))%kami_expr
+       inst_entries.
 
-Definition vec_append (A : Set) (x : A) (n : nat) (ref : Fin.t n -> A) (k : Fin.t (S n))
-  :  A
-  := Fin.t_rec
-       (fun m (_ : Fin.t m) => m = S n -> A)
-       (fun m _ => x)
-       (fun m index _ (H : S m = S n)
-         => ref (@Fin.cast m index n (eq_add_S m n H)))
-       (S n)
-       k
-       (eq_refl (S n)).
+Definition trans_insts (sem_input_kind sem_output_kind : Kind)
+  (inst_entries : list (inst_entry_type sem_input_kind sem_output_kind))
+  (exec_context_packet : exec_context_packet_expr_type)
+  :  Maybe sem_input_kind ## ty
+  := (LETE packet_bstring
+       :  Bit (size (Maybe sem_input_kind))
+       <- trans_insts_aux inst_entries exec_context_packet;
+     RetE
+       (unpack
+         (Maybe sem_input_kind)
+         (#packet_bstring)))%kami_expr.
 
-Definition trans_func_units_packet_kind (func_units : list func_unit_entry_type)
-  :  0 < length func_units -> Kind
-  := list_rec
-       (fun func_units => 0 < length func_units -> Kind)
-       (fun H : 0 < 0
-         => False_rec _
-              (Nat.nlt_0_r 0 H))
-       (fun func_unit func_units
-         (F : 0 < length func_units -> Kind)
-         (_ : 0 < length (func_unit :: func_units))
-         => sumbool_rec
-              (fun _ => Kind)
-              (fun H : 0 < length func_units
-                => @Kind_rec
-                     (fun _ => Kind)
-                     (Bool)
-                     (fun _ => Bool)
-                     (fun n
-                         (getKind : Fin.t n -> Kind)
-                         (_ : Fin.t n -> Kind)
-                         (getLabel : Fin.t n -> string)
-                       => @Struct (S n)
-                            (@vec_append Kind (optional_packet_kind (fuInputK func_unit)) n getKind)
-                            (@vec_append string (fuName func_unit) n getLabel)
-                            )
-                     (fun _ _ _ => Bool) 
-                     (F H))
-              (fun _ : ~ 0 < length func_units
-                => STRUCT {
-                     (fuName func_unit) :: (optional_packet_kind (fuInputK func_unit))
-                   })
-              (Compare_dec.lt_dec 0 (length func_units)))
-       func_units.
+Fixpoint trans_func_unit
+  (func_unit : func_unit_entry_type)
+  (exec_context_packet : exec_context_packet_expr_type)
+  :  Maybe (fuInputK func_unit) ## ty
+  := trans_insts (fuInsts func_unit) exec_context_packet.
+
+Fixpoint trans_func_units_vec
+  (func_units : list func_unit_entry_type)
+  (exec_context_packet : exec_context_packet_expr_type)
+  :  Vector.t ({entry_type : prod string Kind & LetExprSyntax ty (snd entry_type)}) (length func_units)
+  := match func_units return 
+       (Vector.t ({entry_type : prod string Kind & LetExprSyntax ty (snd entry_type)})
+         (length func_units)) with
+       | nil => Vector.nil _
+       | cons func_unit func_units
+         => Vector.cons _
+              (existT
+                (fun entry_type : prod string Kind
+                  => LetExprSyntax ty (snd entry_type))
+                (fuName func_unit, Maybe (fuInputK func_unit))
+                (trans_func_unit func_unit exec_context_packet))
+              _ (trans_func_units_vec func_units exec_context_packet)
+     end.
+
+Definition trans_func_units_struct
+  (func_units : list func_unit_entry_type)
+  (exec_context_packet : exec_context_packet_expr_type)
+  := gatherLetExprVector
+       (trans_func_units_vec func_units exec_context_packet).
+
+Fixpoint func_unit_by_name
+  (func_units : list func_unit_entry_type)
+  (func_unit_name : string)
+  :  option func_unit_entry_type
+  := match func_units with
+       | nil => None
+       | cons func_unit func_units
+         => if string_dec func_unit_name (fuName func_unit)
+            then Some func_unit
+            else func_unit_by_name func_units func_unit_name
+       end.
+
+Definition func_unit_input_type
+  (func_units : list func_unit_entry_type)
+  (func_unit_name : string)
+  :  option Kind
+  := match func_unit_by_name func_units func_unit_name with
+       | None => None
+       | Some func_unit
+         => Some (fuInputK func_unit)
+     end.
+
+Definition func_unit_output_kind
+  (func_units : list func_unit_entry_type)
+  (func_unit_name : string)
+  :  option Kind
+  := match func_unit_by_name func_units func_unit_name with
+       | None => None
+       | Some func_unit
+         => Some (fuOutputK func_unit)
+     end.
 
 End input_trans.
