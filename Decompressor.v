@@ -124,7 +124,7 @@ Definition decomp_inst
        (#raw_uncomp_inst)
        (#raw_comp_inst_match).
 
-Fixpoint decomp_aux
+Definition decomp_aux
   (comp_inst_entries : list CompInst)
   (raw_comp_inst_expr : comp_inst_kind ## ty)
   :  packed_opt_uncomp_inst_kind ## ty
@@ -149,7 +149,8 @@ Fixpoint decomp_aux
         (RetE (Const ty (wzero _)))
         comp_inst_entries.
 
-Definition decomp
+(* c *)
+Definition uncompress
   (raw_comp_inst : comp_inst_kind ## ty)
   :  opt_uncomp_inst_kind ## ty
   := LETE packed_uncomp_inst
