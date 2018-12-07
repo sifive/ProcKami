@@ -8,6 +8,10 @@ Variable Xlen_over_8 : nat.
 
 Variable ty : Kind -> Type.
 
+Variable num_func_units : nat.
+
+Variable num_insts : nat.
+
 Let func_unit_type
   :  Type
   := @FUEntry Xlen_over_8 ty.
@@ -16,13 +20,11 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
   :  Type
   := @InstEntry Xlen_over_8 ty sem_input_kind sem_output_kind.
 
-Let func_unit_inst_id_width (func_unit : func_unit_type)
+Let func_unit_inst_id_width
   :  nat
-  := Nat.log2_up (length (fuInsts func_unit)).
+  := Nat.log2_up num_insts.
 
 Section num_func_units.
-
-Variable num_func_units : nat.
 
 Let func_unit_id_width
   :  nat
@@ -33,9 +35,8 @@ Let func_unit_id_kind
   := Bit func_unit_id_width.
 
 Let func_unit_inst_id_kind
-  (func_unit : func_unit_type)
   :  Kind
-  := Bit (func_unit_inst_id_width func_unit).
+  := Bit func_unit_inst_id_width.
 
 Definition func_unit_id_bstring
   (func_unit_id : nat)
@@ -43,9 +44,9 @@ Definition func_unit_id_bstring
   := Const ty (natToWord func_unit_id_width func_unit_id).
 
 Definition func_unit_inst_id_bstring
-  (func_unit : func_unit_type) (func_unit_inst_id : nat)
-  :  func_unit_inst_id_kind func_unit @# ty
-  := Const ty (natToWord (func_unit_inst_id_width func_unit) func_unit_inst_id).
+  (func_unit_inst_id : nat)
+  :  func_unit_inst_id_kind @# ty
+  := Const ty (natToWord func_unit_inst_id_width func_unit_inst_id).
 
 Let tagged_func_unit_type
   :  Type 
@@ -76,17 +77,16 @@ Let detag_inst
   := snd inst.
 
 Let decoder_packet_kind
-  (func_unit : func_unit_type)
   :  Kind
   := Maybe (
        STRUCT {
          "FuncUnitTag" :: func_unit_id_kind;
-         "InstTag"     :: func_unit_inst_id_kind func_unit
+         "InstTag"     :: func_unit_inst_id_kind
        }).
 
 Let decoder_packet_type
   :  Type
-  := {func_unit : func_unit_type & decoder_packet_kind func_unit ## ty}.
+  := decoder_packet_kind ## ty.
 
 Let exec_context_packet_kind : Kind
   := ExecContextPkt Xlen_over_8.
@@ -106,20 +106,18 @@ Definition optional_packet
 
 Definition trans_inst_match
   (sem_input_kind sem_output_kind : Kind)
-  (func_unit : func_unit_type)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
-  (func_unit_inst_id : func_unit_inst_id_kind func_unit @# ty)
+  (func_unit_inst_id : func_unit_inst_id_kind @# ty)
   :  Bool ## ty
   := RetE
-       ((func_unit_inst_id_bstring func_unit
+       ((func_unit_inst_id_bstring
          (tagged_inst_id inst))
          == func_unit_inst_id).
 
 Definition trans_inst
   (sem_input_kind sem_output_kind : Kind)
-  (func_unit : func_unit_type)
   (inst_entry : tagged_inst_type sem_input_kind sem_output_kind)
-  (decoder_pkt_inst_id : func_unit_inst_id_kind func_unit @# ty)
+  (decoder_pkt_inst_id : func_unit_inst_id_kind @# ty)
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Maybe sem_input_kind ## ty
   := LETE packet : sem_input_kind <- inputXform (detag_inst inst_entry) exec_context_packet;
@@ -131,9 +129,8 @@ Definition trans_inst
 
 Fixpoint trans_insts_aux
   (sem_input_kind sem_output_kind : Kind)
-  (func_unit : func_unit_type)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
-  (decoder_pkt_inst_id : func_unit_inst_id_kind func_unit @# ty)
+  (decoder_pkt_inst_id : func_unit_inst_id_kind @# ty)
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Bit (size (Maybe sem_input_kind)) ## ty
   := match insts
@@ -158,9 +155,8 @@ Fixpoint trans_insts_aux
 
 Definition trans_insts
   (sem_input_kind sem_output_kind : Kind)
-  (func_unit : func_unit_type)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
-  (decoder_pkt_inst_id : func_unit_inst_id_kind func_unit @# ty)
+  (decoder_pkt_inst_id : func_unit_inst_id_kind @# ty)
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Maybe sem_input_kind ## ty
   := LETE packet_bstring
@@ -190,53 +186,42 @@ Definition tag_insts
 
 Definition trans_func_unit_match
   (func_unit : tagged_func_unit_type)
-  (decoder_packet : decoder_packet_type)
+  (decoder_packet_expr : decoder_packet_type)
   :  Bool ## ty
-  := sigT_rect
-       (fun _ => Bool ## ty)
-       (fun (decoder_packet_func_unit : func_unit_type)
-         (decoder_packet_expr : decoder_packet_kind decoder_packet_func_unit ## ty)
-         => LETE decoder_packet : decoder_packet_kind decoder_packet_func_unit <- decoder_packet_expr;
-            RetE
-              ((func_unit_id_bstring
-                (tagged_func_unit_id
-                  func_unit))
-                == ((((#decoder_packet) @% "data") @% "FuncUnitTag"):func_unit_id_kind @# ty)))
-        decoder_packet.
-
+  := LETE decoder_packet : decoder_packet_kind <- decoder_packet_expr;
+     RetE
+       ((func_unit_id_bstring
+         (tagged_func_unit_id
+           func_unit))
+         == ((((#decoder_packet) @% "data") @% "FuncUnitTag"):func_unit_id_kind @# ty)).
+        
 Fixpoint trans_func_unit
   (func_unit : tagged_func_unit_type)
-  (decoder_packet_val : decoder_packet_type)
+  (decoder_packet_expr : decoder_packet_type)
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Maybe (fuInputK (detag_func_unit func_unit)) ## ty
-  := sigT_rect
-       (fun _ => Maybe (fuInputK (detag_func_unit func_unit)) ## ty)
-       (fun
-         (decoder_packet_func_unit : func_unit_type)
-         (decoder_packet_expr : decoder_packet_kind decoder_packet_func_unit ## ty)
-         => LETE decoder_packet
-              :  decoder_packet_kind decoder_packet_func_unit
-              <- decoder_packet_expr;
-            LETE sem_input_packet
-              :  Maybe (fuInputK (detag_func_unit func_unit))
-              <- trans_insts
-                   (tag_insts (fuInsts (detag_func_unit func_unit)))
-                   ((ZeroExtendTruncLsb
-                     (func_unit_inst_id_width (detag_func_unit func_unit))
-                     (((#decoder_packet) @% "data") @% "InstTag"))
-                     :func_unit_inst_id_kind (detag_func_unit func_unit) @# ty)
-                   exec_context_packet;
-            LETE func_unit_match
-              :  Bool
-              <- trans_func_unit_match
-                   func_unit
-                   decoder_packet_val;
-            (optional_packet
-              ((#sem_input_packet) @% "data")
-              (CABool And
-                (cons (#func_unit_match)
-                  (cons ((#sem_input_packet) @% "valid") nil)))))
-       decoder_packet_val.
+  := LETE decoder_packet
+       :  decoder_packet_kind
+       <- decoder_packet_expr;
+     LETE sem_input_packet
+       :  Maybe (fuInputK (detag_func_unit func_unit))
+       <- trans_insts
+            (tag_insts (fuInsts (detag_func_unit func_unit)))
+            ((ZeroExtendTruncLsb
+              func_unit_inst_id_width
+              (((#decoder_packet) @% "data") @% "InstTag"))
+              : func_unit_inst_id_kind @# ty)
+            exec_context_packet;
+     LETE func_unit_match
+       :  Bool
+       <- trans_func_unit_match
+            func_unit
+            decoder_packet_expr;
+     (optional_packet
+       ((#sem_input_packet) @% "data")
+       (CABool And
+         (cons (#func_unit_match)
+           (cons ((#sem_input_packet) @% "valid") nil)))).
 
 Fixpoint trans_func_units_vec
   (func_units : list tagged_func_unit_type)
@@ -272,7 +257,8 @@ Definition tag_func_units
   :  list (tagged_func_unit_type)
   := snd (tag_func_units_aux func_units).
 
-Definition trans_func_units_struct
+(* b *)
+Definition createInputXForm
   (func_units : list func_unit_type)
   (decoder_packet : decoder_packet_type)
   (exec_context_packet : exec_context_packet_kind ## ty)
