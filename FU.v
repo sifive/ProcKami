@@ -2,25 +2,21 @@ Require Import Kami.All RecordUpdate.RecordSet.
 
 Inductive InstSize := Compressed | Normal.
 
-Inductive Extension := RV32I
-                     | RV64I
-                     | Zifencei
-                     | Zicsr
-                     | RV32M
-                     | RV64M
-                     | RV32A
-                     | RV64A
-                     | RV32F
-                     | RV64F
-                     | RV32D
-                     | RV64D
-                     | RV32C
-                     | RV64C.
-
-Definition Extension_dec: forall e1 e2: Extension, {e1 = e2} + {e1 <> e2}.
-Proof.
-  decide equality.
-Defined.
+Definition Extensions := STRUCT {
+                             "RV32I"    :: Bool ;
+                             "RV64I"    :: Bool ;
+                             "Zifencei" :: Bool ;
+                             "Zicsr"    :: Bool ;
+                             "RV32M"    :: Bool ;
+                             "RV64M"    :: Bool ;
+                             "RV32A"    :: Bool ;
+                             "RV64A"    :: Bool ;
+                             "RV32F"    :: Bool ;
+                             "RV64F"    :: Bool ;
+                             "RV32D"    :: Bool ;
+                             "RV64D"    :: Bool ;
+                             "RV32C"    :: Bool ;
+                             "RV64C"    :: Bool }.
 
 Definition UniqId := (list {x: (nat * nat) & word (fst x + 1 - snd x)})%type.
 
@@ -218,7 +214,7 @@ Section Params.
 
     Record InstEntry ik ok :=
       { instName     : string ;
-        extensions   : list Extension ;
+        extensions   : list string ;
         uniqId       : UniqId ;        
         inputXform   : ExecContextPkt ## ty -> ik ## ty ;
         outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
