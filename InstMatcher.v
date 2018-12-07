@@ -34,7 +34,7 @@ Section Ty.
          (fun inst _ (F : LetExprSyntax ty Bool)
           => LETE matchCurrent   : Bool <- (raw_inst_match_inst raw_inst inst);
                LETE matchRemaining : Bool <- F;
-               RetE ((# matchCurrent) && (# matchRemaining)))
+               RetE ((# matchCurrent) || (# matchRemaining)))
          insts.
 
   Definition raw_inst_match_funct_unit
@@ -53,7 +53,7 @@ Section Ty.
        (fun funct_unit _ (F : LetExprSyntax ty Bool)
          => LETE matchCurrent : Bool <- raw_inst_match_funct_unit funct_unit raw_instr;
             LETE matchRemaining : Bool <- F;
-            RetE ((# matchCurrent) && (# matchRemaining)))
+            RetE ((# matchCurrent) || (# matchRemaining)))
        funct_units.
 
   Local Close Scope kami_expr.
