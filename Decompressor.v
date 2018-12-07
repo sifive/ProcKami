@@ -71,7 +71,7 @@ Definition comp_inst_db
                comp_inst_map_reg ((#comp_inst) $[4:2]),
                $$(('b"0010011") : word 7)
              >}
-      ));
+      ))
   ].
 
 End database.
