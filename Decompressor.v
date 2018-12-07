@@ -149,7 +149,8 @@ Definition decomp_aux
         (RetE (Const ty (wzero _)))
         comp_inst_entries.
 
-Definition decomp
+(* c *)
+Definition uncompress
   (raw_comp_inst : comp_inst_kind ## ty)
   :  opt_uncomp_inst_kind ## ty
   := LETE packed_uncomp_inst
