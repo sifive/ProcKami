@@ -71,7 +71,7 @@ Definition comp_inst_db
                comp_inst_map_reg ((#comp_inst) $[4:2]),
                $$(('b"0010011") : word 7)
              >}
-      ));
+      ))
   ].
 
 End database.
@@ -124,7 +124,7 @@ Definition decomp_inst
        (#raw_uncomp_inst)
        (#raw_comp_inst_match).
 
-Fixpoint decomp_aux
+Definition decomp_aux
   (comp_inst_entries : list CompInst)
   (raw_comp_inst_expr : comp_inst_kind ## ty)
   :  packed_opt_uncomp_inst_kind ## ty
