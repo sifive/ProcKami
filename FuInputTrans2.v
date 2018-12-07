@@ -221,7 +221,8 @@ Fixpoint trans_func_unit
        ((#sem_input_packet) @% "data")
        (CABool And
          (cons (#func_unit_match)
-           (cons ((#sem_input_packet) @% "valid") nil)))).
+           (cons ((#sem_input_packet) @% "valid") 
+             (cons ((#decoder_packet) @% "valid") nil))))).
 
 Fixpoint trans_func_units_vec
   (func_units : list tagged_func_unit_type)
