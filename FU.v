@@ -84,18 +84,21 @@ Section Params.
              "inst"         :: Inst ;
              "mode"         :: PrivMode }.
 
-  Definition ExecContextUpdTag := Bit 3.
+  Definition RoutingTagSz := 3.
+  Definition RoutingTag := Bit RoutingTagSz.
 
-  Definition ControlInst := 0.
-  Definition IntInst := 1.
-  Definition FloatInst := 2.
-  Definition CsrInst := 3.
-  Definition MemInst := 4.
+  Definition PcTag := 0.
+  Definition IntRegTag := 1.
+  Definition FloatRegTag := 2.
+  Definition CsrTag := 3.
+  Definition MemDataTag := 4.
+  Definition MemAddrTag := 5.
+
+  Definition RoutedReg := STRUCT { "tag" :: RoutingTag ; "data" :: Data }.
 
   Definition ExecContextUpdPkt :=
-    STRUCT { "tag"        :: ExecContextUpdTag ;
-             "val1"       :: Data ;
-             "val2"       :: Data ;
+    STRUCT { "val1"       :: Maybe RoutedReg ;
+             "val2"       :: Maybe RoutedReg ;
              "memOp"      :: MemOp ;
              "memBitMask" :: DataMask ;
              "exception"  :: Maybe Exception }.
@@ -119,57 +122,61 @@ Section Params.
                                                                    "funct3"     ::= funct3Val ;
                                                                    "funct5"     ::= funct5Val
                                                                  }.
+
+    Definition noUpdPkt: ExecContextUpdPkt @# ty :=
+      (STRUCT { "val1" ::= @Invalid ty _ ;
+                "val2" ::= @Invalid ty _ ;
+                "memOp" ::= $$ (getDefaultConst MemOp) ;
+                "memBitMask" ::= $$ (getDefaultConst DataMask) ;
+                "exception" ::= Invalid }).
     
-    Definition invalidException := STRUCT { "valid" ::= $$ false ;
-                                            "data" ::= $$ (getDefaultConst Exception)}.
-    
-    Definition createControl pc : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $ControlInst ;
-               "val1"       ::= pc ;
-               "val2"       ::= $0 ;
-               "memOp"      ::= $$ (getDefaultConst MemOp) ;
-               "memBitMask" ::= $0 ;
-               "exception"  ::= invalidException }.
+    (* Definition createControl pc : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $ControlInst ; *)
+    (*            "val1"       ::= pc ; *)
+    (*            "val2"       ::= $0 ; *)
+    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
+    (*            "memBitMask" ::= $0 ; *)
+    (*            "exception"  ::= invalidException }. *)
 
-    Definition createInt val : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $IntInst ;
-               "val1"       ::= val ;
-               "val2"       ::= $0 ;
-               "memOp"      ::= $$ (getDefaultConst MemOp) ;
-               "memBitMask" ::= $0 ;
-               "exception"  ::= invalidException }.
+    (* Definition createInt val : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $IntInst ; *)
+    (*            "val1"       ::= val ; *)
+    (*            "val2"       ::= $0 ; *)
+    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
+    (*            "memBitMask" ::= $0 ; *)
+    (*            "exception"  ::= invalidException }. *)
 
-    Definition createFloat floatVal intVal exception : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $FloatInst ;
-               "val1"       ::= intVal ;
-               "val2"       ::= floatVal ;
-               "memOp"      ::= $$ (getDefaultConst MemOp) ;
-               "memBitMask" ::= $0 ;
-               "exception"  ::= exception }.
+    (* Definition createFloat floatVal intVal exception : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $FloatInst ; *)
+    (*            "val1"       ::= intVal ; *)
+    (*            "val2"       ::= floatVal ; *)
+    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
+    (*            "memBitMask" ::= $0 ; *)
+    (*            "exception"  ::= exception }. *)
 
-    Definition createSimpleFloat floatVal exception : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $FloatInst ;
-               "val1"       ::= $0 ;
-               "val2"       ::= floatVal ;
-               "memOp"      ::= $$ (getDefaultConst MemOp) ;
-               "memBitMask" ::= $0 ;
-               "exception"  ::= exception }.
+    (* Definition createSimpleFloat floatVal exception : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $FloatInst ; *)
+    (*            "val1"       ::= $0 ; *)
+    (*            "val2"       ::= floatVal ; *)
+    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
+    (*            "memBitMask" ::= $0 ; *)
+    (*            "exception"  ::= exception }. *)
 
-    Definition createCsr csrVal intVal exception : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $CsrInst ;
-               "val1"       ::= intVal ;
-               "val2"       ::= csrVal ;
-               "memOp"      ::= $$ (getDefaultConst MemOp) ;
-               "memBitMask" ::= $0 ;
-               "exception"  ::= exception }.
+    (* Definition createCsr csrVal intVal exception : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $CsrInst ; *)
+    (*            "val1"       ::= intVal ; *)
+    (*            "val2"       ::= csrVal ; *)
+    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
+    (*            "memBitMask" ::= $0 ; *)
+    (*            "exception"  ::= exception }. *)
 
-    Definition createMem memOp memAddr memBitMask memData exception : ExecContextUpdPkt @# ty :=
-      STRUCT { "tag"        ::= $MemInst ;
-               "val1"       ::= memAddr ;
-               "val2"       ::= memData ;
-               "memOp"      ::= memOp ;
-               "memBitMask" ::= memBitMask ;
-               "exception"  ::= exception }.
+    (* Definition createMem memOp memAddr memBitMask memData exception : ExecContextUpdPkt @# ty := *)
+    (*   STRUCT { "tag"        ::= $MemInst ; *)
+    (*            "val1"       ::= memAddr ; *)
+    (*            "val2"       ::= memData ; *)
+    (*            "memOp"      ::= memOp ; *)
+    (*            "memBitMask" ::= memBitMask ; *)
+    (*            "exception"  ::= exception }. *)
 
     Local Close Scope kami_expr.
     
@@ -225,6 +232,9 @@ Section Params.
         fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
         fuInsts   : list (InstEntry fuInputK fuOutputK) }.
   End Ty.
+
+  Definition fieldVal range value :=
+    existT (fun x => word (fst x + 1 - snd x)) range value.
 
   Definition DecoderInput :=
     STRUCT { "pc"   :: VAddr ;
