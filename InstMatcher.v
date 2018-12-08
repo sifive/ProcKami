@@ -1,5 +1,7 @@
 Require Import Kami.All FU.
 
+(* TODO revise so that it accepts the mode packet which specifies the currently enabled extensions. *)
+(*
 Section Ty.
   Variable Xlen_over_8: nat.
   Variable ty: Kind -> Type.
@@ -58,3 +60,4 @@ Section Ty.
 
   Local Close Scope kami_expr.
 End Ty.
+*)

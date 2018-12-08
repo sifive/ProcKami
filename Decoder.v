@@ -30,8 +30,6 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
 
 (* instruction database parameters. *)
 
-Variable enabled_exts : list Extension.
-
 Variable num_func_units : nat.
 
 Variable num_insts : nat.
@@ -92,6 +90,11 @@ Let detag_inst
   :  inst_type sem_input_kind sem_output_kind
   := snd inst.
 
+Parameter get_struct_field
+  : forall (mode_packet : Extensions @# ty)
+           (field : string),
+  Bool @# ty.
+
 Definition decoder_packet_kind
   :  Kind
   := Maybe (
@@ -139,18 +142,73 @@ Definition tag_insts
   :  nat * list (tagged_inst_type sem_input_kind sem_output_kind)
   := tag inst_id_init insts.
 
+Definition decode_match_field
+  (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
+  (raw_inst_expr : raw_inst_kind ## ty)
+  :  Bool ## ty
+  := LETE x <- extractArbitraryRange raw_inst_expr (projT1 field);
+     RetE (#x == $$(projT2 field)).
+
+Definition decode_match_fields
+  (fields : list ({x: (nat * nat) & word (fst x + 1 - snd x)}))
+  (raw_inst_expr : raw_inst_kind ## ty)
+  :  Bool ## ty
+  := fold_left
+       (fun (acc_expr : Bool ## ty)
+            (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
+         => LETE acc : Bool
+              <- acc_expr;
+            LETE field_match : Bool
+              <- decode_match_field field raw_inst_expr;
+            RetE (#acc && #field_match))
+       fields
+       (RetE ($$true)).
+
+Definition decode_match_enabled_exts
+  (sem_input_kind sem_output_kind : Kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
+  (mode_packet_expr : Extensions ## ty)
+  :  Bool ## ty
+  := fold_left
+       (fun (acc_expr : Bool ## ty)
+            (ext : string)
+         => LETE acc : Bool
+              <- acc_expr;
+            LETE mode_packet : Extensions
+              <- mode_packet_expr;
+            RetE
+              (* ((((#mode_packet) @%ext) : Bool @# ty) || *)
+              ((get_struct_field (#mode_packet) ext) ||
+                (#acc)))
+       (extensions inst)
+       (RetE ($$false)).
+
+Definition decode_match_inst
+  (sem_input_kind sem_output_kind : Kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
+  (mode_packet_expr : Extensions ## ty)
+  (raw_inst_expr : raw_inst_kind ## ty)
+  :  Bool ## ty
+  := LETE inst_id_match : Bool
+       <- decode_match_fields (uniqId inst) raw_inst_expr;
+     LETE exts_match : Bool
+       <- decode_match_enabled_exts inst mode_packet_expr;
+     RetE
+       ((#inst_id_match) && (#exts_match)).
+
 Definition decode_inst
   (sem_input_kind sem_output_kind : Kind)
   (func_unit_id : nat)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst_expr : raw_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE inst_match
        :  Bool
-       <- raw_inst_match_inst
-            enabled_exts
-            raw_inst_expr
-            (detag_inst inst);
+       <- decode_match_inst
+            (detag_inst inst)
+            mode_packet_expr
+            raw_inst_expr;
      optional_packet
        (STRUCT {
          "FuncUnitTag" ::= func_unit_id_bstring func_unit_id;
@@ -162,6 +220,7 @@ Definition decode_insts_aux
   (sem_input_kind sem_output_kind : Kind)
   (func_unit_id : nat)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst_expr : raw_inst_kind ## ty)
   :  Bit (size decoder_packet_kind) ## ty
   := fold_left
@@ -169,7 +228,7 @@ Definition decode_insts_aux
             (inst : tagged_inst_type sem_input_kind sem_output_kind)
          => LETE packet
               :  decoder_packet_kind
-              <- decode_inst func_unit_id inst raw_inst_expr;
+              <- decode_inst func_unit_id inst mode_packet_expr raw_inst_expr;
             LETE acc
               :  Bit (size (decoder_packet_kind))
               <- acc_expr;
@@ -187,11 +246,12 @@ Definition decode_insts
   (sem_input_kind sem_output_kind : Kind)
   (func_unit_id : nat)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst : raw_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE packet
        :  Bit (size decoder_packet_kind)
-       <- decode_insts_aux func_unit_id insts raw_inst;
+       <- decode_insts_aux func_unit_id insts mode_packet_expr raw_inst;
      RetE
        (unpack decoder_packet_kind
          (#packet)).
@@ -200,6 +260,7 @@ Definition decode_func_unit
   (func_unit_id : nat)
   (inst_id_init : nat)
   (func_unit : func_unit_type)
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst : raw_inst_kind ## ty)
   :  nat * (decoder_packet_kind ## ty)
   := let (inst_id_next, insts)
@@ -208,10 +269,12 @@ Definition decode_func_unit
        decode_insts
          func_unit_id
          insts
+         mode_packet_expr
          raw_inst).
 
 Fixpoint decode_func_units_aux
   (func_units : list func_unit_type)
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst : raw_inst_kind ## ty)
   :  Bit (size decoder_packet_kind) ## ty
   := snd
@@ -225,6 +288,7 @@ Fixpoint decode_func_units_aux
                      (tagged_func_unit_id func_unit)
                      inst_id_init
                      (detag_func_unit func_unit)
+                     mode_packet_expr
                      raw_inst in
               (inst_id_next,
                 LETE func_unit_packet
@@ -246,11 +310,12 @@ Fixpoint decode_func_units_aux
 (* a *)
 Definition decode 
   (func_units : list func_unit_type)
+  (mode_packet_expr : Extensions ## ty)
   (raw_inst : raw_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE decoder_packet
        :  Bit (size decoder_packet_kind)
-       <- decode_func_units_aux func_units raw_inst;
+       <- decode_func_units_aux func_units mode_packet_expr raw_inst;
      RetE
        (unpack decoder_packet_kind
          (#decoder_packet)).

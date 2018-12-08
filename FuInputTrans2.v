@@ -1,6 +1,7 @@
 Require Import Kami.All.
 Import Syntax.
 Require Import FU.
+Require Import Decoder.
 
 Section input_trans.
 

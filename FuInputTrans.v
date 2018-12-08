@@ -2,7 +2,8 @@ Require Import Kami.All.
 Import Syntax.
 Require Import FU.
 Require Import InstMatcher. (* TODO: remove once trans_optional_packet_enabled has been revised. *)
-
+Require Import Decoder.
+(*
 Section input_trans.
 
 Open Scope kami_expr.
@@ -158,3 +159,4 @@ Definition func_unit_output_kind
 Close Scope kami_expr.
 
 End input_trans.
+*)
