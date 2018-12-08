@@ -407,9 +407,356 @@ Definition comp_inst_db
                (comp_inst $[11:7]),
                $$(('b"0110111") : word 7)
              >}
+      ));
+    (* C.SRLI => SRLI *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (11, 10) ('b"00")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(natToWord 7 0),
+               (comp_inst $[6:2]), (* TODO: verify *)
+               rd,
+               $$(('b"101") : word 3),
+               rd, 
+               $$(('b"0010011") : word 7)
+             >}
+      ));
+    (* C.SRAI => SRAI *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (11, 10) ('b"01")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0100000") : word 7),
+               (comp_inst $[6:2]), (* TODO: verify *)
+               rd,
+               $$(('b"101") : word 3),
+               rd, 
+               $$(('b"0010011") : word 7)
+             >}
+      ));
+    (* C.ANDI => ANDI *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (11, 10) ('b"01")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+               rd,
+               $$(('b"111") : word 3),
+               rd, 
+               $$(('b"0010011") : word 7)
+             >}
+      ));
+    (* C.SUB => SUB *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"00");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"0")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0100000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"000") : word 3),
+               rd, 
+               $$(('b"0110011") : word 7)
+             >}
+      ));
+    (* C.XOR => XOR *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"01");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"0")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0000000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"100") : word 3),
+               rd, 
+               $$(('b"0110011") : word 7)
+             >}
+      ));
+    (* C.OR => OR *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"10");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"0")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0000000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"110") : word 3),
+               rd, 
+               $$(('b"0110011") : word 7)
+             >}
+      ));
+    (* C.AND => AND *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"11");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"0")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0000000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"111") : word 3),
+               rd, 
+               $$(('b"0110011") : word 7)
+             >}
+      ));
+    (* C.SUBW => SUB *)
+    Build_CompInst
+      [["RV64C"]]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"00");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"1")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0100000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"000") : word 3),
+               rd, 
+               $$(('b"0111011") : word 7)
+             >}
+      ));
+    (* C.ADDW => ADDW *)
+    Build_CompInst
+      [["RV64C"]]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"100");
+        fieldVal (6, 5) ('b"01");
+        fieldVal (11, 10) ('b"11");
+        fieldVal (12, 12) ('b"1")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(('b"0000000") : word 7),
+               comp_inst_map_reg (comp_inst $[4:2]),
+               rd,
+               $$(('b"000") : word 3),
+               rd, 
+               $$(('b"0111011") : word 7)
+             >}
+      ));
+    (* C.J => JAL *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"101")
+      ])
+      (fun comp_inst
+        => let imm
+             : Bit 20 @# ty
+             := ZeroExtend 9 ({<
+                    (comp_inst $[12:12]),
+                    (comp_inst $[8:8]),
+                    (comp_inst $[10:9]),
+                    (comp_inst $[6:6]),
+                    (comp_inst $[7:7]),
+                    (comp_inst $[2:2]),
+                    (comp_inst $[11:11]),
+                    (comp_inst $[5:3])
+                  >}) in
+           RetE (
+             {<
+               ({<
+                 (imm $[19:19]),
+                 (imm $[9:0]),
+                 (imm $[10:10]),
+                 (imm $[18:11])
+               >}),
+               ((uncomp_inst_reg 0) : Bit 5 @# ty),
+               $$(('b"1101111") : word 7)
+             >}
+      ));
+    (* C.BEQZ => BEQ *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"110")
+      ])
+      (fun comp_inst
+        => let imm
+             : Bit 12 @# ty
+             := ZeroExtend 4 ({<
+                    (comp_inst $[12:12]),
+                    (comp_inst $[6:5]),
+                    (comp_inst $[2:2]),
+                    (comp_inst $[11:10]),
+                    (comp_inst $[4:3])
+                  >}) in
+           RetE (
+             {<
+               ({<
+                 (imm $[11:11]),
+                 (imm $[9:4])
+               >}),
+               ((uncomp_inst_reg 0) : Bit 5 @# ty),
+               comp_inst_map_reg (comp_inst $[9:7]),
+               $$(('b"000") : word 3),
+               ({<
+                 (imm $[3:0]),
+                 (imm $[10:10])
+               >}),
+               $$(('b"1100011") : word 7)
+             >}
+      ));
+    (* C.BNEZ => BNE*)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"01");
+        fieldVal comp_inst_funct3_field ('b"111")
+      ])
+      (fun comp_inst
+        => let imm
+             : Bit 12 @# ty
+             := ZeroExtend 4 ({<
+                    (comp_inst $[12:12]),
+                    (comp_inst $[6:5]),
+                    (comp_inst $[2:2]),
+                    (comp_inst $[11:10]),
+                    (comp_inst $[4:3])
+                  >}) in
+           RetE (
+             {<
+               ({<
+                 (imm $[11:11]),
+                 (imm $[9:4])
+               >}),
+               comp_inst_map_reg (comp_inst $[9:7]),
+               ((uncomp_inst_reg 0) : Bit 5 @# ty),
+               $$(('b"001") : word 3),
+               ({<
+                 (imm $[3:0]),
+                 (imm $[10:10])
+               >}),
+               $$(('b"1100011") : word 7)
+             >}
+      ));
+    (* C.SLLI => SLLI *)
+    Build_CompInst
+      [extensions_all]
+      ([
+        fieldVal comp_inst_opcode_field ('b"10");
+        fieldVal comp_inst_funct3_field ('b"000")
+      ])
+      (fun comp_inst : Bit 16 @# ty
+        => let rd
+             :  Bit 5 @# ty
+             := comp_inst_map_reg (comp_inst $[9:7]) in
+           RetE (
+             {<
+               $$(natToWord 7 0),
+               (comp_inst $[6:2]), (* TODO: verify *)
+               rd,
+               $$(('b"001") : word 3),
+               rd, 
+               $$(('b"0010011") : word 7)
+             >}
+      ));
+    (* C.FLDSP => FLD *)
+    Build_CompInst
+      [["RV32D"; "RV32C"];
+       ["RV64D"; "RV64C"]]
+      ([
+        fieldVal comp_inst_opcode_field ('b"10");
+        fieldVal comp_inst_funct3_field ('b"001")
+      ])
+      (fun comp_inst
+        => let imm
+             := (ZeroExtend 6 ({< (comp_inst $[4:2]), (comp_inst $[12:12]), (comp_inst $[6:5]) >})) in
+           RetE (
+             {<
+               imm,
+               uncomp_inst_reg 2,
+               $$(('b"011") : word 3),
+               (comp_inst $[11:7]),
+               $$(('b"0000111") : word 7)
+             >}
       ))
-    (* C.SRLI => *)
-  ].
+  ]. 
 
 End database.
 
