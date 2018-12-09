@@ -90,11 +90,13 @@ Record CompInst := {
 (*
   pg 106 for compressed instructions (122)
   pg 148 for uncompressed instruction (164)
+
+  TODO: verify immediate values - are these multiplied by 4, 8, etc?
 *)
 Definition comp_inst_db
   :  list CompInst
   := [
-    (* C.ADDI4SPN  => ADDI *)
+    (* C.ADDI4SPN  => ADDI checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -104,14 +106,19 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              {<
-               (ZeroExtend 4 (comp_inst $[12:5])),
+               (ZeroExtend 4 ({<
+                 (comp_inst $[10:7]),
+                 (comp_inst $[12:11]),
+                 (comp_inst $[5:5]),
+                 (comp_inst $[6:6])
+               >})),
                uncomp_inst_reg 2,
                $$(('b"000") : word 3),
                comp_inst_map_reg (comp_inst $[4:2]),
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.FLD => FLD *)
+    (* C.FLD => FLD checked *)
     Build_CompInst
       [["RV32D"; "RV32C"];
        ["RV64D"; "RV64C"]]
@@ -122,15 +129,14 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              {<
-               (ZeroExtend 7 ({< (comp_inst $[12:10]), (comp_inst $[6:5]) >})),
+               (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})),
                comp_inst_map_reg (comp_inst $[9:7]),
                $$(('b"011") : word 3),
                comp_inst_map_reg (comp_inst $[4:2]),
                $$(('b"0000111") : word 7)
              >}
       ));
-    (* C.LQ => LQ - LQ is not documented in the manual. *)
-    (* C.LW => LW *)
+    (* C.LW => LW checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -140,14 +146,14 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              {<
-               (ZeroExtend 7 ({< (comp_inst $[6:6]), (comp_inst $[12:10]), (comp_inst $[5:5]) >})),
+               (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})),
                comp_inst_map_reg (comp_inst $[9:7]),
                $$(('b"010") : word 3),
                comp_inst_map_reg (comp_inst $[4:2]),
                $$(('b"0000011") : word 7)
              >}
       ));
-    (* C.FLW => FLW *)
+    (* C.FLW => FLW checked *)
     Build_CompInst
       [["RV32F"; "RV32C"]]
       ([
@@ -157,14 +163,14 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              {<
-               (ZeroExtend 7 ({< (comp_inst $[6:6]), (comp_inst $[12:10]), (comp_inst $[5:5]) >})),
+               (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})),
                comp_inst_map_reg (comp_inst $[9:7]),
                $$(('b"010") : word 3),
                comp_inst_map_reg (comp_inst $[4:2]),
                $$(('b"0000111") : word 7)
              >}
       ));
-    (* C.LD => LD *)
+    (* C.LD => LD checked *)
     Build_CompInst
       [["RV64C"]]
       ([
@@ -174,14 +180,14 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              {<
-               (ZeroExtend 7 ({< (comp_inst $[6:6]), (comp_inst $[12:10]), (comp_inst $[5:5]) >})),
+               (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})),
                comp_inst_map_reg (comp_inst $[9:7]),
-               $$(('b"010") : word 3),
+               $$(('b"011") : word 3),
                comp_inst_map_reg (comp_inst $[4:2]),
-               $$(('b"0000111") : word 7)
+               $$(('b"0000011") : word 7)
              >}
       ));
-    (* C.FSD => FSD *)
+    (* C.FSD => FSD checked *)
     Build_CompInst
       [
         ["RV32D"; "RV32C"];
@@ -193,7 +199,7 @@ Definition comp_inst_db
       ])
       (fun comp_inst
         => let imm
-             := (ZeroExtend 7 ({< (comp_inst $[12:10]), (comp_inst $[5:4]) >})) in
+             := (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})) in
            RetE (
              {<
                (imm $[11:5]),
@@ -204,8 +210,7 @@ Definition comp_inst_db
                $$(('b"0100111") : word 7)
              >}
       ));
-    (* C.SQ => SQ 128 bit instr *)
-    (* C.SW => SW *)
+    (* C.SW => SW checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -222,10 +227,10 @@ Definition comp_inst_db
                comp_inst_map_reg (comp_inst $[9:7]),
                $$(('b"010") : word 3),
                (imm $[4:0]),
-               $$(('b"0100111") : word 7)
+               $$(('b"0100011") : word 7)
              >}
       ));
-    (* C.FSW => FSW *)
+    (* C.FSW => FSW checked *)
     Build_CompInst
       [["RV32F"; "RV32C"]]
       ([
@@ -245,7 +250,7 @@ Definition comp_inst_db
                $$(('b"0100111") : word 7)
              >}
       ));
-    (* C.SD => SD *)
+    (* C.SD => SD checked *)
     Build_CompInst
       [["RV64C"]]
       ([
@@ -265,24 +270,11 @@ Definition comp_inst_db
                $$(('b"0100011") : word 7)
              >}
       ));
-    (* C.NOP => NOP = ADDI *)
-    Build_CompInst
-      [["RV64C"]]
-      ([
-        fieldVal comp_inst_opcode_field ('b"01");
-        fieldVal comp_inst_funct3_field ('b"000")
-      ])
-      (fun comp_inst
-        => RetE (
-             {<
-               (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-               $$(natToWord 5 0),
-               $$(('b"000") : word 3),
-               $$(natToWord 5 0),
-               $$(('b"0010011") : word 7)
-             >}
-      ));
-    (* C.ADDI => ADDI *)
+    (* 
+      C.ADDI and C.NOP checked
+      C.ADDI => ADDI checked
+      C.NOP => NOP = ADDI
+    *)
     Build_CompInst
       [extensions_all]
       ([
@@ -300,7 +292,7 @@ Definition comp_inst_db
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.JAL => JAL *)
+    (* C.JAL => JAL checked *)
     Build_CompInst
       [["RV32C"]]
       ([
@@ -328,11 +320,11 @@ Definition comp_inst_db
                  (imm $[10:10]),
                  (imm $[18:11])
                >}),
-               ((uncomp_inst_reg 1) : Bit 5 @# ty),
+               (uncomp_inst_reg 1),
                $$(('b"1101111") : word 7)
              >}
       ));
-    (* C.ADDIW => ADDIW *)
+    (* C.ADDIW => ADDIW checked *)
     Build_CompInst
       [["RV64C"]]
       ([
@@ -344,13 +336,13 @@ Definition comp_inst_db
            RetE (
              {<
                (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-               $$(natToWord 5 0),
+               rd,
                $$(('b"000") : word 3),
-               $$(natToWord 5 0),
+               rd,
                $$(('b"0011011") : word 7)
              >}
       ));
-    (* C.LI => ADDI *)
+    (* C.LI => ADDI checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -367,7 +359,11 @@ Definition comp_inst_db
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.ADDI16SP => ADDI *)
+    (*
+      C.ADDI16SP and C.LUI checked
+      C.ADDI16SP => ADDI checked
+      C.LUI => LUI checked
+    *)
     Build_CompInst
       [extensions_all]
       ([
@@ -375,40 +371,34 @@ Definition comp_inst_db
         fieldVal comp_inst_funct3_field ('b"011")
       ])
       (fun comp_inst : Bit 16 @# ty
-        => let imm
-             :  Bit 12 @# ty
-             := ZeroExtend 6 ({<
-                  (comp_inst $[12:12]),
-                  (comp_inst $[4:3]),
-                  (comp_inst $[5:5]),
-                  (comp_inst $[2:2]),
-                  (comp_inst $[6:6])
-                >}) in
+        => let rd := (comp_inst $[11:7]) in
            RetE (
-             {<
-               imm,
-               uncomp_inst_reg 2,
-               $$(('b"000") : word 3),
-               uncomp_inst_reg 2,
-               $$(('b"0010011") : word 7)
-             >}
+             (ITE (rd == $$(natToWord 5 2))
+               (* C.ADDI16SP *)
+               (let imm
+                 :  Bit 12 @# ty
+                 := ZeroExtend 6 ({<
+                      (comp_inst $[12:12]),
+                      (comp_inst $[4:3]),
+                      (comp_inst $[5:5]),
+                      (comp_inst $[2:2]),
+                      (comp_inst $[6:6])
+                    >}) in
+                 {<
+                   imm,
+                   uncomp_inst_reg 2,
+                   $$(('b"000") : word 3),
+                   uncomp_inst_reg 2,
+                   $$(('b"0010011") : word 7)
+                 >})
+               (* C.LUI *)
+               ({<
+                 (ZeroExtend 14 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                 rd,
+                 $$(('b"0110111") : word 7)
+               >}))
       ));
-    (* C.LUI => LUI *)
-    Build_CompInst
-      [extensions_all]
-      ([
-        fieldVal comp_inst_opcode_field ('b"01");
-        fieldVal comp_inst_funct3_field ('b"011")
-      ])
-      (fun comp_inst : Bit 16 @# ty
-        => RetE (
-             {<
-               (ZeroExtend 14 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-               (comp_inst $[11:7]),
-               $$(('b"0110111") : word 7)
-             >}
-      ));
-    (* C.SRLI => SRLI *)
+    (* C.SRLI => SRLI checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -422,15 +412,15 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(natToWord 7 0),
-               (comp_inst $[6:2]), (* TODO: verify *)
+               $$(natToWord 6 0),
+               ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
                rd,
                $$(('b"101") : word 3),
                rd, 
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.SRAI => SRAI *)
+    (* C.SRAI => SRAI checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -444,21 +434,21 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(('b"0100000") : word 7),
-               (comp_inst $[6:2]), (* TODO: verify *)
+               $$(('b"010000") : word 6),
+               ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
                rd,
                $$(('b"101") : word 3),
                rd, 
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.ANDI => ANDI *)
+    (* C.ANDI => ANDI checked *)
     Build_CompInst
       [extensions_all]
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
-        fieldVal (11, 10) ('b"01")
+        fieldVal (11, 10) ('b"10")
       ])
       (fun comp_inst : Bit 16 @# ty
         => let rd
@@ -473,7 +463,7 @@ Definition comp_inst_db
                $$(('b"0010011") : word 7)
              >}
       ));
-    (* C.SUB => SUB *)
+    (* C.SUB => SUB checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -497,7 +487,7 @@ Definition comp_inst_db
                $$(('b"0110011") : word 7)
              >}
       ));
-    (* C.XOR => XOR *)
+    (* C.XOR => XOR checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -513,7 +503,7 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(('b"0000000") : word 7),
+               $$(natToWord 7 0),
                comp_inst_map_reg (comp_inst $[4:2]),
                rd,
                $$(('b"100") : word 3),
@@ -521,7 +511,7 @@ Definition comp_inst_db
                $$(('b"0110011") : word 7)
              >}
       ));
-    (* C.OR => OR *)
+    (* C.OR => OR checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -537,7 +527,7 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(('b"0000000") : word 7),
+               $$(natToWord 7 0),
                comp_inst_map_reg (comp_inst $[4:2]),
                rd,
                $$(('b"110") : word 3),
@@ -545,7 +535,7 @@ Definition comp_inst_db
                $$(('b"0110011") : word 7)
              >}
       ));
-    (* C.AND => AND *)
+    (* C.AND => AND checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -561,7 +551,7 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(('b"0000000") : word 7),
+               $$(natToWord 7 0),
                comp_inst_map_reg (comp_inst $[4:2]),
                rd,
                $$(('b"111") : word 3),
@@ -569,7 +559,7 @@ Definition comp_inst_db
                $$(('b"0110011") : word 7)
              >}
       ));
-    (* C.SUBW => SUB *)
+    (* C.SUBW => SUB checked *)
     Build_CompInst
       [["RV64C"]]
       ([
@@ -593,7 +583,7 @@ Definition comp_inst_db
                $$(('b"0111011") : word 7)
              >}
       ));
-    (* C.ADDW => ADDW *)
+    (* C.ADDW => ADDW checked *)
     Build_CompInst
       [["RV64C"]]
       ([
@@ -609,7 +599,7 @@ Definition comp_inst_db
              := comp_inst_map_reg (comp_inst $[9:7]) in
            RetE (
              {<
-               $$(('b"0000000") : word 7),
+               $$(natToWord 7 0),
                comp_inst_map_reg (comp_inst $[4:2]),
                rd,
                $$(('b"000") : word 3),
@@ -617,7 +607,7 @@ Definition comp_inst_db
                $$(('b"0111011") : word 7)
              >}
       ));
-    (* C.J => JAL *)
+    (* C.J => JAL checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -645,11 +635,11 @@ Definition comp_inst_db
                  (imm $[10:10]),
                  (imm $[18:11])
                >}),
-               ((uncomp_inst_reg 0) : Bit 5 @# ty),
+               (uncomp_inst_reg 0),
                $$(('b"1101111") : word 7)
              >}
       ));
-    (* C.BEQZ => BEQ *)
+    (* C.BEQZ => BEQ checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -672,7 +662,7 @@ Definition comp_inst_db
                  (imm $[11:11]),
                  (imm $[9:4])
                >}),
-               ((uncomp_inst_reg 0) : Bit 5 @# ty),
+               (uncomp_inst_reg 0),
                comp_inst_map_reg (comp_inst $[9:7]),
                $$(('b"000") : word 3),
                ({<
@@ -682,7 +672,7 @@ Definition comp_inst_db
                $$(('b"1100011") : word 7)
              >}
       ));
-    (* C.BNEZ => BNE*)
+    (* C.BNEZ => BNE checked*)
     Build_CompInst
       [extensions_all]
       ([
@@ -705,8 +695,8 @@ Definition comp_inst_db
                  (imm $[11:11]),
                  (imm $[9:4])
                >}),
+               (uncomp_inst_reg 0),
                comp_inst_map_reg (comp_inst $[9:7]),
-               ((uncomp_inst_reg 0) : Bit 5 @# ty),
                $$(('b"001") : word 3),
                ({<
                  (imm $[3:0]),
@@ -715,7 +705,7 @@ Definition comp_inst_db
                $$(('b"1100011") : word 7)
              >}
       ));
-    (* C.SLLI => SLLI *)
+    (* C.SLLI => SLLI checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -724,19 +714,18 @@ Definition comp_inst_db
       ])
       (fun comp_inst : Bit 16 @# ty
         => let rd
-             :  Bit 5 @# ty
-             := comp_inst_map_reg (comp_inst $[9:7]) in
+             := comp_inst $[11:7] in
            RetE (
-             {<
-               $$(natToWord 7 0),
-               (comp_inst $[6:2]), (* TODO: verify *)
-               rd,
-               $$(('b"001") : word 3),
-               rd, 
-               $$(('b"0010011") : word 7)
-             >}
+               ({<
+                 $$(natToWord 6 0),
+                 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
+                 rd,
+                 $$(('b"001") : word 3),
+                 rd, 
+                 $$(('b"0010011") : word 7)
+               >})
       ));
-    (* C.FLDSP => FLD *)
+    (* C.FLDSP => FLD checked *)
     Build_CompInst
       [["RV32D"; "RV32C"];
        ["RV64D"; "RV64C"]]
@@ -745,18 +734,16 @@ Definition comp_inst_db
         fieldVal comp_inst_funct3_field ('b"001")
       ])
       (fun comp_inst
-        => let imm
-             := (ZeroExtend 6 ({< (comp_inst $[4:2]), (comp_inst $[12:12]), (comp_inst $[6:5]) >})) in
-           RetE (
+        => RetE (
              {<
-               imm,
+               ZeroExtend 6 ({< (comp_inst $[4:2]), (comp_inst $[12:12]), (comp_inst $[6:5]) >}),
                uncomp_inst_reg 2,
                $$(('b"011") : word 3),
                (comp_inst $[11:7]),
                $$(('b"0000111") : word 7)
              >}
       ));
-    (* C.LWSP => LW *)
+    (* C.LWSP => LW checked*)
     Build_CompInst
       [extensions_all]
       ([
@@ -764,18 +751,16 @@ Definition comp_inst_db
         fieldVal comp_inst_funct3_field ('b"010")
       ])
       (fun comp_inst
-        => let imm
-             := (ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >})) in
-           RetE (
+        => RetE (
              {<
-               imm,
+               ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >}),
                uncomp_inst_reg 2,
                $$(('b"010") : word 3),
                (comp_inst $[11:7]),
                $$(('b"0000011") : word 7)
              >}
       ));
-    (* C.FLWSP => FLW *)
+    (* C.FLWSP => FLW checked *)
     Build_CompInst
       [["RV32F"; "RV32C"]]
       ([
@@ -783,22 +768,20 @@ Definition comp_inst_db
         fieldVal comp_inst_funct3_field ('b"011")
       ])
       (fun comp_inst
-        => let imm
-             := (ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >})) in
-           RetE (
+        => RetE (
              {<
-               imm,
+               ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >}),
                uncomp_inst_reg 2,
                $$(('b"010") : word 3),
                (comp_inst $[11:7]),
                $$(('b"0000111") : word 7)
              >}
       ));
-    (* C.LDSP => LD *)
+    (* C.LDSP => LD checked*)
     Build_CompInst
       [["RV64C"]]
       ([
-        fieldVal comp_inst_opcode_field ('b"00");
+        fieldVal comp_inst_opcode_field ('b"10");
         fieldVal comp_inst_funct3_field ('b"011")
       ])
       (fun comp_inst
@@ -811,7 +794,7 @@ Definition comp_inst_db
                $$(('b"0000011") : word 7)
              >}
       ));
-    (* C.JR and C.MV
+    (* C.JR and C.MV checked 
        C.JR => JALR *)
     Build_CompInst
       [extensions_all]
@@ -823,7 +806,7 @@ Definition comp_inst_db
       (fun comp_inst
         => RetE (
              ITE ((comp_inst $[6:2]) == $0)
-               (* C.JR *)
+               (* C.JR checked *)
                ({<
                  $$(natToWord 12 0),
                  (comp_inst $[11:7]),
@@ -831,17 +814,18 @@ Definition comp_inst_db
                  uncomp_inst_reg 0,
                  $$(('b"1100111") : word 7)
                >})
-               (* C.MV *)
+               (* C.MV checked *)
                ({<
                  $$(('b"0000000") : word 7),
-                 (comp_inst $[6:2]), (* TODO: verify *)
+                 (comp_inst $[6:2]),
                  uncomp_inst_reg 0,
                  $$(('b"000") : word 3),
                  (comp_inst $[11:7]),
                  $$(('b"0110011") : word 7)
                >})
       ));
-    (* C.ADD 
+    (*
+       C.ADD, C.EBREAK, and C.JALR checked
        C.EBREAK => EBREAK
        C.JALR => JALR
     *)
@@ -856,13 +840,13 @@ Definition comp_inst_db
         => RetE (
              ITE ((comp_inst $[6:2]) == $0)
                (ITE ((comp_inst $[11:7]) == $0)
-                 (* C.EBREAK *)
+                 (* C.EBREAK checked *)
                  ({<
                    $$(('b"000000000001") : word 12),
                    $$(natToWord 13 0),
                    $$(('b"1110011") : word 7)
                  >})
-                 (* C.JALR *)
+                 (* C.JALR checked *)
                  ({<
                    $$(natToWord 12 0),
                    (comp_inst $[11:7]),
@@ -870,7 +854,7 @@ Definition comp_inst_db
                    uncomp_inst_reg 1,
                    $$(('b"1100111") : word 7)
                  >}))
-               (* C.ADD *)
+               (* C.ADD checked *)
                (let rd := comp_inst $[11:7] in
                  ({<
                    $$(natToWord 7 0),
@@ -881,7 +865,7 @@ Definition comp_inst_db
                    $$(('b"0110011") : word 7)
                  >}))
       ));
-    (* C.FSDSP => FSD *)
+    (* C.FSDSP => FSD checked *)
     Build_CompInst
       [["RV32D"; "RV32C"];
        ["RV64D"; "RV64C"]]
@@ -901,7 +885,7 @@ Definition comp_inst_db
                $$(('b"0100111") : word 7)
              >})
       ));
-    (* C.SWSP => SW *)
+    (* C.SWSP => SW checked *)
     Build_CompInst
       [extensions_all]
       ([
@@ -920,7 +904,7 @@ Definition comp_inst_db
                $$(('b"0100011") : word 7)
              >})
       ));
-    (* C.FSWSP => FSW *)
+    (* C.FSWSP => FSW checked *)
     Build_CompInst
       [["RV32F"; "RV32C"]]
       ([
@@ -939,7 +923,7 @@ Definition comp_inst_db
                $$(('b"0100111") : word 7)
              >})
       ));
-    (* C.SDSP => SD *)
+    (* C.SDSP => SD checked *)
     Build_CompInst
       [["RV64C"]]
       ([
