@@ -98,7 +98,7 @@ Definition comp_inst_db
   := [
     (* C.ADDI4SPN  => ADDI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
          fieldVal comp_inst_opcode_field ('b"00");
          fieldVal comp_inst_funct3_field ('b"000")
@@ -138,7 +138,7 @@ Definition comp_inst_db
       ));
     (* C.LW => LW checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"00");
         fieldVal comp_inst_funct3_field ('b"010")
@@ -212,7 +212,7 @@ Definition comp_inst_db
       ));
     (* C.SW => SW checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"00");
         fieldVal comp_inst_funct3_field ('b"110")
@@ -276,7 +276,7 @@ Definition comp_inst_db
       C.NOP => NOP = ADDI
     *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"000")
@@ -344,7 +344,7 @@ Definition comp_inst_db
       ));
     (* C.LI => ADDI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"010")
@@ -365,7 +365,7 @@ Definition comp_inst_db
       C.LUI => LUI checked
     *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"011")
@@ -400,7 +400,7 @@ Definition comp_inst_db
       ));
     (* C.SRLI => SRLI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -422,7 +422,7 @@ Definition comp_inst_db
       ));
     (* C.SRAI => SRAI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -444,7 +444,7 @@ Definition comp_inst_db
       ));
     (* C.ANDI => ANDI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -465,7 +465,7 @@ Definition comp_inst_db
       ));
     (* C.SUB => SUB checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -489,7 +489,7 @@ Definition comp_inst_db
       ));
     (* C.XOR => XOR checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -513,7 +513,7 @@ Definition comp_inst_db
       ));
     (* C.OR => OR checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -537,7 +537,7 @@ Definition comp_inst_db
       ));
     (* C.AND => AND checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -609,7 +609,7 @@ Definition comp_inst_db
       ));
     (* C.J => JAL checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"101")
@@ -641,7 +641,7 @@ Definition comp_inst_db
       ));
     (* C.BEQZ => BEQ checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"110")
@@ -674,7 +674,7 @@ Definition comp_inst_db
       ));
     (* C.BNEZ => BNE checked*)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"01");
         fieldVal comp_inst_funct3_field ('b"111")
@@ -707,7 +707,7 @@ Definition comp_inst_db
       ));
     (* C.SLLI => SLLI checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"10");
         fieldVal comp_inst_funct3_field ('b"000")
@@ -745,7 +745,7 @@ Definition comp_inst_db
       ));
     (* C.LWSP => LW checked*)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"10");
         fieldVal comp_inst_funct3_field ('b"010")
@@ -797,7 +797,7 @@ Definition comp_inst_db
     (* C.JR and C.MV checked 
        C.JR => JALR *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
         fieldVal comp_inst_opcode_field ('b"10");
         fieldVal comp_inst_funct3_field ('b"100");
@@ -830,7 +830,7 @@ Definition comp_inst_db
        C.JALR => JALR
     *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
          fieldVal comp_inst_opcode_field ('b"10");
          fieldVal comp_inst_funct3_field ('b"100");
@@ -887,7 +887,7 @@ Definition comp_inst_db
       ));
     (* C.SWSP => SW checked *)
     Build_CompInst
-      [extensions_all]
+      extensions_all
       ([
          fieldVal comp_inst_opcode_field ('b"10");
          fieldVal comp_inst_funct3_field ('b"110")
