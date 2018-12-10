@@ -79,7 +79,7 @@ Definition comp_inst_map_reg
        ($$(('b"111") : word 3)) ::= uncomp_inst_reg 15
      }.
 
-Let extensions_all := ["RV32I"; "RV64I"; "Zifencei"; "Zicsr"; "RV32M"; "RV64M"; "RV32A"; "RV64A"; "RV32F"; "RV64F"; "RV32D"; "RV64D"; "RV32C"; "RV64C"].
+Let extensions_all := [["RV32C"]; ["RV64C"]].
 
 Record CompInst := {
   req_exts: list (list string);
