@@ -1002,8 +1002,7 @@ Definition inst_match_enabled_exts
                           :  Extensions
                           <- mode_packet_expr;
                         RetE
-                          (* ((((#mode_packet) @% ext) : Bool @# ty) *)
-                          ((get_struct_field (#mode_packet) ext) &&
+                          ((struct_get_field_default (#mode_packet) ext (Const ty false)) &&
                            (#acc_all)))
                    exts
                    (RetE ($$true));
