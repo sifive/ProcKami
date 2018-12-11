@@ -78,7 +78,8 @@ Section Params.
              "freg2"        :: Data ;
              "csr"          :: Data ;
              "inst"         :: Inst ;
-             "mode"         :: PrivMode }.
+             "mode"         :: PrivMode ;
+             "compressed?"  :: Bool }.
 
   Definition RoutingTagSz := 3.
   Definition RoutingTag := Bit RoutingTagSz.
