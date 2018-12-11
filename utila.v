@@ -17,6 +17,8 @@ Variable ty : Kind -> Type.
   Accepts a Kami predicate [f] and a list of Kami let expressions
   that represent values, and returns a Kami let expression that
   outputs the value that satisfies f.
+
+  Note: [f] must only return true for exactly one value in [xs_exprs].
 *)
 Definition utila_find
   (k : Kind)

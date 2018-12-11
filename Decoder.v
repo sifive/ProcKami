@@ -312,6 +312,15 @@ Definition decode_bstring
              ((#opt_uncomp_inst) @% "data")
              (#bit_string)))).
  
+Definition decode_uncompressed
+  (bit_string_expr : Bit uncomp_inst_width ## ty)
+  :  Bool ## ty
+  := LETE bit_string
+       :  Bit uncomp_inst_width
+       <- bit_string_expr;
+     RetE
+       ((#bit_string) $[1:0] == $$(('b"11") : word 2)).
+
 Close Scope kami_expr.
 
 End func_units.
