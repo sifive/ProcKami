@@ -125,6 +125,11 @@ Definition tag
          xs
          (0, nil)).
 
+Definition tag_func_unit_insts
+  (func_unit : func_unit_type)
+  :  list (tagged_inst_type (fuInputK func_unit) (fuOutputK func_unit))
+  := tag (fuInsts func_unit).
+
 Open Scope kami_expr.
 
 (* decode functions *)

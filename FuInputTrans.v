@@ -5,9 +5,9 @@ Require Import Decoder.
 
 Section input_trans.
 
-Variable Xlen_over_8 : nat.
-
 Variable ty : Kind -> Type.
+
+Variable Xlen_over_8 : nat.
 
 Let func_unit_type
   :  Type
@@ -61,7 +61,8 @@ Definition trans_packet_kind
   :  Kind
   := STRUCT {
        "FuncUnitTag" :: func_unit_id_kind;
-       "Input" :: packed_args_packet_kind
+       "InstTag"     :: inst_id_kind;
+       "Input"       :: packed_args_packet_kind
      }.
 
 Definition opt_trans_packet_kind
@@ -70,7 +71,7 @@ Definition opt_trans_packet_kind
 
 Open Scope kami_expr.
 
-Definition trans_inst_match
+Definition tagged_inst_match
   (sem_input_kind sem_output_kind : Kind)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   (inst_id : inst_id_kind @# ty)
@@ -78,6 +79,14 @@ Definition trans_inst_match
   := RetE
        ((inst_id_bstring (tagged_inst_id inst))
          == inst_id).
+
+Definition tagged_func_unit_match
+  (func_unit : tagged_func_unit_type)
+  (func_unit_id : func_unit_id_kind @# ty)
+  :  Bool ## ty
+  := RetE
+       ((func_unit_id_bstring (tagged_func_unit_id func_unit))
+         == func_unit_id).
 
 Definition trans_inst
   (sem_input_kind sem_output_kind : Kind)
@@ -87,7 +96,7 @@ Definition trans_inst
   :  Maybe packed_args_packet_kind ## ty
   := LETE packet : sem_input_kind <- inputXform (detag_inst inst) exec_context_packet;
      LETE enabled : Bool <-
-       trans_inst_match
+       tagged_inst_match
          inst
          decoder_pkt_inst_id;
      (optional_packet
@@ -135,33 +144,14 @@ Definition trans_insts
          (Maybe packed_args_packet_kind)
          (#packet_bstring)).
 
-Fixpoint tag_insts_aux
-  (sem_input_kind sem_output_kind : Kind)
-  (insts : list (inst_type sem_input_kind sem_output_kind))
-  :  (nat * list (tagged_inst_type sem_input_kind sem_output_kind))
-  := match insts with
-       | nil => (0, nil)
-       | cons inst insts
-         => let (inst_id, tagged_insts) := tag_insts_aux insts in
-            (S inst_id, cons (inst_id, inst) tagged_insts)
-     end.
-
-Definition tag_insts
-  (sem_input_kind sem_output_kind : Kind)
-  (insts : list (inst_type sem_input_kind sem_output_kind))
-  :  list (tagged_inst_type sem_input_kind sem_output_kind)
-  := snd (tag_insts_aux insts).
-
 Definition trans_func_unit_match
   (func_unit : tagged_func_unit_type)
   (decoder_packet_expr : decoder_packet_kind ## ty)
   :  Bool ## ty
   := LETE decoder_packet : decoder_packet_kind <- decoder_packet_expr;
-     RetE
-       ((func_unit_id_bstring
-         (tagged_func_unit_id
-           func_unit))
-         == ((((#decoder_packet) @% "data") @% "FuncUnitTag"):func_unit_id_kind @# ty)).
+     (tagged_func_unit_match
+       func_unit
+       (((#decoder_packet) @% "data") @% "FuncUnitTag")).
         
 Fixpoint trans_func_unit
   (func_unit : tagged_func_unit_type)
@@ -174,7 +164,7 @@ Fixpoint trans_func_unit
      LETE args_packet
        :  Maybe packed_args_packet_kind
        <- trans_insts
-            (tag_insts (fuInsts (detag_func_unit func_unit)))
+            (tag (fuInsts (detag_func_unit func_unit)))
             ((ZeroExtendTruncLsb
               inst_id_width
               (((#decoder_packet) @% "data") @% "InstTag"))
@@ -255,6 +245,7 @@ Definition createInputXForm
        trans_packet_kind
        (STRUCT {
          "FuncUnitTag" ::= (((#decoder_packet) @% "data") @% "FuncUnitTag");
+         "InstTag"     ::= (((#decoder_packet) @% "data") @% "InstTag");
          "Input"       ::= (opt_args_packet @% "data")
        })
        (opt_args_packet @% "valid")).
