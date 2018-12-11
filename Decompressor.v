@@ -3,7 +3,6 @@ Import Syntax.
 Require Import FU.
 Require Import Alu. (* for fieldVal. *)
 Require Import List.
-Require Import Decoder.
 Import ListNotations.
 
 Section decompressor.
@@ -12,15 +11,15 @@ Variable ty : Kind -> Type.
 
 Open Scope kami_expr.
 
-Let comp_inst_width : nat := 16.
+Definition comp_inst_width : nat := 16.
 
-Let uncomp_inst_width : nat := 32.
+Definition uncomp_inst_width : nat := 32.
 
-Let comp_inst_kind : Kind := Bit comp_inst_width.
+Definition comp_inst_kind : Kind := Bit comp_inst_width.
 
-Let uncomp_inst_kind : Kind := Bit uncomp_inst_width.
+Definition uncomp_inst_kind : Kind := Bit uncomp_inst_width.
 
-Let opt_uncomp_inst_kind : Kind := Maybe uncomp_inst_kind.
+Definition opt_uncomp_inst_kind : Kind := Maybe uncomp_inst_kind.
 
 Let packed_opt_uncomp_inst_kind : Kind := Bit (size (opt_uncomp_inst_kind)).
 

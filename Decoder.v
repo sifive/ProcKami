@@ -5,6 +5,7 @@
 *)
 Require Import Kami.All.
 Import Syntax.
+Require Import Decompressor.
 Require Import FU.
 Require Import InstMatcher.
 
@@ -22,10 +23,6 @@ Definition optional_packet
          "valid" ::= enabled;
          "data"  ::= input_packet
        }))%kami_expr.
-
-Let raw_inst_kind
-  :  Kind
-  := Bit InstSz.
 
 (* instruction database entry definitions *)
 
@@ -134,14 +131,14 @@ Open Scope kami_expr.
 
 Definition decode_match_field
   (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
-  (raw_inst_expr : raw_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bool ## ty
   := LETE x <- extractArbitraryRange raw_inst_expr (projT1 field);
      RetE (#x == $$(projT2 field)).
 
 Definition decode_match_fields
   (fields : list ({x: (nat * nat) & word (fst x + 1 - snd x)}))
-  (raw_inst_expr : raw_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bool ## ty
   := fold_left
        (fun (acc_expr : Bool ## ty)
@@ -176,7 +173,7 @@ Definition decode_match_inst
   (sem_input_kind sem_output_kind : Kind)
   (inst : inst_type sem_input_kind sem_output_kind)
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst_expr : raw_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bool ## ty
   := LETE inst_id_match : Bool
        <- decode_match_fields (uniqId inst) raw_inst_expr;
@@ -190,7 +187,7 @@ Definition decode_inst
   (func_unit_id : nat)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst_expr : raw_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE inst_match
        :  Bool
@@ -210,7 +207,7 @@ Definition decode_insts_aux
   (func_unit_id : nat)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst_expr : raw_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bit (size decoder_packet_kind) ## ty
   := fold_left
        (fun (acc_expr : Bit (size decoder_packet_kind) ## ty)
@@ -236,7 +233,7 @@ Definition decode_insts
   (func_unit_id : nat)
   (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst : raw_inst_kind ## ty)
+  (raw_inst : uncomp_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE packet
        :  Bit (size decoder_packet_kind)
@@ -248,7 +245,7 @@ Definition decode_insts
 Fixpoint decode_func_units_aux
   (func_units : list func_unit_type)
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst : raw_inst_kind ## ty)
+  (raw_inst : uncomp_inst_kind ## ty)
   :  Bit (size decoder_packet_kind) ## ty
   := fold_left
        (fun (acc_expr : Bit (size decoder_packet_kind) ## ty)
@@ -275,9 +272,8 @@ Fixpoint decode_func_units_aux
 
 (* a *)
 Definition decode 
-  (func_units : list func_unit_type)
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst : raw_inst_kind ## ty)
+  (raw_inst : uncomp_inst_kind ## ty)
   :  decoder_packet_kind ## ty
   := LETE decoder_packet
        :  Bit (size decoder_packet_kind)
@@ -286,6 +282,31 @@ Definition decode
        (unpack decoder_packet_kind
          (#decoder_packet)).
 
+(*
+  TODO: needs to indicate whether or not the decoded instruction
+  was compressed as this determines where the next instruction should
+  be fetched from.
+*)
+Definition decode_bstring
+  (mode_packet_expr : Extensions ## ty)
+  (bit_string_expr : Bit uncomp_inst_width ## ty)
+  :  decoder_packet_kind ## ty
+  := LETE bit_string
+       :  Bit uncomp_inst_width
+       <- bit_string_expr;
+     let prefix
+       :  Bit comp_inst_width @# ty
+       := (#bit_string) $[15:0] in
+     LETE opt_uncomp_inst
+       :  opt_uncomp_inst_kind
+       <- uncompress mode_packet_expr
+            (RetE prefix);
+     (decode mode_packet_expr
+       (RetE
+         (ITE ((#opt_uncomp_inst) @% "valid")
+             ((#opt_uncomp_inst) @% "data")
+             (#bit_string)))).
+ 
 Close Scope kami_expr.
 
 End func_units.
