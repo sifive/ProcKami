@@ -12,13 +12,24 @@ Section decoder.
 
 Variable ty : Kind -> Type.
 
-Variable Xlen_over_8 : nat.
+Definition optional_packet
+  (packet_type : Kind)
+  (input_packet : packet_type @# ty)
+  (enabled : Bool @# ty)
+  :  Maybe packet_type ## ty
+  := (RetE (
+       STRUCT {
+         "valid" ::= enabled;
+         "data"  ::= input_packet
+       }))%kami_expr.
 
 Let raw_inst_kind
   :  Kind
   := Bit InstSz.
 
 (* instruction database entry definitions *)
+
+Variable Xlen_over_8 : nat.
 
 Let func_unit_type
   :  Type
@@ -65,7 +76,7 @@ Definition inst_id_bstring
 
 (* decoder packets *)
 
-Let decoder_packet_kind
+Definition decoder_packet_kind
   :  Kind
   := Maybe (
        STRUCT {
@@ -75,29 +86,29 @@ Let decoder_packet_kind
 
 (* tagged database entry definitions *)
 
-Let tagged_func_unit_type
+Definition tagged_func_unit_type
   :  Type 
   := prod nat func_unit_type.
 
-Let tagged_func_unit_id (func_unit : tagged_func_unit_type)
+Definition tagged_func_unit_id (func_unit : tagged_func_unit_type)
   :  nat
   := fst func_unit.
 
-Let detag_func_unit (func_unit : tagged_func_unit_type)
+Definition detag_func_unit (func_unit : tagged_func_unit_type)
   :  func_unit_type
   := snd func_unit.
 
-Let tagged_inst_type (sem_input_kind sem_output_kind : Kind)
+Definition tagged_inst_type (sem_input_kind sem_output_kind : Kind)
   :  Type
   := prod nat (inst_type sem_input_kind sem_output_kind).
 
-Let tagged_inst_id
+Definition tagged_inst_id
   (sem_input_kind sem_output_kind : Kind)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   :  nat
   := fst inst.
 
-Let detag_inst
+Definition detag_inst
   (sem_input_kind sem_output_kind : Kind)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   :  inst_type sem_input_kind sem_output_kind
@@ -118,17 +129,6 @@ Definition tag
          (0, nil)).
 
 Open Scope kami_expr.
-
-Definition optional_packet
-  (packet_type : Kind)
-  (input_packet : packet_type @# ty)
-  (enabled : Bool @# ty)
-  :  Maybe packet_type ## ty
-  := RetE (
-       STRUCT {
-         "valid" ::= enabled;
-         "data"  ::= input_packet
-       }).
 
 (* decode functions *)
 

@@ -20,85 +20,28 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
 Let exec_context_packet_kind : Kind
   := ExecContextPkt Xlen_over_8.
 
-Definition optional_packet
-  (packet_type : Kind)
-  (input_packet : packet_type @# ty)
-  (enabled : Bool @# ty)
-  :  Maybe packet_type ## ty
-  := (RetE (
-       STRUCT {
-         "valid" ::= enabled;
-         "data"  ::= input_packet
-       }))%kami_expr.
-
 Section func_units.
 
 (* The functional units that comprise the instruction database. *)
 Parameter func_units : list func_unit_type.
 
-Definition func_unit_id_width
-  :  nat
-  := Nat.log2_up (length func_units).
+Let func_unit_id_width := Decoder.func_unit_id_width ty Xlen_over_8.
 
-Definition inst_id_width
-  :  nat
-  := Nat.log2_up
-       (fold_left
-         (fun (acc : nat) (func_unit : func_unit_type)
-           => max acc (length (fuInsts func_unit)))
-         func_units
-         0).
+Let inst_id_width := Decoder.inst_id_width ty Xlen_over_8.
 
-Definition func_unit_id_kind : Kind := Bit func_unit_id_width.
+Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
 
-Definition inst_id_kind : Kind := Bit inst_id_width.
+Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
 
-(* TODO: update Decoder.v and remove *)
-Let decoder_packet_kind
-  :  Kind
-  := Maybe (
-       STRUCT {
-         "FuncUnitTag" :: func_unit_id_kind;
-         "InstTag"     :: inst_id_kind
-       }).
+Let decoder_packet_kind := Decoder.decoder_packet_kind ty Xlen_over_8.
 
-Open Scope kami_expr.
+Let func_unit_id_bstring := Decoder.func_unit_id_bstring ty Xlen_over_8.
 
-Definition func_unit_id_bstring
-  (func_unit_id : nat)
-  :  func_unit_id_kind @# ty
-  := Const ty (natToWord func_unit_id_width func_unit_id).
+Let inst_id_bstring := Decoder.inst_id_bstring ty Xlen_over_8.
 
-Definition inst_id_bstring
-  (inst_id : nat)
-  :  inst_id_kind @# ty
-  := Const ty (natToWord inst_id_width inst_id).
+Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
-Let tagged_func_unit_type : Type := prod nat func_unit_type.
-
-Let tagged_func_unit_id (func_unit : tagged_func_unit_type)
-  :  nat
-  := fst func_unit.
-
-Let detag_func_unit (func_unit : tagged_func_unit_type)
-  :  func_unit_type
-  := snd func_unit.
-
-Let tagged_inst_type (sem_input_kind sem_output_kind : Kind)
-  :  Type
-  := prod nat (inst_type sem_input_kind sem_output_kind).
-
-Let tagged_inst_id
-  (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
-  :  nat
-  := fst inst.
-
-Let detag_inst
-  (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
-  :  inst_type sem_input_kind sem_output_kind
-  := snd inst.
+Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
 
 Definition packed_args_packet_width
   :  nat
@@ -113,8 +56,6 @@ Definition packed_args_packet_width
 Definition packed_args_packet_kind
   :  Kind
   := Bit packed_args_packet_width.
-
-Close Scope kami_expr.
 
 Definition trans_packet_kind
   :  Kind
@@ -251,7 +192,6 @@ Fixpoint trans_func_unit
            (cons ((#args_packet) @% "valid") 
              (cons ((#decoder_packet) @% "valid") nil))))).
 
-(* TODO: list notation. *)
 Fixpoint trans_func_units_aux
   (func_units : list tagged_func_unit_type)
   (decoder_packet_expr : decoder_packet_kind ## ty)
@@ -311,7 +251,7 @@ Definition createInputXForm
        := unpack
             (Maybe packed_args_packet_kind)
             (#packed_opt_args_packet) in
-     (@optional_packet 
+     (@optional_packet ty
        trans_packet_kind
        (STRUCT {
          "FuncUnitTag" ::= (((#decoder_packet) @% "data") @% "FuncUnitTag");
