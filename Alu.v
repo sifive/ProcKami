@@ -29,16 +29,24 @@ Section Alu.
               "arg1" :: Data ;
               "arg2" :: Bit (Nat.log2_up Xlen)}.
 
+    (* Definition ControlType := STRUCT *)
+    (*                             {"pc" :: Data ; *)
+    (*                              "" *)
+
     Local Open Scope kami_expr.
 
     Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                             "data" ::= val }))]).
     
+    Local Definition pcTag (pc val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
+      (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                            "data" ::= val }))]
+               @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                            "data" ::= pc }))]).
+    
     Definition Add: @FUEntry Xlen_over_8 ty :=
       {| fuName := "add" ;
-         fuInputK := AddType;
-         fuOutputK := Data;
          fuFunc := (fun i => LETE x: AddType <- i;
                                RetE ((#x @% "arg1") + (#x @% "arg2")));
          fuInsts := {| instName     := "addi" ;
@@ -622,68 +630,3 @@ Section Alu.
     Local Close Scope kami_expr.
   End Ty.
 End Alu.
-
-Fixpoint gatherLetExpr (ty: Kind -> Type)
-         (acts: list (string * {k_in: Kind & LetExprSyntax ty k_in})%type)
-         k_out
-         (cont: list (string * {k_in: Kind & k_in @# ty}) -> LetExprSyntax ty k_out):
-            LetExprSyntax ty k_out :=
-  match acts with
-  | nil => cont nil
-  | cons x xs =>
-    (LETE val <- (projT2 (snd x));
-       gatherLetExpr xs (fun vals => cont (cons (fst x, existT _ (projT1 (snd x)) (#val)%kami_expr) vals)))%kami_expr
-  end.
-
-Fixpoint gatherLetExprVec (ty: Kind -> Type) n
-         (acts: Vector.t ({k_in: (string * Kind) & LetExprSyntax ty (snd k_in)})%type n)
-         k_out
-         (cont: Vector.t ({k_in: (string * Kind) & (snd k_in) @# ty}) n -> LetExprSyntax ty k_out):
-            LetExprSyntax ty k_out :=
-  match acts in Vector.t _ n return (Vector.t ({k_in: (string * Kind) & (snd k_in) @# ty}) n ->
-                                     LetExprSyntax ty k_out) -> LetExprSyntax ty k_out with
-  | Vector.nil => fun cont => cont (Vector.nil _)
-  | Vector.cons x _ xs =>
-    fun cont =>
-      (LETE val <- (projT2 x);
-         gatherLetExprVec xs (fun vals => cont
-                                            (Vector.cons _
-                                                         (existT _ (projT1 x) (#val)%kami_expr)
-                                                         _ vals)))%kami_expr
-  end cont.
-
-Definition structFromExprs ty n (ls: Vector.t {k_in: (string * Kind) & (snd k_in) @# ty} n) :=
-  Struct
-    (fun i => snd (Vector.nth (Vector.map (@projT1 _ _) ls) i))
-    (fun j => fst (Vector.nth (Vector.map (@projT1 _ _) ls) j)).
-               
-Definition structFromLetExprs ty n (ls: Vector.t {k_in: (string * Kind) & (snd k_in) ## ty} n) :=
-  Struct
-    (fun i => snd (Vector.nth (Vector.map (@projT1 _ _) ls) i))
-    (fun j => fst (Vector.nth (Vector.map (@projT1 _ _) ls) j)).
-
-Local Open Scope kami_expr.
-Fixpoint gatherLetExprVector (ty: Kind -> Type) n
-         (acts: Vector.t ({k_in: (string * Kind) & LetExprSyntax ty (snd k_in)})%type n)
-         {struct acts}:
-  LetExprSyntax ty (structFromLetExprs acts) :=
-  (match acts in Vector.t _ n return
-         LetExprSyntax ty (structFromLetExprs acts) with
-   | Vector.nil => RetE (Syntax.getStructVal (Vector.nil _))
-   | Vector.cons x n' xs =>
-     (LETE val <- projT2 x;
-        LETE fullStruct <- @gatherLetExprVector ty _ xs;
-        RetE (BuildStruct _ _ (fun i: Fin.t (S n') =>
-                                 match i as il in Fin.t (S nl) return
-                                       forall (xs: Vector.t _ nl),
-                                         ty (structFromLetExprs xs) ->
-                                         (snd (Vector.nth
-                                                 (Vector.map (@projT1 _ _)
-                                                             (Vector.cons _ x _ xs)) il)) @# ty
-                                 with
-                                 | Fin.F1 _ => fun _ _ => #val
-                                 | Fin.FS _ j => fun _ fullStruct => ReadStruct #fullStruct j
-                                 end xs fullStruct))
-     )
-   end).
-Local Close Scope kami_expr.
