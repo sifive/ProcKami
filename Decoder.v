@@ -28,29 +28,30 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
   :  Type
   := @InstEntry Xlen_over_8 ty sem_input_kind sem_output_kind.
 
+Section func_units.
+
 (* instruction database parameters. *)
 
-Variable num_func_units : nat.
+Parameter func_units : list func_unit_type.
 
-Variable num_insts : nat.
-
-(* tagged database entry definitions *)
+(* instruction database ids. *)
 
 Definition func_unit_id_width
   :  nat
-  := Nat.log2_up num_func_units.
+  := Nat.log2_up (length func_units).
 
-Let func_unit_inst_id_width
+Definition inst_id_width
   :  nat
-  := Nat.log2_up num_insts.
+  := Nat.log2_up
+       (fold_left
+         (fun (acc : nat) (func_unit : func_unit_type)
+           => max acc (length (fuInsts func_unit)))
+         func_units
+         0).
 
-Let func_unit_id_kind
-  :  Kind
-  := Bit func_unit_id_width.
+Definition func_unit_id_kind : Kind := Bit func_unit_id_width.
 
-Let func_unit_inst_id_kind
-  :  Kind
-  := Bit func_unit_inst_id_width.
+Definition inst_id_kind : Kind := Bit inst_id_width.
 
 Definition func_unit_id_bstring
   (func_unit_id : nat)
@@ -58,9 +59,21 @@ Definition func_unit_id_bstring
   := Const ty (natToWord func_unit_id_width func_unit_id).
 
 Definition inst_id_bstring
-  (func_unit_inst_id : nat)
-  :  func_unit_inst_id_kind @# ty
-  := Const ty (natToWord func_unit_inst_id_width func_unit_inst_id).
+  (inst_id : nat)
+  :  inst_id_kind @# ty
+  := Const ty (natToWord inst_id_width inst_id).
+
+(* decoder packets *)
+
+Let decoder_packet_kind
+  :  Kind
+  := Maybe (
+       STRUCT {
+         "FuncUnitTag" :: func_unit_id_kind;
+         "InstTag"     :: inst_id_kind
+       }).
+
+(* tagged database entry definitions *)
 
 Let tagged_func_unit_type
   :  Type 
@@ -90,13 +103,19 @@ Let detag_inst
   :  inst_type sem_input_kind sem_output_kind
   := snd inst.
 
-Definition decoder_packet_kind
-  :  Kind
-  := Maybe (
-       STRUCT {
-         "FuncUnitTag" :: func_unit_id_kind;
-         "InstTag"     :: func_unit_inst_id_kind
-       }).
+Definition tag
+  (T : Type)
+  (xs : list T)
+  :  list (nat * T)
+  := snd
+       (fold_left
+         (fun (acc : nat * list (nat * T))
+              (x : T)
+           => let (t, ys)
+                := acc in
+              (S t, ((t, x) :: ys)))
+         xs
+         (0, nil)).
 
 Open Scope kami_expr.
 
@@ -111,31 +130,7 @@ Definition optional_packet
          "data"  ::= input_packet
        }).
 
-Definition tag
-  (T : Type)
-  (init : nat)
-  (xs : list T)
-  :  (nat * list (nat * T))
-  := fold_left
-       (fun (acc : nat * list (nat * T))
-            (x : T)
-         => let (t, ys)
-              := acc in
-            (S t, ((t, x) :: ys)))
-       xs
-       (init, nil).
-
-Definition tag_func_units
-  (func_units : list (func_unit_type))
-  :  list (tagged_func_unit_type)
-  := snd (tag 0 func_units).
-
-Definition tag_insts
-  (sem_input_kind sem_output_kind : Kind)
-  (inst_id_init : nat)
-  (insts : list (inst_type sem_input_kind sem_output_kind))
-  :  nat * list (tagged_inst_type sem_input_kind sem_output_kind)
-  := tag inst_id_init insts.
+(* decode functions *)
 
 Definition decode_match_field
   (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
@@ -250,56 +245,33 @@ Definition decode_insts
        (unpack decoder_packet_kind
          (#packet)).
 
-Definition decode_func_unit
-  (func_unit_id : nat)
-  (inst_id_init : nat)
-  (func_unit : func_unit_type)
-  (mode_packet_expr : Extensions ## ty)
-  (raw_inst : raw_inst_kind ## ty)
-  :  nat * (decoder_packet_kind ## ty)
-  := let (inst_id_next, insts)
-       := tag_insts inst_id_init (fuInsts func_unit) in
-     (inst_id_next,
-       decode_insts
-         func_unit_id
-         insts
-         mode_packet_expr
-         raw_inst).
-
 Fixpoint decode_func_units_aux
   (func_units : list func_unit_type)
   (mode_packet_expr : Extensions ## ty)
   (raw_inst : raw_inst_kind ## ty)
   :  Bit (size decoder_packet_kind) ## ty
-  := snd
-       (fold_left
-         (fun (acc : nat * (Bit (size decoder_packet_kind) ## ty))
-              (func_unit : tagged_func_unit_type)
-           => let (inst_id_init, acc_expr)
-                := acc in
-              let (inst_id_next, decode_func_unit_expr)
-                := decode_func_unit
-                     (tagged_func_unit_id func_unit)
-                     inst_id_init
-                     (detag_func_unit func_unit)
-                     mode_packet_expr
-                     raw_inst in
-              (inst_id_next,
-                LETE func_unit_packet
-                  :  decoder_packet_kind
-                  <- decode_func_unit_expr;
-                LETE acc_packet
-                  :  Bit (size decoder_packet_kind)
-                  <- acc_expr;
-                RetE
-                  (CABit Bor
-                    (cons
-                      (ITE (ReadStruct (#func_unit_packet) Fin.F1)
-                        (pack (#func_unit_packet))
-                        $0)
-                      (cons (#acc_packet) nil)))))
-         (tag_func_units func_units)
-         (0, (RetE (Const ty (wzero _))))).
+  := fold_left
+       (fun (acc_expr : Bit (size decoder_packet_kind) ## ty)
+            (func_unit : tagged_func_unit_type)
+         => LETE func_unit_packet
+              :  decoder_packet_kind
+              <- decode_insts
+                   (tagged_func_unit_id func_unit)
+                   (tag (fuInsts (detag_func_unit func_unit)))
+                   mode_packet_expr
+                   raw_inst;
+            LETE acc_packet
+              :  Bit (size decoder_packet_kind)
+              <- acc_expr;
+            RetE
+              (CABit Bor
+                (cons
+                  (ITE (ReadStruct (#func_unit_packet) Fin.F1)
+                    (pack (#func_unit_packet))
+                    $0)
+                  (cons (#acc_packet) nil))))
+       (tag func_units)
+       (RetE (Const ty (wzero _))).
 
 (* a *)
 Definition decode 
@@ -315,5 +287,7 @@ Definition decode
          (#decoder_packet)).
 
 Close Scope kami_expr.
+
+End func_units.
 
 End decoder.
