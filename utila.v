@@ -141,6 +141,20 @@ Let test_2
   :  test_2_expr ==> (natToWord 4 1)
   := reduce test_2_expr.
 
+Let test_3_expr
+  := LETE packet
+       :  Maybe (Bit 4)
+       <- utila_find_packet 
+            [optional_packet (Const type (natToWord 4 1)) (Const type false);
+             optional_packet (Const type (natToWord 4 2)) (Const type false);
+             optional_packet (Const type (natToWord 4 3)) (Const type false)];
+     RetE
+        ((Var type (SyntaxKind (Maybe (Bit 4))) packet) @% "valid").
+
+Let test_3
+  :  test_3_expr ==> false
+  := reduce test_3_expr.
+
 End utila_find_packet_unittests.
 
 Close Scope kami_expr.

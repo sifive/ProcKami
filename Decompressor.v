@@ -1,5 +1,6 @@
 Require Import Kami.All.
 Import Syntax.
+Require Import utila.
 Require Import FU.
 Require Import Alu. (* for fieldVal. *)
 Require Import List.
@@ -947,17 +948,6 @@ End database.
 
 Section matcher.
 
-Definition optional_packet
-  (packet_type : Kind)
-  (input_packet : packet_type @# ty)
-  (enabled : Bool @# ty)
-  :  Maybe packet_type ## ty
-  := RetE (
-       STRUCT {
-         "valid" ::= enabled;
-         "data"  ::= input_packet
-       }).
-
 Definition raw_comp_inst_match_field
   (raw_comp_inst_expr: comp_inst_kind ## ty)
   (field: {x: (nat * nat) & word (fst x + 1 - snd x)})
@@ -968,47 +958,24 @@ Definition raw_comp_inst_match_id
   (raw_comp_inst_expr: comp_inst_kind ## ty)
   (inst_id : UniqId)
   :  Bool ## ty
-  := fold_left
-       (fun inst_match_expr field 
-         => LETE inst_match : Bool
-            <- inst_match_expr;
-            LETE field_match : Bool
-            <- raw_comp_inst_match_field raw_comp_inst_expr field;
-            RetE
-              (#inst_match && #field_match))
-       inst_id
-       (RetE ($$ true)).
+  := utila_all (map (raw_comp_inst_match_field raw_comp_inst_expr) inst_id).
 
 Definition inst_match_enabled_exts
   (comp_inst_entry : CompInst)
   (mode_packet_expr : Extensions ## ty)
   :  Bool ## ty
-  := fold_left
-       (fun (acc_any_expr : Bool ## ty)
-            (exts : list string)
-         => LETE acc_any
-              :  Bool
-              <- acc_any_expr;
-            LETE exts_match
-              :  Bool
-              <- fold_left
-                   (fun (acc_all_expr : Bool ## ty)
-                        (ext : string)
-                     => LETE acc_all
-                          :  Bool
-                          <- acc_all_expr;
-                        LETE mode_packet
-                          :  Extensions
-                          <- mode_packet_expr;
-                        RetE
-                          ((struct_get_field_default (#mode_packet) ext (Const ty false)) &&
-                           (#acc_all)))
-                   exts
-                   (RetE ($$true));
-            RetE
-              ((#exts_match) || (#acc_any)))
-       (req_exts comp_inst_entry)
-       (RetE ($$false)).
+  := LETE mode_packet
+       :  Extensions
+       <- mode_packet_expr;
+     utila_any
+       (map 
+         (fun exts : list string
+           => utila_all
+                (map
+                  (fun ext : string
+                    => RetE (struct_get_field_default (#mode_packet) ext ($$false)))
+                  exts))
+         (req_exts comp_inst_entry)).
 
 Definition decomp_inst
   (comp_inst_entry : CompInst)
@@ -1035,44 +1002,16 @@ Definition decomp_inst
        (#raw_uncomp_inst)
        ((#raw_comp_inst_match) && (#exts_match)).
 
-Definition decomp_aux
-  (comp_inst_entries : list CompInst)
-  (mode_packet_expr : Extensions ## ty)
-  (raw_comp_inst_expr : comp_inst_kind ## ty)
-  :  packed_opt_uncomp_inst_kind ## ty
-  := fold_right
-       (fun
-         (comp_inst_entry : CompInst)
-         (acc_uncomp_inst_expr : packed_opt_uncomp_inst_kind ## ty)
-         => LETE uncomp_inst_expr
-              :  opt_uncomp_inst_kind 
-              <- decomp_inst comp_inst_entry mode_packet_expr raw_comp_inst_expr;
-            LETE acc_uncomp_inst_expr
-              :  packed_opt_uncomp_inst_kind
-              <- acc_uncomp_inst_expr;
-            RetE
-              (CABit Bor
-                (cons
-                  (ITE
-                    (ReadStruct (#uncomp_inst_expr) Fin.F1)
-                    (pack (#uncomp_inst_expr))
-                    $0)
-                  (cons (#acc_uncomp_inst_expr) nil))))
-        (RetE (Const ty (wzero _)))
-        comp_inst_entries.
-
 (* c *)
 Definition uncompress
   (mode_packet_expr : Extensions ## ty)
-  (raw_comp_inst : comp_inst_kind ## ty)
+  (raw_comp_inst_expr : comp_inst_kind ## ty)
   :  opt_uncomp_inst_kind ## ty
-  := LETE packed_uncomp_inst
-       :  packed_opt_uncomp_inst_kind
-       <- decomp_aux comp_inst_db mode_packet_expr raw_comp_inst;
-     RetE
-       (unpack
-         (opt_uncomp_inst_kind)
-         (#packed_uncomp_inst)).
+  := utila_find_packet
+       (map
+         (fun comp_inst_entry
+           => decomp_inst comp_inst_entry mode_packet_expr raw_comp_inst_expr)
+         comp_inst_db).
 
 End matcher.
 
