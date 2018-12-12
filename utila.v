@@ -24,6 +24,31 @@ Definition optional_packet
          "data"  ::= input_packet
        }))%kami_expr.
 
+Definition utila_foldr
+  (elem_kind res_kind : Kind)
+  (f : elem_kind @# ty -> res_kind @# ty -> res_kind @# ty)
+  (init : res_kind @# ty)
+  :  list (elem_kind ## ty) -> res_kind ## ty
+  := fold_right
+       (fun (x_expr : elem_kind ## ty)
+            (acc_expr : res_kind ## ty)
+         => LETE x
+              :  elem_kind
+              <- x_expr;
+            LETE acc
+              :  res_kind
+              <- acc_expr;
+            RetE (f (#x) (#acc)))
+       (RetE init).
+
+Definition utila_all
+  :  list (Bool ## ty) -> Bool ## ty
+  := utila_foldr (fun x acc => x && acc) ($$true).
+
+Definition utila_any
+  :  list (Bool ## ty) -> Bool ## ty
+  := utila_foldr (fun x acc => x || acc) ($$true).
+
 (*
   Accepts a Kami predicate [f] and a list of Kami let expressions
   that represent values, and returns a Kami let expression that
@@ -38,18 +63,11 @@ Definition utila_find
   (xs_exprs : list (k ## ty))
   :  k ## ty
   := LETE y
-       : Bit (size k)
-       <- fold_right
-            (fun (x_expr : k ## ty)
-                 (acc_expr : Bit (size k) ## ty)
-              => LETE x : k <- x_expr;
-                 LETE acc : Bit (size k) <- acc_expr;
-                 RetE
-                   (CABit Bor
-                     [(ITE (f (#x)) (pack (#x)) ($0));
-                      (#acc)]))
-            (RetE (Const ty (wzero _)))
-            xs_exprs;
+       :  Bit (size k)
+       <- (utila_foldr
+            (fun x acc => ((ITE (f x) (pack x) ($0)) | acc))
+            ($0)
+            xs_exprs);
      RetE (unpack k (#y)).
 
 (*
