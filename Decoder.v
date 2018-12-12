@@ -139,8 +139,8 @@ Open Scope kami_expr.
 (* decode functions *)
 
 Definition decode_match_field
-  (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
   (raw_inst_expr : uncomp_inst_kind ## ty)
+  (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
   :  Bool ## ty
   := LETE x <- extractArbitraryRange raw_inst_expr (projT1 field);
      RetE (#x == $$(projT2 field)).
@@ -149,34 +149,20 @@ Definition decode_match_fields
   (fields : list ({x: (nat * nat) & word (fst x + 1 - snd x)}))
   (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bool ## ty
-  := fold_left
-       (fun (acc_expr : Bool ## ty)
-            (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
-         => LETE acc : Bool
-              <- acc_expr;
-            LETE field_match : Bool
-              <- decode_match_field field raw_inst_expr;
-            RetE (#acc && #field_match))
-       fields
-       (RetE ($$true)).
+  := utila_all (map (decode_match_field raw_inst_expr) fields).
 
 Definition decode_match_enabled_exts
   (sem_input_kind sem_output_kind : Kind)
   (inst : inst_type sem_input_kind sem_output_kind)
   (mode_packet_expr : Extensions ## ty)
   :  Bool ## ty
-  := fold_left
-       (fun (acc_expr : Bool ## ty)
-            (ext : string)
-         => LETE acc : Bool
-              <- acc_expr;
-            LETE mode_packet : Extensions
-              <- mode_packet_expr;
-            RetE
-              ((struct_get_field_default (#mode_packet) ext (Const ty false)) ||
-                (#acc)))
-       (extensions inst)
-       (RetE ($$false)).
+  := LETE mode_packet : Extensions
+       <- mode_packet_expr;
+     utila_any
+       (map
+         (fun ext : string
+           => RetE (struct_get_field_default (#mode_packet) ext ($$false)))
+         (extensions inst)).
 
 Definition decode_match_inst
   (sem_input_kind sem_output_kind : Kind)
