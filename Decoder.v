@@ -117,6 +117,8 @@ Definition tag
          xs
          (0, nil)).
 
+Section tag_unittests.
+
 Open Scope list_scope.
 
 Let tag_unittest_0
@@ -124,6 +126,8 @@ Let tag_unittest_0
   := eq_refl (tag [0; 1; 2]).
 
 Close Scope list_scope.
+
+End tag_unittests.
 
 Definition tag_func_unit_insts
   (func_unit : func_unit_type)
@@ -207,91 +211,23 @@ Definition decode_inst
        })
        (#inst_match).
 
-Definition decode_insts_aux
-  (sem_input_kind sem_output_kind : Kind)
-  (func_unit_id : nat)
-  (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
-  (mode_packet_expr : Extensions ## ty)
-  (raw_inst_expr : uncomp_inst_kind ## ty)
-  :  Bit (size decoder_packet_kind) ## ty
-  := fold_left
-       (fun (acc_expr : Bit (size decoder_packet_kind) ## ty)
-            (inst : tagged_inst_type sem_input_kind sem_output_kind)
-         => LETE packet
-              :  decoder_packet_kind
-              <- decode_inst func_unit_id inst mode_packet_expr raw_inst_expr;
-            LETE acc
-              :  Bit (size (decoder_packet_kind))
-              <- acc_expr;
-            RetE
-              (CABit Bor
-                (cons
-                  (ITE (ReadStruct (#packet) Fin.F1)
-                    (pack (#packet))
-                    $0)
-                  (cons (#acc) nil))))
-       insts
-       (RetE (Const ty (wzero _))).
-
-Definition decode_insts
-  (sem_input_kind sem_output_kind : Kind)
-  (func_unit_id : nat)
-  (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
-  (mode_packet_expr : Extensions ## ty)
-  (raw_inst : uncomp_inst_kind ## ty)
-  :  decoder_packet_kind ## ty
-  := LETE packet
-       :  Bit (size decoder_packet_kind)
-       <- decode_insts_aux func_unit_id insts mode_packet_expr raw_inst;
-     RetE
-       (unpack decoder_packet_kind
-         (#packet)).
-
-Fixpoint decode_func_units_aux
-  (func_units : list func_unit_type)
-  (mode_packet_expr : Extensions ## ty)
-  (raw_inst : uncomp_inst_kind ## ty)
-  :  Bit (size decoder_packet_kind) ## ty
-  := fold_left
-       (fun (acc_expr : Bit (size decoder_packet_kind) ## ty)
-            (func_unit : tagged_func_unit_type)
-         => LETE func_unit_packet
-              :  decoder_packet_kind
-              <- decode_insts
-                   (tagged_func_unit_id func_unit)
-                   (tag (fuInsts (detag_func_unit func_unit)))
-                   mode_packet_expr
-                   raw_inst;
-            LETE acc_packet
-              :  Bit (size decoder_packet_kind)
-              <- acc_expr;
-            RetE
-              (CABit Bor
-                (cons
-                  (ITE (ReadStruct (#func_unit_packet) Fin.F1)
-                    (pack (#func_unit_packet))
-                    $0)
-                  (cons (#acc_packet) nil))))
-       (tag func_units)
-       (RetE (Const ty (wzero _))).
-
 (* a *)
 Definition decode 
   (mode_packet_expr : Extensions ## ty)
-  (raw_inst : uncomp_inst_kind ## ty)
+  (raw_inst_expr : uncomp_inst_kind ## ty)
   :  decoder_packet_kind ## ty
-  := LETE decoder_packet
-       :  Bit (size decoder_packet_kind)
-       <- decode_func_units_aux func_units mode_packet_expr raw_inst;
-     RetE
-       (unpack decoder_packet_kind
-         (#decoder_packet)).
+  := utila_find_packet
+       (map
+         (fun func_unit
+           => utila_find_packet
+                (map
+                  (fun inst
+                    => decode_inst
+                         (tagged_func_unit_id func_unit)
+                         inst mode_packet_expr raw_inst_expr)
+                  (tag (fuInsts (detag_func_unit func_unit)))))
+         (tag func_units)).
 
-(*
-  TODO: needs to indicate whether or not the decoded instruction
-  was compressed as this determines where the next instruction should
-  be fetched from.
-*)
 Definition decode_bstring
   (mode_packet_expr : Extensions ## ty)
   (bit_string_expr : Bit uncomp_inst_width ## ty)
