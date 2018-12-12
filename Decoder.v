@@ -5,6 +5,9 @@
 *)
 Require Import Kami.All.
 Import Syntax.
+Require Import List.
+Import ListNotations.
+Require Import utila.
 Require Import Decompressor.
 Require Import FU.
 Require Import InstMatcher.
@@ -12,17 +15,6 @@ Require Import InstMatcher.
 Section decoder.
 
 Variable ty : Kind -> Type.
-
-Definition optional_packet
-  (packet_type : Kind)
-  (input_packet : packet_type @# ty)
-  (enabled : Bool @# ty)
-  :  Maybe packet_type ## ty
-  := (RetE (
-       STRUCT {
-         "valid" ::= enabled;
-         "data"  ::= input_packet
-       }))%kami_expr.
 
 (* instruction database entry definitions *)
 
@@ -121,9 +113,17 @@ Definition tag
               (x : T)
            => let (t, ys)
                 := acc in
-              (S t, ((t, x) :: ys)))
+              (S t, (ys ++ [(t, x)])))
          xs
          (0, nil)).
+
+Open Scope list_scope.
+
+Let tag_unittest_0
+  :  tag [0; 1; 2] = [(0,0);(1,1);(2,2)]
+  := eq_refl (tag [0; 1; 2]).
+
+Close Scope list_scope.
 
 Definition tag_func_unit_insts
   (func_unit : func_unit_type)
