@@ -148,10 +148,18 @@ Section Params.
                 "exception" ::= Invalid }).
     
     Local Close Scope kami_expr.
+
+    Definition MemoryInput := STRUCT {
+                                  "mem" :: Data ;
+                                  "reg" :: Data }.
+
+    Definition MaskedMem := STRUCT {
+                                "data" :: Data ;
+                                "mask" :: Array Xlen_over_8 Bool }.
     
-    Record LoadXform :=
-      { loadK: Kind ;
-        loadXform: loadK @# ty -> Data ## ty }.
+    Definition MemoryOutput := STRUCT {
+                                   "mem" :: Maybe MaskedMem ;
+                                   "reg" :: Maybe Data }.
     
     Record InstHints :=
       { hasRs1      : bool ;
@@ -191,7 +199,7 @@ Section Params.
         uniqId       : UniqId ;        
         inputXform   : ExecContextPkt ## ty -> ik ## ty ;
         outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
-        optMemXform  : option MemXform ;
+        optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
         instHints    : InstHints }.
 
     Record FUEntry :=

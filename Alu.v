@@ -82,7 +82,7 @@ Section Alu.
                                                              }): AddType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                             RetE (intRegTag #result)) ;
-                       optLoadXform := None ;
+                       optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRd := true]
                     |} ::
                        {| instName     := "slti" ;
@@ -98,7 +98,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "sltiu" ;
@@ -114,7 +114,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "add" ;
@@ -129,7 +129,7 @@ Section Alu.
                                                                 }): AddType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "sub" ;
@@ -144,7 +144,7 @@ Section Alu.
                                                                 }): AddType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "slt" ;
@@ -160,7 +160,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "sltu" ;
@@ -176,7 +176,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- ZeroExtendTruncMsb 1 #result;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "addiw" ;
@@ -194,7 +194,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "addw" ;
@@ -211,7 +211,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "subw" ;
@@ -229,7 +229,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "lui" ;
@@ -244,7 +244,7 @@ Section Alu.
                                                                 }): AddType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
                        {| instName     := "auipc" ;
@@ -259,7 +259,7 @@ Section Alu.
                                                                 }): AddType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
                        nil
@@ -286,7 +286,7 @@ Section Alu.
                                                              }): LogicalType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                             RetE (intRegTag #result)) ;
-                       optLoadXform := None ;
+                       optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRd := true]
                     |} ::
                        {| instName     := "ori" ;
@@ -301,7 +301,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "andi" ;
@@ -316,7 +316,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "xor" ;
@@ -331,7 +331,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "ori" ;
@@ -346,7 +346,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "andi" ;
@@ -361,7 +361,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        nil |}.
@@ -390,7 +390,7 @@ Section Alu.
                                                              }): ShiftType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                             RetE (intRegTag #result)) ;
-                       optLoadXform := None ;
+                       optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRd := true]
                     |} ::
                        {| instName     := "srli" ;
@@ -409,7 +409,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "srai" ;
@@ -428,7 +428,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "sll" ;
@@ -447,7 +447,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "srl" ;
@@ -466,7 +466,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "sra" ;
@@ -485,7 +485,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "slli" ;
@@ -504,7 +504,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "srli" ;
@@ -523,7 +523,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "srai" ;
@@ -542,7 +542,7 @@ Section Alu.
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                                RetE (intRegTag #result)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "slliw" ;
@@ -564,7 +564,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "srliw" ;
@@ -586,7 +586,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "sraiw" ;
@@ -608,7 +608,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
                        {| instName     := "sllw" ;
@@ -630,7 +630,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "srlw" ;
@@ -652,7 +652,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        {| instName     := "sraw" ;
@@ -674,7 +674,7 @@ Section Alu.
                                                                     SignExtendTruncLsb Xlen
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
                        nil
@@ -734,7 +734,7 @@ Section Alu.
                                                 fieldVal funct3Field ('b"000") :: nil ;
                        inputXform   := branchInput $BeqOp ;
                        outputXform  := branchTag ;
-                       optLoadXform := None ;
+                       optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                     |} ::
                        {| instName     := "bne" ;
@@ -744,7 +744,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") :: nil ;
                           inputXform   := branchInput $BneOp ;
                           outputXform  := branchTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
                        {| instName     := "blt" ;
@@ -754,7 +754,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"100") :: nil ;
                           inputXform   := branchInput $BltOp ;
                           outputXform  := branchTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
                        {| instName     := "bge" ;
@@ -764,7 +764,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") :: nil ;
                           inputXform   := branchInput $BgeOp ;
                           outputXform  := branchTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
                        {| instName     := "bltu" ;
@@ -774,7 +774,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"110") :: nil ;
                           inputXform   := branchInput $BltuOp ;
                           outputXform  := branchTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
                        {| instName     := "bgeu" ;
@@ -784,7 +784,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"111") :: nil ;
                           inputXform   := branchInput $BgeuOp ;
                           outputXform  := branchTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
                        nil |}.
@@ -804,7 +804,7 @@ Section Alu.
          fuFunc := (fun i => LETE x: JumpInputType <- i;
                                LETC newPc: VAddr <- (#x @% "pc") + (#x @% "reg" + #x @% "offset") ;
                                LETC retPc: VAddr <- (#x @% "pc") + (IF #x @% "compressed?" then $2 else $4) ;
-                               LETC retVal: JumpOutputType <- (STRUCT{"misaligned?" ::= #x @% "instMisalignedException?" && ((ZeroExtendTruncLsb 2 #newPc)$[1:1] != $0);
+                               LETC retVal: JumpOutputType <- (STRUCT{"misaligned?" ::= #x @% "misalignedException?" && ((ZeroExtendTruncLsb 2 #newPc)$[1:1] != $0);
                                                                       "newPc" ::= #newPc ;
                                                                       "retPc" ::= #retPc }) ;
                                RetE #retVal) ;
@@ -829,7 +829,7 @@ Section Alu.
                                             RetE #inpVal
                                        ) ;
                        outputXform  := jumpTag ;
-                       optLoadXform := None ;
+                       optMemXform  := None ;
                        instHints    := falseHints[hasRd := true]
                     |} ::
                        {| instName     := "jalr" ;
@@ -851,7 +851,7 @@ Section Alu.
                                                RetE #inpVal
                                           ) ;
                           outputXform  := jumpTag ;
-                          optLoadXform := None ;
+                          optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
                        nil |}.
