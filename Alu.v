@@ -24,26 +24,48 @@ Section Alu.
     Definition AndOp := 3.
 
     Definition ShiftType :=
-      STRUCT {"right?" :: Bool ;
-              "arith?" :: Bool ;
-              "arg1" :: Data ;
-              "arg2" :: Bit (Nat.log2_up Xlen)}.
+      STRUCT { "right?" :: Bool ;
+               "arith?" :: Bool ;
+               "arg1" :: Data ;
+               "arg2" :: Bit (Nat.log2_up Xlen)}.
 
-    (* Definition ControlType := STRUCT *)
-    (*                             {"pc" :: Data ; *)
-    (*                              "" *)
+    Definition BranchInputType :=
+      STRUCT { "op" :: Bit 3 ;
+               "pc" :: VAddr ;
+               "offset" :: VAddr ;
+               "compressed?" :: Bool ;
+               "misalignedException?" :: Bool ;
+               "reg1" :: Data ;
+               "reg2" :: Data }.
+
+    Definition BranchOutputType :=
+      STRUCT { "misaligned?" :: Bool ;
+               "taken?" :: Bool ;
+               "newPc" :: VAddr }.
+
+    Definition BeqOp := 0.
+    Definition BneOp := 1.
+    Definition BltOp := 4.
+    Definition BgeOp := 5.
+    Definition BltuOp := 6.
+    Definition BgeuOp := 7.
+
+    Definition JumpInputType :=
+      STRUCT { "pc" :: VAddr ;
+               "reg" :: VAddr ;
+               "offset" :: VAddr ;
+               "compressed?" :: Bool ;
+               "misalignedException?" :: Bool }.
+
+    Definition JumpOutputType :=
+      STRUCT { "misaligned?" :: Bool ;
+               "newPc" :: VAddr ;
+               "retPc" :: VAddr }.
 
     Local Open Scope kami_expr.
-
     Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                             "data" ::= val }))]).
-    
-    Local Definition pcTag (pc val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
-      (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                            "data" ::= val }))]
-               @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                                            "data" ::= pc }))]).
     
     Definition Add: @FUEntry Xlen_over_8 ty :=
       {| fuName := "add" ;
@@ -210,10 +232,40 @@ Section Alu.
                           optLoadXform := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
+                       {| instName     := "lui" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil ;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"01101") :: nil ;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb
+                                                                                       Xlen
+                                                                                       ({< UniBit (TruncMsb 12 20) (#gcp @% "inst"), $$ (natToWord (Xlen - 20) 0) >}) ;
+                                                                          "arg2" ::= $0
+                                                                }): AddType @# _)) ;
+                          outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
+                                                               RetE (intRegTag #result)) ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRd := true]
+                       |} ::
+                       {| instName     := "auipc" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil ;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"00101") :: nil ;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb
+                                                                                       Xlen
+                                                                                       ({< UniBit (TruncMsb 12 20) (#gcp @% "inst"), $$ (natToWord (Xlen - 20) 0) >}) ;
+                                                                          "arg2" ::= #gcp @% "pc"
+                                                                }): AddType @# _)) ;
+                          outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
+                                                               RetE (intRegTag #result)) ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRd := true]
+                       |} ::
                        nil
                        
       |}.
-  
+    
     Definition Logical: @FUEntry Xlen_over_8 ty :=
       {| fuName := "logical" ;
          fuFunc := (fun i => LETE x: LogicalType <- i;
@@ -627,6 +679,184 @@ Section Alu.
                        |} ::
                        nil
       |}.
+
+    Local Definition branchOffset (inst: Inst @# ty) :=
+      LETC funct7v: Bit 7 <- funct7 inst;
+        LETC rdv: Bit 5 <- rd inst;
+        RetE ({<#funct7v$[6:6], (#rdv$[0:0]), (#funct7v$[5:0]), (#rdv$[4:1]), $$ WO~0>}).
+
+    Local Definition branchInput (op: Bit 3 @# ty) (gcp: ExecContextPkt Xlen_over_8 ## ty): BranchInputType ## ty :=
+      LETE x: ExecContextPkt Xlen_over_8 <- gcp;
+        LETE bOffset <- branchOffset (#x @% "inst");
+        RetE ((STRUCT { "op" ::= op;
+                        "pc" ::= #x @% "pc" ;
+                        "offset" ::= SignExtendTruncLsb Xlen #bOffset ;
+                        "compressed?" ::= #x @% "compressed?" ;
+                        "misalignedException?" ::= #x @% "instMisalignedException?" ;
+                        "reg1" ::= #x @% "reg1" ;
+                        "reg2" ::= #x @% "reg2"
+              }): BranchInputType @# ty).
+
+    Local Definition branchTag (branchOut: BranchOutputType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
+      LETE bOut <- branchOut;
+        RetE (noUpdPkt@%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                                   "data" ::= #bOut @% "newPc" }))]
+                      @%["taken?" <- #bOut @% "taken?"]
+                      @%["exception" <- STRUCT {"valid" ::= (#bOut @% "misaligned?") ;
+                                                "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
+
+    Definition Branch: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "branch" ;
+         fuFunc := (fun i => LETE x: BranchInputType <- i;
+                               LETC subSigned <- SignExtend 1 (#x @% "reg1") - SignExtend 1 (#x @% "reg2");
+                               LETC sub <- ZeroExtend 1 (#x @% "reg1") - ZeroExtend 1 (#x @% "reg2");
+                               LETC taken: Bool <- (((#x @% "op" == $BeqOp) && (#sub == $0))
+                                                    || ((#x @% "op" == $BneOp) && (#sub != $0))
+                                                    || ((#x @% "op" == $BltOp) && (UniBit (TruncMsb _ 1) (#subSigned) != $0))
+                                                    || ((#x @% "op" == $BgeOp) && (UniBit (TruncMsb _ 1) (#subSigned) == $0))
+                                                    || ((#x @% "op" == $BltuOp) && (UniBit (TruncMsb _ 1) (#sub) != $0))
+                                                    || ((#x @% "op" == $BgeuOp) && (UniBit (TruncMsb _ 1) (#sub) == $0))) ;
+                               LETC newOffset: VAddr <- (IF #taken
+                                                         then #x @% "offset"
+                                                         else (IF #x @% "compressed?"
+                                                               then $2
+                                                               else $4)) ;
+                               LETC newPc: VAddr <- (#x @% "pc") + #newOffset ;
+                               LETC retVal: BranchOutputType <- (STRUCT{"misaligned?" ::= (#x @% "misalignedException?") && ((ZeroExtendTruncLsb 2 #newOffset)$[1:1] != $0) ;
+                                                                        "taken?" ::= #taken ;
+                                                                        "newPc" ::= #newPc }) ;
+                               RetE #retVal
+                   ) ;
+         fuInsts := {| instName     := "beq" ;
+                       extensions   := "RV32I" :: "RV64I" :: nil;
+                       uniqId       := fieldVal instSizeField ('b"11") ::
+                                                fieldVal opcodeField ('b"11000") ::
+                                                fieldVal funct3Field ('b"000") :: nil ;
+                       inputXform   := branchInput $BeqOp ;
+                       outputXform  := branchTag ;
+                       optLoadXform := None ;
+                       instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                    |} ::
+                       {| instName     := "bne" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"11000") ::
+                                                   fieldVal funct3Field ('b"001") :: nil ;
+                          inputXform   := branchInput $BneOp ;
+                          outputXform  := branchTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                       |} ::
+                       {| instName     := "blt" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"11000") ::
+                                                   fieldVal funct3Field ('b"100") :: nil ;
+                          inputXform   := branchInput $BltOp ;
+                          outputXform  := branchTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                       |} ::
+                       {| instName     := "bge" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"11000") ::
+                                                   fieldVal funct3Field ('b"101") :: nil ;
+                          inputXform   := branchInput $BgeOp ;
+                          outputXform  := branchTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                       |} ::
+                       {| instName     := "bltu" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"11000") ::
+                                                   fieldVal funct3Field ('b"110") :: nil ;
+                          inputXform   := branchInput $BltuOp ;
+                          outputXform  := branchTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                       |} ::
+                       {| instName     := "bgeu" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"11000") ::
+                                                   fieldVal funct3Field ('b"111") :: nil ;
+                          inputXform   := branchInput $BgeuOp ;
+                          outputXform  := branchTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRs1 := true][hasRs2 := true]
+                       |} ::
+                       nil |}.
+    
+    Local Definition jumpTag (jumpOut: JumpOutputType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
+      LETE jOut <- jumpOut;
+        RetE (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                                   "data" ::= #jOut @% "retPc" }))]
+                      @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                                   "data" ::= #jOut @% "newPc" }))]
+                      @%["taken?" <- $$ true]
+                      @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
+                                                "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
+
+    Definition Jump: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "jump" ;
+         fuFunc := (fun i => LETE x: JumpInputType <- i;
+                               LETC newPc: VAddr <- (#x @% "pc") + (#x @% "reg" + #x @% "offset") ;
+                               LETC retPc: VAddr <- (#x @% "pc") + (IF #x @% "compressed?" then $2 else $4) ;
+                               LETC retVal: JumpOutputType <- (STRUCT{"misaligned?" ::= #x @% "instMisalignedException?" && ((ZeroExtendTruncLsb 2 #newPc)$[1:1] != $0);
+                                                                      "newPc" ::= #newPc ;
+                                                                      "retPc" ::= #retPc }) ;
+                               RetE #retVal) ;
+         fuInsts := {| instName     := "jal" ;
+                       extensions   := "RV32I" :: "RV64I" :: nil;
+                       uniqId       := fieldVal instSizeField ('b"11") ::
+                                                fieldVal opcodeField ('b"1101111") :: nil ;
+                       inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
+                                          LETE x <- gcp;
+                                            LETC inst: Inst <- #x @% "inst";
+                                            LETC funct7v: Bit 7 <- funct7 #inst;
+                                            LETC rs2v: Bit 5 <- rs2 #inst;
+                                            LETC rs1v: Bit 5 <- rs1 #inst;
+                                            LETC funct3v: Bit 3 <- funct3 #inst;
+                                            LETC imm <- {< ( #funct7v$[6:6]), (#rs1v), (#funct3v), (#rs2v$[0:0]), (#funct7v$[5:0]), (#rs2v$[4:1]), $$ WO~0 >} ;
+                                            LETC offset <- SignExtendTruncLsb Xlen #imm ;
+                                            LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
+                                                                                   "reg" ::= $0 ;
+                                                                                   "offset" ::= #offset ;
+                                                                                   "compressed?" ::= #x @% "compressed?" ;
+                                                                                   "misalignedException?" ::= #x @% "instMisalignedException?" } ;
+                                            RetE #inpVal
+                                       ) ;
+                       outputXform  := jumpTag ;
+                       optLoadXform := None ;
+                       instHints    := falseHints[hasRd := true]
+                    |} ::
+                       {| instName     := "jalr" ;
+                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          uniqId       := fieldVal instSizeField ('b"11") ::
+                                                   fieldVal opcodeField ('b"1101111") :: nil ;
+                          inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
+                                             LETE x <- gcp;
+                                               LETC inst: Inst <- #x @% "inst";
+                                               LETC funct7v: Bit 7 <- funct7 #inst;
+                                               LETC rs2v: Bit 5 <- rs2 #inst;
+                                               LETC imm <- {< #funct7v, #rs2v >} ;
+                                               LETC offset <- SignExtendTruncLsb Xlen #imm ;
+                                               LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
+                                                                                      "reg" ::= #x @% "reg1" ;
+                                                                                      "offset" ::= #offset ;
+                                                                                      "compressed?" ::= #x @% "compressed?" ;
+                                                                                      "misalignedException?" ::= #x @% "instMisalignedException?" } ;
+                                               RetE #inpVal
+                                          ) ;
+                          outputXform  := jumpTag ;
+                          optLoadXform := None ;
+                          instHints    := falseHints[hasRd := true]
+                       |} ::
+                       nil |}.
+
+
     Local Close Scope kami_expr.
   End Ty.
 End Alu.

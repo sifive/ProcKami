@@ -35,6 +35,22 @@ Section Params.
 
   Definition Exception := (Bit 4).
 
+  Definition InstAddrMisaligned := 0.
+  Definition InstAccessFault    := 1.
+  Definition IllegalInst        := 2.
+  Definition Breakpoint         := 3.
+  Definition LoadAddrMisaligned := 4.
+  Definition LocalAccessFault   := 5.
+  Definition SAmoAddrMisaligned := 6.
+  Definition SAmoAccessFault    := 7.
+  Definition ECallU             := 8.
+  Definition ECallS             := 9.
+  Definition ECallH             := 10.
+  Definition ECallM             := 11.
+  Definition InstPageFault      := 12.
+  Definition LoadPageFault      := 13.
+  Definition SAmoPageFault      := 15.
+
   Definition MemOp :=
     STRUCT { "sub_opcode" :: Bit 2 ;
              "funct3"     :: Bit 3 ;
@@ -59,7 +75,7 @@ Section Params.
     Definition instSize := inst$[fst instSizeField: snd instSizeField].
     Definition opcode := inst$[fst opcodeField: snd opcodeField].
     Definition funct3 := inst$[fst funct3Field: snd funct3Field].
-    Definition funct7 := inst$[fst funct7Field: snd funct5Field].
+    Definition funct7 := inst$[fst funct7Field: snd funct7Field].
     Definition funct6 := inst$[fst funct6Field: snd funct6Field].
     Definition funct5 := inst$[fst funct5Field: snd funct5Field].
     Definition rs1 := inst$[fst rs1Field: snd rs1Field].
@@ -71,15 +87,17 @@ Section Params.
   End Fields.
 
   Definition ExecContextPkt :=
-    STRUCT { "pc"           :: VAddr ;
-             "reg1"         :: Data ;
-             "reg2"         :: Data ;
-             "freg1"        :: Data ;
-             "freg2"        :: Data ;
-             "csr"          :: Data ;
-             "inst"         :: Inst ;
-             "mode"         :: PrivMode ;
-             "compressed?"  :: Bool }.
+    STRUCT { "pc"                       :: VAddr ;
+             "reg1"                     :: Data ;
+             "reg2"                     :: Data ;
+             "freg1"                    :: Data ;
+             "freg2"                    :: Data ;
+             "csr"                      :: Data ;
+             "inst"                     :: Inst ;
+             "instMisalignedException?" :: Bool ;
+             "memMisalignedException?"  :: Bool ;
+             "mode"                     :: PrivMode ;
+             "compressed?"              :: Bool }.
 
   Definition RoutingTagSz := 3.
   Definition RoutingTag := Bit RoutingTagSz.
@@ -98,6 +116,7 @@ Section Params.
              "val2"       :: Maybe RoutedReg ;
              "memOp"      :: MemOp ;
              "memBitMask" :: DataMask ;
+             "taken?"     :: Bool ;
              "exception"  :: Maybe Exception }.
 
   Section Ty.
@@ -125,56 +144,9 @@ Section Params.
                 "val2" ::= @Invalid ty _ ;
                 "memOp" ::= $$ (getDefaultConst MemOp) ;
                 "memBitMask" ::= $$ (getDefaultConst DataMask) ;
+                "taken?" ::= $$ false ;
                 "exception" ::= Invalid }).
     
-    (* Definition createControl pc : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $ControlInst ; *)
-    (*            "val1"       ::= pc ; *)
-    (*            "val2"       ::= $0 ; *)
-    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
-    (*            "memBitMask" ::= $0 ; *)
-    (*            "exception"  ::= invalidException }. *)
-
-    (* Definition createInt val : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $IntInst ; *)
-    (*            "val1"       ::= val ; *)
-    (*            "val2"       ::= $0 ; *)
-    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
-    (*            "memBitMask" ::= $0 ; *)
-    (*            "exception"  ::= invalidException }. *)
-
-    (* Definition createFloat floatVal intVal exception : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $FloatInst ; *)
-    (*            "val1"       ::= intVal ; *)
-    (*            "val2"       ::= floatVal ; *)
-    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
-    (*            "memBitMask" ::= $0 ; *)
-    (*            "exception"  ::= exception }. *)
-
-    (* Definition createSimpleFloat floatVal exception : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $FloatInst ; *)
-    (*            "val1"       ::= $0 ; *)
-    (*            "val2"       ::= floatVal ; *)
-    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
-    (*            "memBitMask" ::= $0 ; *)
-    (*            "exception"  ::= exception }. *)
-
-    (* Definition createCsr csrVal intVal exception : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $CsrInst ; *)
-    (*            "val1"       ::= intVal ; *)
-    (*            "val2"       ::= csrVal ; *)
-    (*            "memOp"      ::= $$ (getDefaultConst MemOp) ; *)
-    (*            "memBitMask" ::= $0 ; *)
-    (*            "exception"  ::= exception }. *)
-
-    (* Definition createMem memOp memAddr memBitMask memData exception : ExecContextUpdPkt @# ty := *)
-    (*   STRUCT { "tag"        ::= $MemInst ; *)
-    (*            "val1"       ::= memAddr ; *)
-    (*            "val2"       ::= memData ; *)
-    (*            "memOp"      ::= memOp ; *)
-    (*            "memBitMask" ::= memBitMask ; *)
-    (*            "exception"  ::= exception }. *)
-
     Local Close Scope kami_expr.
     
     Record LoadXform :=
@@ -219,7 +191,7 @@ Section Params.
         uniqId       : UniqId ;        
         inputXform   : ExecContextPkt ## ty -> ik ## ty ;
         outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
-        optLoadXform : option LoadXform ;
+        optMemXform  : option MemXform ;
         instHints    : InstHints }.
 
     Record FUEntry :=
@@ -233,28 +205,6 @@ Section Params.
   Definition fieldVal range value :=
     existT (fun x => word (fst x + 1 - snd x)) range value.
 
-  Definition DecoderInput :=
-    STRUCT { "pc"   :: VAddr ;
-             "inst" :: Inst ;
-             "mode" :: PrivMode }.
-
-  Definition DecoderOutput :=
-    STRUCT { "inst"            :: Inst ; (* Normal (Uncompressed) instruction *)
-             "rs1?"            :: Bool ;
-             "rs2?"            :: Bool ;
-             "rd?"             :: Bool ;
-             "csr?"            :: Bool ;
-             "isBranch?"       :: Bool ;
-             "jump"            :: Maybe VAddr ;
-             "system?"         :: Bool ;
-             "compressed?"     :: Bool ;
-             "illegal?"        :: Bool ; (* opcode[1:0] is not Compressed or Normal, or instruction is not valid *)
-             "misalignedJump?" :: Bool ; (* Generated Jump is not aligned to N byte boundaries,
-                                            N is 4 or 8 depending on support for compressed instructions *)
-             "misaligned?"     :: Bool ; (* Current instruction is not aligned to N byte boundaries
-                                            N is 4 or 8 depending on support for compressed instructions *)
-             "privilegeFault"  :: Bool   (* Current Privilege mode not sufficient *)
-           }.
 End Params.
 
 Module RecordNotations.
