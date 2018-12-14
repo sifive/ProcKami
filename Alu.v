@@ -930,6 +930,30 @@ Let test_2
 
 End negate_tests.
 
+Section add_tests.
+
+Let test_0
+  :  (x@[0] + y@[0]) === $0
+  := [[ $0 ]].
+
+Let test_1
+  :  (x@[1] + y@[1]) === $0
+  := [[ $0 ]].
+
+Let test_2
+  :  (x@[2] + y@[2]) === $0
+  := [[ $0 ]].
+
+Let test_3
+  :  (x@[0] + y@[1]) === (y@[0])
+  := [[ (y@[0]) ]].
+
+Let test_4
+  :  (x@[1] + y@[2]) === (y@[0])
+  := [[ (y@[0]) ]].
+
+End add_tests.
+
 Close Scope kami_expr.
 
 End lt_ltu_fn_tests.
