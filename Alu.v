@@ -75,6 +75,10 @@ Section Alu.
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                             "data" ::= val }))]).
 
+    (*
+      forall a b : Z,  a  <  -b  <-> lt a b
+      forall a b : Z, |a| < |-b| <-> ltu a b
+    *)
     Definition lt_ltu_fn (n : nat) (a b res: Bit n @# ty) : Lt_Ltu ## ty :=
       LETC a_msb: Bit 1 <- ZeroExtendTruncMsb 1 a;
         LETC b_msb: Bit 1 <- ZeroExtendTruncMsb 1 b;
@@ -227,29 +231,28 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "addw" ;
+                       {| instName     := "addw" ; (* checked *)
                           extensions   := "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
-                                                   fieldVal opcodeField ('b"00110") ::
-                                                   fieldVal funct3Field ('b"000") :: nil ;
+                                                   fieldVal opcodeField ('b"01110") ::
+                                                   fieldVal funct3Field ('b"000") :: 
+                                                   fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= #gcp @% "reg2"
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
                                                                LETC result : Data <- #res @% "res" ;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
-                                                               RetE (intRegTag #resultExt)) ;
+                                                               RetE (intRegTag #result)) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "subw" ;
+                       {| instName     := "subw" ; (* checked *)
                           extensions   := "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
-                                                   fieldVal opcodeField ('b"00110") ::
-                                                   fieldVal funct3Field ('b"000") :: nil ;
+                                                   fieldVal opcodeField ('b"01110") ::
+                                                   fieldVal funct3Field ('b"000") ::
+                                                   fieldVal funct7Field ('b"0100000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::=
@@ -257,39 +260,48 @@ Section Alu.
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
                                                                LETC result : Data <- #res @% "res" ;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
-                                                               RetE (intRegTag #resultExt)) ;
+                                                               RetE (intRegTag #result)) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "lui" ;
+                       {| instName     := "lui" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01101") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb
-                                                                                       Xlen
-                                                                                       ({< UniBit (TruncMsb 12 20) (#gcp @% "inst"), $$ (natToWord (Xlen - 20) 0) >}) ;
-                                                                          "arg2" ::= $0
-                                                                }): AddInputType @# _)) ;
+                          inputXform   := (fun gcpin
+                                            => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                               let imm
+                                                 :  Bit 32 @# ty
+                                                 := {<
+                                                      UniBit (TruncMsb 12 20) (#gcp @% "inst"),
+                                                      $$(natToWord 12 0)
+                                                    >} in
+                                               RetE ((STRUCT {
+                                                        "arg1" ::= SignExtendTruncLsb Xlen imm;
+                                                        "arg2" ::= $0
+                                                      }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
                                                                LETC result : Data <- #res @% "res" ;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
-                       {| instName     := "auipc" ;
+                       {| instName     := "auipc" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00101") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb
-                                                                                       Xlen
-                                                                                       ({< UniBit (TruncMsb 12 20) (#gcp @% "inst"), $$ (natToWord (Xlen - 20) 0) >}) ;
-                                                                          "arg2" ::= #gcp @% "pc"
-                                                                }): AddInputType @# _)) ;
+                          inputXform   := (fun gcpin
+                                            => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                               let imm
+                                                 :  Bit 32 @# ty
+                                                 := {<
+                                                      UniBit (TruncMsb 12 20) (#gcp @% "inst"),
+                                                      $$(natToWord 12 0)
+                                                    >} in
+                                                    RetE ((STRUCT {
+                                                             "arg1" ::= SignExtendTruncLsb Xlen imm;
+                                                             "arg2" ::= #gcp @% "pc"
+                                                          }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
                                                                LETC result : Data <- #res @% "res" ;
                                                                RetE (intRegTag #result)) ;
