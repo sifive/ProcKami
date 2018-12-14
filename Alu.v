@@ -909,8 +909,11 @@ Notation "[[ X ]]" := (eq_refl (evalExpr X)).
 Notation "X === Y" := (evalExpr X = evalExpr Y) (at level 75).
 Notation "X @[ Y ]" := (nth Y X (Const type ('b"000" : word 3))).
 
-Let x := [Const type ('b"001" : word 3); Const type ('b"010" : word 3); Const type ('b"011" : word 3)].
-Let y := [Const type ('b"111" : word 3); Const type ('b"110" : word 3); Const type ('b"101" : word 3); Const type ('b"100" : word 3)].
+(* 0 1 2 3 *)
+Let x := [Const type ('b"000" : word 3); Const type ('b"001" : word 3); Const type ('b"010" : word 3); Const type ('b"011" : word 3)].
+
+(* 0 -1 -2 -3 -4 *)
+Let y := [Const type ('b"000" : word 3); Const type ('b"111" : word 3); Const type ('b"110" : word 3); Const type ('b"101" : word 3); Const type ('b"100" : word 3)].
 
 Let negate (ty : Kind -> Type) (n : nat) (x : Bit n @# ty) := (~ x) + $1.
 
@@ -927,6 +930,10 @@ Let test_1
 Let test_2
   :  negate (x@[2]) === y@[2]
   := [[ (y@[2]) ]].
+
+Let test_3
+  :  negate (x@[3]) === y@[3]
+  := [[ (y@[3]) ]].
 
 End negate_tests.
 
@@ -945,12 +952,20 @@ Let test_2
   := [[ $0 ]].
 
 Let test_3
-  :  (x@[0] + y@[1]) === (y@[0])
-  := [[ (y@[0]) ]].
+  :  (x@[3] + y@[3]) === $0
+  := [[ $0 ]].
 
 Let test_4
-  :  (x@[1] + y@[2]) === (y@[0])
-  := [[ (y@[0]) ]].
+  :  (x@[0] + y@[1]) === (y@[1])
+  := [[ (y@[1]) ]].
+
+Let test_5
+  :  (x@[1] + y@[2]) === (y@[1])
+  := [[ (y@[1]) ]].
+
+Let test_6
+  :  (x@[3] + y@[2]) === (x@[1])
+  := [[ (x@[1]) ]].
 
 End add_tests.
 
@@ -967,18 +982,31 @@ Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
        ((Var type (SyntaxKind Lt_Ltu) packet) @% "lt").
 
 (* Compute (evalLetExpr (f (y@[0]) (x@[1]))). *)
-
-(* these are inconsistent and hence incorrect *)
-Let test_0 : f (x@[0]) (y@[0]) ==> $0 := [[ $0 ]].
-Let test_1 : f (x@[0]) (y@[1]) ==> $1 := [[ $1 ]].
-Let test_2 : f (x@[0]) (y@[2]) ==> $1 := [[ $1 ]].
-Let test_3 : f (x@[0]) (y@[3]) ==> $1 := [[ $1 ]].
-Let test_4 : f (x@[1]) (y@[0]) ==> $0 := [[ $0 ]].
-Let test_5 : f (x@[2]) (y@[1]) ==> $0 := [[ $0 ]].
-Let test_6 : f (x@[3]) (y@[2]) ==> $1 := [[ $1 ]].
-(* Let test_7 : f (y@[0]) (x@[1]) ==> $0 := [[ $0 ]].*)
-Let test_8 : f (y@[0]) (x@[2]) ==> $0 := [[ $0 ]].
-Let test_9 : f (y@[0]) (x@[3]) ==> $1 := [[ $1 ]].
+(*
+  x@[n] =  n
+  y@[n] = -n
+*)
+Let test_0  : f (x@[0]) (y@[0]) ==> $0 := [[ $0 ]].
+Let test_1  : f (x@[0]) (y@[1]) ==> $1 := [[ $1 ]].
+Let test_2  : f (x@[0]) (y@[2]) ==> $1 := [[ $1 ]].
+Let test_3  : f (x@[0]) (y@[3]) ==> $1 := [[ $1 ]].
+Let test_4  : f (x@[1]) (y@[0]) ==> $0 := [[ $0 ]].
+Let test_5  : f (x@[1]) (y@[1]) ==> $0 := [[ $0 ]].
+Let test_6  : f (x@[1]) (y@[2]) ==> $1 := [[ $1 ]].
+Let test_7  : f (x@[1]) (y@[3]) ==> $1 := [[ $1 ]].
+Let test_8  : f (x@[2]) (y@[0]) ==> $0 := [[ $0 ]].
+Let test_9  : f (x@[2]) (y@[1]) ==> $0 := [[ $0 ]].
+Let test_10 : f (x@[2]) (y@[2]) ==> $0 := [[ $0 ]].
+Let test_11 : f (x@[2]) (y@[3]) ==> $1 := [[ $1 ]].
+Let test_12 : f (y@[0]) (x@[0]) ==> $0 := [[ $0 ]].
+Let test_13 : f (y@[0]) (x@[1]) ==> $0 := [[ $0 ]].
+Let test_14 : f (y@[0]) (x@[2]) ==> $0 := [[ $0 ]].
+Let test_15 : f (y@[1]) (x@[0]) ==> $1 := [[ $1 ]].
+Let test_16 : f (y@[1]) (x@[1]) ==> $0 := [[ $0 ]].
+Let test_17 : f (y@[1]) (x@[2]) ==> $0 := [[ $0 ]].
+Let test_18 : f (y@[2]) (x@[0]) ==> $1 := [[ $1 ]].
+Let test_19 : f (y@[2]) (x@[1]) ==> $1 := [[ $1 ]].
+Let test_20 : f (y@[2]) (x@[2]) ==> $0 := [[ $0 ]].
 
 End lt_ltu_fn_tests.
 Close Scope kami_expr.
