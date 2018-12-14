@@ -969,9 +969,93 @@ Let test_6
 
 End add_tests.
 
+Let sign (x : Bit 3 @# type)
+  :  Bit 1 @# type
+  := UniBit (TruncMsb 2 1) x.
+
+Section sign_tests.
+
+Let test_0 : sign (x@[0]) === $0 := [[ $0 ]].
+Let test_1 : sign (x@[1]) === $0 := [[ $0 ]].
+Let test_2 : sign (x@[2]) === $0 := [[ $0 ]].
+Let test_3 : sign (y@[1]) === $1 := [[ $1 ]].
+Let test_4 : sign (y@[2]) === $1 := [[ $1 ]].
+Let test_5 : sign (y@[3]) === $1 := [[ $1 ]].
+Let test_6 : sign (y@[4]) === $1 := [[ $1 ]].
+
+End sign_tests.
+
+Let overflow (x y : Bit 3 @# type)
+  :  Bool @# type
+  := ((sign x == sign y) && (sign x != sign (x + y)%kami_expr)).
+
+Let overflow_bit (x y : Bit 3 @# type)
+  :  Bit 1 @# type
+  := ITE (overflow x y) ($1) ($0).
+
+Compute (evalExpr (overflow (x@[2]) (x@[1]))).
+
+Section overflow_tests.
+
+Let test_0 : overflow (x@[2]) (x@[1]) === (Const type false)
+  := [[ (Const type false) ]].
+
+Let test_1 : overflow (x@[2]) (x@[2]) === (Const type true)
+  := [[ (Const type true) ]].
+
+Let test_2 : overflow (x@[0]) (x@[3]) === (Const type false)
+  := [[ (Const type false) ]].
+
+Let test_3 : overflow (x@[3]) (x@[1]) === (Const type true)
+  := [[ (Const type true) ]].
+
+Let test_4 : overflow (y@[2]) (y@[2]) === (Const type false)
+  := [[ (Const type false) ]].
+
+Let test_5 : overflow (y@[2]) (y@[3]) === (Const type true)
+  := [[ (Const type true) ]].
+
+End overflow_tests.
+
+Section lts_tests.
+
+Let lts (x y : Bit 3 @# type)
+  :  Bit 1 @# type
+  := let z : Bit 3 @# type := (x + negate y)%kami_expr in
+     ((sign z) ^ (overflow_bit x (negate y)))%kami_expr.
+
+Let test_0  : lts (x@[0]) (y@[0]) === $0 := [[ $0 ]].
+Let test_1  : lts (x@[0]) (y@[1]) === $0 := [[ $0 ]].
+Let test_2  : lts (x@[0]) (y@[2]) === $0 := [[ $0 ]].
+Let test_3  : lts (x@[0]) (y@[3]) === $0 := [[ $0 ]].
+Let test_4  : lts (x@[1]) (y@[0]) === $0 := [[ $0 ]].
+Let test_5  : lts (x@[1]) (y@[1]) === $0 := [[ $0 ]].
+Let test_6  : lts (x@[1]) (y@[2]) === $0 := [[ $0 ]].
+Let test_7  : lts (x@[1]) (y@[3]) === $0 := [[ $0 ]].
+Let test_8  : lts (x@[2]) (y@[0]) === $0 := [[ $0 ]].
+Let test_9  : lts (x@[2]) (y@[1]) === $0 := [[ $0 ]].
+Let test_10 : lts (x@[2]) (y@[2]) === $0 := [[ $0 ]].
+Let test_11 : lts (x@[2]) (y@[3]) === $0 := [[ $0 ]].
+Let test_12 : lts (y@[0]) (x@[0]) === $0 := [[ $0 ]].
+Let test_13 : lts (y@[0]) (x@[1]) === $1 := [[ $1 ]].
+Let test_14 : lts (y@[0]) (x@[2]) === $1 := [[ $1 ]].
+Let test_15 : lts (y@[1]) (x@[0]) === $1 := [[ $1 ]].
+Let test_16 : lts (y@[1]) (x@[1]) === $1 := [[ $1 ]].
+Let test_17 : lts (y@[1]) (x@[2]) === $1 := [[ $1 ]].
+Let test_18 : lts (y@[2]) (x@[0]) === $1 := [[ $1 ]].
+Let test_19 : lts (y@[2]) (x@[1]) === $1 := [[ $1 ]].
+Let test_20 : lts (x@[2]) (x@[1]) === $0 := [[ $0 ]].
+Let test_21 : lts (x@[1]) (x@[2]) === $1 := [[ $1 ]].
+Let test_22 : lts (x@[3]) (x@[1]) === $0 := [[ $0 ]].
+Let test_23 : lts (x@[1]) (x@[3]) === $1 := [[ $1 ]].
+Let test_24 : lts (y@[2]) (y@[3]) === $0 := [[ $0 ]].
+Let test_25 : lts (y@[3]) (y@[2]) === $1 := [[ $1 ]].
+
+End lts_tests.
+
 Section lt_ltu_fn_tests.
 
-Notation "X ==> Y" := (evalLetExpr X = evalExpr Y) (at level 75).
+Notation "X ==? Y" := (evalLetExpr X = evalExpr Y) (at level 75).
 Notation "{{ X }}" := (eq_refl (evalLetExpr X)).
 
 Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
@@ -986,27 +1070,27 @@ Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
   x@[n] =  n
   y@[n] = -n
 *)
-Let test_0  : f (x@[0]) (y@[0]) ==> $0 := [[ $0 ]].
-Let test_1  : f (x@[0]) (y@[1]) ==> $1 := [[ $1 ]].
-Let test_2  : f (x@[0]) (y@[2]) ==> $1 := [[ $1 ]].
-Let test_3  : f (x@[0]) (y@[3]) ==> $1 := [[ $1 ]].
-Let test_4  : f (x@[1]) (y@[0]) ==> $0 := [[ $0 ]].
-Let test_5  : f (x@[1]) (y@[1]) ==> $0 := [[ $0 ]].
-Let test_6  : f (x@[1]) (y@[2]) ==> $1 := [[ $1 ]].
-Let test_7  : f (x@[1]) (y@[3]) ==> $1 := [[ $1 ]].
-Let test_8  : f (x@[2]) (y@[0]) ==> $0 := [[ $0 ]].
-Let test_9  : f (x@[2]) (y@[1]) ==> $0 := [[ $0 ]].
-Let test_10 : f (x@[2]) (y@[2]) ==> $0 := [[ $0 ]].
-Let test_11 : f (x@[2]) (y@[3]) ==> $1 := [[ $1 ]].
-Let test_12 : f (y@[0]) (x@[0]) ==> $0 := [[ $0 ]].
-Let test_13 : f (y@[0]) (x@[1]) ==> $0 := [[ $0 ]].
-Let test_14 : f (y@[0]) (x@[2]) ==> $0 := [[ $0 ]].
-Let test_15 : f (y@[1]) (x@[0]) ==> $1 := [[ $1 ]].
-Let test_16 : f (y@[1]) (x@[1]) ==> $0 := [[ $0 ]].
-Let test_17 : f (y@[1]) (x@[2]) ==> $0 := [[ $0 ]].
-Let test_18 : f (y@[2]) (x@[0]) ==> $1 := [[ $1 ]].
-Let test_19 : f (y@[2]) (x@[1]) ==> $1 := [[ $1 ]].
-Let test_20 : f (y@[2]) (x@[2]) ==> $0 := [[ $0 ]].
+Let test_0  : f (x@[0]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_1  : f (x@[0]) (y@[1]) ==? $1 := [[ $1 ]].
+Let test_2  : f (x@[0]) (y@[2]) ==? $1 := [[ $1 ]].
+Let test_3  : f (x@[0]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_4  : f (x@[1]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_5  : f (x@[1]) (y@[1]) ==? $0 := [[ $0 ]].
+Let test_6  : f (x@[1]) (y@[2]) ==? $1 := [[ $1 ]].
+Let test_7  : f (x@[1]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_8  : f (x@[2]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_9  : f (x@[2]) (y@[1]) ==? $0 := [[ $0 ]].
+Let test_10 : f (x@[2]) (y@[2]) ==? $0 := [[ $0 ]].
+Let test_11 : f (x@[2]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_12 : f (y@[0]) (x@[0]) ==? $0 := [[ $0 ]].
+Let test_13 : f (y@[0]) (x@[1]) ==? $0 := [[ $0 ]].
+Let test_14 : f (y@[0]) (x@[2]) ==? $0 := [[ $0 ]].
+Let test_15 : f (y@[1]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_16 : f (y@[1]) (x@[1]) ==? $0 := [[ $0 ]].
+Let test_17 : f (y@[1]) (x@[2]) ==? $0 := [[ $0 ]].
+Let test_18 : f (y@[2]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_19 : f (y@[2]) (x@[1]) ==? $1 := [[ $1 ]].
+Let test_20 : f (y@[2]) (x@[2]) ==? $0 := [[ $0 ]].
 
 End lt_ltu_fn_tests.
 Close Scope kami_expr.
