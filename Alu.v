@@ -954,6 +954,32 @@ Let test_4
 
 End add_tests.
 
+Section lt_ltu_fn_tests.
+
+Notation "X ==> Y" := (evalLetExpr X = evalExpr Y) (at level 75).
+Notation "{{ X }}" := (eq_refl (evalLetExpr X)).
+
+Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
+  := LETE packet
+       :  Lt_Ltu
+       <- lt_ltu_fn x y (x + y);
+     RetE 
+       ((Var type (SyntaxKind Lt_Ltu) packet) @% "lt").
+
+Compute (evalLetExpr (f (x@[0]) (y@[1]))).
+
+Let test_0 : f (x@[0]) (y@[0]) ==> $0 := [[ $0 ]].
+Let test_1 : f (x@[0]) (y@[1]) ==> $0 := [[ $0 ]].
+Let test_2 : f (x@[0]) (y@[2]) ==> $0 := [[ $0 ]].
+Let test_3 : f (x@[0]) (y@[3]) ==> $0 := [[ $0 ]].
+Let test_4 : f (x@[1]) (y@[0]) ==> $0 := [[ $0 ]].
+Let test_5 : f (x@[2]) (y@[1]) ==> $0 := [[ $0 ]].
+Let test_6 : f (x@[3]) (y@[2]) ==> $0 := [[ $0 ]].
+Let test_7 : f (y@[0]) (x@[1]) ==> $1 := [[ $1 ]].
+Let test_8 : f (y@[0]) (x@[2]) ==> $1 := [[ $1 ]].
+Let test_9 : f (y@[0]) (x@[3]) ==> $1 := [[ $1 ]].
+
+End lt_ltu_fn_tests.
 Close Scope kami_expr.
 
 End lt_ltu_fn_tests.
