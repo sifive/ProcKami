@@ -423,7 +423,7 @@ Section Alu.
                                            then (#x @% "arg1") >>> (#x @% "arg2")
                                            else (#x @% "arg1") >> (#x @% "arg2"))
                                      else (#x @% "arg1") << (#x @% "arg2")));
-         fuInsts := {| instName     := "slli" ;
+         fuInsts := {| instName     := "slli" ; (* checked *)
                        extensions   := "RV32I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -431,18 +431,18 @@ Section Alu.
                                                 fieldVal funct7Field ('b"0000000") ::
                                                 nil ;
                        inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                       RetE ((STRUCT {
-                                                                  "right?" ::= $$ false ;
-                                                                  "arith?" ::= $$ false ;
-                                                                  "arg1" ::= #gcp @% "reg1";
-                                                                  "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
-                                                             }): ShiftType @# _)) ;
+                                                     RetE ((STRUCT {
+                                                              "right?" ::= $$ false ;
+                                                              "arith?" ::= $$ false ;
+                                                              "arg1" ::= #gcp @% "reg1";
+                                                              "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                           }): ShiftType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
                                                             RetE (intRegTag #result)) ;
                        optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRd := true]
                     |} ::
-                       {| instName     := "srli" ;
+                       {| instName     := "srli" ; (* checked *)
                           extensions   := "RV32I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -461,7 +461,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srai" ;
+                       {| instName     := "srai" ; (* checked *)
                           extensions   := "RV32I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -480,7 +480,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sll" ;
+                       {| instName     := "sll" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -499,7 +499,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srl" ;
+                       {| instName     := "srl" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -518,7 +518,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sra" ;
+                       {| instName     := "sra" ;  (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -537,7 +537,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "slli" ;
+                       {| instName     := "slli" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -556,7 +556,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srli" ;
+                       {| instName     := "srli" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -575,7 +575,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srai" ;
+                       {| instName     := "srai" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -594,7 +594,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "slliw" ;
+                       {| instName     := "slliw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -616,7 +616,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srliw" ;
+                       {| instName     := "srliw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -638,7 +638,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sraiw" ;
+                       {| instName     := "sraiw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -660,7 +660,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sllw" ;
+                       {| instName     := "sllw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -682,7 +682,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "srlw" ;
+                       {| instName     := "srlw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -704,7 +704,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sraw" ;
+                       {| instName     := "sraw" ; (* checked *)
                           extensions   := "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -781,7 +781,7 @@ Section Alu.
                                                                         "newPc" ::= #newPc }) ;
                                RetE #retVal
                    ) ;
-         fuInsts := {| instName     := "beq" ;
+         fuInsts := {| instName     := "beq" ; (* checked *)
                        extensions   := "RV32I" :: "RV64I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"11000") ::
@@ -791,7 +791,7 @@ Section Alu.
                        optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                     |} ::
-                       {| instName     := "bne" ;
+                       {| instName     := "bne" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -801,7 +801,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
-                       {| instName     := "blt" ;
+                       {| instName     := "blt" ;  (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -811,7 +811,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
-                       {| instName     := "bge" ;
+                       {| instName     := "bge" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -821,7 +821,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
-                       {| instName     := "bltu" ;
+                       {| instName     := "bltu" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -831,7 +831,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true]
                        |} ::
-                       {| instName     := "bgeu" ;
+                       {| instName     := "bgeu" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
