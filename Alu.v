@@ -142,7 +142,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "add" ;
+                       {| instName     := "add" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -158,7 +158,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "sub" ;
+                       {| instName     := "sub" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -166,7 +166,7 @@ Section Alu.
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= #gcp @% "reg1";
-                                                                          "arg2" ::= #gcp @% "reg2"
+                                                                          "arg2" ::= ~ (#gcp @% "reg2") + $1
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
                                                                LETC result : Data <- #res @% "res" ;
@@ -208,7 +208,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "addiw" ;
+                       {| instName     := "addiw" ; (* checked *)
                           extensions   := "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -993,8 +993,6 @@ Let overflow_bit (x y : Bit 3 @# type)
   :  Bit 1 @# type
   := ITE (overflow x y) ($1) ($0).
 
-Compute (evalExpr (overflow (x@[2]) (x@[1]))).
-
 Section overflow_tests.
 
 Let test_0 : overflow (x@[2]) (x@[1]) === (Const type false)
@@ -1065,7 +1063,6 @@ Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
      RetE 
        ((Var type (SyntaxKind Lt_Ltu) packet) @% "lt").
 
-(* Compute (evalLetExpr (f (y@[0]) (x@[1]))). *)
 (*
   x@[n] =  n
   y@[n] = -n
