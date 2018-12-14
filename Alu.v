@@ -320,7 +320,7 @@ Section Alu.
                                      else (IF (#x @% "op") == $ OrOp
                                            then (#x @% "arg1") | (#x @% "arg2")
                                            else (#x @% "arg1") & (#x @% "arg2")))) ;
-         fuInsts := {| instName     := "xori" ;
+         fuInsts := {| instName     := "xori" ; (* checked *)
                        extensions   := "RV32I" :: "RV64I" :: nil ;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -335,7 +335,7 @@ Section Alu.
                        optMemXform  := None ;
                        instHints    := falseHints[hasRs1 := true][hasRd := true]
                     |} ::
-                       {| instName     := "ori" ;
+                       {| instName     := "ori" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -350,7 +350,7 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "andi" ;
+                       {| instName     := "andi" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -365,11 +365,12 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
-                       {| instName     := "xor" ;
+                       {| instName     := "xor" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
-                                                   fieldVal funct3Field ('b"100") :: nil ;
+                                                   fieldVal funct3Field ('b"100") ::
+                                                   fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ XorOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
@@ -380,11 +381,12 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "ori" ;
+                       {| instName     := "or" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
-                                                   fieldVal funct3Field ('b"110") :: nil ;
+                                                   fieldVal funct3Field ('b"110") ::
+                                                   fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
@@ -395,11 +397,12 @@ Section Alu.
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
-                       {| instName     := "andi" ;
+                       {| instName     := "and" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil ;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
-                                                   fieldVal funct3Field ('b"111") :: nil ;
+                                                   fieldVal funct3Field ('b"111") ::
+                                                   fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
