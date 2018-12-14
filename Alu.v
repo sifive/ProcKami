@@ -75,7 +75,7 @@ Section Alu.
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                             "data" ::= val }))]).
 
-    Definition lt_ltu_fn (a b res: Data @# ty) : Lt_Ltu ## ty :=
+    Definition lt_ltu_fn (n : nat) (a b res: Bit n @# ty) : Lt_Ltu ## ty :=
       LETC a_msb: Bit 1 <- ZeroExtendTruncMsb 1 a;
         LETC b_msb: Bit 1 <- ZeroExtendTruncMsb 1 b;
         LETC res_msb: Bit 1 <- ZeroExtendTruncMsb 1 res;
@@ -898,4 +898,40 @@ Section Alu.
 
     Local Close Scope kami_expr.
   End Ty.
+
+Section lt_ltu_fn_tests.
+
+Import ListNotations.
+
+Open Scope kami_expr.
+
+Notation "[[ X ]]" := (eq_refl (evalExpr X)).
+Notation "X === Y" := (evalExpr X = evalExpr Y) (at level 75).
+Notation "X @[ Y ]" := (nth Y X (Const type ('b"000" : word 3))).
+
+Let x := [Const type ('b"001" : word 3); Const type ('b"010" : word 3); Const type ('b"011" : word 3)].
+Let y := [Const type ('b"111" : word 3); Const type ('b"110" : word 3); Const type ('b"101" : word 3); Const type ('b"100" : word 3)].
+
+Let negate (ty : Kind -> Type) (n : nat) (x : Bit n @# ty) := (~ x) + $1.
+
+Section negate_tests.
+
+Let test_0
+  :  negate (x@[0]) === y@[0]
+  := [[ (y@[0]) ]].
+
+Let test_1
+  :  negate (x@[1]) === y@[1]
+  := [[ (y@[1]) ]].
+
+Let test_2
+  :  negate (x@[2]) === y@[2]
+  := [[ (y@[2]) ]].
+
+End negate_tests.
+
+Close Scope kami_expr.
+
+End lt_ltu_fn_tests.
+
 End Alu.
