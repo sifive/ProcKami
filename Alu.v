@@ -853,6 +853,32 @@ Section Alu.
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
+    Axiom ax0 : forall n : nat, (n = 1 + (n - 1))%nat.
+
+    Axiom ax1 : forall n : nat, (0 + 1 + (n - 1) = n)%nat.
+
+    Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
+      :  JumpOutputType ## ty
+      := LETE sem_output
+           :  JumpOutputType
+           <- sem_output_expr;
+         let newPc : VAddr @# ty
+           := (eq_rect
+                (0 + 1 + (Xlen - 1))%nat
+                (fun n => Bit n @# ty)
+                ({< UniBit (TruncMsb 1 (Xlen - 1))
+                  (eq_rect
+                    Xlen
+                    (fun n => Bit n @# ty)
+                    ((#sem_output) @% "newPc" : Bit Xlen @# ty)
+                    (1 + (Xlen - 1))%nat
+                    (ax0 Xlen)),
+                  Const ty (natToWord 1 0) >})
+                Xlen
+                (ax1 Xlen)) in
+         RetE (#sem_output @%["newPc" <- newPc]).
+
+
     Definition Jump: @FUEntry Xlen_over_8 ty :=
       {| fuName := "jump" ;
          fuFunc := (fun i => LETE x: JumpInputType <- i;
@@ -862,10 +888,10 @@ Section Alu.
                                                                       "newPc" ::= #newPc ;
                                                                       "retPc" ::= #retPc }) ;
                                RetE #retVal) ;
-         fuInsts := {| instName     := "jal" ;
+         fuInsts := {| instName     := "jal" ; (* checked *)
                        extensions   := "RV32I" :: "RV64I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
-                                                fieldVal opcodeField ('b"1101111") :: nil ;
+                                                fieldVal opcodeField ('b"11011") :: nil ;
                        inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
                                           LETE x <- gcp;
                                             LETC inst: Inst <- #x @% "inst";
@@ -882,14 +908,14 @@ Section Alu.
                                                                                    "misalignedException?" ::= #x @% "instMisalignedException?" } ;
                                             RetE #inpVal
                                        ) ;
-                       outputXform  := jumpTag ;
+                       outputXform  := jumpTag;
                        optMemXform  := None ;
                        instHints    := falseHints[hasRd := true]
                     |} ::
                        {| instName     := "jalr" ;
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
-                                                   fieldVal opcodeField ('b"1101111") :: nil ;
+                                                   fieldVal opcodeField ('b"11001") :: nil ;
                           inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
                                              LETE x <- gcp;
                                                LETC inst: Inst <- #x @% "inst";
@@ -904,7 +930,14 @@ Section Alu.
                                                                                       "misalignedException?" ::= #x @% "instMisalignedException?" } ;
                                                RetE #inpVal
                                           ) ;
-                          outputXform  := jumpTag ;
+(*
+                          outputXform  := fun sem_ouput_expr : JumpOutputType ## ty
+                                            => LETE sem_output
+                                                 :  JumpOutputType
+                                                 <- transPC sem_output_expr;
+                                               RetE (jumpTag (#sem_output));
+*)
+                          outputXform  := jumpTag;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
