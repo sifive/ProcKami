@@ -4,6 +4,8 @@ Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
+  Axiom Xlen_pos : (0 < Xlen)%nat.
+
 
   Notation Xlen := (8 * Xlen_over_8).
 
@@ -853,8 +855,6 @@ Section Alu.
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
-    Axiom Xlen_pos : (0 < Xlen)%nat.
-
     Lemma Xlen_lm0 : (Xlen = 1 + (Xlen - 1))%nat.
     Proof nat_ind
             (fun n => Xlen = n -> Xlen = 1 + (Xlen - 1))%nat
@@ -872,9 +872,13 @@ Section Alu.
                    Xlen
                    (eq_sym H))%nat
             Xlen (eq_refl Xlen).
-      
 
-    Axiom ax1 : forall n : nat, (0 + 1 + (n - 1) = n)%nat.
+    Lemma Xlen_lm1 : (0 + 1 + (Xlen - 1) = Xlen)%nat.
+    Proof.
+      (rewrite Nat.add_0_l).
+      symmetry.
+      (apply Xlen_lm0).
+    Qed.
 
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
       :  JumpOutputType ## ty
@@ -894,7 +898,7 @@ Section Alu.
                     Xlen_lm0),
                   Const ty (natToWord 1 0) >})
                 Xlen
-                (ax1 Xlen)) in
+                Xlen_lm1) in
          RetE (#sem_output @%["newPc" <- newPc]).
 
 
