@@ -853,7 +853,26 @@ Section Alu.
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
-    Axiom ax0 : forall n : nat, (n = 1 + (n - 1))%nat.
+    Axiom Xlen_pos : (0 < Xlen)%nat.
+
+    Lemma Xlen_lm0 : (Xlen = 1 + (Xlen - 1))%nat.
+    Proof nat_ind
+            (fun n => Xlen = n -> Xlen = 1 + (Xlen - 1))%nat
+            (fun (H : Xlen = 0)
+              => False_ind _
+                   (PeanoNat.Nat.lt_neq 0 Xlen Xlen_pos (eq_sym H)))
+            (fun n
+              (F : (Xlen = n -> Xlen = 1 + (Xlen - 1))%nat)
+              (H : Xlen = S n)
+              => eq_rec
+                   (S n)
+                   (fun m => m = 1 + (m - 1))%nat
+                   (eq_S n (n - 0)
+                     (Minus.minus_n_O n))
+                   Xlen
+                   (eq_sym H))%nat
+            Xlen (eq_refl Xlen).
+      
 
     Axiom ax1 : forall n : nat, (0 + 1 + (n - 1) = n)%nat.
 
@@ -872,7 +891,7 @@ Section Alu.
                     (fun n => Bit n @# ty)
                     ((#sem_output) @% "newPc" : Bit Xlen @# ty)
                     (1 + (Xlen - 1))%nat
-                    (ax0 Xlen)),
+                    Xlen_lm0),
                   Const ty (natToWord 1 0) >})
                 Xlen
                 (ax1 Xlen)) in
