@@ -4,11 +4,8 @@ Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
-  Axiom Xlen_pos : (0 < Xlen)%nat.
-
 
   Notation Xlen := (8 * Xlen_over_8).
-
   Notation Data := (Bit Xlen).
   Notation VAddr := (Bit Xlen).
   Notation DataMask := (Bit Xlen_over_8).
@@ -855,30 +852,17 @@ Section Alu.
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
-    Lemma Xlen_lm0 : (Xlen = 1 + (Xlen - 1))%nat.
-    Proof nat_ind
-            (fun n => Xlen = n -> Xlen = 1 + (Xlen - 1))%nat
-            (fun (H : Xlen = 0)
-              => False_ind _
-                   (PeanoNat.Nat.lt_neq 0 Xlen Xlen_pos (eq_sym H)))
-            (fun n
-              (F : (Xlen = n -> Xlen = 1 + (Xlen - 1))%nat)
-              (H : Xlen = S n)
-              => eq_rec
-                   (S n)
-                   (fun m => m = 1 + (m - 1))%nat
-                   (eq_S n (n - 0)
-                     (Minus.minus_n_O n))
-                   Xlen
-                   (eq_sym H))%nat
-            Xlen (eq_refl Xlen).
-
-    Lemma Xlen_lm1 : (0 + 1 + (Xlen - 1) = Xlen)%nat.
-    Proof.
-      (rewrite Nat.add_0_l).
-      symmetry.
-      (apply Xlen_lm0).
-    Qed.
+    (* sets the least significant bit in a bit string to 0.*)
+    Let zero_lsb (n : nat) (x : Bit n @# ty)
+      := let a : Bit (n + 1)%nat @# ty
+           := {< Const ty (natToWord 1 0), x >} in
+         let b : Bit n @# ty
+           := UniBit (TruncMsb 1 n) (eq_rect_r (fun m => Bit m @# ty) a (Nat.add_comm 1 n)) in
+         let c : Bit (1 + n)%nat @# ty
+           := {< b, Const ty (natToWord 1 0) >} in
+         let d : Bit n @# ty
+           := UniBit (TruncLsb n 1) (eq_rect_r (fun m => Bit m @# ty) c (Nat.add_comm n 1)) in
+         d.
 
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
       :  JumpOutputType ## ty
@@ -886,21 +870,8 @@ Section Alu.
            :  JumpOutputType
            <- sem_output_expr;
          let newPc : VAddr @# ty
-           := (eq_rect
-                (0 + 1 + (Xlen - 1))%nat
-                (fun n => Bit n @# ty)
-                ({< UniBit (TruncMsb 1 (Xlen - 1))
-                  (eq_rect
-                    Xlen
-                    (fun n => Bit n @# ty)
-                    ((#sem_output) @% "newPc" : Bit Xlen @# ty)
-                    (1 + (Xlen - 1))%nat
-                    Xlen_lm0),
-                  Const ty (natToWord 1 0) >})
-                Xlen
-                Xlen_lm1) in
+           := zero_lsb (#sem_output @% "newPc") in
          RetE (#sem_output @%["newPc" <- newPc]).
-
 
     Definition Jump: @FUEntry Xlen_over_8 ty :=
       {| fuName := "jump" ;
