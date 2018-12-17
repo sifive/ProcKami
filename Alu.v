@@ -949,14 +949,11 @@ Section Alu.
                                                                                       "misalignedException?" ::= #x @% "instMisalignedException?" } ;
                                                RetE #inpVal
                                           ) ;
-(*
-                          outputXform  := fun sem_ouput_expr : JumpOutputType ## ty
+                          outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                             => LETE sem_output
                                                  :  JumpOutputType
                                                  <- transPC sem_output_expr;
-                                               RetE (jumpTag (#sem_output));
-*)
-                          outputXform  := jumpTag;
+                                               jumpTag (RetE (#sem_output));
                           optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
