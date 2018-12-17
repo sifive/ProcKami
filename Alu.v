@@ -879,9 +879,6 @@ Section Alu.
       := LETE sem_output
            :  JumpOutputType
            <- sem_output_expr;
-         let PC
-           :  VAddr @# ty
-           := (#sem_output @% "newPc") in
          let newPc : VAddr @# ty
            := zero_lsb (#sem_output @% "newPc") in
          RetE (#sem_output @%["newPc" <- newPc]).
@@ -919,7 +916,7 @@ Section Alu.
                        optMemXform  := None ;
                        instHints    := falseHints[hasRd := true]
                     |} ::
-                       {| instName     := "jalr" ;
+                       {| instName     := "jalr" ; (* checked *)
                           extensions   := "RV32I" :: "RV64I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11001") :: nil ;
@@ -938,15 +935,11 @@ Section Alu.
                                                RetE #inpVal
                                           ) ;
                           outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
-                                            => LETE sem_output
-                                                 :  JumpOutputType
-                                                 <- transPC sem_output_expr;
-                                               jumpTag (RetE (#sem_output));
+                                            => jumpTag (transPC sem_output_expr);
                           optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::
                        nil |}.
-
 
     Local Close Scope kami_expr.
   End Ty.
