@@ -852,35 +852,13 @@ Section Alu.
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
-    (* sets the least significant bit in a bit string to 0.*)
-    Definition zero_lsb (ty : Kind -> Type) (n : nat) (x : Bit n @# ty)
-      :  Bit n @# ty
-      := (@UniBit ty (n + 1)%nat n
-           (TruncLsb n 1)
-           (eq_rect_r
-             (fun m : nat => Bit m @# ty)
-             ({<
-               @UniBit ty (1 + n)%nat n
-                 (TruncMsb 1 n)
-                 (eq_rect_r
-                   (fun m : nat => Bit m @# ty)
-                   ({<
-                     (Const ty WO~0),
-                     x
-                   >})
-                   (Nat.add_comm 1 n)),
-               (Const ty WO~0)
-             >})
-             (Nat.add_comm n 1)
-         )).
-
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
       :  JumpOutputType ## ty
       := LETE sem_output
            :  JumpOutputType
            <- sem_output_expr;
          let newPc : VAddr @# ty
-           := zero_lsb (#sem_output @% "newPc") in
+           := ZeroExtendTruncMsb Xlen ({< ZeroExtendTruncMsb (Xlen -1) (#sem_output @% "newPc"), $$ WO~0 >}) in
          RetE (#sem_output @%["newPc" <- newPc]).
 
     Definition Jump: @FUEntry Xlen_over_8 ty :=
