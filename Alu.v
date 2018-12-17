@@ -853,22 +853,35 @@ Section Alu.
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
 
     (* sets the least significant bit in a bit string to 0.*)
-    Let zero_lsb (n : nat) (x : Bit n @# ty)
-      := let a : Bit (n + 1)%nat @# ty
-           := {< Const ty (natToWord 1 0), x >} in
-         let b : Bit n @# ty
-           := UniBit (TruncMsb 1 n) (eq_rect_r (fun m => Bit m @# ty) a (Nat.add_comm 1 n)) in
-         let c : Bit (1 + n)%nat @# ty
-           := {< b, Const ty (natToWord 1 0) >} in
-         let d : Bit n @# ty
-           := UniBit (TruncLsb n 1) (eq_rect_r (fun m => Bit m @# ty) c (Nat.add_comm n 1)) in
-         d.
+    Definition zero_lsb (ty : Kind -> Type) (n : nat) (x : Bit n @# ty)
+      :  Bit n @# ty
+      := (@UniBit ty (n + 1)%nat n
+           (TruncLsb n 1)
+           (eq_rect_r
+             (fun m : nat => Bit m @# ty)
+             ({<
+               @UniBit ty (1 + n)%nat n
+                 (TruncMsb 1 n)
+                 (eq_rect_r
+                   (fun m : nat => Bit m @# ty)
+                   ({<
+                     (Const ty WO~0),
+                     x
+                   >})
+                   (Nat.add_comm 1 n)),
+               (Const ty WO~0)
+             >})
+             (Nat.add_comm n 1)
+         )).
 
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
       :  JumpOutputType ## ty
       := LETE sem_output
            :  JumpOutputType
            <- sem_output_expr;
+         let PC
+           :  VAddr @# ty
+           := (#sem_output @% "newPc") in
          let newPc : VAddr @# ty
            := zero_lsb (#sem_output @% "newPc") in
          RetE (#sem_output @%["newPc" <- newPc]).
@@ -938,7 +951,7 @@ Section Alu.
     Local Close Scope kami_expr.
   End Ty.
 
-Section lt_ltu_fn_tests.
+Section tests.
 
 Import ListNotations.
 
@@ -1129,8 +1142,9 @@ Let test_19 : f (y@[2]) (x@[1]) ==? $1 := [[ $1 ]].
 Let test_20 : f (y@[2]) (x@[2]) ==? $0 := [[ $0 ]].
 
 End lt_ltu_fn_tests.
+
 Close Scope kami_expr.
 
-End lt_ltu_fn_tests.
+End tests.
 
 End Alu.
