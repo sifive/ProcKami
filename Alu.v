@@ -69,6 +69,10 @@ Section Alu.
       STRUCT { "lt" :: Bit 1 ;
                "ltu" :: Bit 1 }.
 
+    Definition MultInputType := STRUCT {"arg1" :: Bit (2 * Xlen)%nat ; "arg2" :: Bit (2 * Xlen)%nat}.
+
+    Definition MultOutputType := Bit (2 * Xlen)%nat.
+
     Local Open Scope kami_expr.
     Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
@@ -919,6 +923,73 @@ Section Alu.
                        |} ::
                        nil |}.
 
+    Definition Mult : @FUEntry Xlen_over_8 ty
+      := {|
+        fuName := "mult";
+        fuFunc := fun sem_in_pkt_expr : MultInputType ## ty
+                    => LETE sem_in_pkt
+                         :  MultInputType
+                         <- sem_in_pkt_expr;
+                       RetE (ZeroExtendTruncLsb (2 * Xlen)
+                              ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")));
+        fuInsts
+          := {|             
+               instName   := "mul";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"000")   ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                            }) : MultInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit (2 * Xlen) ## ty
+                      => LETE res
+                           :  Bit (2 * Xlen)
+                           <- res_expr;
+                         RetE (intRegTag (ZeroExtendTruncLsb Xlen (#res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "mulhsu";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"001")   ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                            }) : MultInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit (2 * Xlen) ## ty
+                      => LETE res
+                           :  Bit (2 * Xlen)
+                           <- res_expr;
+                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             nil
+      |}.
+
     Local Close Scope kami_expr.
   End Ty.
 
@@ -1113,6 +1184,24 @@ Let test_19 : f (y@[2]) (x@[1]) ==? $1 := [[ $1 ]].
 Let test_20 : f (y@[2]) (x@[2]) ==? $0 := [[ $0 ]].
 
 End lt_ltu_fn_tests.
+
+Section mult_tests.
+
+Compute (evalExpr ((Const type (natToWord 4 3)) * (negate (Const type (natToWord 4 3))))).
+Compute (evalExpr (negate (Const type (natToWord 4 9)))).
+
+Compute (evalExpr ((negate (Const type (natToWord 4 3))) * (negate (Const type (natToWord 4 3))))).
+Compute (evalExpr (Const type (natToWord 4 9))).
+
+Let test_0 : (x@[0] * x@[0]) === x@[0] := [[ (x@[0]) ]].
+Let test_1 : (x@[1] * y@[1]) === y@[1] := [[ (y@[1]) ]].
+Let test_2 : (x@[2] * y@[2]) === y@[4] := [[ (y@[4]) ]].
+Let test_3 : (x@[3] * y@[1]) === y@[3] := [[ (y@[3]) ]].
+Let test_4 : (y@[1] * y@[3]) === x@[3] := [[ (x@[3]) ]].
+Let test_5 : (y@[2] * y@[1]) === x@[2] := [[ (x@[2]) ]].
+Let test_6 : ((Const type (natToWord 4 3)) * (negate (Const type (natToWord 4 3)))) === (negate (Const type (natToWord 4 9))) := [[ (negate (Const type (natToWord 4 9))) ]].
+
+End mult_tests.
 
 Close Scope kami_expr.
 
