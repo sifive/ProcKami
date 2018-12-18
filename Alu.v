@@ -73,6 +73,15 @@ Section Alu.
 
     Definition MultOutputType := Bit (2 * Xlen)%nat.
 
+    Definition DivInputType
+      := STRUCT {
+           "arg1"     :: Data;
+           "arg2"     :: Data;
+           "not_neg?" :: Bool
+         }.
+
+    Definition DivOutputType := Bit Xlen.
+
     Local Open Scope kami_expr.
     Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
@@ -1076,6 +1085,180 @@ Section Alu.
              nil
       |}.
 
+    (*
+      Unsigned division.
+
+      Note: The division operation here is that defined by
+      Coq.NArith.BinNatDef (div). This function maps division by 0 to
+      0. The RISC-V spec however maps division by 0 to all ones.
+    *)
+    Definition divu (n : nat) (x y : Bit n @# ty)
+      :  Bit n @# ty
+      := ITE (y == $0) (~ $0) (x / y).
+
+    Definition neg (n : nat) (x : Bit n @# ty) := (~ x) + $1.
+
+    Definition pos (n : nat) (x : Bit n @# ty)
+      :  Bool @# ty
+      := ZeroExtendTruncMsb 1 x == $0.
+
+    Definition abs (n : nat) (x : Bit n @# ty)
+      :  Bit n @# ty
+      := ITE (pos x) x (neg x).
+
+    Definition divs (n : nat) (x y : Bit n @# ty)
+      :  Bit n @# ty
+      := let z
+         :  Bit n @# ty
+         := divu (abs x) (abs y) in
+
+         ITE (pos x && pos y) z (neg z).
+
+    Definition Div : @FUEntry Xlen_over_8 ty
+      := {|
+        fuName := "div";
+        fuFunc
+          := fun sem_in_pkt_expr : DivInputType ## ty
+               => LETE sem_in_pkt
+                    :  DivInputType
+                    <- sem_in_pkt_expr;
+                  let res
+                    :  Bit Xlen @# ty
+                    := (#sem_in_pkt @% "arg1") / (#sem_in_pkt @% "arg2") in
+                  RetE
+                    (ITE (#sem_in_pkt @% "not_neg?") res (neg res));
+        fuInsts
+          := {|
+               instName   := "div";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"100")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         LETC x
+                           :  Bit Xlen
+                           <- #context_pkt @% "reg1";
+                         LETC y
+                           :  Bit Xlen
+                           <- #context_pkt @% "reg2";
+                         RetE
+                           ((STRUCT {
+                             "arg1"     ::= abs (#x);
+                             "arg2"     ::= abs (#y);
+                             "not_neg?" ::= (pos (#x) && pos (#y))
+                            }) : DivInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (#res));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "divu";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"101")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1"     ::= #context_pkt @% "reg1";
+                             "arg2"     ::= #context_pkt @% "reg2";
+                             "not_neg?" ::= $$true
+                            }) : DivInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (#res));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "divw";
+               extensions := "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01110") ::
+                    fieldVal funct3Field ('b"100")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         LETC x
+                           :  Bit Xlen
+                           <- SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1"));
+                         LETC y
+                           :  Bit Xlen
+                           <- SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2"));
+                         RetE
+                           ((STRUCT {
+                             "arg1"     ::= abs (#x);
+                             "arg2"     ::= abs (#y);
+                             "not_neg?" ::= (pos (#x) && pos (#y))
+                            }) : DivInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) #res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "divuw";
+               extensions := "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01110") ::
+                    fieldVal funct3Field ('b"101")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1"     ::= SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1"));
+                             "arg2"     ::= SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2"));
+                             "not_neg?" ::= $$true
+                            }) : DivInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) #res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             nil
+        |}.
+
     Local Close Scope kami_expr.
   End Ty.
 
@@ -1095,141 +1278,38 @@ Let x := [Const type ('b"000" : word 3); Const type ('b"001" : word 3); Const ty
 (* 0 -1 -2 -3 -4 *)
 Let y := [Const type ('b"000" : word 3); Const type ('b"111" : word 3); Const type ('b"110" : word 3); Const type ('b"101" : word 3); Const type ('b"100" : word 3)].
 
-Let negate (ty : Kind -> Type) (n : nat) (x : Bit n @# ty) := (~ x) + $1.
+Section neg_tests.
 
-Section negate_tests.
+Let test_0 : neg (x@[0]) === y@[0] := [[ (y@[0]) ]].
+Let test_1 : neg (x@[1]) === y@[1] := [[ (y@[1]) ]].
+Let test_2 : neg (x@[2]) === y@[2] := [[ (y@[2]) ]].
+Let test_3 : neg (x@[3]) === y@[3] := [[ (y@[3]) ]].
 
-Let test_0
-  :  negate (x@[0]) === y@[0]
-  := [[ (y@[0]) ]].
-
-Let test_1
-  :  negate (x@[1]) === y@[1]
-  := [[ (y@[1]) ]].
-
-Let test_2
-  :  negate (x@[2]) === y@[2]
-  := [[ (y@[2]) ]].
-
-Let test_3
-  :  negate (x@[3]) === y@[3]
-  := [[ (y@[3]) ]].
-
-End negate_tests.
+End neg_tests.
 
 Section add_tests.
 
-Let test_0
-  :  (x@[0] + y@[0]) === $0
-  := [[ $0 ]].
-
-Let test_1
-  :  (x@[1] + y@[1]) === $0
-  := [[ $0 ]].
-
-Let test_2
-  :  (x@[2] + y@[2]) === $0
-  := [[ $0 ]].
-
-Let test_3
-  :  (x@[3] + y@[3]) === $0
-  := [[ $0 ]].
-
-Let test_4
-  :  (x@[0] + y@[1]) === (y@[1])
-  := [[ (y@[1]) ]].
-
-Let test_5
-  :  (x@[1] + y@[2]) === (y@[1])
-  := [[ (y@[1]) ]].
-
-Let test_6
-  :  (x@[3] + y@[2]) === (x@[1])
-  := [[ (x@[1]) ]].
+Let test_0 : (x@[0] + y@[0]) === $0 := [[ $0 ]].
+Let test_1 : (x@[1] + y@[1]) === $0 := [[ $0 ]].
+Let test_2 : (x@[2] + y@[2]) === $0 := [[ $0 ]].
+Let test_3 : (x@[3] + y@[3]) === $0 := [[ $0 ]].
+Let test_4 : (x@[0] + y@[1]) === (y@[1]) := [[ (y@[1]) ]].
+Let test_5 : (x@[1] + y@[2]) === (y@[1]) := [[ (y@[1]) ]].
+Let test_6 : (x@[3] + y@[2]) === (x@[1]) := [[ (x@[1]) ]].
 
 End add_tests.
 
-Let sign (x : Bit 3 @# type)
-  :  Bit 1 @# type
-  := UniBit (TruncMsb 2 1) x.
+Section pos_tests.
 
-Section sign_tests.
+Let test_0 : pos (x@[0]) === Const type true := [[ Const type true ]].
+Let test_1 : pos (x@[1]) === Const type true := [[ Const type true ]].
+Let test_2 : pos (x@[2]) === Const type true := [[ Const type true ]].
+Let test_3 : pos (y@[1]) === Const type false := [[ Const type false ]].
+Let test_4 : pos (y@[2]) === Const type false := [[ Const type false ]].
+Let test_5 : pos (y@[3]) === Const type false := [[ Const type false ]].
+Let test_6 : pos (y@[4]) === Const type false := [[ Const type false ]].
 
-Let test_0 : sign (x@[0]) === $0 := [[ $0 ]].
-Let test_1 : sign (x@[1]) === $0 := [[ $0 ]].
-Let test_2 : sign (x@[2]) === $0 := [[ $0 ]].
-Let test_3 : sign (y@[1]) === $1 := [[ $1 ]].
-Let test_4 : sign (y@[2]) === $1 := [[ $1 ]].
-Let test_5 : sign (y@[3]) === $1 := [[ $1 ]].
-Let test_6 : sign (y@[4]) === $1 := [[ $1 ]].
-
-End sign_tests.
-
-Let overflow (x y : Bit 3 @# type)
-  :  Bool @# type
-  := ((sign x == sign y) && (sign x != sign (x + y)%kami_expr)).
-
-Let overflow_bit (x y : Bit 3 @# type)
-  :  Bit 1 @# type
-  := ITE (overflow x y) ($1) ($0).
-
-Section overflow_tests.
-
-Let test_0 : overflow (x@[2]) (x@[1]) === (Const type false)
-  := [[ (Const type false) ]].
-
-Let test_1 : overflow (x@[2]) (x@[2]) === (Const type true)
-  := [[ (Const type true) ]].
-
-Let test_2 : overflow (x@[0]) (x@[3]) === (Const type false)
-  := [[ (Const type false) ]].
-
-Let test_3 : overflow (x@[3]) (x@[1]) === (Const type true)
-  := [[ (Const type true) ]].
-
-Let test_4 : overflow (y@[2]) (y@[2]) === (Const type false)
-  := [[ (Const type false) ]].
-
-Let test_5 : overflow (y@[2]) (y@[3]) === (Const type true)
-  := [[ (Const type true) ]].
-
-End overflow_tests.
-
-Section lts_tests.
-
-Let lts (x y : Bit 3 @# type)
-  :  Bit 1 @# type
-  := let z : Bit 3 @# type := (x + negate y)%kami_expr in
-     ((sign z) ^ (overflow_bit x (negate y)))%kami_expr.
-
-Let test_0  : lts (x@[0]) (y@[0]) === $0 := [[ $0 ]].
-Let test_1  : lts (x@[0]) (y@[1]) === $0 := [[ $0 ]].
-Let test_2  : lts (x@[0]) (y@[2]) === $0 := [[ $0 ]].
-Let test_3  : lts (x@[0]) (y@[3]) === $0 := [[ $0 ]].
-Let test_4  : lts (x@[1]) (y@[0]) === $0 := [[ $0 ]].
-Let test_5  : lts (x@[1]) (y@[1]) === $0 := [[ $0 ]].
-Let test_6  : lts (x@[1]) (y@[2]) === $0 := [[ $0 ]].
-Let test_7  : lts (x@[1]) (y@[3]) === $0 := [[ $0 ]].
-Let test_8  : lts (x@[2]) (y@[0]) === $0 := [[ $0 ]].
-Let test_9  : lts (x@[2]) (y@[1]) === $0 := [[ $0 ]].
-Let test_10 : lts (x@[2]) (y@[2]) === $0 := [[ $0 ]].
-Let test_11 : lts (x@[2]) (y@[3]) === $0 := [[ $0 ]].
-Let test_12 : lts (y@[0]) (x@[0]) === $0 := [[ $0 ]].
-Let test_13 : lts (y@[0]) (x@[1]) === $1 := [[ $1 ]].
-Let test_14 : lts (y@[0]) (x@[2]) === $1 := [[ $1 ]].
-Let test_15 : lts (y@[1]) (x@[0]) === $1 := [[ $1 ]].
-Let test_16 : lts (y@[1]) (x@[1]) === $1 := [[ $1 ]].
-Let test_17 : lts (y@[1]) (x@[2]) === $1 := [[ $1 ]].
-Let test_18 : lts (y@[2]) (x@[0]) === $1 := [[ $1 ]].
-Let test_19 : lts (y@[2]) (x@[1]) === $1 := [[ $1 ]].
-Let test_20 : lts (x@[2]) (x@[1]) === $0 := [[ $0 ]].
-Let test_21 : lts (x@[1]) (x@[2]) === $1 := [[ $1 ]].
-Let test_22 : lts (x@[3]) (x@[1]) === $0 := [[ $0 ]].
-Let test_23 : lts (x@[1]) (x@[3]) === $1 := [[ $1 ]].
-Let test_24 : lts (y@[2]) (y@[3]) === $0 := [[ $0 ]].
-Let test_25 : lts (y@[3]) (y@[2]) === $1 := [[ $1 ]].
-
-End lts_tests.
+End pos_tests.
 
 Section lt_ltu_fn_tests.
 
@@ -1273,25 +1353,46 @@ End lt_ltu_fn_tests.
 
 Section mult_tests.
 
-Compute (evalExpr ((Const type (natToWord 4 3)) * (negate (Const type (natToWord 4 3))))).
-Compute (evalExpr (negate (Const type (natToWord 4 9)))).
-
-Compute (evalExpr ((negate (Const type (natToWord 4 3))) * (negate (Const type (natToWord 4 3))))).
-Compute (evalExpr (Const type (natToWord 4 9))).
-
 Let test_0 : (x@[0] * x@[0]) === x@[0] := [[ (x@[0]) ]].
 Let test_1 : (x@[1] * y@[1]) === y@[1] := [[ (y@[1]) ]].
 Let test_2 : (x@[2] * y@[2]) === y@[4] := [[ (y@[4]) ]].
 Let test_3 : (x@[3] * y@[1]) === y@[3] := [[ (y@[3]) ]].
 Let test_4 : (y@[1] * y@[3]) === x@[3] := [[ (x@[3]) ]].
 Let test_5 : (y@[2] * y@[1]) === x@[2] := [[ (x@[2]) ]].
-Let test_6 : ((Const type (natToWord 4 3)) * (negate (Const type (natToWord 4 3)))) === (negate (Const type (natToWord 4 9))) := [[ (negate (Const type (natToWord 4 9))) ]].
+Let test_6 : ((Const type (natToWord 4 3)) * (neg (Const type (natToWord 4 3)))) === (neg (Const type (natToWord 4 9))) := [[ (neg (Const type (natToWord 4 9))) ]].
 
 End mult_tests.
 
 Section div_tests.
 
+Let test_0 : (divu (x@[0]) (x@[1])) === x@[0] := [[ (x@[0]) ]].
+Let test_1 : (divu (x@[1]) (x@[1])) === x@[1] := [[ (x@[1]) ]].
+Let test_2 : (divu (x@[2]) (x@[1])) === x@[2] := [[ (x@[2]) ]].
+Let test_3 : (divu (x@[3]) (x@[1])) === x@[3] := [[ (x@[3]) ]].
+Let test_4 : (divu (x@[3]) (x@[2])) === x@[1] := [[ (x@[1]) ]].
+Let test_5 : (divu (x@[3]) (x@[0])) === y@[1] := [[ (y@[1]) ]].
+
 End div_tests.
+
+Section divs_tests.
+
+Let test_0  : (divs (x@[0]) (x@[1])) === x@[0] := [[ (x@[0]) ]].
+Let test_1  : (divs (x@[1]) (x@[1])) === x@[1] := [[ (x@[1]) ]].
+Let test_2  : (divs (x@[2]) (x@[1])) === x@[2] := [[ (x@[2]) ]].
+Let test_3  : (divs (x@[3]) (x@[1])) === x@[3] := [[ (x@[3]) ]].
+Let test_4  : (divs (x@[3]) (x@[2])) === x@[1] := [[ (x@[1]) ]].
+Let test_5  : (divs (x@[1]) (y@[1])) === y@[1] := [[ (y@[1]) ]].
+Let test_6  : (divs (x@[3]) (y@[1])) === y@[3] := [[ (y@[3]) ]].
+Let test_7  : (divs (y@[4]) (x@[2])) === y@[2] := [[ (y@[2]) ]].
+Let test_8  : (divs (y@[4]) (x@[3])) === y@[1] := [[ (y@[1]) ]].
+
+(* division by 0 *)
+Let test_9  : (divs (x@[3]) (x@[0])) === y@[1] := [[ (y@[1]) ]].
+
+(* overflow *)
+Let test_10 : (divs (y@[4]) (y@[1])) === y@[4] := [[ (y@[4]) ]].
+
+End divs_tests.
 
 Close Scope kami_expr.
 
