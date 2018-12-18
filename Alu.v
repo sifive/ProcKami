@@ -958,8 +958,8 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
