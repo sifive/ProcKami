@@ -1085,6 +1085,10 @@ Section Alu.
              nil
       |}.
 
+    Definition trunc_sign_extend (x : Bit Xlen @# ty)
+      :  Bit Xlen @# ty
+      := SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) x).
+
     (*
       Unsigned division.
 
@@ -1214,14 +1218,14 @@ Section Alu.
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          divs_rems_pkt
-                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1")))
-                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2")));
+                           (trunc_sign_extend (#context_pkt @% "reg1"))
+                           (trunc_sign_extend (#context_pkt @% "reg2"));
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
                            :  Bit Xlen
                            <- res_expr;
-                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) #res)));
+                         RetE (intRegTag (trunc_sign_extend #res));
                optMemXform := None;
                instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
              |} ::
@@ -1240,14 +1244,14 @@ Section Alu.
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          divu_remu_pkt
-                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1")))
-                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2")));
+                           (trunc_sign_extend (#context_pkt @% "reg1"))
+                           (trunc_sign_extend (#context_pkt @% "reg2"));
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
                            :  Bit Xlen
                            <- res_expr;
-                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) #res)));
+                         RetE (intRegTag (trunc_sign_extend #res));
                optMemXform := None;
                instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
              |} ::
@@ -1336,6 +1340,58 @@ Section Alu.
                            :  Bit Xlen
                            <- res_expr;
                          RetE (intRegTag (#res));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "remw";
+               extensions := "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01110") ::
+                    fieldVal funct3Field ('b"110")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         divs_rems_pkt
+                           (trunc_sign_extend (#context_pkt @% "reg1"))
+                           (trunc_sign_extend (#context_pkt @% "reg2"));
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (trunc_sign_extend (#res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "remuw";
+               extensions := "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01110") ::
+                    fieldVal funct3Field ('b"111")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         divu_remu_pkt
+                           (trunc_sign_extend (#context_pkt @% "reg1"))
+                           (trunc_sign_extend (#context_pkt @% "reg2"));
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (trunc_sign_extend (#res)));
                optMemXform := None;
                instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
              |} ::
