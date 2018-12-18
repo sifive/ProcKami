@@ -73,14 +73,14 @@ Section Alu.
 
     Definition MultOutputType := Bit (2 * Xlen)%nat.
 
-    Definition DivInputType
+    Definition DivRemInputType
       := STRUCT {
            "arg1"     :: Data;
            "arg2"     :: Data;
            "not_neg?" :: Bool
          }.
 
-    Definition DivOutputType := Bit Xlen.
+    Definition DivRemOutputType := Bit Xlen.
 
     Local Open Scope kami_expr.
     Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
@@ -1111,20 +1111,39 @@ Section Alu.
       := let z
          :  Bit n @# ty
          := divu (abs x) (abs y) in
-
          ITE (pos x && pos y) z (neg z).
+
+    Definition div_rem_pkt (x y : Bit Xlen @# ty) (not_neg : Bool @# ty)
+      :  DivRemInputType ## ty
+      := RetE
+           (STRUCT {
+             "arg1"     ::= x;
+             "arg2"     ::= y;
+             "not_neg?" ::= not_neg
+           } : DivRemInputType @# ty).
+
+    Definition divu_remu_pkt (x y : Bit Xlen @# ty)
+      :  DivRemInputType ## ty
+      := div_rem_pkt x y ($$true).
+
+    Definition divs_rems_pkt (x y : Bit Xlen @# ty)
+      :  DivRemInputType ## ty
+      := div_rem_pkt
+           (abs x)
+           (abs y)
+           ((pos x) && pos (y)).
 
     Definition Div : @FUEntry Xlen_over_8 ty
       := {|
         fuName := "div";
         fuFunc
-          := fun sem_in_pkt_expr : DivInputType ## ty
+          := fun sem_in_pkt_expr : DivRemInputType ## ty
                => LETE sem_in_pkt
-                    :  DivInputType
+                    :  DivRemInputType
                     <- sem_in_pkt_expr;
                   let res
                     :  Bit Xlen @# ty
-                    := (#sem_in_pkt @% "arg1") / (#sem_in_pkt @% "arg2") in
+                    := divu (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2") in
                   RetE
                     (ITE (#sem_in_pkt @% "not_neg?") res (neg res));
         fuInsts
@@ -1142,18 +1161,9 @@ Section Alu.
                       => LETE context_pkt
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
-                         LETC x
-                           :  Bit Xlen
-                           <- #context_pkt @% "reg1";
-                         LETC y
-                           :  Bit Xlen
-                           <- #context_pkt @% "reg2";
-                         RetE
-                           ((STRUCT {
-                             "arg1"     ::= abs (#x);
-                             "arg2"     ::= abs (#y);
-                             "not_neg?" ::= (pos (#x) && pos (#y))
-                            }) : DivInputType @# ty);
+                         divs_rems_pkt
+                           (#context_pkt @% "reg1")
+                           (#context_pkt @% "reg2");
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
@@ -1177,12 +1187,9 @@ Section Alu.
                       => LETE context_pkt
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
-                         RetE
-                           ((STRUCT {
-                             "arg1"     ::= #context_pkt @% "reg1";
-                             "arg2"     ::= #context_pkt @% "reg2";
-                             "not_neg?" ::= $$true
-                            }) : DivInputType @# ty);
+                         divu_remu_pkt
+                           (#context_pkt @% "reg1")
+                           (#context_pkt @% "reg2");
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
@@ -1206,18 +1213,9 @@ Section Alu.
                       => LETE context_pkt
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
-                         LETC x
-                           :  Bit Xlen
-                           <- SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1"));
-                         LETC y
-                           :  Bit Xlen
-                           <- SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2"));
-                         RetE
-                           ((STRUCT {
-                             "arg1"     ::= abs (#x);
-                             "arg2"     ::= abs (#y);
-                             "not_neg?" ::= (pos (#x) && pos (#y))
-                            }) : DivInputType @# ty);
+                         divs_rems_pkt
+                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1")))
+                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2")));
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
@@ -1241,12 +1239,9 @@ Section Alu.
                       => LETE context_pkt
                            :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
-                         RetE
-                           ((STRUCT {
-                             "arg1"     ::= SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1"));
-                             "arg2"     ::= SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2"));
-                             "not_neg?" ::= $$true
-                            }) : DivInputType @# ty);
+                         divu_remu_pkt
+                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg1")))
+                           (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#context_pkt @% "reg2")));
                outputXform
                  := fun res_expr : Bit Xlen ## ty
                       => LETE res
@@ -1258,6 +1253,94 @@ Section Alu.
              |} ::
              nil
         |}.
+
+    (*
+      Unsigned remainder.
+
+      Note: The remainder operation here is that defined by
+      Coq.NArith.BinNatDef (mod). This function maps division by 0 to
+      0. The RISC-V spec however maps the remainder of division by 0
+      to the dividend.
+    *)
+    Definition remu (n : nat) (x y : Bit n @# ty)
+      :  Bit n @# ty
+      := ITE (y == $0) x (x %% y).
+
+    Definition rems (n : nat) (x y : Bit n @# ty)
+      :  Bit n @# ty
+      := let z
+           :  Bit n @# ty
+           := remu (abs x) (abs y) in
+         ITE (pos x && pos y) z (neg z).
+
+    Definition Rem : @FUEntry Xlen_over_8 ty
+      := {|
+        fuName := "rem";
+        fuFunc
+          := fun sem_in_pkt_expr : DivRemInputType ## ty
+              => LETE sem_in_pkt
+                   :  DivRemInputType
+                   <- sem_in_pkt_expr;
+                 let res
+                   :  Bit Xlen @# ty
+                   := remu (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2") in
+                 RetE
+                   (ITE (#sem_in_pkt @% "not_neg?") res (neg res));
+        fuInsts
+          := {|
+               instName   := "rem";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"110")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         divu_remu_pkt
+                           (#context_pkt @% "reg1")
+                           (#context_pkt @% "reg2");
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (#res));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "remu";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"111")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         divs_rems_pkt
+                           (#context_pkt @% "reg1")
+                           (#context_pkt @% "reg2");
+               outputXform
+                 := fun res_expr : Bit Xlen ## ty
+                      => LETE res
+                           :  Bit Xlen
+                           <- res_expr;
+                         RetE (intRegTag (#res));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             nil
+      |}.
 
     Local Close Scope kami_expr.
   End Ty.
@@ -1363,7 +1446,7 @@ Let test_6 : ((Const type (natToWord 4 3)) * (neg (Const type (natToWord 4 3))))
 
 End mult_tests.
 
-Section div_tests.
+Section divu_tests.
 
 Let test_0 : (divu (x@[0]) (x@[1])) === x@[0] := [[ (x@[0]) ]].
 Let test_1 : (divu (x@[1]) (x@[1])) === x@[1] := [[ (x@[1]) ]].
@@ -1372,7 +1455,7 @@ Let test_3 : (divu (x@[3]) (x@[1])) === x@[3] := [[ (x@[3]) ]].
 Let test_4 : (divu (x@[3]) (x@[2])) === x@[1] := [[ (x@[1]) ]].
 Let test_5 : (divu (x@[3]) (x@[0])) === y@[1] := [[ (y@[1]) ]].
 
-End div_tests.
+End divu_tests.
 
 Section divs_tests.
 
@@ -1393,6 +1476,28 @@ Let test_9  : (divs (x@[3]) (x@[0])) === y@[1] := [[ (y@[1]) ]].
 Let test_10 : (divs (y@[4]) (y@[1])) === y@[4] := [[ (y@[4]) ]].
 
 End divs_tests.
+
+Section remu_tests.
+
+Let test_0 : (remu (x@[0]) (x@[1]) === x@[0]) := [[ x@[0] ]].
+Let test_1 : (remu (x@[3]) (x@[2]) === x@[1]) := [[ x@[1] ]].
+Let test_2 : (remu (x@[3]) (x@[0]) === x@[3]) := [[ x@[3] ]].
+Let test_3 : (remu (x@[2]) (x@[0]) === x@[2]) := [[ x@[2] ]].
+
+End remu_tests.
+
+Section rems_tests.
+
+Let test_0 : (rems (x@[0]) (x@[1]) === x@[0]) := [[ x@[0] ]].
+Let test_1 : (rems (x@[3]) (x@[2]) === x@[1]) := [[ x@[1] ]].
+Let test_2 : (rems (x@[3]) (x@[0]) === x@[3]) := [[ x@[3] ]].
+Let test_3 : (rems (x@[2]) (x@[0]) === x@[2]) := [[ x@[2] ]].
+Let test_4 : (rems (y@[3]) (y@[2]) === y@[1]) := [[ y@[1] ]].
+Let test_5 : (rems (y@[4]) (y@[2]) === x@[0]) := [[ x@[0] ]].
+Let test_6 : (rems (y@[4]) (x@[2]) === x@[0]) := [[ x@[0] ]].
+Let test_7 : (rems (y@[4]) (y@[3]) === y@[1]) := [[ y@[1] ]].
+
+End rems_tests.
 
 Close Scope kami_expr.
 
