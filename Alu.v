@@ -940,6 +940,7 @@ Section Alu.
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
                     fieldVal funct3Field ('b"000")   ::
+                    fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
@@ -961,12 +962,13 @@ Section Alu.
                instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
              |} ::
              {|
-               instName   := "mulhsu";
+               instName   := "mulh";
                extensions := "RV32M" :: "RV64M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
                     fieldVal funct3Field ('b"001")   ::
+                    fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
@@ -976,6 +978,62 @@ Section Alu.
                          RetE
                            ((STRUCT {
                              "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                            }) : MultInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit (2 * Xlen) ## ty
+                      => LETE res
+                           :  Bit (2 * Xlen)
+                           <- res_expr;
+                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "mulhsu";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"010")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                            }) : MultInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit (2 * Xlen) ## ty
+                      => LETE res
+                           :  Bit (2 * Xlen)
+                           <- res_expr;
+                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
+             {|
+               instName   := "mulhu";
+               extensions := "RV32M" :: "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01100") ::
+                    fieldVal funct3Field ('b"011")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
                              "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
