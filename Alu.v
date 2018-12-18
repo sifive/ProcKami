@@ -1045,6 +1045,34 @@ Section Alu.
                optMemXform := None;
                instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
              |} ::
+             {|
+               instName   := "mulw";
+               extensions := "RV64M" :: nil;
+               uniqId
+                 := fieldVal instSizeField ('b"11")  ::
+                    fieldVal opcodeField ('b"01110") ::
+                    fieldVal funct3Field ('b"000")   ::
+                    fieldVal funct7Field ('b"0000001") ::
+                    nil;
+               inputXform
+                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                      => LETE context_pkt
+                           :  ExecContextPkt Xlen_over_8
+                           <- context_pkt_expr;
+                         RetE
+                           ((STRUCT {
+                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                            }) : MultInputType @# ty);
+               outputXform
+                 := fun res_expr : Bit (2 * Xlen) ## ty
+                      => LETE res
+                           :  Bit (2 * Xlen)
+                           <- res_expr;
+                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#res))));
+               optMemXform := None;
+               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+             |} ::
              nil
       |}.
 
@@ -1260,6 +1288,10 @@ Let test_5 : (y@[2] * y@[1]) === x@[2] := [[ (x@[2]) ]].
 Let test_6 : ((Const type (natToWord 4 3)) * (negate (Const type (natToWord 4 3)))) === (negate (Const type (natToWord 4 9))) := [[ (negate (Const type (natToWord 4 9))) ]].
 
 End mult_tests.
+
+Section div_tests.
+
+End div_tests.
 
 Close Scope kami_expr.
 
