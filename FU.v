@@ -186,7 +186,7 @@ Section Params.
     Global Instance etaX : Settable _ :=
       mkSettable
         (pure Build_InstHints
-              <*> hasRs1 <*> hasRs2 <*> hasRd <*> hasFrs1 <*> hasFrs2 <*> hasFrd
+              <*> hasRs1 <*> hasRs2 <*> hasRd <*> hasFrs1 <*> hasFrs2 <*> hasFrs3 <*> hasFrd
               <*> isBranch <*> isJumpImm <*> isJumpReg <*> isSystem <*> isCsr).
 
     Definition falseHints :=
