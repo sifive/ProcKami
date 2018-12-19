@@ -67,6 +67,9 @@ Section Params.
     Definition rs2Field := (24,20).
     Definition rdField := (11,7).
     Definition immField := (31,20).
+    Definition rmField := (14,12).
+    Definition fmtField := (26,25).
+    Definition rs3Field := (31,27).
     
     Variable ty: Kind -> Type.
     Variable inst: Inst @# ty.
@@ -83,6 +86,10 @@ Section Params.
     Definition rd := inst$[fst rdField: snd rdField].
     Definition imm := inst$[fst immField: snd immField].
     Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
+    Definition rm := inst$[fst rmField: snd rmField].
+    Definition fmt := inst$[fst fmtField: snd fmtField].
+    Definition rs3 := inst$[fst rs3Field: snd rs3Field].
+
     Local Close Scope kami_expr.
   End Fields.
 
@@ -168,6 +175,7 @@ Section Params.
         hasRd       : bool ;
         hasFrs1     : bool ;
         hasFrs2     : bool ;
+        hasFrs3     : bool ;
         hasFrd      : bool ;
         isBranch    : bool ;
         isJumpImm   : bool ;
@@ -187,6 +195,7 @@ Section Params.
          hasRd       := false ;
          hasFrs1     := false ;
          hasFrs2     := false ;
+         hasFrs3     := false ;
          hasFrd      := false ;
          isBranch    := false ;
          isJumpImm   := false ;
