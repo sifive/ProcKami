@@ -92,6 +92,7 @@ Section Params.
              "reg2"                     :: Data ;
              "freg1"                    :: Data ;
              "freg2"                    :: Data ;
+             "freg3"                    :: Data ;
              "csr"                      :: Data ;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
