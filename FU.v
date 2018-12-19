@@ -26,7 +26,7 @@ Section Params.
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Data := (Bit Xlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Xlen_over_8).
+  Local Notation DataMask := (Array Xlen_over_8 Bool).
 
   Definition PrivMode := (Bit 2).
 
@@ -50,11 +50,6 @@ Section Params.
   Definition InstPageFault      := 12.
   Definition LoadPageFault      := 13.
   Definition SAmoPageFault      := 15.
-
-  Definition MemOp :=
-    STRUCT { "sub_opcode" :: Bit 2 ;
-             "funct3"     :: Bit 3 ;
-             "funct5"     :: Bit 5 }.
 
   Section Fields.
     Definition instSizeField := (1, 0).
@@ -122,7 +117,6 @@ Section Params.
   Definition ExecContextUpdPkt :=
     STRUCT { "val1"       :: Maybe RoutedReg ;
              "val2"       :: Maybe RoutedReg ;
-             "memOp"      :: MemOp ;
              "memBitMask" :: DataMask ;
              "taken?"     :: Bool ;
              "exception"  :: Maybe Exception }.
@@ -132,25 +126,9 @@ Section Params.
 
     Local Open Scope kami_expr.
 
-    Definition LoadOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"00") ;
-                                                          "funct3"     ::= funct3Val ;
-                                                          "funct5"     ::= $0
-                                                     }.
-    
-    Definition StoreOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"10") ;
-                                                           "funct3"     ::= funct3Val ;
-                                                           "funct5"     ::= $0
-                                                         }.
-    
-    Definition AmoOp funct3Val funct5Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"11") ;
-                                                                   "funct3"     ::= funct3Val ;
-                                                                   "funct5"     ::= funct5Val
-                                                                 }.
-
     Definition noUpdPkt: ExecContextUpdPkt @# ty :=
       (STRUCT { "val1" ::= @Invalid ty _ ;
                 "val2" ::= @Invalid ty _ ;
-                "memOp" ::= $$ (getDefaultConst MemOp) ;
                 "memBitMask" ::= $$ (getDefaultConst DataMask) ;
                 "taken?" ::= $$ false ;
                 "exception" ::= Invalid }).
@@ -158,6 +136,7 @@ Section Params.
     Local Close Scope kami_expr.
 
     Definition MemoryInput := STRUCT {
+                                  "condition" :: Bool ;
                                   "mem" :: Data ;
                                   "reg" :: Data }.
 
@@ -166,6 +145,7 @@ Section Params.
                                 "mask" :: Array Xlen_over_8 Bool }.
     
     Definition MemoryOutput := STRUCT {
+                                   "condition" :: Bool ;
                                    "mem" :: Maybe MaskedMem ;
                                    "reg" :: Maybe Data }.
     
