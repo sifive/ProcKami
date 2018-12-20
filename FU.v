@@ -92,10 +92,7 @@ Section Params.
     STRUCT { "pc"                       :: VAddr ;
              "reg1"                     :: Data ;
              "reg2"                     :: Data ;
-             "freg1"                    :: Data ;
-             "freg2"                    :: Data ;
-             "freg3"                    :: Data ;
-             "csr"                      :: Data ;
+             "reg3"                     :: Data ;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
@@ -112,6 +109,7 @@ Section Params.
   Definition CsrTag := 3.
   Definition MemDataTag := 4.
   Definition MemAddrTag := 5.
+  Definition FflagsTag := 6.
 
   Definition RoutedReg := STRUCT { "tag" :: RoutingTag ; "data" :: Data }.
 
