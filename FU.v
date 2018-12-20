@@ -40,7 +40,7 @@ Section Params.
   Definition IllegalInst        := 2.
   Definition Breakpoint         := 3.
   Definition LoadAddrMisaligned := 4.
-  Definition LocalAccessFault   := 5.
+  Definition LoadAccessFault    := 5.
   Definition SAmoAddrMisaligned := 6.
   Definition SAmoAccessFault    := 7.
   Definition ECallU             := 8.
@@ -99,6 +99,7 @@ Section Params.
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
+             "accessException?"         :: Bool ;
              "mode"                     :: PrivMode ;
              "compressed?"              :: Bool }.
 
@@ -119,6 +120,8 @@ Section Params.
              "val2"       :: Maybe RoutedReg ;
              "memBitMask" :: DataMask ;
              "taken?"     :: Bool ;
+             "aq"         :: Bool ;
+             "rl"         :: Bool ;
              "exception"  :: Maybe Exception }.
 
   Section Ty.
@@ -131,12 +134,16 @@ Section Params.
                 "val2" ::= @Invalid ty _ ;
                 "memBitMask" ::= $$ (getDefaultConst DataMask) ;
                 "taken?" ::= $$ false ;
+                "aq" ::= $$ false ;
+                "rl" ::= $$ false ;
                 "exception" ::= Invalid }).
     
     Local Close Scope kami_expr.
 
     Definition MemoryInput := STRUCT {
-                                  "condition" :: Bool ;
+                                  "aq" :: Bool ;
+                                  "rl" :: Bool ;
+                                  "reservation" :: Bit 2 ;
                                   "mem" :: Data ;
                                   "reg" :: Data }.
 
@@ -145,7 +152,9 @@ Section Params.
                                 "mask" :: Array Xlen_over_8 Bool }.
     
     Definition MemoryOutput := STRUCT {
-                                   "condition" :: Bool ;
+                                   "aq" :: Bool ;
+                                   "rl" :: Bool ;
+                                   "reservation" :: Bit 2 ;
                                    "mem" :: Maybe MaskedMem ;
                                    "reg" :: Maybe Data }.
     
