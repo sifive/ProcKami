@@ -5,10 +5,10 @@ Import RecordNotations.
 Section Alu.
   Variable Xlen_over_8: nat.
 
-  Notation Xlen := (8 * Xlen_over_8).
-  Notation Data := (Bit Xlen).
-  Notation VAddr := (Bit Xlen).
-  Notation DataMask := (Bit Xlen_over_8).
+  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Data := (Bit Xlen).
+  Local Notation VAddr := (Bit Xlen).
+  Local Notation DataMask := (Bit Xlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
