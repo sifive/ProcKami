@@ -26,7 +26,7 @@ Section Params.
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Data := (Bit Xlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Xlen_over_8).
+  Local Notation DataMask := (Array Xlen_over_8 Bool).
 
   Definition PrivMode := (Bit 2).
 
@@ -40,7 +40,7 @@ Section Params.
   Definition IllegalInst        := 2.
   Definition Breakpoint         := 3.
   Definition LoadAddrMisaligned := 4.
-  Definition LocalAccessFault   := 5.
+  Definition LoadAccessFault    := 5.
   Definition SAmoAddrMisaligned := 6.
   Definition SAmoAccessFault    := 7.
   Definition ECallU             := 8.
@@ -50,11 +50,6 @@ Section Params.
   Definition InstPageFault      := 12.
   Definition LoadPageFault      := 13.
   Definition SAmoPageFault      := 15.
-
-  Definition MemOp :=
-    STRUCT { "sub_opcode" :: Bit 2 ;
-             "funct3"     :: Bit 3 ;
-             "funct5"     :: Bit 5 }.
 
   Section Fields.
     Definition instSizeField := (1, 0).
@@ -97,13 +92,11 @@ Section Params.
     STRUCT { "pc"                       :: VAddr ;
              "reg1"                     :: Data ;
              "reg2"                     :: Data ;
-             "freg1"                    :: Data ;
-             "freg2"                    :: Data ;
-             "freg3"                    :: Data ;
-             "csr"                      :: Data ;
+             "reg3"                     :: Data ;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
+             "accessException?"         :: Bool ;
              "mode"                     :: PrivMode ;
              "compressed?"              :: Bool }.
 
@@ -116,15 +109,17 @@ Section Params.
   Definition CsrTag := 3.
   Definition MemDataTag := 4.
   Definition MemAddrTag := 5.
+  Definition FflagsTag := 6.
 
   Definition RoutedReg := STRUCT { "tag" :: RoutingTag ; "data" :: Data }.
 
   Definition ExecContextUpdPkt :=
     STRUCT { "val1"       :: Maybe RoutedReg ;
              "val2"       :: Maybe RoutedReg ;
-             "memOp"      :: MemOp ;
              "memBitMask" :: DataMask ;
              "taken?"     :: Bool ;
+             "aq"         :: Bool ;
+             "rl"         :: Bool ;
              "exception"  :: Maybe Exception }.
 
   Section Ty.
@@ -132,32 +127,21 @@ Section Params.
 
     Local Open Scope kami_expr.
 
-    Definition LoadOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"00") ;
-                                                          "funct3"     ::= funct3Val ;
-                                                          "funct5"     ::= $0
-                                                     }.
-    
-    Definition StoreOp funct3Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"10") ;
-                                                           "funct3"     ::= funct3Val ;
-                                                           "funct5"     ::= $0
-                                                         }.
-    
-    Definition AmoOp funct3Val funct5Val : MemOp @# ty := STRUCT { "sub_opcode" ::= $$ (2'b"11") ;
-                                                                   "funct3"     ::= funct3Val ;
-                                                                   "funct5"     ::= funct5Val
-                                                                 }.
-
     Definition noUpdPkt: ExecContextUpdPkt @# ty :=
       (STRUCT { "val1" ::= @Invalid ty _ ;
                 "val2" ::= @Invalid ty _ ;
-                "memOp" ::= $$ (getDefaultConst MemOp) ;
                 "memBitMask" ::= $$ (getDefaultConst DataMask) ;
                 "taken?" ::= $$ false ;
+                "aq" ::= $$ false ;
+                "rl" ::= $$ false ;
                 "exception" ::= Invalid }).
     
     Local Close Scope kami_expr.
 
     Definition MemoryInput := STRUCT {
+                                  "aq" :: Bool ;
+                                  "rl" :: Bool ;
+                                  "reservation" :: Bit 2 ;
                                   "mem" :: Data ;
                                   "reg" :: Data }.
 
@@ -166,6 +150,9 @@ Section Params.
                                 "mask" :: Array Xlen_over_8 Bool }.
     
     Definition MemoryOutput := STRUCT {
+                                   "aq" :: Bool ;
+                                   "rl" :: Bool ;
+                                   "reservation" :: Bit 2 ;
                                    "mem" :: Maybe MaskedMem ;
                                    "reg" :: Maybe Data }.
     
