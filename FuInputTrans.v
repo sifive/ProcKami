@@ -78,18 +78,16 @@ Definition tagged_inst_match
   (sem_input_kind sem_output_kind : Kind)
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   (inst_id : inst_id_kind @# ty)
-  :  Bool ## ty
-  := RetE
-       ((inst_id_bstring (tagged_inst_id inst))
-         == inst_id).
+  :  Bool @# ty
+  := (inst_id_bstring (tagged_inst_id inst))
+       == inst_id.
 
 Definition tagged_func_unit_match
   (func_unit : tagged_func_unit_type)
   (func_unit_id : func_unit_id_kind @# ty)
-  :  Bool ## ty
-  := RetE
-       ((func_unit_id_bstring (tagged_func_unit_id func_unit))
-         == func_unit_id).
+  :  Bool @# ty
+  := (func_unit_id_bstring (tagged_func_unit_id func_unit))
+       == func_unit_id.
 
 Definition trans_inst
   (sem_input_kind sem_output_kind : Kind)
@@ -98,15 +96,11 @@ Definition trans_inst
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   :  Maybe packed_args_packet_kind ## ty
   := LETE packet : sem_input_kind <- inputXform (detag_inst inst) exec_context_packet;
-     LETE enabled : Bool <-
-       tagged_inst_match
-         inst
-         decoder_pkt_inst_id;
-     (optional_packet
+     (utila_expr_opt_pkt
        (ZeroExtendTruncMsb
          packed_args_packet_width
          (pack (#packet)))
-       (#enabled)).
+       (tagged_inst_match inst decoder_pkt_inst_id)).
 
 Definition trans_insts
   (sem_input_kind sem_output_kind : Kind)
@@ -114,7 +108,7 @@ Definition trans_insts
   (decoder_pkt_inst_id : inst_id_kind @# ty)
   (exec_context_packet : exec_context_packet_kind ## ty)
   :  Maybe packed_args_packet_kind ## ty
-  := utila_find_packet
+  := utila_expr_find_pkt
        (map
          (trans_inst decoder_pkt_inst_id exec_context_packet)
          insts).
@@ -124,9 +118,10 @@ Definition trans_func_unit_match
   (decoder_packet_expr : decoder_packet_kind ## ty)
   :  Bool ## ty
   := LETE decoder_packet : decoder_packet_kind <- decoder_packet_expr;
-     (tagged_func_unit_match
-       func_unit
-       (((#decoder_packet) @% "data") @% "FuncUnitTag")).
+     RetE
+       (tagged_func_unit_match
+         func_unit
+         (((#decoder_packet) @% "data") @% "FuncUnitTag")).
         
 Fixpoint trans_func_unit
   (decoder_packet_expr : decoder_packet_kind ## ty)
@@ -150,7 +145,7 @@ Fixpoint trans_func_unit
        <- trans_func_unit_match
             func_unit
             decoder_packet_expr;
-     (optional_packet
+     (utila_expr_opt_pkt
        ((#args_packet) @% "data")
        (CABool And
          [(#func_unit_match);
@@ -167,11 +162,11 @@ Definition createInputXForm
        <- decoder_packet_expr;
      LETE opt_args_packet
        :  Maybe packed_args_packet_kind
-       <- utila_find_packet
+       <- utila_expr_find_pkt
             (map
               (trans_func_unit decoder_packet_expr exec_context_packet_expr)
               (tag func_units));
-     (@optional_packet ty
+     (@utila_expr_opt_pkt ty
        trans_packet_kind
        (STRUCT {
          "FuncUnitTag" ::= (((#decoder_packet) @% "data") @% "FuncUnitTag");

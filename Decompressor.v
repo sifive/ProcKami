@@ -958,7 +958,7 @@ Definition raw_comp_inst_match_id
   (raw_comp_inst_expr: comp_inst_kind ## ty)
   (inst_id : UniqId)
   :  Bool ## ty
-  := utila_all (map (raw_comp_inst_match_field raw_comp_inst_expr) inst_id).
+  := utila_expr_all (map (raw_comp_inst_match_field raw_comp_inst_expr) inst_id).
 
 Definition inst_match_enabled_exts
   (comp_inst_entry : CompInst)
@@ -967,10 +967,10 @@ Definition inst_match_enabled_exts
   := LETE mode_packet
        :  Extensions
        <- mode_packet_expr;
-     utila_any
+     utila_expr_any
        (map 
          (fun exts : list string
-           => utila_all
+           => utila_expr_all
                 (map
                   (fun ext : string
                     => RetE (struct_get_field_default (#mode_packet) ext ($$false)))
@@ -998,7 +998,7 @@ Definition decomp_inst
        <- inst_match_enabled_exts
             comp_inst_entry
             mode_packet_expr;
-     optional_packet
+     utila_expr_opt_pkt
        (#raw_uncomp_inst)
        ((#raw_comp_inst_match) && (#exts_match)).
 
@@ -1007,7 +1007,7 @@ Definition uncompress
   (mode_packet_expr : Extensions ## ty)
   (raw_comp_inst_expr : comp_inst_kind ## ty)
   :  opt_uncomp_inst_kind ## ty
-  := utila_find_packet
+  := utila_expr_find_pkt
        (map
          (fun comp_inst_entry
            => decomp_inst comp_inst_entry mode_packet_expr raw_comp_inst_expr)

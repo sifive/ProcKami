@@ -149,7 +149,7 @@ Definition decode_match_fields
   (fields : list ({x: (nat * nat) & word (fst x + 1 - snd x)}))
   (raw_inst_expr : uncomp_inst_kind ## ty)
   :  Bool ## ty
-  := utila_all (map (decode_match_field raw_inst_expr) fields).
+  := utila_expr_all (map (decode_match_field raw_inst_expr) fields).
 
 Definition decode_match_enabled_exts
   (sem_input_kind sem_output_kind : Kind)
@@ -158,7 +158,7 @@ Definition decode_match_enabled_exts
   :  Bool ## ty
   := LETE mode_packet : Extensions
        <- mode_packet_expr;
-     utila_any
+     utila_expr_any
        (map
          (fun ext : string
            => RetE (struct_get_field_default (#mode_packet) ext ($$false)))
@@ -190,7 +190,7 @@ Definition decode_inst
             (detag_inst inst)
             mode_packet_expr
             raw_inst_expr;
-     optional_packet
+     utila_expr_opt_pkt
        (STRUCT {
          "FuncUnitTag" ::= func_unit_id_bstring func_unit_id;
          "InstTag"     ::= inst_id_bstring (tagged_inst_id inst)
@@ -202,10 +202,10 @@ Definition decode
   (mode_packet_expr : Extensions ## ty)
   (raw_inst_expr : uncomp_inst_kind ## ty)
   :  decoder_packet_kind ## ty
-  := utila_find_packet
+  := utila_expr_find_pkt
        (map
          (fun func_unit
-           => utila_find_packet
+           => utila_expr_find_pkt
                 (map
                   (fun inst
                     => decode_inst
@@ -235,13 +235,9 @@ Definition decode_bstring
              (#bit_string)))).
  
 Definition decode_uncompressed
-  (bit_string_expr : Bit uncomp_inst_width ## ty)
-  :  Bool ## ty
-  := LETE bit_string
-       :  Bit uncomp_inst_width
-       <- bit_string_expr;
-     RetE
-       ((#bit_string) $[1:0] == $$(('b"11") : word 2)).
+  (bit_string : Bit uncomp_inst_width @# ty)
+  :  Bool @# ty
+  := (bit_string $[1:0] == $$(('b"11") : word 2)).
 
 Close Scope kami_expr.
 

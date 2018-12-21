@@ -68,13 +68,10 @@ Definition exec_inst
        <- outputXform
             (detag_inst inst)
             (RetE sem_output);
-     LETE inst_match
-       :  Bool
-       <- tagged_inst_match inst inst_id;
-     @optional_packet ty
+     @utila_expr_opt_pkt ty
        exec_update_packet_kind
        (#exec_update_packet)
-       (#inst_match).
+       (tagged_inst_match inst inst_id).
 
 Definition exec_func_unit
   (trans_packet : trans_packet_kind @# ty)
@@ -94,7 +91,7 @@ Definition exec_func_unit
      (* II. map output onto an update packet *)
      LETE exec_update_packet
        :  Maybe exec_update_packet_kind
-       <- @utila_find ty
+       <- @utila_expr_find ty
             (Maybe exec_update_packet_kind)
             (fun (exec_update_packet : Maybe exec_update_packet_kind @# ty)
               => exec_update_packet @% "valid")
@@ -106,13 +103,11 @@ Definition exec_func_unit
               (tag_func_unit_insts
                 (detag_func_unit func_unit)));
      (* III. return the update packet and set valid flag *)
-     LETE func_unit_match
-       :  Bool
-       <- tagged_func_unit_match func_unit (trans_packet @% "FuncUnitTag");
-     @optional_packet ty
+     @utila_expr_opt_pkt ty
        exec_update_packet_kind
        ((#exec_update_packet) @% "data")
-       ((#func_unit_match) && ((#exec_update_packet) @% "valid")).
+       ((tagged_func_unit_match func_unit (trans_packet @% "FuncUnitTag")) &&
+        ((#exec_update_packet) @% "valid")).
 
 Definition exec
   (func_units : list func_unit_type)
@@ -121,7 +116,7 @@ Definition exec
   := LETE trans_packet
        :  trans_packet_kind
        <- trans_packet_expr;
-     @utila_find ty
+     @utila_expr_find ty
        (Maybe exec_update_packet_kind)
        (fun (exec_update_packet : Maybe exec_update_packet_kind @# ty)
          => exec_update_packet @% "valid")
