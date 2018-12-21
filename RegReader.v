@@ -63,12 +63,6 @@ Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
 
 Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
 
-Let full_decoder_pkt_kind := Decoder.full_decoder_pkt_kind ty Xlen_over_8.
-
-Let func_unit_id_bstring := Decoder.func_unit_id_bstring ty Xlen_over_8.
-
-Let inst_id_bstring := Decoder.inst_id_bstring ty Xlen_over_8.
-
 Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
 Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
@@ -82,11 +76,15 @@ Definition reg_reader_insts_match
   :  Bool @# ty
   := utila_any (map (fun inst => tagged_inst_match inst inst_id) insts).
 
+(*
+  Returns true iff the instruction referenced by [decoder_pkt]
+  satisfies [p].
+*)
 Definition reg_reader_match
   (p : forall sem_input_kind sem_output_kind : Kind,
-       tagged_inst_type sem_input_kind sem_output_kind ->
+       inst_type sem_input_kind sem_output_kind ->
        bool)
-  (decoder_pkt : full_decoder_pkt_kind @# ty)
+  (decoder_pkt : decoder_pkt_kind @# ty)
   :  Bool @# ty
   := utila_any
        (map
@@ -97,7 +95,8 @@ Definition reg_reader_match
               ((reg_reader_insts_match
                  (decoder_pkt @% "InstTag")
                  (filter
-                   (p (fuInputK func_unit) (fuOutputK func_unit))
+                   (fun inst
+                     => p (fuInputK func_unit) (fuOutputK func_unit) (detag_inst inst))
                    (tag (fuInsts func_unit)))) &&
                (tagged_func_unit_match
                  tagged_func_unit
@@ -106,56 +105,56 @@ Definition reg_reader_match
 
 Definition inst_has_rs1
   (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
   :  bool
-  := hasRs1 (instHints (detag_inst inst)).
+  := hasRs1 (instHints inst).
 
 Definition inst_has_rs2
   (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
   :  bool
-  := hasRs2 (instHints (detag_inst inst)).
+  := hasRs2 (instHints inst).
 
 Definition inst_has_frs1
   (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
   :  bool
-  := hasFrs1 (instHints (detag_inst inst)).
+  := hasFrs1 (instHints inst).
 
 Definition inst_has_frs2
   (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
   :  bool
-  := hasFrs2 (instHints (detag_inst inst)).
+  := hasFrs2 (instHints inst).
 
 Definition inst_has_frs3
   (sem_input_kind sem_output_kind : Kind)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
+  (inst : inst_type sem_input_kind sem_output_kind)
   :  bool
-  := hasFrs3 (instHints (detag_inst inst)).
+  := hasFrs3 (instHints inst).
 
 Definition reg_reader_has_rs1
-  :  full_decoder_pkt_kind @# ty ->
+  :  decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_rs1.
 
 Definition reg_reader_has_rs2
-  :  full_decoder_pkt_kind @# ty ->
+  :  decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_rs2.
 
 Definition reg_reader_has_frs1
-  :  full_decoder_pkt_kind @# ty ->
+  :  decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs1.
 
 Definition reg_reader_has_frs2
-  :  full_decoder_pkt_kind @# ty ->
+  :  decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs2.
 
 Definition reg_reader_has_frs3
-  :  full_decoder_pkt_kind @# ty ->
+  :  decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs3.
 
@@ -172,10 +171,10 @@ Definition reg_reader_read_freg
      Ret (#freg_val).
 
 Definition reg_reader
-  (opt_decoder_pkt : Maybe full_decoder_pkt_kind @# ty)
+  (opt_decoder_pkt : Maybe decoder_pkt_kind @# ty)
   :  ActionT ty exec_context_pkt_kind
   := let decoder_pkt
-       :  full_decoder_pkt_kind @# ty
+       :  decoder_pkt_kind @# ty
        := opt_decoder_pkt @% "data" in
      let raw_inst
        :  uncomp_inst_kind @# ty

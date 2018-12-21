@@ -34,25 +34,25 @@ Definition utila_any
 (* Kami Let Expressions *)
 
 Definition utila_expr_opt_pkt
-  (packet_type : Kind)
-  (input_packet : packet_type @# ty)
-  (enabled : Bool @# ty)
-  :  Maybe packet_type ## ty
-  := RetE (utila_opt_pkt input_packet enabled).
+  (k : Kind)
+  (x : k @# ty)
+  (valid : Bool @# ty)
+  :  Maybe k ## ty
+  := RetE (utila_opt_pkt x valid).
 
 Definition utila_expr_foldr
-  (elem_kind res_kind : Kind)
-  (f : elem_kind @# ty -> res_kind @# ty -> res_kind @# ty)
-  (init : res_kind @# ty)
-  :  list (elem_kind ## ty) -> res_kind ## ty
+  (j k : Kind)
+  (f : j @# ty -> k @# ty -> k @# ty)
+  (init : k @# ty)
+  :  list (j ## ty) -> k ## ty
   := fold_right
-       (fun (x_expr : elem_kind ## ty)
-            (acc_expr : res_kind ## ty)
+       (fun (x_expr : j ## ty)
+            (acc_expr : k ## ty)
          => LETE x
-              :  elem_kind
+              :  j
               <- x_expr;
             LETE acc
-              :  res_kind
+              :  k
               <- acc_expr;
             RetE (f (#x) (#acc)))
        (RetE init).

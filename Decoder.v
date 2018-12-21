@@ -9,6 +9,7 @@ Require Import List.
 Import ListNotations.
 Require Import utila.
 Require Import Decompressor.
+Require Import CompressedInsts.
 Require Import FU.
 Require Import InstMatcher.
 Require Import Fetch.
@@ -37,6 +38,8 @@ Section func_units.
 
 Parameter func_units : list func_unit_type.
 
+Let CompInst : Type := CompInst ty.
+
 (* instruction database ids. *)
 
 Definition func_unit_id_width
@@ -56,38 +59,39 @@ Definition func_unit_id_kind : Kind := Bit func_unit_id_width.
 
 Definition inst_id_kind : Kind := Bit inst_id_width.
 
-Definition func_unit_id_bstring
+Definition func_unit_id_encode
   (func_unit_id : nat)
   :  func_unit_id_kind @# ty
   := Const ty (natToWord func_unit_id_width func_unit_id).
 
-Definition inst_id_bstring
+Definition inst_id_encode
   (inst_id : nat)
   :  inst_id_kind @# ty
   := Const ty (natToWord inst_id_width inst_id).
 
 (* decoder packets *)
 
-Definition decoder_pkt_kind
-  :  Kind
-  := Maybe (
-       STRUCT {
-         "FuncUnitTag" :: func_unit_id_kind;
-         "InstTag"     :: inst_id_kind
-       }).
-
-Definition full_decoder_pkt_kind
+(* Represents the kind of packets used "internally" by the decoder. *)
+Definition int_decoder_pkt_kind
   :  Kind
   := STRUCT {
-         "FuncUnitTag"              :: func_unit_id_kind;
-         "InstTag"                  :: inst_id_kind;
-         "pc"                       :: Bit Xlen;
-         "inst"                     :: uncomp_inst_kind;
-         "instMisalignedException?" :: Bool;
-         "memMisalignedException?"  :: Bool;
-         "accessException?"         :: Bool;
-         "mode"                     :: PrivMode;
-         "compressed?"              :: Bool
+       "FuncUnitTag" :: func_unit_id_kind;
+       "InstTag"     :: inst_id_kind
+     }.
+
+(* Represents the kind of packets output by the decoder. *)
+Definition decoder_pkt_kind
+  :  Kind
+  := STRUCT {
+       "FuncUnitTag"              :: func_unit_id_kind;
+       "InstTag"                  :: inst_id_kind;
+       "pc"                       :: Bit Xlen;
+       "inst"                     :: uncomp_inst_kind;
+       "instMisalignedException?" :: Bool;
+       "memMisalignedException?"  :: Bool;
+       "accessException?"         :: Bool;
+       "mode"                     :: PrivMode;
+       "compressed?"              :: Bool
      }.
 
 (* tagged database entry definitions *)
@@ -146,127 +150,150 @@ Close Scope list_scope.
 
 End tag_unittests.
 
-Definition tag_func_unit_insts
-  (func_unit : func_unit_type)
-  :  list (tagged_inst_type (fuInputK func_unit) (fuOutputK func_unit))
-  := tag (fuInsts func_unit).
-
 Open Scope kami_expr.
 
 (* decode functions *)
 
+(*
+  Applies [f] to every instruction in the instruction database and
+  returns the result for the instruction entry that satisfies [p].
+*)
+Definition inst_db_find_pkt
+  (k : Kind)
+  (f : forall sem_in_kind sem_out_kind : Kind,
+       tagged_inst_type sem_in_kind sem_out_kind ->
+       nat ->
+       k ## ty)
+  (p : forall sem_in_kind sem_out_kind : Kind,
+       tagged_inst_type sem_in_kind sem_out_kind ->
+       nat ->
+       Bool ## ty)
+  :  Maybe k ## ty
+  := utila_expr_find_pkt
+       (map
+         (fun tagged_func_unit : tagged_func_unit_type
+           => let (func_unit_id, func_unit)
+                := tagged_func_unit in
+              utila_expr_find_pkt
+                (map
+                  (fun inst
+                    => LETE x : k
+                         <- f (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
+                       LETE selected : Bool
+                         <- p (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
+                       utila_expr_opt_pkt (#x) (#selected))
+                  (tag (fuInsts func_unit))))
+         (tag func_units)).
+
+Let field_type : Type := {x: (nat * nat) & word (fst x + 1 - snd x)}.
+
 Definition decode_match_field
-  (raw_inst_expr : uncomp_inst_kind ## ty)
-  (field : {x: (nat * nat) & word (fst x + 1 - snd x)})
+  (raw_inst : uncomp_inst_kind @# ty)
+  (field : field_type)
   :  Bool ## ty
-  := LETE x <- extractArbitraryRange raw_inst_expr (projT1 field);
+  := LETE x <- extractArbitraryRange (RetE raw_inst) (projT1 field);
      RetE (#x == $$(projT2 field)).
 
 Definition decode_match_fields
-  (fields : list ({x: (nat * nat) & word (fst x + 1 - snd x)}))
-  (raw_inst_expr : uncomp_inst_kind ## ty)
+  (raw_inst : uncomp_inst_kind @# ty)
+  (fields : list (field_type))
   :  Bool ## ty
-  := utila_expr_all (map (decode_match_field raw_inst_expr) fields).
+  := utila_expr_all (map (decode_match_field raw_inst) fields).
 
 Definition decode_match_enabled_exts
   (sem_input_kind sem_output_kind : Kind)
   (inst : inst_type sem_input_kind sem_output_kind)
-  (mode_pkt_expr : Extensions ## ty)
+  (exts_pkt : Extensions @# ty)
   :  Bool ## ty
-  := LETE mode_pkt : Extensions
-       <- mode_pkt_expr;
-     utila_expr_any
+  := utila_expr_any
        (map
          (fun ext : string
-           => RetE (struct_get_field_default (#mode_pkt) ext ($$false)))
+           => RetE (struct_get_field_default exts_pkt ext ($$false)))
          (extensions inst)).
 
 Definition decode_match_inst
   (sem_input_kind sem_output_kind : Kind)
   (inst : inst_type sem_input_kind sem_output_kind)
-  (mode_pkt_expr : Extensions ## ty)
-  (raw_inst_expr : uncomp_inst_kind ## ty)
+  (exts_pkt : Extensions @# ty)
+  (raw_inst : uncomp_inst_kind @# ty)
   :  Bool ## ty
   := LETE inst_id_match : Bool
-       <- decode_match_fields (uniqId inst) raw_inst_expr;
+       <- decode_match_fields raw_inst (uniqId inst);
      LETE exts_match : Bool
-       <- decode_match_enabled_exts inst mode_pkt_expr;
+       <- decode_match_enabled_exts inst exts_pkt;
      RetE
        ((#inst_id_match) && (#exts_match)).
 
-Definition decode_inst
-  (sem_input_kind sem_output_kind : Kind)
-  (func_unit_id : nat)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
-  (mode_pkt_expr : Extensions ## ty)
-  (raw_inst_expr : uncomp_inst_kind ## ty)
-  :  decoder_pkt_kind ## ty
-  := LETE inst_match
-       :  Bool
-       <- decode_match_inst
-            (detag_inst inst)
-            mode_pkt_expr
-            raw_inst_expr;
-     utila_expr_opt_pkt
-       (STRUCT {
-         "FuncUnitTag" ::= func_unit_id_bstring func_unit_id;
-         "InstTag"     ::= inst_id_bstring (tagged_inst_id inst)
-       })
-       (#inst_match).
-
-(* a *)
+(*
+  Accepts a 32 bit string that represents an uncompressed RISC-V
+  instruction and decodes it.
+*)
 Definition decode 
-  (mode_pkt_expr : Extensions ## ty)
-  (raw_inst_expr : uncomp_inst_kind ## ty)
-  :  decoder_pkt_kind ## ty
-  := utila_expr_find_pkt
-       (map
-         (fun func_unit
-           => utila_expr_find_pkt
-                (map
-                  (fun inst
-                    => decode_inst
-                         (tagged_func_unit_id func_unit)
-                         inst mode_pkt_expr raw_inst_expr)
-                  (tag (fuInsts (detag_func_unit func_unit)))))
-         (tag func_units)).
-
+  (exts_pkt : Extensions @# ty)
+  (raw_inst : uncomp_inst_kind @# ty)
+  :  Maybe int_decoder_pkt_kind ## ty
+  := inst_db_find_pkt
+       (fun (sem_in_kind sem_out_kind : Kind)
+            (inst : tagged_inst_type sem_in_kind sem_out_kind)
+            (func_unit_id : nat)
+         => RetE
+              (STRUCT {
+                "FuncUnitTag" ::= func_unit_id_encode func_unit_id;
+                "InstTag"     ::= inst_id_encode (tagged_inst_id inst)
+              } : int_decoder_pkt_kind @# ty))
+       (fun (sem_in_kind sem_out_kind : Kind)
+            (inst : tagged_inst_type sem_in_kind sem_out_kind)
+            (func_unit_id : nat)
+         => decode_match_inst (detag_inst inst) exts_pkt raw_inst).
+            
+(*
+  Accepts a 32 bit string whose prefix may encode a compressed RISC-V
+  instruction. If the prefix encodes a compressed instruction, this
+  function decompresses it using the decompressor and decodes the
+  result. Otherwise, it attempts to decode the full 32 bit string.
+*)
 Definition decode_bstring
-  (mode_pkt_expr : Extensions ## ty)
-  (bit_string_expr : Bit uncomp_inst_width ## ty)
-  :  decoder_pkt_kind ## ty
-  := LETE bit_string
-       :  Bit uncomp_inst_width
-       <- bit_string_expr;
-     let prefix
+  (comp_inst_db : list CompInst)
+  (exts_pkt : Extensions @# ty)
+  (bit_string : Bit uncomp_inst_width @# ty)
+  :  Maybe int_decoder_pkt_kind ## ty
+  := let prefix
        :  Bit comp_inst_width @# ty
-       := (#bit_string) $[15:0] in
+       := bit_string $[15:0] in
      LETE opt_uncomp_inst
        :  opt_uncomp_inst_kind
-       <- uncompress mode_pkt_expr
-            (RetE prefix);
-     (decode mode_pkt_expr
-       (RetE
-         (ITE ((#opt_uncomp_inst) @% "valid")
-             ((#opt_uncomp_inst) @% "data")
-             (#bit_string)))).
+       <- uncompress comp_inst_db exts_pkt prefix;
+     (decode exts_pkt
+       (ITE ((#opt_uncomp_inst) @% "valid")
+           ((#opt_uncomp_inst) @% "data")
+           bit_string)).
  
+(*
+  Returns true iff the given 32 bit string starts with an
+  uncompressed instruction prefix.
+*)
 Definition decode_uncompressed
   (bit_string : Bit uncomp_inst_width @# ty)
   :  Bool @# ty
   := (bit_string $[1:0] == $$(('b"11") : word 2)).
 
+(*
+  Accepts a fetch packet and decodes the RISC-V instruction encoded
+  by the 32 bit string contained within the fetch packet.
 
+  TODO: Set the exception flags.
+*)
 Definition decode_full
+  (comp_inst_db : list CompInst)
   (fetch_pkt : FetchStruct Xlen_over_8 @# ty)
-  (mode_pkt : Extensions ## ty)
-  :  Maybe full_decoder_pkt_kind ## ty
+  (exts_pkt : Extensions @# ty)
+  :  Maybe decoder_pkt_kind ## ty
   := let raw_inst
        :  uncomp_inst_kind @# ty
        := fetch_pkt @% "inst" in
      LETE decoder_pkt
-       :  decoder_pkt_kind
-       <- decode_bstring mode_pkt (RetE raw_inst);
+       :  Maybe int_decoder_pkt_kind
+       <- decode_bstring comp_inst_db exts_pkt raw_inst;
      (utila_expr_opt_pkt
        (STRUCT {
          "FuncUnitTag" ::= #decoder_pkt @% "data" @% "FuncUnitTag";
@@ -278,7 +305,7 @@ Definition decode_full
          "accessException?"         ::= $$false; (* TODO *)
          "mode"                     ::= ($0 : PrivMode @# ty); (* TODO *)
          "compressed?"              ::= (!(decode_uncompressed raw_inst) : Bool @# ty)
-       } : full_decoder_pkt_kind @# ty)
+       } : decoder_pkt_kind @# ty)
        (#decoder_pkt @% "valid")).
 
 Close Scope kami_expr.

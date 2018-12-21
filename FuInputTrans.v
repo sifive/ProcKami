@@ -1,3 +1,10 @@
+(*
+  This file defines the Input Transformer generator. The Input
+  Transformer, accepts an execution context packet from the Register
+  Reader and generates a functional unit input packet containing
+  the arguments needed by the functional unit referenced by the
+  execution context packet.
+*)
 Require Import Kami.All.
 Import Syntax.
 Require Import utila.
@@ -38,9 +45,9 @@ Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
 
 Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
 
-Let func_unit_id_bstring := Decoder.func_unit_id_bstring ty Xlen_over_8.
+Let func_unit_id_encode := Decoder.func_unit_id_encode ty Xlen_over_8.
 
-Let inst_id_bstring := Decoder.inst_id_bstring ty Xlen_over_8.
+Let inst_id_encode := Decoder.inst_id_encode ty Xlen_over_8.
 
 Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
@@ -79,101 +86,71 @@ Definition tagged_inst_match
   (inst : tagged_inst_type sem_input_kind sem_output_kind)
   (inst_id : inst_id_kind @# ty)
   :  Bool @# ty
-  := (inst_id_bstring (tagged_inst_id inst))
+  := (inst_id_encode (tagged_inst_id inst))
        == inst_id.
 
 Definition tagged_func_unit_match
   (func_unit : tagged_func_unit_type)
   (func_unit_id : func_unit_id_kind @# ty)
   :  Bool @# ty
-  := (func_unit_id_bstring (tagged_func_unit_id func_unit))
+  := (func_unit_id_encode (tagged_func_unit_id func_unit))
        == func_unit_id.
 
-Definition trans_inst
-  (sem_input_kind sem_output_kind : Kind)
-  (decoder_pkt_inst_id : inst_id_kind @# ty)
-  (exec_context_pkt : exec_context_pkt_kind ## ty)
-  (inst : tagged_inst_type sem_input_kind sem_output_kind)
-  :  Maybe packed_args_pkt_kind ## ty
-  := LETE pkt : sem_input_kind <- inputXform (detag_inst inst) exec_context_pkt;
-     (utila_expr_opt_pkt
-       (ZeroExtendTruncMsb
-         packed_args_pkt_width
-         (pack (#pkt)))
-       (tagged_inst_match inst decoder_pkt_inst_id)).
+(*
+  Applies [f] to every instruction in the instruction database and
+  returns the result for the instruction referenced by [func_unit_id]
+  and [inst_id].
+*)
+Definition inst_db_get_pkt
+  (k : Kind)
+  (f : forall sem_in_kind sem_out_kind : Kind,
+       tagged_inst_type sem_in_kind sem_out_kind ->
+       nat ->
+       k ## ty)
+  (sel_func_unit_id : func_unit_id_kind @# ty)
+  (sel_inst_id : inst_id_kind @# ty)
+  :  Maybe k ## ty
+  := inst_db_find_pkt f
+       (fun sem_in_kind sem_out_kind tagged_inst func_unit_id
+         => RetE 
+              ((tagged_inst_match tagged_inst sel_inst_id) &&
+               (func_unit_id_encode func_unit_id == sel_func_unit_id))).
 
-Definition trans_insts
-  (sem_input_kind sem_output_kind : Kind)
-  (insts : list (tagged_inst_type sem_input_kind sem_output_kind))
-  (decoder_pkt_inst_id : inst_id_kind @# ty)
-  (exec_context_pkt : exec_context_pkt_kind ## ty)
-  :  Maybe packed_args_pkt_kind ## ty
-  := utila_expr_find_pkt
-       (map
-         (trans_inst decoder_pkt_inst_id exec_context_pkt)
-         insts).
-
-Definition trans_func_unit_match
-  (func_unit : tagged_func_unit_type)
-  (decoder_pkt_expr : decoder_pkt_kind ## ty)
-  :  Bool ## ty
-  := LETE decoder_pkt : decoder_pkt_kind <- decoder_pkt_expr;
-     RetE
-       (tagged_func_unit_match
-         func_unit
-         (((#decoder_pkt) @% "data") @% "FuncUnitTag")).
-        
 Fixpoint trans_func_unit
-  (decoder_pkt_expr : decoder_pkt_kind ## ty)
-  (exec_context_pkt : exec_context_pkt_kind ## ty)
+  (decoder_pkt : Maybe decoder_pkt_kind @# ty)
+  (exec_context_pkt : exec_context_pkt_kind @# ty)
   (func_unit : tagged_func_unit_type)
   :  Maybe packed_args_pkt_kind ## ty
-  := LETE decoder_pkt
-       :  decoder_pkt_kind
-       <- decoder_pkt_expr;
-     LETE args_pkt
-       :  Maybe packed_args_pkt_kind
-       <- trans_insts
-            (tag (fuInsts (detag_func_unit func_unit)))
-            ((ZeroExtendTruncLsb
-              inst_id_width
-              (((#decoder_pkt) @% "data") @% "InstTag"))
-              : inst_id_kind @# ty)
-            exec_context_pkt;
-     LETE func_unit_match
-       :  Bool
-       <- trans_func_unit_match
-            func_unit
-            decoder_pkt_expr;
-     (utila_expr_opt_pkt
-       ((#args_pkt) @% "data")
-       (CABool And
-         [(#func_unit_match);
-          ((#args_pkt) @% "valid");
-          ((#decoder_pkt) @% "valid")])).
+  := inst_db_get_pkt
+       (fun sem_in_kind sem_out_kind inst func_unit_id
+         => LETE args_pkt
+              :  sem_in_kind
+              <- inputXform (detag_inst inst) (RetE exec_context_pkt);
+            RetE
+              (ZeroExtendTruncLsb
+                packed_args_pkt_width
+                (pack (#args_pkt))))
+       ((decoder_pkt @% "data") @% "FuncUnitTag")
+       ((decoder_pkt @% "data") @% "InstTag").
 
-(* b *)
 Definition createInputXForm
-  (decoder_pkt_expr : decoder_pkt_kind ## ty)
-  (exec_context_pkt_expr : exec_context_pkt_kind ## ty)
+  (decoder_pkt : Maybe decoder_pkt_kind @# ty)
+  (exec_context_pkt : exec_context_pkt_kind @# ty)
   :  opt_trans_pkt_kind ## ty
-  := LETE decoder_pkt
-       :  decoder_pkt_kind
-       <- decoder_pkt_expr;
-     LETE opt_args_pkt
+  := LETE opt_args_pkt
        :  Maybe packed_args_pkt_kind
        <- utila_expr_find_pkt
             (map
-              (trans_func_unit decoder_pkt_expr exec_context_pkt_expr)
+              (trans_func_unit decoder_pkt exec_context_pkt)
               (tag func_units));
-     (@utila_expr_opt_pkt ty
-       trans_pkt_kind
+     (utila_expr_opt_pkt
        (STRUCT {
-         "FuncUnitTag" ::= (((#decoder_pkt) @% "data") @% "FuncUnitTag");
-         "InstTag"     ::= (((#decoder_pkt) @% "data") @% "InstTag");
+         "FuncUnitTag" ::= ((decoder_pkt @% "data") @% "FuncUnitTag");
+         "InstTag"     ::= ((decoder_pkt @% "data") @% "InstTag");
          "Input"       ::= ((#opt_args_pkt) @% "data")
-       })
-       ((#opt_args_pkt) @% "valid")).
+       } : trans_pkt_kind @# ty)
+       (((#opt_args_pkt) @% "valid") &&
+        (decoder_pkt @% "valid"))).
 
 Close Scope kami_expr.
 
