@@ -27,10 +27,10 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
   :  Type
   := @InstEntry Xlen_over_8 ty sem_input_kind sem_output_kind.
 
-Let exec_context_packet_kind : Kind
+Let exec_context_pkt_kind : Kind
   := ExecContextPkt Xlen_over_8.
 
-Let exec_update_packet_kind : Kind
+Let exec_update_pkt_kind : Kind
   := ExecContextUpdPkt Xlen_over_8.
 
 Let func_unit_id_width := Decoder.func_unit_id_width ty Xlen_over_8.
@@ -41,7 +41,7 @@ Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
 
 Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
 
-Let decoder_packet_kind := Decoder.decoder_packet_kind ty Xlen_over_8.
+Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
 
 Let func_unit_id_bstring := Decoder.func_unit_id_bstring ty Xlen_over_8.
 
@@ -51,9 +51,9 @@ Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
 Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
 
-Let packed_args_packet_kind := FuInputTrans.packed_args_packet_kind ty Xlen_over_8.
+Let packed_args_pkt_kind := FuInputTrans.packed_args_pkt_kind ty Xlen_over_8.
 
-Let trans_packet_kind := FuInputTrans.trans_packet_kind ty Xlen_over_8.
+Let trans_pkt_kind := FuInputTrans.trans_pkt_kind ty Xlen_over_8.
 
 Open Scope kami_expr.
 
@@ -62,21 +62,21 @@ Definition exec_inst
   (inst: tagged_inst_type sem_input_kind sem_output_kind)
   (inst_id : inst_id_kind @# ty)
   (sem_output : sem_output_kind @# ty)
-  :  Maybe exec_update_packet_kind ## ty
-  := LETE exec_update_packet
-       :  exec_update_packet_kind
+  :  Maybe exec_update_pkt_kind ## ty
+  := LETE exec_update_pkt
+       :  exec_update_pkt_kind
        <- outputXform
             (detag_inst inst)
             (RetE sem_output);
      @utila_expr_opt_pkt ty
-       exec_update_packet_kind
-       (#exec_update_packet)
+       exec_update_pkt_kind
+       (#exec_update_pkt)
        (tagged_inst_match inst inst_id).
 
 Definition exec_func_unit
-  (trans_packet : trans_packet_kind @# ty)
+  (trans_pkt : trans_pkt_kind @# ty)
   (func_unit : tagged_func_unit_type)
-  :  Maybe exec_update_packet_kind ## ty
+  :  Maybe exec_update_pkt_kind ## ty
   := (* I. execute the semantic function *)
      LETE sem_output
        :  fuOutputK (detag_func_unit func_unit)
@@ -87,42 +87,42 @@ Definition exec_func_unit
                 (fuInputK (detag_func_unit func_unit))
                 (ZeroExtendTruncLsb
                   (size (fuInputK (detag_func_unit func_unit)))
-                  (trans_packet @% "Input"))));
+                  (trans_pkt @% "Input"))));
      (* II. map output onto an update packet *)
-     LETE exec_update_packet
-       :  Maybe exec_update_packet_kind
+     LETE exec_update_pkt
+       :  Maybe exec_update_pkt_kind
        <- @utila_expr_find ty
-            (Maybe exec_update_packet_kind)
-            (fun (exec_update_packet : Maybe exec_update_packet_kind @# ty)
-              => exec_update_packet @% "valid")
+            (Maybe exec_update_pkt_kind)
+            (fun (exec_update_pkt : Maybe exec_update_pkt_kind @# ty)
+              => exec_update_pkt @% "valid")
             (map
               (fun (inst : tagged_inst_type
                              (fuInputK (detag_func_unit func_unit))
                              (fuOutputK (detag_func_unit func_unit)))
-                => exec_inst inst (trans_packet @% "InstTag") (#sem_output))
+                => exec_inst inst (trans_pkt @% "InstTag") (#sem_output))
               (tag_func_unit_insts
                 (detag_func_unit func_unit)));
      (* III. return the update packet and set valid flag *)
      @utila_expr_opt_pkt ty
-       exec_update_packet_kind
-       ((#exec_update_packet) @% "data")
-       ((tagged_func_unit_match func_unit (trans_packet @% "FuncUnitTag")) &&
-        ((#exec_update_packet) @% "valid")).
+       exec_update_pkt_kind
+       ((#exec_update_pkt) @% "data")
+       ((tagged_func_unit_match func_unit (trans_pkt @% "FuncUnitTag")) &&
+        ((#exec_update_pkt) @% "valid")).
 
 Definition exec
   (func_units : list func_unit_type)
-  (trans_packet_expr : trans_packet_kind ## ty)
-  :  Maybe exec_update_packet_kind ## ty
-  := LETE trans_packet
-       :  trans_packet_kind
-       <- trans_packet_expr;
+  (trans_pkt_expr : trans_pkt_kind ## ty)
+  :  Maybe exec_update_pkt_kind ## ty
+  := LETE trans_pkt
+       :  trans_pkt_kind
+       <- trans_pkt_expr;
      @utila_expr_find ty
-       (Maybe exec_update_packet_kind)
-       (fun (exec_update_packet : Maybe exec_update_packet_kind @# ty)
-         => exec_update_packet @% "valid")
+       (Maybe exec_update_pkt_kind)
+       (fun (exec_update_pkt : Maybe exec_update_pkt_kind @# ty)
+         => exec_update_pkt @% "valid")
        (map
          (fun (func_unit : tagged_func_unit_type)
-           => exec_func_unit (#trans_packet) func_unit)
+           => exec_func_unit (#trans_pkt) func_unit)
          (tag func_units)).
 
 Close Scope kami_expr.

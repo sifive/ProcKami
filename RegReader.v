@@ -26,7 +26,7 @@ Variable Xlen_over_8 : nat.
 
 Let Xlen : nat := 8 * Xlen_over_8.
 
-Let exec_context_packet_kind : Kind
+Let exec_context_pkt_kind : Kind
   := ExecContextPkt Xlen_over_8.
 
 (* register ID definitions *)
@@ -61,7 +61,9 @@ Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
 
 Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
 
-Let decoder_packet_kind := Decoder.decoder_packet_kind ty Xlen_over_8.
+Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
+
+Let full_decoder_pkt_kind := Decoder.full_decoder_pkt_kind ty Xlen_over_8.
 
 Let func_unit_id_bstring := Decoder.func_unit_id_bstring ty Xlen_over_8.
 
@@ -84,7 +86,7 @@ Definition reg_reader_match
   (p : forall sem_input_kind sem_output_kind : Kind,
        tagged_inst_type sem_input_kind sem_output_kind ->
        bool)
-  (decoder_packet : decoder_packet_kind @# ty)
+  (decoder_pkt : full_decoder_pkt_kind @# ty)
   :  Bool @# ty
   := utila_any
        (map
@@ -93,13 +95,13 @@ Definition reg_reader_match
                 :  func_unit_type
                 := detag_func_unit tagged_func_unit in
               ((reg_reader_insts_match
-                 (decoder_packet @% "data" @% "InstTag")
+                 (decoder_pkt @% "InstTag")
                  (filter
                    (p (fuInputK func_unit) (fuOutputK func_unit))
                    (tag (fuInsts func_unit)))) &&
                (tagged_func_unit_match
                  tagged_func_unit
-                 (decoder_packet @% "data" @% "FuncUnitTag"))))
+                 (decoder_pkt @% "FuncUnitTag"))))
          (tag func_units)).
 
 Definition inst_has_rs1
@@ -133,27 +135,27 @@ Definition inst_has_frs3
   := hasFrs3 (instHints (detag_inst inst)).
 
 Definition reg_reader_has_rs1
-  :  decoder_packet_kind @# ty ->
+  :  full_decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_rs1.
 
 Definition reg_reader_has_rs2
-  :  decoder_packet_kind @# ty ->
+  :  full_decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_rs2.
 
 Definition reg_reader_has_frs1
-  :  decoder_packet_kind @# ty ->
+  :  full_decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs1.
 
 Definition reg_reader_has_frs2
-  :  decoder_packet_kind @# ty ->
+  :  full_decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs2.
 
 Definition reg_reader_has_frs3
-  :  decoder_packet_kind @# ty ->
+  :  full_decoder_pkt_kind @# ty ->
      Bool @# ty
   := reg_reader_match inst_has_frs3.
 
@@ -170,33 +172,34 @@ Definition reg_reader_read_freg
      Ret (#freg_val).
 
 Definition reg_reader
-  (decoder_pkt : decoder_packet_kind @# ty)
-  (raw_inst : uncomp_inst_kind @# ty)
-  :  ActionT ty exec_context_packet_kind
-  := LETA reg1_val : reg_val_kind <- reg_reader_read_reg (rs1 raw_inst);
+  (opt_decoder_pkt : Maybe full_decoder_pkt_kind @# ty)
+  :  ActionT ty exec_context_pkt_kind
+  := let decoder_pkt
+       :  full_decoder_pkt_kind @# ty
+       := opt_decoder_pkt @% "data" in
+     let raw_inst
+       :  uncomp_inst_kind @# ty
+       := decoder_pkt @% "inst" in
+     LETA reg1_val : reg_val_kind <- reg_reader_read_reg (rs1 raw_inst);
      LETA reg2_val : reg_val_kind <- reg_reader_read_reg (rs2 raw_inst);
      LETA freg1_val : reg_val_kind <- reg_reader_read_freg (rs1 raw_inst);
      LETA freg2_val : reg_val_kind <- reg_reader_read_freg (rs2 raw_inst);
      LETA freg3_val : reg_val_kind <- reg_reader_read_freg (rs3 raw_inst);
      Ret
        (STRUCT {
-         "pc" ::= $0;
-         "reg1" ::= ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0 ||
-                    ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0;
-         "reg2" ::= ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0 ||
-                    ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0;
+         "pc"   ::= decoder_pkt @% "pc";
+         "reg1" ::= ((ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0) |
+                     (ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0));
+         "reg2" ::= ((ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0) |
+                     (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
          "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
          "inst" ::= raw_inst;
-         "instMisalignedException?" ::= $$false; (* TODO *)
-         "memMisalignedException?"  ::= $$false; (* TODO *)
-         "accessException?" ::= $$false; (* TODO *)
-         "mode" ::= $0; (* TODO *)
+         "instMisalignedException?" ::= decoder_pkt @% "instMisalignedException?";
+         "memMisalignedException?"  ::= decoder_pkt @% "memMisalignedException?";
+         "accessException?" ::= decoder_pkt @% "accessException?";
+         "mode" ::= decoder_pkt @% "mode";
          "compressed?" ::= !(decode_uncompressed raw_inst)
-       } : exec_context_packet_kind @# ty).
-
-Definition reg_reader
-  (
-
+       } : exec_context_pkt_kind @# ty).
 
 End func_units.
 
