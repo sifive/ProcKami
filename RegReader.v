@@ -163,19 +163,29 @@ Definition reg_reader_read_reg
   := Call reg_val : reg_val_kind <- "read_reg" (reg_id : reg_id_kind);
      Ret (#reg_val).
 
+Definition reg_reader_read_freg
+  (freg_id : reg_id_kind @# ty)
+  :  ActionT ty reg_val_kind
+  := Call freg_val : reg_val_kind <- "read_freg" (freg_id : reg_id_kind);
+     Ret (#freg_val).
+
 Definition reg_reader
   (decoder_pkt : decoder_packet_kind @# ty)
   (raw_inst : uncomp_inst_kind @# ty)
   :  ActionT ty exec_context_packet_kind
   := LETA reg1_val : reg_val_kind <- reg_reader_read_reg (rs1 raw_inst);
      LETA reg2_val : reg_val_kind <- reg_reader_read_reg (rs2 raw_inst);
-     LETA reg3_val : reg_val_kind <- reg_reader_read_reg (rs3 raw_inst);
+     LETA freg1_val : reg_val_kind <- reg_reader_read_freg (rs1 raw_inst);
+     LETA freg2_val : reg_val_kind <- reg_reader_read_freg (rs2 raw_inst);
+     LETA freg3_val : reg_val_kind <- reg_reader_read_freg (rs3 raw_inst);
      Ret
        (STRUCT {
          "pc" ::= $0;
-         "reg1" ::= ITE (reg_reader_has_rs1 decoder_pkt || reg_reader_has_frs1 decoder_pkt) (#reg1_val) $0;
-         "reg2" ::= ITE (reg_reader_has_rs2 decoder_pkt || reg_reader_has_frs2 decoder_pkt) (#reg2_val) $0;
-         "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#reg3_val) $0;
+         "reg1" ::= ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0 ||
+                    ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0;
+         "reg2" ::= ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0 ||
+                    ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0;
+         "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
          "inst" ::= raw_inst;
          "instMisalignedException?" ::= $$false; (* TODO *)
          "memMisalignedException?"  ::= $$false; (* TODO *)
@@ -183,6 +193,10 @@ Definition reg_reader
          "mode" ::= $0; (* TODO *)
          "compressed?" ::= !(decode_uncompressed raw_inst)
        } : exec_context_packet_kind @# ty).
+
+Definition reg_reader
+  (
+
 
 End func_units.
 
