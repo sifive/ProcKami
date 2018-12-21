@@ -33,21 +33,25 @@ Let exec_context_pkt_kind : Kind
 Let exec_update_pkt_kind : Kind
   := ExecContextUpdPkt Xlen_over_8.
 
-Let func_unit_id_width := Decoder.func_unit_id_width ty Xlen_over_8.
+Section func_units.
 
-Let inst_id_width := Decoder.inst_id_width ty Xlen_over_8.
+Variable func_units : list func_unit_type.
 
-Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
+Let func_unit_id_width := Decoder.func_unit_id_width func_units.
 
-Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
+Let inst_id_width := Decoder.inst_id_width func_units.
+
+Let func_unit_id_kind := Decoder.func_unit_id_kind func_units.
+
+Let inst_id_kind := Decoder.inst_id_kind func_units.
 
 Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
 Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
 
-Let packed_args_pkt_kind := FuInputTrans.packed_args_pkt_kind ty Xlen_over_8.
+Let packed_args_pkt_kind := FuInputTrans.packed_args_pkt_kind func_units.
 
-Let trans_pkt_kind := FuInputTrans.trans_pkt_kind ty Xlen_over_8.
+Let trans_pkt_kind := FuInputTrans.trans_pkt_kind func_units.
 
 Open Scope kami_expr.
 
@@ -110,7 +114,6 @@ Definition exec_func_unit
         ((#exec_update_pkt) @% "valid")).
 
 Definition exec
-  (func_units : list func_unit_type)
   (trans_pkt : trans_pkt_kind @# ty)
   :  Maybe exec_update_pkt_kind ## ty
   := utila_expr_find_pkt
@@ -120,5 +123,7 @@ Definition exec
          (tag func_units)).
 
 Close Scope kami_expr.
+
+End func_units.
 
 End executor.

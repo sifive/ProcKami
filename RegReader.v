@@ -51,17 +51,17 @@ Let inst_type (sem_input_kind sem_output_kind : Kind)
 
 Section func_units.
 
-Parameter func_units : list func_unit_type.
+Variable func_units : list func_unit_type.
 
-Let func_unit_id_width := Decoder.func_unit_id_width ty Xlen_over_8.
+Let func_unit_id_width := Decoder.func_unit_id_width func_units.
 
-Let inst_id_width := Decoder.inst_id_width ty Xlen_over_8.
+Let inst_id_width := Decoder.inst_id_width func_units.
 
-Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
+Let func_unit_id_kind := Decoder.func_unit_id_kind func_units.
 
-Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
+Let inst_id_kind := Decoder.inst_id_kind func_units.
 
-Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
+Let decoder_pkt_kind := Decoder.decoder_pkt_kind func_units.
 
 Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 

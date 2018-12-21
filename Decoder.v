@@ -36,7 +36,7 @@ Section func_units.
 
 (* instruction database parameters. *)
 
-Parameter func_units : list func_unit_type.
+Variable func_units : list func_unit_type.
 
 Let CompInst : Type := CompInst ty.
 

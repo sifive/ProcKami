@@ -33,25 +33,27 @@ Let exec_context_pkt_kind : Kind
 Section func_units.
 
 (* The functional units that comprise the instruction database. *)
-Parameter func_units : list func_unit_type.
+Variable func_units : list func_unit_type.
 
-Let func_unit_id_width := Decoder.func_unit_id_width ty Xlen_over_8.
+Let func_unit_id_width := Decoder.func_unit_id_width func_units.
 
-Let inst_id_width := Decoder.inst_id_width ty Xlen_over_8.
+Let inst_id_width := Decoder.inst_id_width func_units.
 
-Let func_unit_id_kind := Decoder.func_unit_id_kind ty Xlen_over_8.
+Let func_unit_id_kind := Decoder.func_unit_id_kind func_units.
 
-Let inst_id_kind := Decoder.inst_id_kind ty Xlen_over_8.
+Let inst_id_kind := Decoder.inst_id_kind func_units.
 
-Let decoder_pkt_kind := Decoder.decoder_pkt_kind ty Xlen_over_8.
+Let decoder_pkt_kind := Decoder.decoder_pkt_kind func_units.
 
-Let func_unit_id_encode := Decoder.func_unit_id_encode ty Xlen_over_8.
+Let func_unit_id_encode := Decoder.func_unit_id_encode func_units.
 
-Let inst_id_encode := Decoder.inst_id_encode ty Xlen_over_8.
+Let inst_id_encode := Decoder.inst_id_encode func_units.
 
 Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
 
 Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
+
+Let inst_db_find_pkt := Decoder.inst_db_find_pkt func_units.
 
 Definition packed_args_pkt_width
   :  nat
@@ -157,3 +159,17 @@ Close Scope kami_expr.
 End func_units.
 
 End input_trans.
+
+Section unit_tests.
+
+Section inst_db_get_pkt_unit_tests.
+
+About inst_db_get_pkt.
+(*
+Let test_0_expr
+  := inst_db_get_pkt  
+*)
+
+End inst_db_get_pkt_unit_tests.
+
+End unit_tests.
