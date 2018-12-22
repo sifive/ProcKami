@@ -285,6 +285,7 @@ Definition decode_uncompressed
 *)
 Definition decode_full
   (comp_inst_db : list CompInst)
+  (mode : PrivMode @# ty)
   (fetch_pkt : FetchStruct Xlen_over_8 @# ty)
   (exts_pkt : Extensions @# ty)
   :  Maybe decoder_pkt_kind ## ty
@@ -300,11 +301,7 @@ Definition decode_full
          "InstTag"     ::= #decoder_pkt @% "data" @% "InstTag";
          "pc"          ::= fetch_pkt @% "pc";
          "inst"        ::= fetch_pkt @% "inst";
-         "instMisalignedException?" ::= $$false; (* TODO *)
-         "memMisalignedException?"  ::= $$false; (* TODO *)
-         "accessException?"         ::= $$false; (* TODO *)
-         "mode"                     ::= ($0 : PrivMode @# ty); (* TODO *)
-         "compressed?"              ::= (!(decode_uncompressed raw_inst) : Bool @# ty)
+         "compressed?" ::= (!(decode_uncompressed raw_inst) : Bool @# ty)
        } : decoder_pkt_kind @# ty)
        (#decoder_pkt @% "valid")).
 
