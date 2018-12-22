@@ -193,9 +193,9 @@ Definition reg_reader
                      (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
          "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
          "inst" ::= raw_inst;
-         "instMisalignedException?" ::= decoder_pkt @% "instMisalignedException?";
-         "memMisalignedException?"  ::= decoder_pkt @% "memMisalignedException?";
-         "accessException?" ::= decoder_pkt @% "accessException?";
+         "instMisalignedException?" ::= $$false; (* TODO *)
+         "memMisalignedException?"  ::= $$false; (* TODO *)
+         "accessException?" ::= $$false; (* TODO *)
          "mode" ::= decoder_pkt @% "mode";
          "compressed?" ::= !(decode_uncompressed raw_inst)
        } : exec_context_pkt_kind @# ty).
