@@ -87,9 +87,6 @@ Definition decoder_pkt_kind
        "InstTag"                  :: inst_id_kind;
        "pc"                       :: Bit Xlen;
        "inst"                     :: uncomp_inst_kind;
-       "instMisalignedException?" :: Bool;
-       "memMisalignedException?"  :: Bool;
-       "accessException?"         :: Bool;
        "mode"                     :: PrivMode;
        "compressed?"              :: Bool
      }.
@@ -301,6 +298,7 @@ Definition decode_full
          "InstTag"     ::= #decoder_pkt @% "data" @% "InstTag";
          "pc"          ::= fetch_pkt @% "pc";
          "inst"        ::= fetch_pkt @% "inst";
+         "mode"        ::= mode;
          "compressed?" ::= (!(decode_uncompressed raw_inst) : Bool @# ty)
        } : decoder_pkt_kind @# ty)
        (#decoder_pkt @% "valid")).
