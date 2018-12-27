@@ -346,7 +346,12 @@ Definition FMinMax : @FUEntry Xlen_over_8 ty
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false;
-                     "exception" ::= @Invalid ty _
+                     "exception"
+                       ::= STRUCT {
+                             "valid" ::= (((#sem_in_pkt @% "arg2") @% "isNaN") ||
+                                          ((#sem_in_pkt @% "arg1") @% "isNaN"));
+                             "data"  ::= $IllegalInst
+                           }
                    } : ExecContextUpdPkt Xlen_over_8 @# ty);
        fuInsts
          := [
@@ -361,6 +366,21 @@ Definition FMinMax : @FUEntry Xlen_over_8 ty
                        fieldVal funct7Field   ('b"0010100")
                      ];
                 inputXform := fmin_max_in_pkt ($$false);
+                outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fmax.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"001");
+                       fieldVal funct7Field   ('b"0010100")
+                     ];
+                inputXform := fmin_max_in_pkt ($$true);
                 outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
