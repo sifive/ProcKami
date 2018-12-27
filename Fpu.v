@@ -52,7 +52,7 @@ Let IEEE_float_kind : Kind
 Let kami_float_kind : Kind
   := NF ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
 
-Let cmp_in_pkt_kind
+Let fmin_max_in_pkt_kind
   :  Kind
   := STRUCT {
        "arg1" :: kami_float_kind;
@@ -62,7 +62,7 @@ Let cmp_in_pkt_kind
 
 Let cmp_out_pkt_kind
   :  Kind
-  := Compare_Output ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
+  := Compare_Output. (* ((exp_width Xlen) - 2) ((sig_width Xlen) - 2). *)
 
 Local Notation "x [[ proj  :=  v ]]" := (set proj (pure v) x)
                                     (at level 14, left associativity).
@@ -177,18 +177,18 @@ Let muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
          "exception" ::= excs (#sem_out_pkt @% "exceptionFlags")
        } : ExecContextUpdPkt Xlen_over_8 @# ty).
 
-Let cmp_in_pkt (max @# Bool) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty)
-  :  cmp_in_pkt_kind ## ty
+Let fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty)
+  :  fmin_max_in_pkt_kind ## ty
   := LETE context_pkt
        :  ExecContextPkt Xlen_over_8
        <- context_pkt_expr;
      RetE
        (STRUCT {
-         "arg1" ::= to_kami_float (#context_pkt @# "reg1");
-         "arg2" ::= to_kami_float (#context_pkt @# "reg2");
+         "arg1" ::= to_kami_float (#context_pkt @% "reg1");
+         "arg2" ::= to_kami_float (#context_pkt @% "reg2");
          "max"  ::= max
-       } : cmp_in_pkt_kind @# ty).
-
+       } : fmin_max_in_pkt_kind @# ty).
+(*
 Let cmp_out_pkt (cmp_out_pkt_expr : cmp_out_pkt_kind ## ty)
   :  ExecContextUpdPkt Xlen_over_8 ## ty
   := LETE cmp_out_pkt
@@ -202,7 +202,7 @@ Let cmp_out_pkt (cmp_out_pkt_expr : cmp_out_pkt_kind ## ty)
                  "data" ::= from_kami_float (#cmp_out_pkt 
                });
        } : ExecContextUpdPkt Xlen_over_8 @# ty).
-
+*)
 Definition Mac : @FUEntry Xlen_over_8 ty
   := {|
        fuName :="mac";
@@ -321,18 +321,19 @@ Definition FMinMax : @FUEntry Xlen_over_8 ty
   := {|
        fuName := "fmin_max";
        fuFunc
-         := fun cmp_in_pkt_expr : cmp_in_pkt_kind ## ty
-              => LETE cmp_in_pkt
-                   :  cmp_in_pkt_kind
-                   <- cmp_in_pkt_expr;
+         := fun sem_in_pkt_expr : fmin_max_in_pkt_kind ## ty
+              => LETE sem_in_pkt
+                   :  fmin_max_in_pkt_kind
+                   <- sem_in_pkt_expr;
                  LETE cmp_out_pkt
                    :  cmp_out_pkt_kind
-                   <- Compare_expr (#cmp_in_pkt @% "arg1") (#cmp_in_pkt @% "arg2");
+                   <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
                  LETE result
-                   :  kami_float @# ty
-                   <- (ITE ((#cmp_out_pkt @% "gt") ^^ (#cmp_out_pkt @% "max"))
-                        (from_kami_float (#cmp_in_pkt @% "arg2"))
-                        (from_kami_float (#cmp_in_pkt @% "arg1")));
+                   :  Bit Xlen
+                   <- RetE
+                        (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                          (from_kami_float (#sem_in_pkt @% "arg2"))
+                          (from_kami_float (#sem_in_pkt @% "arg1")));
                  RetE
                    (STRUCT {
                      "val1"
@@ -340,9 +341,12 @@ Definition FMinMax : @FUEntry Xlen_over_8 ty
                              "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
                              "data" ::= #result
                            });
-                     "val2"
-                       ::= Valid (STRUCT {
-                           });
+                     "val2" ::= @Invalid ty _;
+                     "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false;
+                     "exception" ::= @Invalid ty _
                    } : ExecContextUpdPkt Xlen_over_8 @# ty);
        fuInsts
          := [
@@ -356,8 +360,8 @@ Definition FMinMax : @FUEntry Xlen_over_8 ty
                        fieldVal funct3Field   ('b"000");
                        fieldVal funct7Field   ('b"0010100")
                      ];
-                inputXform := cmp_in_pkt ($$false);
-                outputXform := 
+                inputXform := fmin_max_in_pkt ($$false);
+                outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
               |}
