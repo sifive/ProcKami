@@ -159,17 +159,3 @@ Close Scope kami_expr.
 End func_units.
 
 End input_trans.
-
-Section unit_tests.
-
-Section inst_db_get_pkt_unit_tests.
-
-About inst_db_get_pkt.
-(*
-Let test_0_expr
-  := inst_db_get_pkt  
-*)
-
-End inst_db_get_pkt_unit_tests.
-
-End unit_tests.
