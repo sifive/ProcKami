@@ -46,14 +46,16 @@ Definition func_unit_id_width
   :  nat
   := Nat.log2_up (length func_units).
 
+Definition inst_max_num := 
+  (fold_left
+     (fun (acc : nat) (func_unit : func_unit_type)
+      => max acc (length (fuInsts func_unit)))
+     func_units
+     0).
+
 Definition inst_id_width
   :  nat
-  := Nat.log2_up
-       (fold_left
-         (fun (acc : nat) (func_unit : func_unit_type)
-           => max acc (length (fuInsts func_unit)))
-         func_units
-         0).
+  := Nat.log2_up inst_max_num.
 
 Definition func_unit_id_kind : Kind := Bit func_unit_id_width.
 
