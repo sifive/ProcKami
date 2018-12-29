@@ -1,11 +1,15 @@
 (*
   This module defines the functional unit entries for floating
   point arithmetic.
+
+  TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
 Require Import Kami.All.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
 Require Import FpuKami.Compare.
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
 Require Import Alu.
 Require Import FU.
 Require Import List.
@@ -15,42 +19,30 @@ Import RecordNotations.
 
 Section Fpu.
 
+Variable ty : Kind -> Type.
+
 Variable Xlen_over_8: nat.
 Notation Xlen := (8 * Xlen_over_8)%nat.
 
-Variable ty : Kind -> Type.
+Let flen : nat := 32.
 
-Definition exp_width (n : nat) : nat := 3 * n / 32 + 5.
+Let exp_width : nat := 8.
 
-Section exp_width_tests.
-
-Let test_0 : exp_width 32 = 8  := eq_refl 8.
-Let test_1 : exp_width 64 = 11 := eq_refl 11.
-
-End exp_width_tests.
-
-Definition sig_width (n : nat) : nat := 29 * n / 32 - 6.
-
-Section sig_width_tests.
-
-Let test_0 : sig_width 32 = 23 := eq_refl 23.
-Let test_1 : sig_width 64 = 52 := eq_refl 52.
-
-End sig_width_tests.
+Let sig_width : nat := 23.
 
 Definition sem_in_pkt_kind
   :  Kind
-  := MulAdd_Input ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
+  := MulAdd_Input (exp_width - 2) (sig_width - 2).
 
 Definition sem_out_pkt_kind
   :  Kind
-  := MulAdd_Output ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
+  := MulAdd_Output (exp_width - 2) (sig_width - 2).
 
 Let IEEE_float_kind : Kind
-  := FN ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
+  := FN (exp_width - 2) (sig_width - 2).
 
 Let kami_float_kind : Kind
-  := NF ((exp_width Xlen) - 2) ((sig_width Xlen) - 2).
+  := NF (exp_width - 2) (sig_width - 2).
 
 Let fmin_max_in_pkt_kind
   :  Kind
@@ -71,6 +63,22 @@ Let fsgn_in_pkt_kind
        "arg1"     :: Bit Xlen
      }.
 
+Definition float_int_in_pkt_kind
+  :  Kind
+  := NFToINInput (exp_width - 2) (sig_width - 2).
+
+Definition float_int_out_pkt_kind
+  :  Kind
+  := NFToINOutput (Xlen - 2). 
+
+Definition int_float_in_pkt_kind
+  :  Kind
+  := INToNFInput (Xlen - 2).
+
+Definition int_float_out_pkt_kind
+  :  Kind
+  := OpOutput (exp_width - 2) (sig_width - 2). 
+
 Local Notation "x [[ proj  :=  v ]]" := (set proj (pure v) x)
                                     (at level 14, left associativity).
 Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
@@ -82,6 +90,7 @@ Let to_IEEE_float (x : Bit Xlen @# ty)
   :  IEEE_float_kind @# ty
   := unpack IEEE_float_kind (ZeroExtendTruncLsb (size IEEE_float_kind) x).
 
+(* TODO: change to Flen *)
 Let to_kami_float (x : Bit Xlen @# ty)
   :  kami_float_kind @# ty
   := getNF_from_FN (to_IEEE_float x).
@@ -195,21 +204,66 @@ Let fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt Xlen_o
          "arg2" ::= to_kami_float (#context_pkt @% "reg2");
          "max"  ::= max
        } : fmin_max_in_pkt_kind @# ty).
-(*
-Let cmp_out_pkt (cmp_out_pkt_expr : cmp_out_pkt_kind ## ty)
-  :  ExecContextUpdPkt Xlen_over_8 ## ty
-  := LETE cmp_out_pkt
-       :  cmp_out_pkt_kind
-       <- cmp_out_pkt_expr;
+
+(* TODO *)
+Conjecture assume_gt_2 : forall x : nat, (x >= 2)%nat. 
+
+(* TODO *)
+Conjecture assume_sqr
+  : forall x y : nat, (pow2 x + 4 > y + 1 + 1)%nat.
+
+Definition float_int_out (sem_out_pkt_expr : float_int_out_pkt_kind ## ty)
+  := LETE sem_out_pkt
+       :  float_int_out_pkt_kind
+       <- sem_out_pkt_expr;
      RetE
        (STRUCT {
          "val1"
            ::= Valid (STRUCT {
-                 "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                 "data" ::= from_kami_float (#cmp_out_pkt 
-               });
+                       "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                       "data" ::= ZeroExtendTruncLsb Xlen ((#sem_out_pkt) @% "outIN")
+                     });
+         "val2"
+           ::= Valid (STRUCT {
+                       "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                       "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Xlen @# ty))
+                     });
+         "memBitMask"
+           ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+         "taken?" ::= $$false;
+         "aq" ::= $$false;
+         "rl" ::= $$false;
+         "exception" ::= excs (#sem_out_pkt @% "flags")
        } : ExecContextUpdPkt Xlen_over_8 @# ty).
-*)
+
+Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
+  := LETE sem_out_pkt
+       :  int_float_out_pkt_kind
+       <- sem_out_pkt_expr;
+     RetE
+       (STRUCT {
+         "val1"
+           ::= Valid (STRUCT {
+                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                       "data" ::= ZeroExtendTruncLsb Xlen
+                                    (from_kami_float
+                                      ((#sem_out_pkt @% "out")
+                                        : NF (exp_width - 2) (sig_width - 2) @# ty)
+                                      : Bit Xlen @# ty)
+                     });
+         "val2"
+           ::= Valid (STRUCT {
+                       "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                       "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Xlen @# ty)) 
+                     });
+         "memBitMask"
+           ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+         "taken?" ::= $$false;
+         "aq" ::= $$false;
+         "rl" ::= $$false;
+         "exception" ::= excs (#sem_out_pkt @% "exceptionFlags")
+       } : ExecContextUpdPkt Xlen_over_8 @# ty).
+
 Definition Mac : @FUEntry Xlen_over_8 ty
   := {|
        fuName :="mac";
@@ -499,6 +553,215 @@ Definition FSgn : @FUEntry Xlen_over_8 ty
                        => sem_out_pkt_expr;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+              |}
+            ]
+     |}.
+
+Definition Float_int : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "float_int";
+       fuFunc
+         := fun sem_in_pkt_expr : float_int_in_pkt_kind ## ty
+              => LETE sem_in_pkt
+                   :  float_int_in_pkt_kind
+                   <- sem_in_pkt_expr;
+                 @NFToIN_expr
+                   (Xlen - 2)
+                   (exp_width - 2)
+                   (sig_width - 2)
+                   (assume_gt_2 (exp_width - 2))
+                   (assume_sqr (exp_width - 2) (sig_width - 2))
+                   ty
+                   (#sem_in_pkt);
+       fuInsts
+         := [
+              {|
+                instName   := "fcvt.w.s";
+                extensions := ["RV32F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1100000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "signedOut"    ::= $$true
+                            } : float_int_in_pkt_kind @# ty);
+                outputXform := float_int_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.wu.s";
+                extensions := ["RV32F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00001");
+                       fieldVal funct7Field   ('b"1100000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "signedOut"    ::= $$false
+                            } : float_int_in_pkt_kind @# ty);
+                outputXform := float_int_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.l.s";
+                extensions := ["RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1100000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "signedOut"    ::= $$true
+                            } : float_int_in_pkt_kind @# ty);
+                outputXform := float_int_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.lu.s";
+                extensions := ["RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00001");
+                       fieldVal funct7Field   ('b"1100000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "signedOut"    ::= $$false
+                            } : float_int_in_pkt_kind @# ty);
+                outputXform := float_int_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |}
+            ]
+     |}.
+
+Definition Int_float : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "int_float";
+       fuFunc
+         := fun sem_in_pkt_expr : int_float_in_pkt_kind ## ty
+              => LETE sem_in_pkt
+                   :  int_float_in_pkt_kind
+                   <- sem_in_pkt_expr;
+                 INToNF_expr
+                   (exp_width - 2)
+                   (sig_width - 2)
+                   (#sem_in_pkt);
+       fuInsts
+         := [
+              {|
+                instName   := "fcvt.s.w";
+                extensions := ["RV32F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1101000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                              "signedIn"      ::= $$true;
+                              "afterRounding" ::= $$true;
+                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                            } : int_float_in_pkt_kind @# ty);
+                outputXform := int_float_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.s.wu";
+                extensions := ["RV32F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00001");
+                       fieldVal funct7Field   ('b"1101000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                              "signedIn"      ::= $$false;
+                              "afterRounding" ::= $$true;
+                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                            } : int_float_in_pkt_kind @# ty);
+                outputXform := int_float_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.s.l";
+                extensions := ["RV32F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00010");
+                       fieldVal funct7Field   ('b"1101000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                              "signedIn"      ::= $$true;
+                              "afterRounding" ::= $$true;
+                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                            } : int_float_in_pkt_kind @# ty);
+                outputXform := int_float_out;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
               |}
             ]
      |}.
