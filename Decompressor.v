@@ -31,7 +31,7 @@ Record CompInst := {
   req_exts: list (list string);
   comp_inst_id: UniqId;
   decompress: comp_inst_kind @# ty -> uncomp_inst_kind ## ty
-}.
+                  }.
 
 (* common compressed instruction field ranges. *)
 Definition comp_inst_opcode_field := (1, 0).
@@ -73,77 +73,77 @@ Definition comp_inst_cj_target_field := (12, 2).
 Definition uncomp_inst_reg (xn : nat) : Bit 5 @# ty := $(xn).
 
 Definition comp_inst_map_reg
-  (comp_inst_reg : Bit 3 @# ty)
+           (comp_inst_reg : Bit 3 @# ty)
   :  Bit 5 @# ty
   := Switch comp_inst_reg Retn Bit 5 With {
-       ($$(('b"000") : word 3)) ::= uncomp_inst_reg 8;
-       ($$(('b"001") : word 3)) ::= uncomp_inst_reg 9;
-       ($$(('b"010") : word 3)) ::= uncomp_inst_reg 10;
-       ($$(('b"011") : word 3)) ::= uncomp_inst_reg 11;
-       ($$(('b"100") : word 3)) ::= uncomp_inst_reg 12;
-       ($$(('b"101") : word 3)) ::= uncomp_inst_reg 13;
-       ($$(('b"110") : word 3)) ::= uncomp_inst_reg 14;
-       ($$(('b"111") : word 3)) ::= uncomp_inst_reg 15
-     }.
+              ($$(('b"000") : word 3)) ::= uncomp_inst_reg 8;
+              ($$(('b"001") : word 3)) ::= uncomp_inst_reg 9;
+              ($$(('b"010") : word 3)) ::= uncomp_inst_reg 10;
+              ($$(('b"011") : word 3)) ::= uncomp_inst_reg 11;
+              ($$(('b"100") : word 3)) ::= uncomp_inst_reg 12;
+              ($$(('b"101") : word 3)) ::= uncomp_inst_reg 13;
+              ($$(('b"110") : word 3)) ::= uncomp_inst_reg 14;
+              ($$(('b"111") : word 3)) ::= uncomp_inst_reg 15
+            }.
 
 Let field_type : Type := {x: (nat * nat) & word (fst x + 1 - snd x)}.
 
 Definition raw_comp_inst_match_field
-  (raw_comp_inst: comp_inst_kind @# ty)
-  (field: field_type)
+           (raw_comp_inst: comp_inst_kind @# ty)
+           (field: field_type)
   := LETE x <- extractArbitraryRange (RetE raw_comp_inst) (projT1 field);
-     RetE (#x == $$ (projT2 field)).
+       RetE (#x == $$ (projT2 field)).
 
 Definition raw_comp_inst_match_id
-  (raw_comp_inst: comp_inst_kind @# ty)
-  (inst_id : UniqId)
+           (raw_comp_inst: comp_inst_kind @# ty)
+           (inst_id : UniqId)
   :  Bool ## ty
   := utila_expr_all (map (raw_comp_inst_match_field raw_comp_inst) inst_id).
 
 Definition inst_match_enabled_exts
-  (comp_inst_entry : CompInst)
-  (exts_pkt : Extensions @# ty)
+           (comp_inst_entry : CompInst)
+           (exts_pkt : Extensions @# ty)
   :  Bool ## ty
   := utila_expr_any
        (map 
-         (fun exts : list string
+          (fun exts : list string
            => utila_expr_all
                 (map
-                  (fun ext : string
+                   (fun ext : string
                     => RetE (struct_get_field_default exts_pkt ext ($$false)))
-                  exts))
-         (req_exts comp_inst_entry)).
+                   exts))
+          (req_exts comp_inst_entry)).
 
 Definition decomp_inst
-  (comp_inst_entry : CompInst)
-  (exts_pkt : Extensions @# ty)
-  (raw_comp_inst : comp_inst_kind @# ty)
+           (comp_inst_entry : CompInst)
+           (exts_pkt : Extensions @# ty)
+           (raw_comp_inst : comp_inst_kind @# ty)
   :  opt_uncomp_inst_kind ## ty
   := LETE raw_uncomp_inst
-       :  uncomp_inst_kind
-       <- decompress comp_inst_entry raw_comp_inst;
-     LETE raw_comp_inst_match
+     :  uncomp_inst_kind
+          <- decompress comp_inst_entry raw_comp_inst;
+       LETE raw_comp_inst_match
        :  Bool
-       <- raw_comp_inst_match_id
+            <- raw_comp_inst_match_id
             raw_comp_inst
             (comp_inst_id comp_inst_entry);
-     LETE exts_match
+       LETE exts_match
        :  Bool
-       <- inst_match_enabled_exts comp_inst_entry exts_pkt;
-     utila_expr_opt_pkt
-       (#raw_uncomp_inst)
-       ((#raw_comp_inst_match) && (#exts_match)).
+            <- inst_match_enabled_exts comp_inst_entry exts_pkt;
+       utila_expr_opt_pkt
+         (#raw_uncomp_inst)
+         ((#raw_comp_inst_match) && (#exts_match)).
 
 Definition uncompress
-  (comp_inst_db : list CompInst)
-  (exts_pkt : Extensions @# ty)
-  (raw_comp_inst : comp_inst_kind @# ty)
+           (comp_inst_db : list CompInst)
+           (exts_pkt : Extensions @# ty)
+           (raw_comp_inst : comp_inst_kind @# ty)
   :  opt_uncomp_inst_kind ## ty
   := utila_expr_find_pkt
        (map
-         (fun comp_inst_entry
+          (fun comp_inst_entry
            => decomp_inst comp_inst_entry exts_pkt raw_comp_inst)
-         comp_inst_db).
+          comp_inst_db).
 
 Close Scope kami_expr.
 

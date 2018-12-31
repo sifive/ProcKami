@@ -217,8 +217,11 @@ Section Mem.
                                     (STRUCT {
                                          "data" ::= #reg;
                                          "mask" ::= #memMask});
-             LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
-             LETC loadVal: Data <- IF #memReg @% "reservation" >= (if half then $1 else $2)then $0 else $1 ;
+             LETC isStore: Bool <- #memReg @% "reservation" >= (if half then $1 else $2);
+             LETC validMemOut: Maybe MaskedMem <- (STRUCT {
+                                                       "valid" ::= #isStore ;
+                                                       "data" ::= #memOut });
+             LETC loadVal: Data <- IF #isStore then $0 else $1 ;
              LETC outMemReg : MemoryOutput
                                 <-
                                 STRUCT {
