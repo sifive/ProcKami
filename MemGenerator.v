@@ -78,18 +78,27 @@ Section Mem.
                      end
       end.
 
-    Fixpoint getMemEntryFromFus (fus: list func_unit_type) pos:
+    Definition memFu := find (fun x => getBool (string_dec (fuName (snd x)) "mem"))
+                             (tag func_units).
+
+    Definition lengthMemFu := match memFu with
+                              | None => 0
+                              | Some (_, x) => length (fuInsts x)
+                              end.
+
+    Definition tagMemFu := match memFu with
+                           | None => 0
+                           | Some (x, _) => x
+                           end.
+
+
+    Definition getMemEntry pos:
       option (LetExprSyntax ty (FU.MemoryInput Xlen_over_8) ->
               LetExprSyntax ty (FU.MemoryOutput Xlen_over_8)) :=
-      match fus with
-      | nil => None
-      | x :: xs => match getMemEntryFromInsts (fuInsts x) pos with
-                     | Some val => Some val
-                     | None => getMemEntryFromFus xs pos
-                   end
+      match memFu with
+      | None => None
+      | Some (_, x) => getMemEntryFromInsts (fuInsts x) pos
       end.
-
-    Definition getMemEntry := getMemEntryFromFus func_units.
 
     Local Open Scope kami_expr.
     Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty) : MemoryInput @# ty :=
@@ -115,6 +124,7 @@ Section Mem.
 
     Section MemAddr.
       Variable addr: VAddr @# ty.
+      Variable fuTag: func_unit_id_kind @# ty.
       Variable instTag: inst_id_kind @# ty.
       Variable memUnitInput: MemUnitInput @# ty.
 
@@ -157,8 +167,16 @@ Section Mem.
         end.
 
       Definition fullMemAction: ActionT ty MemRet :=
-        GatherActions (map memAction (0 upto (inst_max_num func_units))) as retVals;
-          Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))).
+        If (fuTag == $ tagMemFu)
+        then 
+          (GatherActions (map memAction (0 upto lengthMemFu)) as retVals;
+             Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
+        else
+          Ret (STRUCT {"writeReg?" ::= $$ false ;
+                       "data" ::= $0 ;
+                       "exception?" ::= Invalid})
+        as ret;
+        Ret #ret.
       Local Close Scope kami_action.
     End MemAddr.
   End Ty.
