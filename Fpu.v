@@ -52,6 +52,13 @@ Let fmin_max_in_pkt_kind
        "max"  :: Bool
      }.
 
+Let cmp_in_pkt_kind
+  :  Kind
+  := STRUCT {
+       "arg1" :: kami_float_kind;
+       "arg2" :: kami_float_kind
+     }.
+
 Let cmp_out_pkt_kind
   :  Kind
   := Compare_Output.
@@ -263,6 +270,41 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
          "rl" ::= $$false;
          "exception" ::= excs (#sem_out_pkt @% "exceptionFlags")
        } : ExecContextUpdPkt Xlen_over_8 @# ty).
+
+Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out_pkt_kind ## ty)
+  := LETE cmp_out_pkt
+       :  cmp_out_pkt_kind
+       <- sem_out_pkt_expr;
+     RetE
+       (STRUCT {
+         "val1"
+           ::= Valid (STRUCT {
+                 "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
+                 "data"
+                   ::= (ITE
+                         ((struct_get_field_default
+                           (#cmp_out_pkt)
+                           cond0
+                           ($$false)) ||
+                          (struct_get_field_default
+                           (#cmp_out_pkt)
+                           cond1
+                           ($$false)))
+                         $1 $0)
+               } : RoutedReg Xlen_over_8 @# ty);
+         (* TODO: determine conditions for signalling an invalid instruction exception *)
+         "val2"
+           ::= Valid (STRUCT {
+                 "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                 "data" ::= (csr (#cmp_out_pkt @% "exceptionFlags"))
+               });
+         "memBitMask"
+           ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+         "taken?" ::= $$false;
+         "aq" ::= $$false;
+         "rl" ::= $$false;
+         "exception" ::= excs (#cmp_out_pkt @% "exceptionFlags")
+       } :  ExecContextUpdPkt Xlen_over_8 @# ty).
 
 Definition Mac : @FUEntry Xlen_over_8 ty
   := {|
@@ -597,7 +639,7 @@ Definition Float_int : @FUEntry Xlen_over_8 ty
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
               |};
               {|
                 instName   := "fcvt.wu.s";
@@ -621,7 +663,7 @@ Definition Float_int : @FUEntry Xlen_over_8 ty
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
               |};
               {|
                 instName   := "fcvt.l.s";
@@ -645,7 +687,7 @@ Definition Float_int : @FUEntry Xlen_over_8 ty
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
               |};
               {|
                 instName   := "fcvt.lu.s";
@@ -669,7 +711,7 @@ Definition Float_int : @FUEntry Xlen_over_8 ty
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
               |}
             ]
      |}.
@@ -711,7 +753,7 @@ Definition Int_float : @FUEntry Xlen_over_8 ty
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
               |};
               {|
                 instName   := "fcvt.s.wu";
@@ -736,11 +778,11 @@ Definition Int_float : @FUEntry Xlen_over_8 ty
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
               |};
               {|
                 instName   := "fcvt.s.l";
-                extensions := ["RV32F"];
+                extensions := ["RV64F"];
                 uniqId
                   := [
                        fieldVal instSizeField ('b"11");
@@ -761,7 +803,115 @@ Definition Int_float : @FUEntry Xlen_over_8 ty
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrd := true]] 
+                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+              |};
+              {|
+                instName   := "fcvt.s.lu";
+                extensions := ["RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00011");
+                       fieldVal funct7Field   ('b"1101000")
+                     ];
+                inputXform 
+                  := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                              "signedIn"      ::= $$false;
+                              "afterRounding" ::= $$true;
+                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                            } : int_float_in_pkt_kind @# ty);
+                outputXform := int_float_out;
+                optMemXform := None;
+                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+              |}
+            ]
+     |}.
+
+Definition FCmp : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "fcmp";
+       fuFunc
+         := fun sem_in_pkt_expr : cmp_in_pkt_kind ## ty
+              => LETE sem_in_pkt
+                   :  cmp_in_pkt_kind
+                   <- sem_in_pkt_expr;
+                 Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
+       fuInsts
+         := [
+              {|
+                instName   := "feq.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"010");
+                       fieldVal funct7Field   ('b"1010000")
+                     ];
+                inputXform
+                  := fun context_pkt_expr
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
+                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                            } : cmp_in_pkt_kind @# ty);
+                outputXform := cmp_out "eq" "not used";
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+              |};
+              {|
+                instName   := "flt.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"001");
+                       fieldVal funct7Field   ('b"1010000")
+                     ];
+                inputXform
+                  := fun context_pkt_expr
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
+                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                            } : cmp_in_pkt_kind @# ty);
+                outputXform := cmp_out "lt" "not used";
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+              |};
+              {|
+                instName   := "fle.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"000");
+                       fieldVal funct7Field   ('b"1010000")
+                     ];
+                inputXform
+                  := fun context_pkt_expr
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
+                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                            } : cmp_in_pkt_kind @# ty);
+                outputXform := cmp_out "lt" "eq";
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |}
             ]
      |}.
