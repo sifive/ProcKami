@@ -10,6 +10,7 @@ Require Import FpuKami.MulAdd.
 Require Import FpuKami.Compare.
 Require Import FpuKami.NFToIN.
 Require Import FpuKami.INToNF.
+Require Import FpuKami.Classify.
 Require Import Alu.
 Require Import FU.
 Require Import List.
@@ -912,6 +913,57 @@ Definition FCmp : @FUEntry Xlen_over_8 ty
                 outputXform := cmp_out "lt" "eq";
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+              |}
+            ]
+     |}.
+
+Definition FClass : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "fclass";
+       fuFunc
+         := fun x_expr : IEEE_float_kind ## ty
+              => LETE x : IEEE_float_kind <- x_expr;
+                 RetE
+                   (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10)));
+       fuInsts
+         := [
+              {|
+                instName   := "fclass.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"001");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1110000")
+                     ];
+                inputXform
+                  := fun context_pkt_expr
+                       => LETE context_pkt
+                            <- context_pkt_expr;
+                          RetE
+                            (to_IEEE_float (#context_pkt @% "reg1"));
+                outputXform
+                  := fun res_expr : Bit Xlen ## ty
+                       => LETE res : Bit Xlen <- res_expr;
+                          RetE
+                            (STRUCT {
+                              "val1"
+                                ::= Valid (STRUCT {
+                                      "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                      "data" ::= #res
+                                    } : RoutedReg Xlen_over_8 @# ty);
+                              "val2" ::= @Invalid ty _;
+                              "memBitMask"
+                                ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                              "taken?" ::= $$false;
+                              "aq" ::= $$false;
+                              "rl" ::= $$false;
+                              "exception" ::= @Invalid ty _
+                            } : ExecContextUpdPkt Xlen_over_8 @# ty);
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
               |}
             ]
      |}.
