@@ -11,6 +11,101 @@ Section utila.
 
 Open Scope kami_expr.
 
+Definition utila_all
+  :  forall ty : Kind -> Type, list (Bool @# ty) -> Bool @# ty
+  := fun ty => fold_right (fun x acc => x && acc) ($$true).
+
+Definition utila_any
+  :  forall ty : Kind -> Type, list (Bool @# ty) -> Bool @# ty
+  := fun ty => fold_right (fun x acc => x || acc) ($$false).
+
+Section ver.
+
+Local Notation "{{ X }}" := (evalExpr X).
+
+Local Notation "X ==> Y" := (evalExpr X = Y) (at level 75).
+
+Local Notation "==> Y" := (fun x => evalExpr x = Y) (at level 75).
+
+Let utila_is_true (x : Bool @# type) := x ==> true.
+
+Theorem utila_all_correct
+  :  forall xs : list (Bool @# type),
+       utila_all xs ==> true <-> Forall utila_is_true xs.
+Proof
+  fun xs
+    => conj
+         (list_ind
+           (fun ys => utila_all ys ==> true -> Forall utila_is_true ys)
+           (fun _ => Forall_nil utila_is_true)
+           (fun y0 ys
+             (F : utila_all ys ==> true -> Forall utila_is_true ys)
+             (H : utila_all (y0 :: ys) ==> true)
+             => let H0
+                  :  y0 ==> true /\ utila_all ys ==> true
+                  := andb_prop {{y0}} {{utila_all ys}} H in
+                Forall_cons y0 (proj1 H0) (F (proj2 H0)))
+           xs)
+         (@Forall_ind
+           (Bool @# type)
+           (==> true)
+           (fun ys => utila_all ys ==> true)
+           (eq_refl true)
+           (fun y0 ys
+             (H : y0 ==> true)
+             (H0 : Forall utila_is_true ys)
+             (F : utila_all ys ==> true)
+             => andb_true_intro (conj H F))
+           xs).
+
+Theorem utila_any_correct
+  :  forall xs : list (Bool @# type),
+       utila_any xs ==> true <-> Exists utila_is_true xs.
+Proof
+  fun xs
+    => conj
+         (list_ind
+           (fun ys => utila_any ys ==> true -> Exists utila_is_true ys)
+           (fun H : false = true
+             => False_ind
+                  (Exists utila_is_true nil)
+                  (diff_false_true H))
+           (fun y0 ys
+             (F : utila_any ys ==> true -> Exists utila_is_true ys)
+             (H : utila_any (y0 :: ys) ==> true)
+             => let H0
+                  :  y0 ==> true \/ utila_any ys ==> true
+                  := orb_prop {{y0}} {{utila_any ys}} H in
+                match H0 with
+                  | or_introl H1
+                    => Exists_cons_hd utila_is_true y0 ys H1 
+                  | or_intror H1
+                    => Exists_cons_tl y0 (F H1)
+                end)
+           xs)
+         (@Exists_ind 
+           (Bool @# type)
+           (==> true)
+           (fun ys => utila_any ys ==> true)
+           (fun y0 ys
+             (H : y0 ==> true)
+             => eq_ind
+                  true
+                  (fun z : bool => (orb z {{utila_any ys}}) = true)
+                  (orb_true_l {{utila_any ys}})
+                  {{y0}}
+                  (eq_sym H))
+           (fun y0 ys
+             (H : Exists utila_is_true ys)
+             (F : utila_any ys ==> true)
+             => eq_ind_r
+                  (fun z => orb {{y0}} z = true)
+                  (orb_true_r {{y0}})
+                  F)
+           xs).
+
+End ver.
+
 Variable ty : Kind -> Type.
 
 Definition utila_opt_pkt
@@ -22,14 +117,6 @@ Definition utila_opt_pkt
        "valid" ::= valid;
        "data"  ::= x
      }.
-
-Definition utila_all
-  :  list (Bool @# ty) -> Bool @# ty
-  := fold_right (fun x acc => x && acc) ($$true).
-
-Definition utila_any
-  :  list (Bool @# ty) -> Bool @# ty
-  := fold_right (fun x acc => x || acc) ($$true).
 
 (* Kami Let Expressions *)
 
