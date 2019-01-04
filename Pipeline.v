@@ -1,4 +1,4 @@
-Require Import Kami.All FU.
+Require Import Kami.All FU Decoder RegReader Executor MemGenerator.
 
 Section Params.
   Variable name: string.
@@ -11,21 +11,13 @@ Section Params.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Array Xlen_over_8 Bool).
 
-  Definition ExceptionInfo := Bit Xlen.
-
-  Definition FullException := STRUCT {
-                                  "exception" :: Exception ;
-                                  "value" :: ExceptionInfo }.
-
+  Local Notation FullException := (FullException Xlen_over_8).
+  Local Notation FetchStruct := (FetchStruct Xlen_over_8).
+  
   Definition InstException := STRUCT {
                                   "inst" :: Inst ;
                                   "exception" :: Maybe FullException }.
   
-  Definition FetchStruct := STRUCT {
-                                "pc" :: VAddr ;
-                                "inst" :: Inst ;
-                                "exception" :: Maybe FullException }.
-
   Definition RegWrite := STRUCT {
                              "index" :: Bit 5 ;
                              "data" :: Data }.
@@ -37,6 +29,11 @@ Section Params.
   Section Ty.
     Variable ty: Kind -> Type.
     
+    Variable func_units: list (@FUEntry Xlen_over_8 ty).
+    Definition DecodePkt := STRUCT {
+                                "decoded" :: decoder_pkt_kind func_units ;
+                                "exception" :: Maybe FullException }.
+
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
     Definition fetch (pc: VAddr @# ty) : ActionT ty FetchStruct :=
@@ -95,6 +92,9 @@ Section Params.
                     Retv);
                 Retv
       ).
+
+    Variable extensions: Extensions @# ty.
+    Variable PrivMode: PrivMode @# ty.
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
   End Ty.

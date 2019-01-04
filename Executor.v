@@ -45,9 +45,9 @@ Section executor.
 
     Let inst_id_kind := Decoder.inst_id_kind func_units.
 
-    Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
+    Let tagged_func_unit_type := Decoder.tagged_func_unit_type Xlen_over_8 ty.
 
-    Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
+    Let tagged_inst_type := Decoder.tagged_inst_type Xlen_over_8 ty.
 
     Let packed_args_pkt_kind := FuInputTrans.packed_args_pkt_kind func_units.
 

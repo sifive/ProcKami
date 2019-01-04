@@ -16,13 +16,15 @@ Require Import Decompressor.
 
 Section reg_reader.
 
+  Variable Xlen_over_8 : nat.
+
   Open Scope kami_expr.
 
   Open Scope kami_action.
 
   Variable ty : Kind -> Type.
 
-  Variable Xlen_over_8 : nat.
+  Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
 
   Let Xlen : nat := 8 * Xlen_over_8.
 
@@ -63,9 +65,9 @@ Section reg_reader.
 
     Let decoder_pkt_kind := Decoder.decoder_pkt_kind func_units.
 
-    Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
+    Let tagged_func_unit_type := Decoder.tagged_func_unit_type Xlen_over_8 ty.
 
-    Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
+    Let tagged_inst_type := Decoder.tagged_inst_type Xlen_over_8 ty.
 
     (* register reader definitions *)
 
@@ -158,16 +160,16 @@ Section reg_reader.
          Bool @# ty
       := reg_reader_match inst_has_frs3.
 
-    Definition reg_reader_read_reg
+    Definition reg_reader_read_reg n
                (reg_id : reg_id_kind @# ty)
       :  ActionT ty reg_val_kind
-      := Call reg_val : reg_val_kind <- "read_reg" (reg_id : reg_id_kind);
+      := Call reg_val : reg_val_kind <- ("read_reg_" ++ natToHexStr n)(reg_id : reg_id_kind);
            Ret (#reg_val).
 
-    Definition reg_reader_read_freg
+    Definition reg_reader_read_freg n
                (freg_id : reg_id_kind @# ty)
       :  ActionT ty reg_val_kind
-      := Call freg_val : reg_val_kind <- "read_freg" (freg_id : reg_id_kind);
+      := Call freg_val : reg_val_kind <- ("read_freg_" ++ natToHexStr n)(freg_id : reg_id_kind);
            Ret (#freg_val).
 
     Definition reg_reader
@@ -179,11 +181,11 @@ Section reg_reader.
          let raw_inst
              :  uncomp_inst_kind @# ty
              := decoder_pkt @% "inst" in
-         LETA reg1_val : reg_val_kind <- reg_reader_read_reg (rs1 raw_inst);
-           LETA reg2_val : reg_val_kind <- reg_reader_read_reg (rs2 raw_inst);
-           LETA freg1_val : reg_val_kind <- reg_reader_read_freg (rs1 raw_inst);
-           LETA freg2_val : reg_val_kind <- reg_reader_read_freg (rs2 raw_inst);
-           LETA freg3_val : reg_val_kind <- reg_reader_read_freg (rs3 raw_inst);
+         LETA reg1_val : reg_val_kind <- reg_reader_read_reg 1 (rs1 raw_inst);
+           LETA reg2_val : reg_val_kind <- reg_reader_read_reg 2 (rs2 raw_inst);
+           LETA freg1_val : reg_val_kind <- reg_reader_read_freg 1 (rs1 raw_inst);
+           LETA freg2_val : reg_val_kind <- reg_reader_read_freg 2 (rs2 raw_inst);
+           LETA freg3_val : reg_val_kind <- reg_reader_read_freg 3 (rs3 raw_inst);
            Ret
              (STRUCT {
                   "pc"   ::= decoder_pkt @% "pc";
@@ -193,9 +195,9 @@ Section reg_reader.
                               (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
                   "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
                   "inst" ::= raw_inst;
-                  "instMisalignedException?" ::= $$false; (* TODO *)
-                  "memMisalignedException?"  ::= $$false; (* TODO *)
-                  "accessException?" ::= $$false; (* TODO *)
+                  "instMisalignedException?" ::= instMisalignedException;
+                  "memMisalignedException?"  ::= memMisalignedException;
+                  "accessException?" ::= accessException;
                   "mode" ::= decoder_pkt @% "mode";
                   "compressed?" ::= !(decode_uncompressed raw_inst)
                 } : exec_context_pkt_kind @# ty).

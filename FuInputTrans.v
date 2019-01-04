@@ -15,9 +15,9 @@ Import ListNotations.
 
 Section input_trans.
 
-  Variable ty : Kind -> Type.
-
   Variable Xlen_over_8 : nat.
+
+  Variable ty : Kind -> Type.
 
   Let func_unit_type
     :  Type
@@ -49,9 +49,9 @@ Section input_trans.
 
     Let inst_id_encode := Decoder.inst_id_encode func_units.
 
-    Let tagged_func_unit_type := Decoder.tagged_func_unit_type ty Xlen_over_8.
+    Let tagged_func_unit_type := Decoder.tagged_func_unit_type Xlen_over_8 ty.
 
-    Let tagged_inst_type := Decoder.tagged_inst_type ty Xlen_over_8.
+    Let tagged_inst_type := Decoder.tagged_inst_type Xlen_over_8 ty.
 
     Let inst_db_find_pkt := Decoder.inst_db_find_pkt func_units.
 
