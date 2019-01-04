@@ -334,7 +334,6 @@ Section decoder.
       Definition decoder := decode_full (comp_inst_db ty).
 
       Definition decoderWithException
-                 (comp_inst_db : list CompInst)
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
                  (fetch_struct : FetchStruct ## ty): PktWithException decoder_pkt_kind ## ty :=
