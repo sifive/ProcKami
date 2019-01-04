@@ -11,13 +11,88 @@ Section utila.
 
 Open Scope kami_expr.
 
+Section defs.
+
+Variable ty : Kind -> Type.
+
+(* I. Kami Expression Definitions *)
+
+Definition utila_opt_pkt
+  (k : Kind)
+  (x : k @# ty)
+  (valid : Bool @# ty)
+  :  Maybe k @# ty
+  := STRUCT {
+       "valid" ::= valid;
+       "data"  ::= x
+     }.
+
 Definition utila_all
-  :  forall ty : Kind -> Type, list (Bool @# ty) -> Bool @# ty
-  := fun ty => fold_right (fun x acc => x && acc) ($$true).
+  :  list (Bool @# ty) -> Bool @# ty
+  := fold_right (fun x acc => x && acc) ($$true).
 
 Definition utila_any
-  :  forall ty : Kind -> Type, list (Bool @# ty) -> Bool @# ty
-  := fun ty => fold_right (fun x acc => x || acc) ($$false).
+  :  list (Bool @# ty) -> Bool @# ty
+  := fold_right (fun x acc => x || acc) ($$false).
+
+(* II. Kami Let Expression Definitions *)
+
+Definition utila_expr_opt_pkt
+  (k : Kind)
+  (x : k @# ty)
+  (valid : Bool @# ty)
+  :  Maybe k ## ty
+  := RetE (utila_opt_pkt x valid).
+
+Definition utila_expr_foldr
+  (j k : Kind)
+  (f : j @# ty -> k @# ty -> k @# ty)
+  (init : k @# ty)
+  :  list (j ## ty) -> k ## ty
+  := fold_right
+       (fun (x_expr : j ## ty)
+            (acc_expr : k ## ty)
+         => LETE x
+              :  j
+              <- x_expr;
+            LETE acc
+              :  k
+              <- acc_expr;
+            RetE (f (#x) (#acc)))
+       (RetE init).
+
+Definition utila_expr_all
+  :  list (Bool ## ty) -> Bool ## ty
+  := utila_expr_foldr (fun x acc => x && acc) ($$true).
+
+Definition utila_expr_any
+  :  list (Bool ## ty) -> Bool ## ty
+  := utila_expr_foldr (fun x acc => x || acc) ($$false).
+
+(*
+  Accepts a Kami predicate [f] and a list of Kami let expressions
+  that represent values, and returns a Kami let expression that
+  outputs the value that satisfies f.
+
+  Note: [f] must only return true for exactly one value in
+  [xs_exprs].
+*)
+Definition utila_expr_find
+  (k : Kind)
+  (f : k @# ty -> Bool @# ty)
+  (xs_exprs : list (k ## ty))
+  :  k ## ty
+  := LETE y
+       :  Bit (size k)
+       <- (utila_expr_foldr
+            (fun x acc => ((ITE (f x) (pack x) ($0)) | acc))
+            ($0)
+            xs_exprs);
+     RetE (unpack k (#y)).
+
+End defs.
+
+(* III. Correctness Proofs *)
 
 Section ver.
 
@@ -106,72 +181,147 @@ Proof
 
 End ver.
 
-Variable ty : Kind -> Type.
+Section expr_ver.
 
-Definition utila_opt_pkt
-  (k : Kind)
-  (x : k @# ty)
-  (valid : Bool @# ty)
-  :  Maybe k @# ty
-  := STRUCT {
-       "valid" ::= valid;
-       "data"  ::= x
-     }.
+Local Notation "{{ X }}" := (evalExpr X).
 
-(* Kami Let Expressions *)
+Local Notation "[[ X ]]" := (evalLetExpr X).
 
-Definition utila_expr_opt_pkt
-  (k : Kind)
-  (x : k @# ty)
-  (valid : Bool @# ty)
-  :  Maybe k ## ty
-  := RetE (utila_opt_pkt x valid).
+Local Notation "X ==> Y" := (evalLetExpr X = Y) (at level 75).
 
-Definition utila_expr_foldr
-  (j k : Kind)
-  (f : j @# ty -> k @# ty -> k @# ty)
-  (init : k @# ty)
-  :  list (j ## ty) -> k ## ty
-  := fold_right
-       (fun (x_expr : j ## ty)
-            (acc_expr : k ## ty)
-         => LETE x
-              :  j
-              <- x_expr;
-            LETE acc
-              :  k
-              <- acc_expr;
-            RetE (f (#x) (#acc)))
-       (RetE init).
+Local Notation "==> Y" := (fun x => evalLetExpr x = Y) (at level 75).
 
-Definition utila_expr_all
-  :  list (Bool ## ty) -> Bool ## ty
-  := utila_expr_foldr (fun x acc => x && acc) ($$true).
+Let utila_is_true (x : Bool ## type) := x ==> true.
 
-Definition utila_expr_any
-  :  list (Bool ## ty) -> Bool ## ty
-  := utila_expr_foldr (fun x acc => x || acc) ($$true).
+Theorem utila_expr_foldr_correct_nil
+  :  forall (j k : Kind) (f : j @# type -> k @# type -> k @# type) (init : k @# type),
+     utila_expr_foldr f init nil ==> {{init}}.
+Proof
+  fun j k f init
+    => eq_refl ({{init}}).
+
+Theorem utila_expr_foldr_correct_cons
+  :  forall (j k : Kind)
+       (f : j @# type -> k @# type -> k @# type)
+       (init : k @# type)
+       (x0 : j ## type) (xs : list (j ## type)),
+       [[utila_expr_foldr f init (x0 :: xs)]] =
+       [[LETE y0  : j <- x0;
+         LETE acc : k <- utila_expr_foldr f init xs;
+         RetE (f (Var type (SyntaxKind j) y0) (Var type (SyntaxKind k) acc))]].
+Proof
+  fun j k f init x0 xs
+    => eq_refl [[utila_expr_foldr f init (x0 :: xs)]].
 
 (*
-  Accepts a Kami predicate [f] and a list of Kami let expressions
-  that represent values, and returns a Kami let expression that
-  outputs the value that satisfies f.
-
-  Note: [f] must only return true for exactly one value in
-  [xs_exprs].
+  TODO: Generalize these proofs using monads.
 *)
-Definition utila_expr_find
-  (k : Kind)
-  (f : k @# ty -> Bool @# ty)
-  (xs_exprs : list (k ## ty))
-  :  k ## ty
-  := LETE y
-       :  Bit (size k)
-       <- (utila_expr_foldr
-            (fun x acc => ((ITE (f x) (pack x) ($0)) | acc))
-            ($0)
-            xs_exprs);
-     RetE (unpack k (#y)).
+Theorem utila_expr_all_correct
+  :  forall xs : list (Bool ## type),
+       utila_expr_all xs ==> true <-> Forall utila_is_true xs.
+Proof
+  fun xs
+    => conj
+         (list_ind
+           (fun ys => utila_expr_all ys ==> true -> Forall utila_is_true ys)
+           (fun _ => Forall_nil utila_is_true)
+           (fun y0 ys
+             (F : utila_expr_all ys ==> true -> Forall utila_is_true ys)
+             (H : utila_expr_all (y0 :: ys) ==> true)
+             => let H0
+                  :  y0 ==> true /\ utila_expr_all ys ==> true
+                  := andb_prop [[y0]] [[utila_expr_all ys]] H in
+                Forall_cons y0 (proj1 H0) (F (proj2 H0)))
+           xs)
+         (@Forall_ind
+           (Bool ## type)
+           utila_is_true
+           (fun ys => utila_expr_all ys ==> true)
+           (eq_refl true)
+           (fun y0 ys
+             (H : y0 ==> true)
+             (H0 : Forall utila_is_true ys)
+             (F : utila_expr_all ys ==> true)
+             => andb_true_intro (conj H F))
+           xs).
+
+Theorem utila_expr_any_correct
+  :  forall xs : list (Bool ## type),
+       utila_expr_any xs ==> true <-> Exists utila_is_true xs.
+Proof
+  fun xs
+    => conj
+         (list_ind
+           (fun ys => utila_expr_any ys ==> true -> Exists utila_is_true ys)
+           (fun H : false = true
+             => False_ind
+                  (Exists utila_is_true nil)
+                  (diff_false_true H))
+           (fun y0 ys
+             (F : utila_expr_any ys ==> true -> Exists utila_is_true ys)
+             (H : utila_expr_any (y0 :: ys) ==> true)
+             => let H0
+                  :  y0 ==> true \/ utila_expr_any ys ==> true
+                  := orb_prop [[y0]] [[utila_expr_any ys]] H in
+                match H0 with
+                  | or_introl H1
+                    => Exists_cons_hd utila_is_true y0 ys H1 
+                  | or_intror H1
+                    => Exists_cons_tl y0 (F H1)
+                end)
+           xs)
+         (@Exists_ind 
+           (Bool ## type)
+           (==> true)
+           (fun ys => utila_expr_any ys ==> true)
+           (fun y0 ys
+             (H : y0 ==> true)
+             => eq_ind
+                  true
+                  (fun z : bool => (orb z [[utila_expr_any ys]]) = true)
+                  (orb_true_l [[utila_expr_any ys]])
+                  [[y0]]
+                  (eq_sym H))
+           (fun y0 ys
+             (H : Exists utila_is_true ys)
+             (F : utila_expr_any ys ==> true)
+             => eq_ind_r
+                  (fun z => orb [[y0]] z = true)
+                  (orb_true_r [[y0]])
+                  F)
+           xs).
+
+Lemma utila_ite_l
+  :  forall (k : Kind) (x y : k @# type) (p : Bool @# type),
+       {{p}} = true ->
+       {{ITE p x y}} = {{x}}.
+Proof
+  fun k x y p H
+    => eq_ind
+         true
+         (fun q : bool => (if q then {{x}} else {{y}}) = {{x}})
+         (eq_refl {{x}})
+         {{p}}
+         (eq_sym H).
+
+Lemma utila_ite_r
+  :  forall (k : Kind) (x y : k @# type) (p : Bool @# type),
+       {{p}} = false ->
+       {{ITE p x y}} = {{y}}.
+Proof
+  fun k x y p H
+    => eq_ind
+         false
+         (fun q : bool => (if q then {{x}} else {{y}}) = {{y}})
+         (eq_refl {{y}})
+         {{p}}
+         (eq_sym H).
+
+End expr_ver.
+
+Variable ty : Kind -> Type.
+
+(* Kami Let Expressions *)
 
 (*
   Accepts a list of Maybe packets and returns the packet whose
