@@ -39,9 +39,12 @@ Section Params.
     Definition fetch (pc: VAddr @# ty) : ActionT ty FetchStruct :=
       (Call instException : InstException <- "fetch"(pc: _);
          LET retVal: FetchStruct <- (STRUCT {
-                                         "pc" ::= pc ;
-                                         "inst" ::= #instException @% "inst" ;
-                                         "exception" ::= #instException @% "exception" });
+                                         "fst" ::=
+                                           (STRUCT {
+                                                "pc" ::= pc ;
+                                                "inst" ::= #instException @% "inst" }:
+                                              FetchPkt Xlen_over_8 @# ty) ;
+                                         "snd" ::= #instException @% "exception" });
          Ret #retVal).
 
     Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: ExecContextUpdPkt Xlen_over_8 @# ty)
