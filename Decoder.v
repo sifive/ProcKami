@@ -11,6 +11,7 @@ Require Import utila.
 Require Import Decompressor.
 Require Import CompressedInsts.
 Require Import FU.
+Require Import Fetch.
 
 Section decoder.
 
@@ -21,32 +22,18 @@ Section decoder.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Array Xlen_over_8 Bool).
 
-  Definition ExceptionInfo := Bit Xlen.
+  Let ExceptionInfo := Fetch.ExceptionInfo Xlen_over_8.
 
-  Definition FullException := STRUCT {
-                                  "exception" :: Exception ;
-                                  "value" :: ExceptionInfo }.
+  Let FullException := Fetch.FullException Xlen_over_8.
 
-  Definition PktWithException k := Pair k (Maybe FullException).
+  Let PktWithException := Fetch.PktWithException Xlen_over_8.
 
-  Definition FetchPkt := STRUCT {
-                             "pc" :: VAddr ;
-                             "inst" :: Inst }.
+  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
 
-  Definition FetchStruct := PktWithException FetchPkt.
+  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
 
   Section Ty.
     Variable ty : Kind -> Type.
-
-    Local Open Scope kami_expr.
-    Definition mkPktWithException k1 (pk1: PktWithException k1 ## ty)
-               k2 (pk2: PktWithException k2 ## ty) :=
-      LETE p1 <- pk1;
-        LETE p2 <- pk2;
-        RetE (IF (#p1 @% "snd" @% "valid")
-              then #p2@%["snd" <- #p1 @% "snd"]
-              else #p2).
-    Local Close Scope kami_expr.
 
     (* instruction database entry definitions *)
 
@@ -340,18 +327,20 @@ Section decoder.
         LETE fetch <- fetch_struct;
           let decoded := decoder exts_pkt mode (#fetch @% "fst") in
           LETE dec <- decoded;
-            mkPktWithException fetch_struct
-                               (RetE (STRUCT {
-                                          "fst" ::= #dec @% "data" ;
-                                          "snd" ::= 
-                                            (IF #dec @% "valid"
-                                             then @Invalid ty FullException
-                                             else Valid (STRUCT {
-                                                             "exception" ::= (($IllegalInst):
-                                                                                Exception @# ty) ;
-                                                             "value" ::= $$ (getDefaultConst
-                                                                               ExceptionInfo)
-                               })) })).
+          RetE
+            (mkPktWithException 
+              (#fetch)
+              (STRUCT {
+                         "fst" ::= #dec @% "data" ;
+                         "snd" ::= 
+                           (IF #dec @% "valid"
+                            then @Invalid ty FullException
+                            else Valid (STRUCT {
+                                            "exception" ::= (($IllegalInst):
+                                                               Exception @# ty) ;
+                                            "value" ::= $$ (getDefaultConst
+                                                              ExceptionInfo)
+              })) } : PktWithException decoder_pkt_kind @# ty)).
       
       Local Close Scope kami_expr.
     End func_units.

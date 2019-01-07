@@ -12,12 +12,23 @@ Require Import FU.
 Require Import Decoder.
 Require Import FuInputTrans.
 Require Import utila.
+Require Import Fetch.
 
 Section executor.
 
   Variable Xlen_over_8 : nat.
 
   Variable ty : Kind -> Type.
+
+  Let ExceptionInfo := Fetch.ExceptionInfo Xlen_over_8.
+
+  Let FullException := Fetch.FullException Xlen_over_8.
+
+  Let PktWithException := Fetch.PktWithException Xlen_over_8.
+
+  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
+
+  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
 
   Let func_unit_type
     :  Type
@@ -121,6 +132,28 @@ Section executor.
               (fun (func_unit : tagged_func_unit_type)
                => exec_func_unit trans_pkt func_unit)
               (tag func_units)).
+
+    Definition execWithException
+      (trans_pkt : PktWithException trans_pkt_kind @# ty)
+      :  PktWithException exec_update_pkt_kind ## ty
+      := LETE exec_update_pkt
+           :  Maybe exec_update_pkt_kind
+           <- exec (trans_pkt @% "fst");
+         RetE
+           (mkPktWithException
+             trans_pkt
+             (STRUCT {
+               "fst" ::= (#exec_update_pkt @% "data");
+               "snd"
+                 ::= ITE
+                       (#exec_update_pkt @% "valid")
+                       (@Invalid ty FullException)
+                       (Valid
+                         (STRUCT {
+                           "exception" ::= ($IllegalInst : Exception @# ty);
+                           "value"     ::= $$(getDefaultConst ExceptionInfo)
+                         } : FullException @# ty))
+             } : PktWithException exec_update_pkt_kind @# ty)).
 
     Close Scope kami_expr.
 

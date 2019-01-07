@@ -13,6 +13,8 @@ Require Import FU.
 Require Import FuInputTrans.
 Require Import Decoder.
 Require Import Decompressor.
+Require Import CompressedInsts.
+Require Import Fetch.
 
 Section reg_reader.
 
@@ -23,6 +25,16 @@ Section reg_reader.
   Open Scope kami_action.
 
   Variable ty : Kind -> Type.
+
+  Let ExceptionInfo := Fetch.ExceptionInfo Xlen_over_8.
+
+  Let FullException := Fetch.FullException Xlen_over_8.
+
+  Let PktWithException := Fetch.PktWithException Xlen_over_8.
+
+  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
+
+  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
 
   Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
 
@@ -173,14 +185,11 @@ Section reg_reader.
            Ret (#freg_val).
 
     Definition reg_reader
-               (opt_decoder_pkt : Maybe decoder_pkt_kind @# ty)
+               (decoder_pkt : decoder_pkt_kind @# ty)
       :  ActionT ty exec_context_pkt_kind
-      := let decoder_pkt
-             :  decoder_pkt_kind @# ty
-             := opt_decoder_pkt @% "data" in
-         let raw_inst
-             :  uncomp_inst_kind @# ty
-             := decoder_pkt @% "inst" in
+      := let raw_inst
+           :  uncomp_inst_kind @# ty
+           := decoder_pkt @% "inst" in
          LETA reg1_val : reg_val_kind <- reg_reader_read_reg 1 (rs1 raw_inst);
            LETA reg2_val : reg_val_kind <- reg_reader_read_reg 2 (rs2 raw_inst);
            LETA freg1_val : reg_val_kind <- reg_reader_read_freg 1 (rs1 raw_inst);
@@ -201,6 +210,47 @@ Section reg_reader.
                   "mode" ::= decoder_pkt @% "mode";
                   "compressed?" ::= !(decode_uncompressed raw_inst)
                 } : exec_context_pkt_kind @# ty).
+
+    Definition readerWithException
+      (decoder_pkt : PktWithException decoder_pkt_kind @# ty)
+      :  ActionT ty (PktWithException exec_context_pkt_kind)
+      := LETA exec_context_pkt
+           :  exec_context_pkt_kind
+           <- reg_reader
+                ((decoder_pkt @% "fst") : decoder_pkt_kind @# ty);
+         Ret
+           (mkPktWithException
+             decoder_pkt
+             (STRUCT {
+               "fst" ::= (#exec_context_pkt);
+               "snd"
+                 ::= ITE
+                       (((#exec_context_pkt) @% "instMisalignedException?") ||
+                        ((#exec_context_pkt) @% "memMisalignedException?") ||
+                        ((#exec_context_pkt) @% "accessException?"))
+                       (@Invalid ty FullException)
+                       (Valid
+                         (STRUCT {
+                           "exception"
+                             ::= CABit Bor
+                                   ((ITE
+                                     ((#exec_context_pkt) @% "instMisalignedException?")
+                                     ($IllegalInst : Exception @# ty)
+                                     ($0)) ::
+                                   (* TODO: Verify *)
+                                   (ITE
+                                     ((#exec_context_pkt) @% "memMisalignedException?")
+                                     ($LoadAddrMisaligned : Exception @# ty)
+                                     ($0)) ::
+                                   (* TODO: Verify *)
+                                   (ITE
+                                     ((#exec_context_pkt) @% "accessException?")
+                                     ($InstAccessFault : Exception @# ty)
+                                     ($0)) ::
+                                   nil);
+                           "value"     ::= $$(getDefaultConst ExceptionInfo)
+                         } : FullException @# ty))
+             } : PktWithException exec_context_pkt_kind @# ty)).
 
   End func_units.
 

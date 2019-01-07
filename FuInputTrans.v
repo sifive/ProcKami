@@ -12,12 +12,23 @@ Require Import FU.
 Require Import Decoder.
 Require Import List.
 Import ListNotations.
+Require Import Fetch.
 
 Section input_trans.
 
   Variable Xlen_over_8 : nat.
 
   Variable ty : Kind -> Type.
+
+  Let ExceptionInfo := Fetch.ExceptionInfo Xlen_over_8.
+
+  Let FullException := Fetch.FullException Xlen_over_8.
+
+  Let PktWithException := Fetch.PktWithException Xlen_over_8.
+
+  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
+
+  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
 
   Let func_unit_type
     :  Type
@@ -119,7 +130,7 @@ Section input_trans.
                                                                              (func_unit_id_encode func_unit_id == sel_func_unit_id))).
 
     Fixpoint trans_func_unit
-             (decoder_pkt : Maybe decoder_pkt_kind @# ty)
+             (decoder_pkt : decoder_pkt_kind @# ty)
              (exec_context_pkt : exec_context_pkt_kind @# ty)
              (func_unit : tagged_func_unit_type)
       :  Maybe packed_args_pkt_kind ## ty
@@ -132,11 +143,11 @@ Section input_trans.
                    (ZeroExtendTruncLsb
                       packed_args_pkt_width
                       (pack (#args_pkt))))
-           ((decoder_pkt @% "data") @% "FuncUnitTag")
-           ((decoder_pkt @% "data") @% "InstTag").
+           (decoder_pkt @% "FuncUnitTag")
+           (decoder_pkt @% "InstTag").
 
     Definition createInputXForm
-               (decoder_pkt : Maybe decoder_pkt_kind @# ty)
+               (decoder_pkt : decoder_pkt_kind @# ty)
                (exec_context_pkt : exec_context_pkt_kind @# ty)
       :  opt_trans_pkt_kind ## ty
       := LETE opt_args_pkt
@@ -147,12 +158,36 @@ Section input_trans.
                      (tag func_units));
            (utila_expr_opt_pkt
               (STRUCT {
-                   "FuncUnitTag" ::= ((decoder_pkt @% "data") @% "FuncUnitTag");
-                   "InstTag"     ::= ((decoder_pkt @% "data") @% "InstTag");
+                   "FuncUnitTag" ::= (decoder_pkt @% "FuncUnitTag");
+                   "InstTag"     ::= (decoder_pkt @% "InstTag");
                    "Input"       ::= ((#opt_args_pkt) @% "data")
                  } : trans_pkt_kind @# ty)
-              (((#opt_args_pkt) @% "valid") &&
-                                            (decoder_pkt @% "valid"))).
+              ((#opt_args_pkt) @% "valid")).
+
+    Definition transWithException
+      (decoder_pkt : PktWithException decoder_pkt_kind @# ty)
+      (exec_context_pkt : exec_context_pkt_kind @# ty)
+      :  PktWithException trans_pkt_kind ## ty
+      := LETE opt_trans_pkt
+           :  opt_trans_pkt_kind
+           <- createInputXForm 
+                ((decoder_pkt @% "fst") : decoder_pkt_kind @# ty)
+                exec_context_pkt;
+         RetE
+           (mkPktWithException
+             decoder_pkt
+             (STRUCT {
+               "fst" ::= (#opt_trans_pkt @% "data");
+               "snd"
+                 ::= ITE
+                       (#opt_trans_pkt @% "valid")
+                       (@Invalid ty FullException)
+                       (Valid
+                         (STRUCT {
+                           "exception" ::= ($IllegalInst : Exception @# ty);
+                           "value"     ::= $$(getDefaultConst ExceptionInfo)
+                         } : FullException @# ty))
+             } : PktWithException trans_pkt_kind @# ty)).
 
     Close Scope kami_expr.
 

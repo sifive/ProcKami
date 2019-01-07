@@ -7,7 +7,6 @@
 Require Import Kami.All.
 Import Syntax.
 Require Import FU.
-Require Import Decompressor.
 Require Import List.
 Import ListNotations.
 
@@ -17,9 +16,73 @@ Section database.
 
   Variable ty : Kind -> Type.
 
-  Let CompInst : Type := Decompressor.CompInst ty.
+  Definition comp_inst_width : nat := 16.
 
-  Let uncomp_inst_reg := Decompressor.uncomp_inst_reg ty.
+  Definition uncomp_inst_width : nat := 32.
+
+  Definition comp_inst_kind : Kind := Bit comp_inst_width.
+
+  Definition uncomp_inst_kind : Kind := Bit uncomp_inst_width.
+
+  Record CompInst := {
+    req_exts: list (list string);
+    comp_inst_id: UniqId;
+    decompress: comp_inst_kind @# ty -> uncomp_inst_kind ## ty
+                  }.
+
+
+  (* common compressed instruction field ranges. *)
+  Definition comp_inst_opcode_field := (1, 0).
+  Definition comp_inst_funct3_field := (15, 13).
+
+  (* compressed register instruction field ranges. *)
+  Definition comp_inst_cr_rs2_field := (6, 2).
+  Definition comp_inst_cr_rs1_field := (7, 11).
+  Definition comp_inst_cr_funct4_field := (15, 12).
+
+  (* compressed store stack instruction field ranges. *)
+  Definition comp_inst_css_rs2_field := (6, 2).
+  Definition comp_inst_css_imm_field := (7, 12).
+
+  (* compressed wide immediate instruction field ranges. *)
+  Definition comp_inst_ciw_rd_field  := (4, 2).
+  Definition comp_inst_ciw_imm_field := (12, 5).
+
+  (* compressed load instruction field ranges. *)
+  Definition comp_inst_cl_rd_field := (4, 2).
+  Definition comp_inst_cl_rs_field := (9, 7).
+
+  (* compressed store instruction field ranges. *)
+  Definition comp_inst_cs_rs2_field := (4, 2).
+  Definition comp_inst_cs_rs1_field := (9, 7).
+
+  (* compressed arithmetic instruction field ranges. *)
+  Definition comp_inst_ca_rs2_field := (4, 2).
+  Definition comp_inst_ca_rs1_field := (9, 7). (* also rd *)
+  Definition comp_inst_ca_funct6_field := (15, 10).
+
+  (* compressed branch instruction field ranges. *)
+  Definition comp_inst_cb_rs1_field := (9, 7).
+
+  (* compressed jump instruction field ranges. *)
+  Definition comp_inst_cj_target_field := (12, 2).
+
+  (* TODO: verify *)
+  Definition uncomp_inst_reg (xn : nat) : Bit 5 @# ty := $(xn).
+
+  Definition comp_inst_map_reg
+             (comp_inst_reg : Bit 3 @# ty)
+    :  Bit 5 @# ty
+    := Switch comp_inst_reg Retn Bit 5 With {
+                ($$(('b"000") : word 3)) ::= uncomp_inst_reg 8;
+                ($$(('b"001") : word 3)) ::= uncomp_inst_reg 9;
+                ($$(('b"010") : word 3)) ::= uncomp_inst_reg 10;
+                ($$(('b"011") : word 3)) ::= uncomp_inst_reg 11;
+                ($$(('b"100") : word 3)) ::= uncomp_inst_reg 12;
+                ($$(('b"101") : word 3)) ::= uncomp_inst_reg 13;
+                ($$(('b"110") : word 3)) ::= uncomp_inst_reg 14;
+                ($$(('b"111") : word 3)) ::= uncomp_inst_reg 15
+              }.
 
   Let extensions_all := [["RV32C"]; ["RV64C"]].
 
