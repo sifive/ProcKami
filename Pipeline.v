@@ -1,4 +1,4 @@
-Require Import Kami.All FU Decoder RegReader Executor MemGenerator.
+Require Import Kami.All FU Decoder RegReader Executor MemGenerator Fetch.
 
 Section Params.
   Variable name: string.
@@ -11,8 +11,8 @@ Section Params.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Array Xlen_over_8 Bool).
 
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FetchStruct := (FetchStruct Xlen_over_8).
+  Local Notation FullException := (Fetch.FullException Xlen_over_8).
+  Local Notation FetchStruct := (Fetch.FetchStruct Xlen_over_8).
   
   Definition InstException := STRUCT {
                                   "inst" :: Inst ;
