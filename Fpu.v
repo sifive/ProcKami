@@ -11,6 +11,7 @@ Require Import FpuKami.Compare.
 Require Import FpuKami.NFToIN.
 Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
+Require Import FpuKami.ModDivSqrt.
 Require Import Alu.
 Require Import FU.
 Require Import List.
@@ -44,6 +45,9 @@ Let IEEE_float_kind : Kind
 
 Let kami_float_kind : Kind
   := NF (exp_width - 2) (sig_width - 2).
+
+Let chisel_float_kind : Kind
+  := RecFN (exp_width - 2) (sig_width - 2).
 
 Let fmin_max_in_pkt_kind
   :  Kind
@@ -92,6 +96,12 @@ Local Notation "x [[ proj  :=  v ]]" := (set proj (pure v) x)
 Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
                                      (at level 14, f at next level, left associativity).
 
+Definition fdiv_sqrt_in_pkt_kind
+  := inpK (exp_width - 2) (sig_width - 2).
+
+Definition fdiv_sqrt_out_pkt_kind
+  := outK (exp_width - 2) (sig_width - 2).
+
 Open Scope kami_expr.
 
 Let to_IEEE_float (x : Bit Xlen @# ty)
@@ -102,6 +112,14 @@ Let to_IEEE_float (x : Bit Xlen @# ty)
 Let to_kami_float (x : Bit Xlen @# ty)
   :  kami_float_kind @# ty
   := getNF_from_FN (to_IEEE_float x).
+
+Let to_chisel_float (x : Bit Xlen @# ty)
+  :  chisel_float_kind @# ty
+  := getRecFN_from_FN (to_IEEE_float x).
+
+Let from_IEEE_float (x : IEEE_float_kind @# ty)
+  :  Bit Xlen @# ty
+  := ZeroExtendTruncLsb Xlen (pack x).
 
 Let from_kami_float (x : kami_float_kind @# ty)
   :  Bit Xlen @# ty
@@ -306,6 +324,44 @@ Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out
          "rl" ::= $$false;
          "exception" ::= excs (#cmp_out_pkt @% "exceptionFlags")
        } :  ExecContextUpdPkt Xlen_over_8 @# ty).
+
+Let fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty)
+  :  fdiv_sqrt_in_pkt_kind ## ty
+  := LETE context_pkt
+       :  ExecContextPkt Xlen_over_8
+       <- context_pkt_expr;
+     RetE
+       (STRUCT {
+         "isSqrt" ::= $$false;
+         "recA"   ::= to_chisel_float (#context_pkt @% "reg1");
+         "recB"   ::= to_chisel_float (#context_pkt @% "reg2");
+         "round"  ::= rm (#context_pkt @% "inst");
+         "tiny"   ::= $$true
+       } : fdiv_sqrt_in_pkt_kind @# ty).
+
+Let fdiv_sqrt_out_pkt (sem_out_pkt_expr : fdiv_sqrt_out_pkt_kind ## ty)
+  :  ExecContextUpdPkt Xlen_over_8 ## ty
+  := LETE sem_out_pkt
+       :  fdiv_sqrt_out_pkt_kind
+       <- sem_out_pkt_expr;
+     RetE
+       (STRUCT {
+         "val1"
+           ::= Valid (STRUCT {
+                 "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                 "data" ::= (from_IEEE_float (#sem_out_pkt @% "outFN") : Bit Xlen @# ty)
+               });
+         "val2"
+           ::= Valid (STRUCT {
+                 "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                 "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Xlen @# ty)
+               });
+         "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+         "taken?" ::= $$false;
+         "aq" ::= $$false;
+         "rl" ::= $$false;
+         "exception" ::= excs (#sem_out_pkt @% "exception")
+       } : ExecContextUpdPkt Xlen_over_8 @# ty).
 
 Definition Mac : @FUEntry Xlen_over_8 ty
   := {|
@@ -964,6 +1020,49 @@ Definition FClass : @FUEntry Xlen_over_8 ty
                             } : ExecContextUpdPkt Xlen_over_8 @# ty);
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+              |}
+            ]
+     |}.
+
+Definition FDivSqrt : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "fdivsqrt";
+       fuFunc
+         := fun sem_in_pkt_expr : fdiv_sqrt_in_pkt_kind ## ty
+              => LETE sem_in_pkt
+                   :  fdiv_sqrt_in_pkt_kind
+                   <- sem_in_pkt_expr;
+                 div_sqrt_expr (#sem_in_pkt);
+       fuInsts
+         := [
+              {|
+                instName   := "fdiv.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct7Field   ('b"0001100")
+                     ];
+                inputXform  := fdiv_sqrt_in_pkt ($$false);
+                outputXform := fdiv_sqrt_out_pkt;
+                optMemXform := None;
+                instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
+              |};
+              {|
+                instName   := "fsqrt.s";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"0101100")
+                     ];
+                inputXform  := fdiv_sqrt_in_pkt ($$true);
+                outputXform := fdiv_sqrt_out_pkt;
+                optMemXform := None;
+                instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
               |}
             ]
      |}.
