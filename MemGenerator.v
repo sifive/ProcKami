@@ -16,6 +16,7 @@ Section Mem.
 
   Definition MemRead := STRUCT {
                             "data" :: Data ;
+                            "reservation" :: Bit 2 ;
                             "exception?" :: Maybe Exception }.
 
   Definition MemWrite := STRUCT {
@@ -30,7 +31,6 @@ Section Mem.
   Definition MemUnitInput := STRUCT {
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
-                                 "reservation" :: Bit 2 ;
                                  "reg" :: Data
                                }.
 
@@ -101,11 +101,11 @@ Section Mem.
       end.
 
     Local Open Scope kami_expr.
-    Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty) : MemoryInput @# ty :=
+    Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty) (reservation : Bit 2 @# ty) : MemoryInput @# ty :=
       STRUCT {
           "aq" ::= i @% "aq" ;
           "rl" ::= i @% "rl" ;
-          "reservation" ::= i @% "reservation" ;
+          "reservation" ::= reservation ;
           "mem" ::= mem ;
           "reg" ::= i @% "reg"
         }.
@@ -132,6 +132,7 @@ Section Mem.
                                                 "writeReg?" ::= $$ false ;
                                                 "data" ::= $ 0 ;
                                                 "exception?" ::= Invalid }.
+
       Local Open Scope kami_action.
       Definition memAction (tag: nat) : ActionT ty MemRet :=
         (If instTag == $tag
@@ -146,7 +147,8 @@ Section Mem.
                                          <-
                                          convertLetExprSyntax_ActionT
                                          (fn (RetE (makeMemoryInput memUnitInput
-                                                                    (#memRead @% "data"))));
+                                                                    (#memRead @% "data")
+                                                                    (#memRead @% "reservation"))));
                      LETA writeVal : Data <- convertLetExprSyntax_ActionT
                                           (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
                      LET memWrite: MemWrite <- STRUCT {
