@@ -210,7 +210,7 @@ Local Notation "{{ X }}" := (evalExpr X).
 
 Local Notation "[[ X ]]" := (evalLetExpr X).
 
-Notation "#[[ X ]]" := (Var type (SyntaxKind _) [[X]]) (only parsing) : kami_expr_scope.
+Local Notation "#[[ X ]]" := (Var type (SyntaxKind _) [[X]]) (only parsing) : kami_expr_scope.
 
 Local Notation "X ==> Y" := (evalLetExpr X = Y) (at level 75).
 
@@ -619,7 +619,7 @@ Theorem utila_expr_find_pkt_correct
        (unique (fun y => In y xs /\ {{#[[y]] @% "valid"}} = true) x) ->
        [[utila_expr_find_pkt xs]] = [[x]].
 Proof
-  fun k xs x
+  fun k xs
     => utila_expr_find_correct
          (fun y : Maybe k @# type => y @% "valid") xs.
 
@@ -680,75 +680,3 @@ Close Scope kami_action.
 Close Scope kami_expr.
 
 End utila.
-
-Section unittests.
-
-Open Scope kami_expr.
-
-Let reduce (k : Kind) (x : LetExprSyntax type k) := eq_refl (evalLetExpr x).
-
-Local Notation "X ==> Y" := (evalLetExpr X = Y) (at level 75).
-
-Section utila_expr_find_pkt_unittests.
-
-Let test_0_expr
-  := LETE pkt
-       :  Maybe (Bit 4)
-       <- utila_expr_find_pkt 
-            [utila_expr_opt_pkt (Const type (natToWord 4 1)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 2)) (Const type true);
-             utila_expr_opt_pkt (Const type (natToWord 4 3)) (Const type false)];
-     RetE
-       ((Var type (SyntaxKind (Maybe (Bit 4))) pkt) @% "data").
-
-Let test_0
-  :  test_0_expr ==> (natToWord 4 2)
-  := reduce test_0_expr.
-
-Let test_1_expr
-  := LETE pkt
-       :  Maybe (Bit 4)
-       <- utila_expr_find_pkt
-            [utila_expr_opt_pkt (Const type (natToWord 4 1)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 2)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 3)) (Const type true)];
-     RetE
-       ((Var type (SyntaxKind (Maybe (Bit 4))) pkt) @% "data").
-
-Let test_1
-  :  test_1_expr ==> (natToWord 4 3)
-  := reduce test_1_expr.
-
-Let test_2_expr
-  := LETE pkt
-       :  Maybe (Bit 4)
-       <- utila_expr_find_pkt 
-            [utila_expr_opt_pkt (Const type (natToWord 4 1)) (Const type true);
-             utila_expr_opt_pkt (Const type (natToWord 4 2)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 3)) (Const type false)];
-     RetE
-        ((Var type (SyntaxKind (Maybe (Bit 4))) pkt) @% "data").
-
-Let test_2
-  :  test_2_expr ==> (natToWord 4 1)
-  := reduce test_2_expr.
-
-Let test_3_expr
-  := LETE pkt
-       :  Maybe (Bit 4)
-       <- utila_expr_find_pkt 
-            [utila_expr_opt_pkt (Const type (natToWord 4 1)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 2)) (Const type false);
-             utila_expr_opt_pkt (Const type (natToWord 4 3)) (Const type false)];
-     RetE
-        ((Var type (SyntaxKind (Maybe (Bit 4))) pkt) @% "valid").
-
-Let test_3
-  :  test_3_expr ==> false
-  := reduce test_3_expr.
-
-End utila_expr_find_pkt_unittests.
-
-Close Scope kami_expr.
-
-End unittests.
