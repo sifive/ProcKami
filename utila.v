@@ -35,39 +35,78 @@ Definition utila_any
   :  list (Bool @# ty) -> Bool @# ty
   := fold_right (fun x acc => x || acc) ($$false).
 
-(* II. Kami Let Expression Definitions *)
+(* Kami Monadic Definitions *)
 
-Definition utila_expr_opt_pkt
+Structure utila_monad_type := utila_monad {
+  utila_m
+    : Kind -> Type;
+
+  utila_mbind
+    : forall (j k : Kind), utila_m j -> (ty j -> utila_m k) -> utila_m k;
+
+  utila_munit
+    : forall k : Kind, k @# ty -> utila_m k
+}.
+
+Definition utila_act_monad
+  :  utila_monad_type
+  := utila_monad (ActionT ty) (fun j k => @LetAction ty k j) (@Return ty).
+
+Section monad_functions.
+
+Variable monad : utila_monad_type.
+
+Let m := utila_m monad.
+
+Let mbind := utila_mbind monad.
+
+Let munit := utila_munit monad.
+
+Definition utila_mopt_pkt
   (k : Kind)
   (x : k @# ty)
   (valid : Bool @# ty)
-  :  Maybe k ## ty
-  := RetE (utila_opt_pkt x valid).
+  :  m (Maybe k)
+  := munit (utila_opt_pkt x valid).
 
-Definition utila_expr_foldr
+Definition utila_mfoldr
   (j k : Kind)
   (f : j @# ty -> k @# ty -> k @# ty)
   (init : k @# ty)
-  :  list (j ## ty) -> k ## ty
+  :  list (m j) -> (m k)
   := fold_right
-       (fun (x_expr : j ## ty)
-            (acc_expr : k ## ty)
-         => LETE x
-              :  j
-              <- x_expr;
-            LETE acc
-              :  k
-              <- acc_expr;
-            RetE (f (#x) (#acc)))
-       (RetE init).
+       (fun (x_expr : m j)
+            (acc_expr : m k)
+         => mbind k x_expr (fun x : ty j =>
+            mbind k acc_expr (fun acc : ty k =>
+            munit
+              (f (Var ty (SyntaxKind j) x)
+                 (Var ty (SyntaxKind k) acc)))))
+       (munit init).
 
-Definition utila_expr_all
-  :  list (Bool ## ty) -> Bool ## ty
-  := utila_expr_foldr (fun x acc => x && acc) ($$true).
+Definition utila_mall
+  :  list (m Bool) -> m Bool
+  := utila_mfoldr (fun x acc => x && acc) (Const ty true).
 
-Definition utila_expr_any
-  :  list (Bool ## ty) -> Bool ## ty
-  := utila_expr_foldr (fun x acc => x || acc) ($$false).
+Definition utila_many
+  :  list (m Bool) -> m Bool
+  := utila_mfoldr (fun x acc => x || acc) (Const ty false).
+
+End monad_functions.
+
+(* II. Kami Let Expression Definitions *)
+
+Definition utila_expr_monad
+  :  utila_monad_type
+  := utila_monad (LetExprSyntax ty) (fun j k => @LetE ty k j) (@NormExpr ty).
+
+Definition utila_expr_opt_pkt := utila_mopt_pkt utila_expr_monad.
+
+Definition utila_expr_foldr := utila_mfoldr utila_expr_monad.
+
+Definition utila_expr_all := utila_mall utila_expr_monad.
+
+Definition utila_expr_any := utila_many utila_expr_monad.
 
 (*
   Accepts a Kami predicate [f] and a list of Kami let expressions
@@ -404,16 +443,19 @@ Proof.
   (intros).
   (unfold evalLetExpr at 1).
   (unfold utila_expr_foldr at 1).
-  (unfold fold_right).
-  (fold fold_right).
-  (unfold evalExpr at 1).
-  (fold evalLetExpr).
-  (fold evalExpr).
+  (unfold utila_mfoldr).
+  (intros).
   (simpl).
   (rewrite wor_wzero).
+  (fold evalLetExpr).
+  (fold utila_expr_foldr).
   (rewrite H).
   (rewrite wor_wzero).
-  trivial.
+  (unfold utila_expr_foldr).
+  (unfold utila_mfoldr).
+  (unfold utila_mbind).
+  (simpl).
+  reflexivity.
 Qed.
 
 Lemma utila_expr_find_lm1
