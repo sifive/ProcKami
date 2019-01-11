@@ -241,9 +241,6 @@ Proof
     (xs : list (j ## type))
     => eq_refl.
 
-(*
-  TODO: Generalize these proofs using monads.
-*)
 Theorem utila_expr_all_correct
   :  forall xs : list (Bool ## type),
        utila_expr_all xs ==> true <-> Forall utila_is_true xs.
@@ -344,7 +341,6 @@ Proof
          (eq_refl {{y}})
          {{p}}
          (eq_sym H).
-
 
 (*
   The following section proves that the utila_expr_find function
@@ -615,6 +611,17 @@ Proof.
 Qed.
 
 End utila_expr_find.
+
+Theorem utila_expr_find_pkt_correct
+  :  forall (k : Kind)
+       (xs : list (Maybe k ## type))
+       (x : Maybe k ## type),
+       (unique (fun y => In y xs /\ {{#[[y]] @% "valid"}} = true) x) ->
+       [[utila_expr_find_pkt xs]] = [[x]].
+Proof
+  fun k xs x
+    => utila_expr_find_correct
+         (fun y : Maybe k @# type => y @% "valid") xs.
 
 End expr_ver.
 
