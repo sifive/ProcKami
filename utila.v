@@ -210,6 +210,8 @@ Local Notation "{{ X }}" := (evalExpr X).
 
 Local Notation "[[ X ]]" := (evalLetExpr X).
 
+Notation "#[[ X ]]" := (Var type (SyntaxKind _) [[X]]) (only parsing) : kami_expr_scope.
+
 Local Notation "X ==> Y" := (evalLetExpr X = Y) (at level 75).
 
 Local Notation "==> Y" := (fun x => evalLetExpr x = Y) (at level 75).
@@ -357,17 +359,6 @@ Let case (k : Kind) (f : k @# type -> Bool @# type) (x : k @# type) (acc : Bit (
   :  Bit (size k) @# type
   := (ITE (f x) (pack x) ($ 0) | acc).
 
-Conjecture wor_idemp
-  :  forall (n : nat) (x0 : word n), x0 ^| x0 = x0.
-
-Conjecture kami_exprs_eq_dec
-  :  forall (k : Kind) (x y : k ## type),
-       {x = y} + {x <> y}.
-
-Conjecture kami_in_dec
-  :  forall (k : Kind) (x : k ## type) (xs : list (k ## type)),
-       {In x xs} + {~ In x xs}.
-
 Conjecture unpack_pack
   : forall (k : Kind)
     (x : k ## type),
@@ -376,7 +367,33 @@ Conjecture unpack_pack
         {{pack (Var type (SyntaxKind k) [[x]])}})}} =  
     [[x]].
 
-Notation "#[[ X ]]" := (Var type (SyntaxKind _) [[X]]) (only parsing) : kami_expr_scope.
+Conjecture kami_exprs_eq_dec
+  :  forall (k : Kind) (x y : k ## type),
+       {x = y} + {x <> y}.
+
+Lemma kami_in_dec
+  :  forall (k : Kind) (x : k ## type) (xs : list (k ## type)),
+       {In x xs} + {~ In x xs}.
+Proof
+  fun k x xs
+    => in_dec (@kami_exprs_eq_dec k) x xs.
+
+(*
+  Note: submitted a pull request to the bbv repo to include this
+  lemma in Word.v
+*)
+Lemma wor_idemp
+  :  forall (n : nat) (x0 : word n), x0 ^| x0 = x0.
+Proof.
+  (intros).
+  (induction x0).
+  reflexivity.
+  (rewrite <- IHx0 at 3).
+  (unfold wor).
+  (simpl).
+  (rewrite orb_diag).
+  reflexivity.
+Qed.
 
 Lemma utila_expr_find_lm0
   :  forall (k : Kind)
