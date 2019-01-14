@@ -140,33 +140,42 @@ Section Mem.
            match getMemEntry tag with
            | Some fn =>
              Call memRead: MemRead <- "memRead"(addr: _);
-               (If #memRead @% "exception?" @% "valid"
-                then Ret defMemRet
-                else
-                  (LETA memoryOutput : MemoryOutput
-                                         <-
-                                         convertLetExprSyntax_ActionT
-                                         (fn (RetE (makeMemoryInput memUnitInput
-                                                                    (#memRead @% "data")
-                                                                    (#memRead @% "reservation"))));
-                     LETA writeVal : Data <- convertLetExprSyntax_ActionT
-                                          (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
-                     LET memWrite: MemWrite <- STRUCT {
-                                              "addr" ::= addr ;
-                                              "data" ::= #writeVal };
-                     If (#memoryOutput @% "mem" @% "valid")
-                   then (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
-                           Ret #writeEx)
-                   else Ret (@Invalid _ Exception)
-                    as writeEx;
-                     LET memRet: MemRet <- STRUCT {
-                                          "writeReg?" ::= #memoryOutput @% "reg" @% "valid" ;
-                                          "data" ::= #memoryOutput @% "reg" @% "data" ;
-                                          "exception?" ::= #writeEx } ;
-                     Ret #memRet
-                  ) 
-                 as ret;
-                  Ret #ret)
+             (If #memRead @% "exception?" @% "valid"
+              then Ret defMemRet
+              else
+                (LETA memoryOutput
+                   :  MemoryOutput
+                   <- convertLetExprSyntax_ActionT
+                        (fn (RetE (makeMemoryInput memUnitInput
+                                    (#memRead @% "data")
+                                    (#memRead @% "reservation"))));
+                 LETA writeVal
+                   :  Data
+                   <- convertLetExprSyntax_ActionT
+                        (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
+                 LET memWrite
+                   :  MemWrite
+                   <- STRUCT {
+                        "addr" ::= addr;
+                        "data" ::= #writeVal
+                      };
+                 If (#memoryOutput @% "mem" @% "valid")
+                   then
+                     (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
+                      Ret #writeEx)
+                   else
+                     Ret (@Invalid _ Exception)
+                   as writeEx;
+                 LET memRet
+                   :  MemRet
+                   <- STRUCT {
+                        "writeReg?" ::= #memoryOutput @% "reg" @% "valid";
+                        "data" ::= #memoryOutput @% "reg" @% "data";
+                        "exception?" ::= #writeEx
+                      };
+                 Ret #memRet
+                ) as ret;
+             Ret #ret)
            | None => Ret defMemRet
            end
          else Ret defMemRet

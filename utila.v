@@ -148,7 +148,7 @@ Definition utila_expr_find_pkt
 
 End defs.
 
-(* III. Correctness Proofs *)
+(* IV. Correctness Proofs *)
 
 Section ver.
 
@@ -236,6 +236,74 @@ Proof
            xs).
 
 End ver.
+
+(* III. Denotational semantics for monadic expressions. *)
+
+Structure utila_sem_type := utila_sem {
+  utila_sem_m
+    : utila_monad_type type;
+
+  utila_sem_interp
+    : forall k : Kind, utila_m utila_sem_m k -> type k;
+
+  utila_sem_interp_foldr_nil_correct
+    :  forall (j k : Kind)
+         (f : j @# type -> k @# type -> k @# type)
+         (init : k @# type)
+         (x0 : utila_m utila_sem_m j)
+         (xs : list (utila_m utila_sem_m j)),
+         (utila_sem_interp k
+           (utila_mfoldr utila_sem_m f init nil) =
+           evalExpr init);
+
+  utila_sem_interp_foldr_cons_correct
+    :  forall (j k : Kind)
+         (f : j @# type -> k @# type -> k @# type)
+         (init : k @# type)
+         (x0 : utila_m utila_sem_m j)
+         (xs : list (utila_m utila_sem_m j)),
+         (utila_sem_interp k
+           (utila_mfoldr utila_sem_m f init (x0 :: xs)) =
+           (evalExpr
+             (f
+               (Var type (SyntaxKind j)
+                 (utila_sem_interp j x0))
+               (Var type (SyntaxKind k)
+                 (utila_sem_interp k
+                   (utila_mfoldr utila_sem_m f init xs))))))
+}.
+
+Arguments utila_sem_interp u {k}.
+
+Section monad_ver.
+
+Variable sem : utila_sem_type.
+
+Let m
+  :  utila_monad_type type
+  := utila_sem_m sem.
+
+Let M
+  :  Kind -> Type
+  := utila_m (utila_sem_m sem).
+
+Local Notation "A || B @ X 'by' E"
+  := (eq_ind_r (fun X => B) A E) (at level 40, left associativity).
+
+Local Notation "A || B @ X 'by' <- H"
+  := (eq_ind_r (fun X => B) A (eq_sym H)) (at level 40, left associativity).
+
+Local Notation "{{ X }}" := (evalExpr X).
+
+Local Notation "[[ X ]]" := (utila_sem_interp sem X).
+
+Local Notation "#[[ X ]]" := (Var type (SyntaxKind _) [[X]]) (only parsing) : kami_expr_scope.
+
+Local Notation "==> Y" := (fun x => utila_sem_interp sem x = Y) (at level 75).
+
+Let utila_is_true (x : M Bool) := [[x]] = true.
+
+End monad_ver.
 
 Section expr_ver.
 

@@ -97,37 +97,7 @@ Definition uncompress
           (fun comp_inst_entry
            => decomp_inst comp_inst_entry exts_pkt raw_comp_inst)
           comp_inst_db).
-(*
-The decompress function should not be defined. The Decompressor is folded within the Decoder and is never visible outside of it. Accordingly it does not require a packet wrapper function.
 
-Definition decompress
-  (exts_pkt : Extensions @# ty)
-  (fetch_struct : PktWithException FetchPkt ## ty)
-  :  PktWithException uncomp_inst_kind ## ty
-  := LETE fetch_excs
-       :  PktWithException FetchPkt
-       <- fetch_struct;
-     let fetch
-       :  FetchPkt @# ty
-       := (#fetch_excs) @% "fst" in
-     LETE opt_uncomp_inst
-       :  opt_uncomp_inst_kind
-       <- uncompress comp_inst_db exts_pkt ((fetch @% "inst") : Inst @# ty);
-     mkPktWithException
-       fetch_struct
-       (RetE
-         (STRUCT {
-           "fst" ::= ((struct_get_field_default (#opt_uncomp_inst) "data" ($0)) : uncomp_inst_kind @# ty);
-           "snd"
-             ::= ITE (struct_get_field_default (#opt_uncomp_inst) "valid" ($$(getDefaultConst Bool)))
-                   (@Invalid ty FullException)
-                   (Valid
-                     (STRUCT {
-                       "exception" ::= ($IllegalInst : Exception @# ty);
-                       "value"     ::= $$(getDefaultConst ExceptionInfo)
-                     } : FullException @# ty))
-         } : PktWithException uncomp_inst_kind @# ty)).
-*)
 Close Scope kami_expr.
 
 End decompressor.
