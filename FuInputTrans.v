@@ -166,17 +166,16 @@ Section input_trans.
 
     (* TODO: revise to accept the exec_context_pkt with exceptions *)
     Definition transWithException
-      (decoder_pkt : PktWithException decoder_pkt_kind @# ty)
-      (exec_context_pkt : exec_context_pkt_kind @# ty)
+      (decoder_pkt : decoder_pkt_kind @# ty)
+      (exec_context_pkt : PktWithException exec_context_pkt_kind @# ty)
       :  PktWithException trans_pkt_kind ## ty
       := LETE opt_trans_pkt
            :  opt_trans_pkt_kind
-           <- createInputXForm 
-                ((decoder_pkt @% "fst") : decoder_pkt_kind @# ty)
-                exec_context_pkt;
+           <- createInputXForm decoder_pkt
+                (exec_context_pkt @% "fst" : exec_context_pkt_kind @# ty);
          RetE
            (mkPktWithException
-             decoder_pkt
+             exec_context_pkt
              (STRUCT {
                "fst" ::= (#opt_trans_pkt @% "data");
                "snd"

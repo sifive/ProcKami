@@ -158,8 +158,8 @@ Section Params.
                   :  trans_pkt_kind 
                   <- convertLetExprSyntax_ActionT
                        (transWithException
-                         (#decoder_pkt)
-                         ((#exec_context_pkt) @% "fst")); (*TODO: pass val of decoder pkt *)
+                         (#decoder_pkt @% "fst")
+                         (#exec_context_pkt));
                 LETA exec_update_pkt
                   :  exec_update_pkt_kind
                   <- convertLetExprSyntax_ActionT
