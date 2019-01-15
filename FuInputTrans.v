@@ -164,6 +164,7 @@ Section input_trans.
                  } : trans_pkt_kind @# ty)
               ((#opt_args_pkt) @% "valid")).
 
+    (* TODO: revise to accept the exec_context_pkt with exceptions *)
     Definition transWithException
       (decoder_pkt : PktWithException decoder_pkt_kind @# ty)
       (exec_context_pkt : exec_context_pkt_kind @# ty)
