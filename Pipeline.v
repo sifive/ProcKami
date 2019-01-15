@@ -133,18 +133,6 @@ Section Params.
     Arguments memMisalignedException {ty}.
     Arguments accessException {ty}.
 
-    Definition is_some (A : Type) (x : option A) : bool
-      := match x with
-           | Some _ => true
-           | _ => false
-         end.
-
-    Definition from_some (A : Type) (x : option A) (default : A) : A
-      := match x with
-           | Some y => y
-           | _ => default
-         end.
-
     Definition pipeline 
       :  BaseModule
       := MODULE {
@@ -186,7 +174,7 @@ Section Params.
                        (STRUCT {
                          "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
                          "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
-                         "reg" ::= $0 (* TODO: what is this parameter? *)
+                         "reg" ::= (#exec_context_pkt @% "fst" @% "reg2")
                        } : MemUnitInput Xlen_over_8 @# _);
                 commit
                   (#pc)
