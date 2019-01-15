@@ -1,59 +1,5 @@
 Require Import Kami.All FU FuInputTrans Decoder RegReader Executor MemGenerator Fetch.
-(*
-Section pipeline.
 
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  
-  Variable Xlen_over_8: nat.
-
-  Local Notation Xlen := (8 * Xlen_over_8).
-  Local Notation Data := (Bit Xlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Array Xlen_over_8 Bool).
-
-  Local Notation FullException := (Fetch.FullException Xlen_over_8).
-  Local Notation FetchStruct := (Fetch.FetchStruct Xlen_over_8).
-  
-  Definition InstException := STRUCT {
-                                  "inst" :: Inst ;
-                                  "exception" :: Maybe FullException }.
-  
-  Definition RegWrite := STRUCT {
-                             "index" :: Bit 5 ;
-                             "data" :: Data }.
-
-  Definition CsrWrite := STRUCT {
-                             "index" :: Bit 12 ;
-                             "data" :: Data }.
-
-    Variable ty: Kind -> Type.
-    Variable func_units: list (@FUEntry Xlen_over_8 ty).
-
-
-    Axiom fetch
-      : forall (pc: VAddr @# ty), ActionT ty FetchStruct.
-
-    Axiom commit
-      : forall (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: ExecContextUpdPkt Xlen_over_8 @# ty),
-        ActionT ty Void.
-
-
-    Definition pipeline
-      :  BaseModule
-      := BaseMod 
-           (("PC", existT optConstFullT (SyntaxKind VAddr) None) :: nil)
-           (("pipeline",
-             fun ty
-           nil.
-
-         }.
-
-    Local Close Scope kami_expr.
-    Local Close Scope kami_action.
-
-End pipeline.
-*)
 Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -157,43 +103,41 @@ Section Params.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Variable ty : Kind -> Type.
-    Variable func_units: list (@FUEntry Xlen_over_8 ty).
+    Variable func_units: forall ty, list (@FUEntry Xlen_over_8 ty).
+    Arguments func_units {ty}.
 
     Let decoder_pkt_kind
-      := PktWithException Xlen_over_8 (decoder_pkt_kind func_units).
+      := fun ty
+           => PktWithException Xlen_over_8 (@decoder_pkt_kind Xlen_over_8 ty func_units).
+    Arguments decoder_pkt_kind {ty}.
 
     Let exec_context_pkt_kind
       := PktWithException Xlen_over_8 (ExecContextPkt Xlen_over_8).
 
     Let trans_pkt_kind
-      := PktWithException Xlen_over_8 (trans_pkt_kind func_units).
+      := fun ty
+           => PktWithException Xlen_over_8 (@trans_pkt_kind Xlen_over_8 ty func_units).
+    Arguments trans_pkt_kind {ty}.
 
     Let exec_update_pkt_kind
       := PktWithException Xlen_over_8 (ExecContextUpdPkt Xlen_over_8).
 
-    Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
+    Variable PrivMode : forall ty, PrivMode @# ty.
+    Arguments PrivMode {ty}.
 
-    Variable PrivMode: PrivMode @# ty.
+    Variable extensions : forall ty, Extensions @# ty.
+    Arguments extensions {ty}.
 
-    Variable extensions: Extensions @# ty.
-
-    Parameter f : Extensions @# ty -> ActionT ty Void.
-
-    Definition fails
-      := MODULE {
-           Rule "example"
-             := f extensions
-         }.
-
+    Variable instMisalignedException memMisalignedException accessException: forall ty, Bool @# ty.
+    Arguments instMisalignedException {ty}.
+    Arguments memMisalignedException {ty}.
+    Arguments accessException {ty}.
 
     Definition pipeline 
       :  BaseModule
       := MODULE {
            Register ^"PC" : VAddr <- getDefaultConst VAddr with
            Rule ^"pipeline"
-             := F extensions
-(*
              := Read pc : VAddr <- ^"PC";
                 LETA fetch_pkt
                   :  FetchStruct
@@ -209,32 +153,33 @@ Section Params.
                        instMisalignedException
                        memMisalignedException
                        accessException
-                       (Var ty (SyntaxKind decoder_pkt_kind) decoder_pkt);
+                       (#decoder_pkt);
                 LETA trans_pkt
                   :  trans_pkt_kind 
                   <- convertLetExprSyntax_ActionT
                        (transWithException
-                         (Var ty (SyntaxKind decoder_pkt_kind) decoder_pkt)
-                         ((Var ty (SyntaxKind exec_context_pkt_kind) exec_context_pkt) @% "fst")); (*TODO: pass val of decoder pkt *)
+                         (#decoder_pkt)
+                         ((#exec_context_pkt) @% "fst")); (*TODO: pass val of decoder pkt *)
                 LETA exec_update_pkt
                   :  exec_update_pkt_kind
                   <- convertLetExprSyntax_ActionT
-                       (execWithException (Var ty (SyntaxKind trans_pkt_kind) trans_pkt));
+                       (execWithException (#trans_pkt));
                 LETA mem_pkt
                   :  MemRet Xlen_over_8
-                  <- fullMemAction
-                       ($0) (* (((Var ty (SyntaxKind decoder_pkt_kind) decoder_pkt) @% "fst") @% "FuncUnitTag") *)
-                       ($0) (* (((Var ty (SyntaxKind decoder_pkt_kind) decoder_pkt) @% "fst") @% "InstTag") *)
+                  <- @fullMemAction
+                       Xlen_over_8 _ func_units
+                       ($0) (* TODO: what is this parameter? *)
+                       (((#decoder_pkt) @% "fst") @% "FuncUnitTag")
+                       (((#decoder_pkt) @% "fst") @% "InstTag")
                        (STRUCT {
-                         "aq"  ::= $$(false); (* ((Var ty (SyntaxKind exec_update_pkt_kind) exec_update_pkt) @% "aq"); *)
-                         "rl"  ::= $$(false); (* ((Var ty (SyntaxKind exec_update_pkt_kind) exec_update_pkt) @% "rl"); *)
-                         "reg" ::= $0 (* TODO: *)
-                       } : MemUnitInput Xlen_over_8 @# ty);
-                Ret commit
-                      (Var ty (SyntaxKind VAddr) pc)
-                      (((Var ty (SyntaxKind decoder_pkt_kind) decoder_pkt) @% "fst") @% "inst")
-                      ((Var ty (SyntaxKind exec_update_pkt_kind) exec_update_pkt) @% "fst")
-*)
+                         "aq"  ::= ((#exec_update_pkt @% "fst") @% "aq");
+                         "rl"  ::= ((#exec_update_pkt @% "fst") @% "rl"); 
+                         "reg" ::= $0 (* TODO: what is this parameter? *)
+                       } : MemUnitInput Xlen_over_8 @# _);
+                commit
+                  (#pc)
+                  (((#decoder_pkt) @% "fst") @% "inst")
+                  ((#exec_update_pkt) @% "fst")
          }.
 
     Local Close Scope kami_expr.
