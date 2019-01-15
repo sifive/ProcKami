@@ -133,6 +133,18 @@ Section Params.
     Arguments memMisalignedException {ty}.
     Arguments accessException {ty}.
 
+    Definition is_some (A : Type) (x : option A) : bool
+      := match x with
+           | Some _ => true
+           | _ => false
+         end.
+
+    Definition from_some (A : Type) (x : option A) (default : A) : A
+      := match x with
+           | Some y => y
+           | _ => default
+         end.
+
     Definition pipeline 
       :  BaseModule
       := MODULE {
@@ -168,18 +180,18 @@ Section Params.
                   :  MemRet Xlen_over_8
                   <- @fullMemAction
                        Xlen_over_8 _ func_units
-                       ($0) (* TODO: what is this parameter? *)
-                       (((#decoder_pkt) @% "fst") @% "FuncUnitTag")
-                       (((#decoder_pkt) @% "fst") @% "InstTag")
+                       (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
+                       (#decoder_pkt @% "fst" @% "FuncUnitTag")
+                       (#decoder_pkt @% "fst" @% "InstTag")
                        (STRUCT {
-                         "aq"  ::= ((#exec_update_pkt @% "fst") @% "aq");
-                         "rl"  ::= ((#exec_update_pkt @% "fst") @% "rl"); 
+                         "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
+                         "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
                          "reg" ::= $0 (* TODO: what is this parameter? *)
                        } : MemUnitInput Xlen_over_8 @# _);
                 commit
                   (#pc)
-                  (((#decoder_pkt) @% "fst") @% "inst")
-                  ((#exec_update_pkt) @% "fst")
+                  (#decoder_pkt @% "fst" @% "inst")
+                  (#exec_update_pkt @% "fst")
          }.
 
     Local Close Scope kami_expr.
