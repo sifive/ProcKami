@@ -9,13 +9,36 @@ Require Import Pipeline.
 Require Import List.
 Import ListNotations.
 Require Import Alu.
+Require Import Mem.
+Require Import Fpu.
 
 Let Xlen_over_8 := 4.
 
 Let func_units 
   :  forall ty, list (@FUEntry Xlen_over_8 ty)
   := fun _ => [
-       (Add Xlen_over_8 _)
+       (* RVI logical instructions. *)
+       Add       Xlen_over_8 _;
+       Logical   Xlen_over_8 _;
+       Shift     Xlen_over_8 _;
+       Branch    Xlen_over_8 _;
+       Jump      Xlen_over_8 _;
+       Mult      Xlen_over_8 _;
+       Div       Xlen_over_8 _;
+       Rem       Xlen_over_8 _;
+
+       (* RVI memory instructions. *)
+       Mem       Xlen_over_8 _;
+
+       (* RVF instructions. *)
+       Mac       _ Xlen_over_8;
+       FMinMax   _ Xlen_over_8;
+       FSgn      _ Xlen_over_8;
+       Float_int _ Xlen_over_8;
+       Int_float _ Xlen_over_8;
+       FCmp      _ Xlen_over_8;
+       FClass    _ Xlen_over_8;
+       FDivSqrt  _ Xlen_over_8
      ].
 
 Let mode
@@ -48,3 +71,4 @@ Definition rtlMod
        ([], ([], (@pipeline "proc_core" Xlen_over_8 func_units mode exts))).
 
 Extraction "ProcessorCore.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins.
+
