@@ -13,10 +13,7 @@ Section Params.
 
   Local Notation FullException := (Fetch.FullException Xlen_over_8).
   Local Notation FetchStruct := (Fetch.FetchStruct Xlen_over_8).
-  
-  Definition InstException := STRUCT {
-                                  "inst" :: Inst ;
-                                  "exception" :: Maybe FullException }.
+  Local Notation InstException := (Fetch.InstException Xlen_over_8).
   
   Definition RegWrite := STRUCT {
                              "index" :: Bit 5 ;
@@ -36,16 +33,6 @@ Section Params.
 
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
-    Definition fetch (pc: VAddr @# ty) : ActionT ty FetchStruct :=
-      (Call instException : InstException <- "fetch"(pc: _);
-         LET retVal: FetchStruct <- (STRUCT {
-                                         "fst" ::=
-                                           (STRUCT {
-                                                "pc" ::= pc ;
-                                                "inst" ::= #instException @% "inst" }:
-                                              FetchPkt Xlen_over_8 @# ty) ;
-                                         "snd" ::= #instException @% "exception" });
-         Ret #retVal).
 
     Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: ExecContextUpdPkt Xlen_over_8 @# ty)
       : ActionT ty Void :=
@@ -128,11 +115,6 @@ Section Params.
     Variable extensions : forall ty, Extensions @# ty.
     Arguments extensions {ty}.
 
-    Variable instMisalignedException memMisalignedException accessException: forall ty, Bool @# ty.
-    Arguments instMisalignedException {ty}.
-    Arguments memMisalignedException {ty}.
-    Arguments accessException {ty}.
-
     Definition pipeline 
       :  BaseModule
       := MODULE {
@@ -141,7 +123,7 @@ Section Params.
              := Read pc : VAddr <- ^"PC";
                 LETA fetch_pkt
                   :  FetchStruct
-                  <- fetch (#pc);
+                  <- fetch Xlen_over_8 (#pc);
                 LETA decoder_pkt
                   :  decoder_pkt_kind
                   <- convertLetExprSyntax_ActionT
@@ -150,9 +132,19 @@ Section Params.
                 LETA exec_context_pkt
                   :  exec_context_pkt_kind
                   <- readerWithException
-                       instMisalignedException
-                       memMisalignedException
-                       accessException
+                       (ITE
+                         (#fetch_pkt @% "snd" @% "valid")
+                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
+                         $$(false))
+                       (* TODO: does fetch raise this exception? *)
+                       (ITE
+                         (#fetch_pkt @% "snd" @% "valid")
+                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $LoadAddrMisaligned)
+                         $$(false))
+                       (ITE
+                         (#fetch_pkt @% "snd" @% "valid")
+                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
+                         $$(false))
                        (#decoder_pkt);
                 LETA trans_pkt
                   :  trans_pkt_kind 

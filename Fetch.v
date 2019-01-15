@@ -29,6 +29,10 @@ Definition FetchPkt := STRUCT {
 
 Definition FetchStruct := PktWithException FetchPkt.
 
+Definition InstException := STRUCT {
+                                "inst" :: Inst ;
+                                "exception" :: Maybe FullException }.
+  
 Open Scope kami_expr.
 
 Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty)
@@ -37,6 +41,20 @@ Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty)
           then pkt2@%["snd" <- pkt1 @% "snd"]
           else pkt2.
 
+Open Scope kami_action.
+
+Definition fetch (pc: VAddr @# ty) : ActionT ty FetchStruct :=
+  (Call instException : InstException <- "fetch"(pc: _);
+     LET retVal: FetchStruct <- (STRUCT {
+                                     "fst" ::=
+                                       (STRUCT {
+                                            "pc" ::= pc ;
+                                            "inst" ::= #instException @% "inst" }:
+                                          FetchPkt @# ty) ;
+                                     "snd" ::= #instException @% "exception" });
+     Ret #retVal).
+
+Close Scope kami_action.
 Close Scope kami_expr.
 
 End fetch.

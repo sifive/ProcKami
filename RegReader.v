@@ -204,6 +204,7 @@ Section reg_reader.
                               (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
                   "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
                   "inst" ::= raw_inst;
+                  (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                   "instMisalignedException?" ::= instMisalignedException;
                   "memMisalignedException?"  ::= memMisalignedException;
                   "accessException?" ::= accessException;
