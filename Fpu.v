@@ -91,7 +91,7 @@ Definition int_float_out_pkt_kind
   :  Kind
   := OpOutput (exp_width - 2) (sig_width - 2). 
 
-Local Notation "x [[ proj  :=  v ]]" := (set proj (pure v) x)
+Local Notation "x [[ proj  :=  v ]]" := (set proj (constructor v) x)
                                     (at level 14, left associativity).
 Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
                                      (at level 14, f at next level, left associativity).
