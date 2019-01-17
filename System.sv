@@ -60,16 +60,6 @@ struct packed {
 } proc_core_fregWrite_req;
 
 struct packed {
-  logic[4:0] index;
-  logic[31:0] data;
-} proc_core_regWrite_req;
-
-struct packed{
-  logic[4:0] index;
-  logic[31:0] data;
-} proc_core_fregWrite_req;
-
-struct packed {
   logic[11:0] index;
   logic[31:0] data;
 } proc_core_csrWrite_req;
@@ -81,7 +71,7 @@ wire logic proc_core_csrWrite_enable_req;
 // Memory wires
 
 wire logic[31:0] memRead_address_req;
-wire logic memRead_enable_req,
+wire logic memRead_enable_req;
 
 struct packed {
   logic[31:0] data;
@@ -95,9 +85,9 @@ struct packed {
 struct packed {
   logic[31:0] addr;
   logic[31:0] data;
-} memWrite_req,
+} memWrite_req;
 
-wire logic memWrite_enable_req,
+wire logic memWrite_enable_req;
 
 struct packed {
   logic valid;
@@ -138,8 +128,8 @@ top system (
   proc_core_regWrite_enable_req,
   proc_core_fregWrite_enable_req,
   proc_core_csrWrite_enable_req,
-  .clk(clk),
-  .reset(reset),
+  .CLK(clk),
+  .RESET(reset),
 );
 
 (* TODO: wire up exceptions. *)
@@ -214,4 +204,3 @@ register32 fp_registers (
 );
 
 endmodule
-
