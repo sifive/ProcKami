@@ -56,7 +56,7 @@ Section Params.
                  If (#val1_pos == $PcTag)
                  then Write "pc" : VAddr <- #val1_data ; Retv
                  else (If (#val1_pos == $IntRegTag)
-                       then (If (#write1Pkt @% "data" != $0) then (Call ^"regWrite"(#write1Pkt: _); Retv); Retv)
+                       then (If (#write1Pkt @% "index" != $0) then (Call ^"regWrite"(#write1Pkt: _); Retv); Retv)
                        else (If (#val1_pos == $FloatRegTag)
                              then Call ^"fregWrite"(#write1Pkt: _); Retv
                              else (If (#val1_pos == $CsrTag)
@@ -70,7 +70,7 @@ Section Params.
                  If (#val2_pos == $PcTag)
                  then Write "pc" : VAddr <- #val2_data ; Retv
                  else (If (#val2_pos == $IntRegTag)
-                       then (If (#write2Pkt @% "data" != $0) then (Call ^"regWrite"(#write2Pkt: _); Retv); Retv)
+                       then (If (#write2Pkt @% "index" != $0) then (Call ^"regWrite"(#write2Pkt: _); Retv); Retv)
                        else (If (#val2_pos == $FloatRegTag)
                              then Call ^"fregWrite"(#write2Pkt: _); Retv
                              else (If (#val2_pos == $CsrTag)
