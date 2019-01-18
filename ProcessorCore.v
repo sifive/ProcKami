@@ -56,25 +56,25 @@ Section Params.
                  If (#val1_pos == $PcTag)
                  then Write "pc" : VAddr <- #val1_data ; Retv
                  else (If (#val1_pos == $IntRegTag)
-                       then (If (#write1Pkt @% "index" != $0) then (Call ^"regWrite"(#write1Pkt: _); Retv); Retv)
+                       then (If (#write1Pkt @% "index" != $0) then (Call ^"reg1Write"(#write1Pkt: _); Retv); Retv)
                        else (If (#val1_pos == $FloatRegTag)
-                             then Call ^"fregWrite"(#write1Pkt: _); Retv
+                             then Call ^"freg1Write"(#write1Pkt: _); Retv
                              else (If (#val1_pos == $CsrTag)
-                                   then Call ^"csrWrite"(#writeCsr: _); Retv
+                                   then Call ^"csr1Write"(#writeCsr: _); Retv
                                    else (If (#val1_pos == $FflagsTag)
                                          then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
                                                 Retv);
                                      Retv); Retv); Retv); Retv);
-                    If (#val2 @% "valid")
+             If (#val2 @% "valid")
              then (
                  If (#val2_pos == $PcTag)
                  then Write "pc" : VAddr <- #val2_data ; Retv
                  else (If (#val2_pos == $IntRegTag)
-                       then (If (#write2Pkt @% "index" != $0) then (Call ^"regWrite"(#write2Pkt: _); Retv); Retv)
+                       then (If (#write2Pkt @% "index" != $0) then (Call ^"reg2Write"(#write2Pkt: _); Retv); Retv)
                        else (If (#val2_pos == $FloatRegTag)
-                             then Call ^"fregWrite"(#write2Pkt: _); Retv
+                             then Call ^"freg2Write"(#write2Pkt: _); Retv
                              else (If (#val2_pos == $CsrTag)
-                                   then Call ^"csrWrite"(#writeCsr: _); Retv
+                                   then Call ^"csr2Write"(#writeCsr: _); Retv
                                    else (If (#val2_pos == $FflagsTag)
                                          then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
                                                 Retv);
