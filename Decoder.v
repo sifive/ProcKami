@@ -190,10 +190,10 @@ Section decoder.
                       (map
                          (fun inst
                           => LETE x : k
-                                        <- f (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
-                               LETE selected : Bool
-                                                 <- p (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
-                               utila_expr_opt_pkt (#x) (#selected))
+                               <- f (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
+                             LETE selected : Bool
+                               <- p (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
+                             utila_expr_opt_pkt (#x) (#selected))
                          (tag (fuInsts func_unit))))
                 (tag func_units)).
 
