@@ -360,6 +360,7 @@ Section Mem.
               optMemXform  := storeXform 3 ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true]
            |} ::
+           (*
            {| instName     := "amoswap.w" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
@@ -610,6 +611,7 @@ Section Mem.
               optMemXform  := scXform false ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
+            *)
            nil |}.
   End Ty.
 End Mem.
