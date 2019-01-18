@@ -97,64 +97,39 @@ struct packed {
 // System components and connections
 
 top system (
-  fetch_res,
-  read_reg_1_res,
-  read_reg_2_res,
-  read_freg_1_res,
-  read_freg_2_res,
-  read_freg_3_res,
-  memRead_res,
-  memWrite_res,
-
-  fetch_address_req,
-  read_reg_1_res,
-  read_reg_2_res,
-  read_freg_1_res,
-  read_freg_2_res,
-  read_freg_3_res,
-  memRead_address_req,
-  memWrite_req,
-  proc_core_regWrite_req,
-  proc_core_fregWrite_req,
-  proc_core_csrWrite_req,
-  fetch_enable.
-  read_reg_1_enable_req,
-  read_reg_2_enable_req,
-  read_freg_1_enable_req,
-  read_freg_2_enable_req,
-  read_freg_3_enable_req,
-  memRead_enable_req,
-  memWrite_enable_req,
-  proc_core_regWrite_enable_req,
-  proc_core_fregWrite_enable_req,
-  proc_core_csrWrite_enable_req,
-  .CLK(clk),
-  .RESET(reset),
+  .fetch$_return(fetch_res),
+  .read_reg_1$_return(read_reg_1_res),
+  .read_reg_2$_return(read_reg_2_res),
+  .read_freg_1$_return(read_freg_1_res),
+  .read_freg_2$_return(read_freg_2_res),
+  .read_freg_3$_return(read_freg_3_res),
+  //memRead_res,
+  //memWrite_res,
+  .fetch$_argument(fetch_address_req),
+  .read_reg_1$_argument(read_reg_1_res),
+  .read_reg_2$_argument(read_reg_2_res),
+  .read_freg_1$_argument(read_freg_1_res),
+  .read_freg_2$_argument(read_freg_2_res),
+  .read_freg_3$_argument(read_freg_3_res),
+  //memRead_address_req,
+  //memWrite_req,
+  .proc_core_regWrite$_argument(proc_core_regWrite_req),
+  .proc_core_fregWrite$_argument(proc_core_fregWrite_req),
+  .proc_core_csrWrite$_argument(proc_core_csrWrite_req),
+  .fetch$_enable(fetch_enable),
+  .read_reg_1$_enable(read_reg_1_enable_req),
+  .read_reg_2$_enable(read_reg_2_enable_req),
+  .read_freg_1$_enable(read_freg_1_enable_req),
+  .read_freg_2$_enable(read_freg_2_enable_req),
+  .read_freg_3$_enable(read_freg_3_enable_req),
+  //memRead_enable_req,
+  // memWrite_enable_req,
+  .proc_core_regWrite$_enable(proc_core_regWrite_enable_req),
+  .proc_core_fregWrite$_enable(proc_core_fregWrite_enable_req),
+  .proc_core_csrWrite$_enable(proc_core_csrWrite_enable_req)
 );
 
 (* TODO: wire up exceptions. *)
-(* TODO: WARNING: compressed instructions will trigger misaligned exceptions using this memory module. *)
-
-wire program_memory_void0;
-wire program_memory_void1;
-wire program_memory_void2;
-wire program_memory_void3;
-wire program_memory_void4;
-
-memory32 program_memory (
-  .clk (clk),
-  .reset (reset),
-  .in_write_enable (fetch_enable),
-  .in_read_address (fetch_address_req),
-  .in_write_address (program_memory_void0),
-  .in_write_data (program_memory_void1),
-  .out_read_data (fetch_res.inst),
-  .out_reservation (program_memory_void2),
-  .out_read_exception (program_memory_void3),
-  .out_write_exception (program_memory_void4)
-);
-
-(* TODO: add a second excetion flag to the memory unit so that it can signal exceptions for reads and writes seperately. *)
 
 wire ram_void0;
 wire ram_void1;
@@ -162,14 +137,18 @@ wire ram_void1;
 memory32 ram (
   .clk (clik),
   .reset (reset),
+  .in_fetch_enable (fetch_enable),
   .in_write_enable (memRead_enable_req),
+  .in_fetch_address (fetch_address_req),
   .in_read_address (memRead_address_req),
   .in_write_address (memWrite_req.addr),
   .in_write_data (memWrite_req.data),
+  .out_fetch_data (fetch_res.inst),
   .out_read_data (memRead_res.data),
   .out_reservation (memRead_res.reservation),
-  .out_read_exception (ram_void0),
-  .out_write_exception (ram_void1)
+  .out_fetch_exception (ram_void0),
+  .out_read_exception (ram_void1),
+  .out_write_exception (ram_void2)
 );
 
 wire register_void0;
