@@ -166,7 +166,7 @@ Section Params.
                        (STRUCT {
                          "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
                          "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
-                         "reg" ::= (#exec_context_pkt @% "fst" @% "reg2")
+                         "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
                        } : MemUnitInput Xlen_over_8 @# _);
                 commit
                   (#pc)

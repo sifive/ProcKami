@@ -85,7 +85,7 @@ Section Mem.
                                    "rl" ::= $$ false ;
                                    "reservation" ::= $ 0 ;
                                    "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
-                                   "reg" ::= #memOut };
+                                   "reg_data" ::= #memOut };
               RetE #outMemReg).
 
     Local Definition storeInput (size: nat) (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
@@ -123,7 +123,7 @@ Section Mem.
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg" ;
+             LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
              LETC memOut: MaskedMem <-
                                     (STRUCT {
@@ -137,7 +137,7 @@ Section Mem.
                                   "rl" ::= $$ false ;
                                   "reservation" ::= $ 0 ;
                                   "mem" ::= #validMemOut ;
-                                  "reg" ::= (Invalid: Maybe Data @# ty) };
+                                  "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
 
     Local Definition amoInput size (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
@@ -162,7 +162,7 @@ Section Mem.
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg" ;
+             LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memVal: Data <- #memReg @% "mem" ;
              LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(if half then 15 else 255));
              LETC memOut: MaskedMem <-
@@ -179,7 +179,7 @@ Section Mem.
                                   "rl" ::= #memReg @% "rl" ;
                                   "reservation" ::= $ 0 ;
                                   "mem" ::= #validMemOut ;
-                                  "reg" ::= #finalLoadVal };
+                                  "reg_data" ::= #finalLoadVal };
              RetE #outMemReg).
 
     Local Definition lrInput := amoInput.
@@ -200,7 +200,7 @@ Section Mem.
                                   "rl" ::= #memReg @% "rl" ;
                                   "reservation" ::= if half then $1 else $2 ;
                                   "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
-                                  "reg" ::= #finalLoadVal };
+                                  "reg_data" ::= #finalLoadVal };
              RetE #outMemReg).
 
     Local Definition scInput := amoInput.
@@ -211,7 +211,7 @@ Section Mem.
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg" ;
+             LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(if half then 15 else 255));
              LETC memOut: MaskedMem <-
                                     (STRUCT {
@@ -229,7 +229,7 @@ Section Mem.
                                   "rl" ::= #memReg @% "rl" ;
                                   "reservation" ::= $ 0 ;
                                   "mem" ::= #validMemOut ;
-                                  "reg" ::= Valid #loadVal };
+                                  "reg_data" ::= Valid #loadVal };
              RetE #outMemReg).
 
     Definition Mem: @FUEntry Xlen_over_8 ty :=

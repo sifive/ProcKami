@@ -31,7 +31,7 @@ Section Mem.
   Definition MemUnitInput := STRUCT {
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
-                                 "reg" :: Data
+                                 "reg_data" :: Data
                                }.
 
   Section Ty.
@@ -107,7 +107,7 @@ Section Mem.
           "rl" ::= i @% "rl" ;
           "reservation" ::= reservation ;
           "mem" ::= mem ;
-          "reg" ::= i @% "reg"
+          "reg_data" ::= i @% "reg_data"
         }.
 
     Definition applyMask (read: Data @# ty) (write: MaskedMem @# ty): Data ## ty.
@@ -169,8 +169,8 @@ Section Mem.
                  LET memRet
                    :  MemRet
                    <- STRUCT {
-                        "writeReg?" ::= #memoryOutput @% "reg" @% "valid";
-                        "data" ::= #memoryOutput @% "reg" @% "data";
+                        "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                        "data" ::= #memoryOutput @% "reg_data" @% "data";
                         "exception?" ::= #writeEx
                       };
                  Ret #memRet

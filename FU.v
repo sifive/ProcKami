@@ -143,7 +143,7 @@ Section Params.
                                   "rl" :: Bool ;
                                   "reservation" :: Bit 2 ;
                                   "mem" :: Data ;
-                                  "reg" :: Data }.
+                                  "reg_data" :: Data }.
 
     Definition MaskedMem := STRUCT {
                                 "data" :: Data ;
@@ -154,7 +154,7 @@ Section Params.
                                    "rl" :: Bool ;
                                    "reservation" :: Bit 2 ;
                                    "mem" :: Maybe MaskedMem ;
-                                   "reg" :: Maybe Data }.
+                                   "reg_data" :: Maybe Data }.
     
     Record InstHints :=
       { hasRs1      : bool ;
