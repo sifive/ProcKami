@@ -160,9 +160,9 @@ Section Params.
                   :  MemRet Xlen_over_8
                   <- @fullMemAction
                        Xlen_over_8 _ func_units
+                       (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
                        (#decoder_pkt @% "fst" @% "FuncUnitTag")
                        (#decoder_pkt @% "fst" @% "InstTag")
-                       (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
                        (STRUCT {
                          "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
                          "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 

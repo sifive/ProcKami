@@ -1,4 +1,4 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Mem Decoder FuInputTrans utila.
+Require Import Kami.All RecordUpdate.RecordSet FU Mem Decoder.
 Require Import List.
 Import RecordNotations.
 
@@ -65,9 +65,40 @@ Section Mem.
 
     Let inst_id_kind := Decoder.inst_id_kind func_units.
 
-    Let tagged_func_unit_type := Decoder.tagged_func_unit_type Xlen_over_8 ty.
+    
+    Definition getMemEntryFromInsts ik ok (insts: list (inst_type ik ok)) pos :
+      option (LetExprSyntax ty (FU.MemoryInput Xlen_over_8) ->
+              LetExprSyntax ty (FU.MemoryOutput Xlen_over_8)) :=
+      match find (fun x => getBool (Nat.eq_dec pos (fst x))) (tag insts) with
+      | None => None
+      | Some inst => match optMemXform (snd inst)
+                     with
+                     | None => None
+                     | Some val => Some val
+                     end
+      end.
 
-    Let tagged_inst_type := Decoder.tagged_inst_type Xlen_over_8 ty.
+    Definition memFu := find (fun x => getBool (string_dec (fuName (snd x)) "mem"))
+                             (tag func_units).
+
+    Definition lengthMemFu := match memFu with
+                              | None => 0
+                              | Some (_, x) => length (fuInsts x)
+                              end.
+
+    Definition tagMemFu := match memFu with
+                           | None => 0
+                           | Some (x, _) => x
+                           end.
+
+
+    Definition getMemEntry pos:
+      option (LetExprSyntax ty (FU.MemoryInput Xlen_over_8) ->
+              LetExprSyntax ty (FU.MemoryOutput Xlen_over_8)) :=
+      match memFu with
+      | None => None
+      | Some (_, x) => getMemEntryFromInsts (fuInsts x) pos
+      end.
 
     Local Open Scope kami_expr.
     Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty) (reservation : Bit 2 @# ty) : MemoryInput @# ty :=
@@ -91,101 +122,78 @@ Section Mem.
           RetE (castBits _ (pack #writeByte))); unfold size; try abstract lia.
     Defined.
 
-    Definition defMemRet : MemRet @# ty
-      := STRUCT {
-           "writeReg?"  ::= $$false;
-           "data"       ::= $0;
-           "exception?" ::= Invalid
-         }.
+    Section MemAddr.
+      Variable addr: VAddr @# ty.
+      Variable fuTag: func_unit_id_kind @# ty.
+      Variable instTag: inst_id_kind @# ty.
+      Variable memUnitInput: MemUnitInput @# ty.
 
-    Local Open Scope kami_action.
-    Definition memAction
-      (func_unit_id : func_unit_id_kind @# ty)
-      (sem_in_kind sem_out_kind : Kind)
-      (tagged_inst : tagged_inst_type sem_in_kind sem_out_kind)
-      (sel_func_unit_id : func_unit_id_kind @# ty)
-      (sel_inst_id : inst_id_kind @# ty)
-      (addr : VAddr @# ty)
-      (memUnitInput : MemUnitInput @# ty)
-      :  ActionT ty (Maybe MemRet)
-      := LET selected
-           :  Bool
-           <- (func_unit_id == sel_func_unit_id &&
-               tagged_inst_match tagged_inst sel_inst_id);
-         If #selected
-         then
-           (match optMemXform (detag_inst tagged_inst) with
-             | Some fn =>
-               Call memRead: MemRead <- "memRead"(addr: _);
-               (If #memRead @% "exception?" @% "valid"
-                then Ret defMemRet
-                else
-                  (LETA memoryOutput
-                     :  MemoryOutput
-                     <- convertLetExprSyntax_ActionT
-                          (fn (RetE (makeMemoryInput memUnitInput
-                                      (#memRead @% "data")
-                                      (#memRead @% "reservation"))));
-                   LETA writeVal
-                     :  Data
-                     <- convertLetExprSyntax_ActionT
-                          (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
-                   LET memWrite
-                     :  MemWrite
-                     <- STRUCT {
-                          "addr" ::= addr;
-                          "data" ::= #writeVal
-                        };
-                   If (#memoryOutput @% "mem" @% "valid")
-                     then
-                       (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
-                        Ret #writeEx)
-                     else
-                       Ret (@Invalid _ Exception)
-                     as writeEx;
-                   LET memRet
-                     :  MemRet
-                     <- STRUCT {
-                          "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
-                          "data" ::= #memoryOutput @% "reg_data" @% "data";
-                          "exception?" ::= #writeEx
-                        };
-                   Ret #memRet
-                  ) as ret;
-               Ret #ret)
-             | None => Ret defMemRet
-             end)
-         else
-           (Ret defMemRet) as ret;
-         Ret (utila_opt_pkt (#ret) (#selected)).
+      Definition defMemRet: MemRet @# ty := STRUCT {
+                                                "writeReg?" ::= $$ false ;
+                                                "data" ::= $ 0 ;
+                                                "exception?" ::= Invalid }.
 
-    Definition fullMemAction
-      (sel_func_unit_id : func_unit_id_kind @# ty)
-      (sel_inst_id : inst_id_kind @# ty)
-      (addr : VAddr @# ty)
-      (memUnitInput : MemUnitInput @# ty)
-      :  ActionT ty MemRet
-      := LETA opt_mem_action_res
-           : Maybe MemRet
-           <- utila_acts_find_pkt
-                (map
-                  (fun tagged_func_unit : tagged_func_unit_type
-                    => let (func_unit_id, func_unit)
-                         := tagged_func_unit in
-                       utila_acts_find_pkt
-                         (map
-                           (fun tagged_inst
-                             => memAction
-                                  (func_unit_id_encode func_units func_unit_id)
-                                  tagged_inst
-                                  sel_func_unit_id
-                                  sel_inst_id
-                                  addr
-                                  memUnitInput)
-                           (tag (fuInsts func_unit))))
-                  (tag func_units));
-         Ret (#opt_mem_action_res @% "data").
+      Local Open Scope kami_action.
+      Definition memAction (tag: nat) : ActionT ty MemRet :=
+        (If instTag == $tag
+         then 
+           match getMemEntry tag with
+           | Some fn =>
+             Call memRead: MemRead <- "memRead"(addr: _);
+             (If #memRead @% "exception?" @% "valid"
+              then Ret defMemRet
+              else
+                (LETA memoryOutput
+                   :  MemoryOutput
+                   <- convertLetExprSyntax_ActionT
+                        (fn (RetE (makeMemoryInput memUnitInput
+                                    (#memRead @% "data")
+                                    (#memRead @% "reservation"))));
+                 LETA writeVal
+                   :  Data
+                   <- convertLetExprSyntax_ActionT
+                        (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
+                 LET memWrite
+                   :  MemWrite
+                   <- STRUCT {
+                        "addr" ::= addr;
+                        "data" ::= #writeVal
+                      };
+                 If (#memoryOutput @% "mem" @% "valid")
+                   then
+                     (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
+                      Ret #writeEx)
+                   else
+                     Ret (@Invalid _ Exception)
+                   as writeEx;
+                 LET memRet
+                   :  MemRet
+                   <- STRUCT {
+                        "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                        "data" ::= #memoryOutput @% "reg_data" @% "data";
+                        "exception?" ::= #writeEx
+                      };
+                 Ret #memRet
+                ) as ret;
+             Ret #ret)
+           | None => Ret defMemRet
+           end
+         else Ret defMemRet
+          as ret;
+           Ret #ret).
 
-    Local Close Scope kami_action.
+      Definition fullMemAction: ActionT ty MemRet :=
+        If (fuTag == $ tagMemFu)
+        then 
+          (GatherActions (map memAction (0 upto lengthMemFu)) as retVals;
+             Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
+        else
+          Ret (STRUCT {"writeReg?" ::= $$ false ;
+                       "data" ::= $0 ;
+                       "exception?" ::= Invalid})
+        as ret;
+        Ret #ret.
+      Local Close Scope kami_action.
+    End MemAddr.
   End Ty.
 End Mem.

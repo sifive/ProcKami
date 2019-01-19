@@ -55,7 +55,7 @@ Section Alu.
 
     Definition JumpInputType :=
       STRUCT { "pc" :: VAddr ;
-               "reg" :: VAddr ;
+               "reg_data" :: VAddr ;
                "offset" :: VAddr ;
                "compressed?" :: Bool ;
                "misalignedException?" :: Bool }.
@@ -877,7 +877,7 @@ Section Alu.
     Definition Jump: @FUEntry Xlen_over_8 ty :=
       {| fuName := "jump" ;
          fuFunc := (fun i => LETE x: JumpInputType <- i;
-                               LETC newPc: VAddr <- (#x @% "pc") + (#x @% "reg" + #x @% "offset") ;
+                               LETC newPc: VAddr <- (#x @% "pc") + (#x @% "reg_data" + #x @% "offset") ;
                                LETC retPc: VAddr <- (#x @% "pc") + (IF #x @% "compressed?" then $2 else $4) ;
                                LETC retVal: JumpOutputType <- (STRUCT{"misaligned?" ::= #x @% "misalignedException?" && ((ZeroExtendTruncLsb 2 #newPc)$[1:1] != $0);
                                                                       "newPc" ::= #newPc ;
@@ -897,7 +897,7 @@ Section Alu.
                                             LETC imm <- {< ( #funct7v$[6:6]), (#rs1v), (#funct3v), (#rs2v$[0:0]), (#funct7v$[5:0]), (#rs2v$[4:1]), $$ WO~0 >} ;
                                             LETC offset <- SignExtendTruncLsb Xlen #imm ;
                                             LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
-                                                                                   "reg" ::= $0 ;
+                                                                                   "reg_data" ::= $0 ;
                                                                                    "offset" ::= #offset ;
                                                                                    "compressed?" ::= #x @% "compressed?" ;
                                                                                    "misalignedException?" ::= #x @% "instMisalignedException?" } ;
@@ -919,7 +919,7 @@ Section Alu.
                                                LETC imm <- {< #funct7v, #rs2v >} ;
                                                LETC offset <- SignExtendTruncLsb Xlen #imm ;
                                                LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
-                                                                                      "reg" ::= #x @% "reg1" ;
+                                                                                      "reg_data" ::= #x @% "reg1" ;
                                                                                       "offset" ::= #offset ;
                                                                                       "compressed?" ::= #x @% "compressed?" ;
                                                                                       "misalignedException?" ::= #x @% "instMisalignedException?" } ;
