@@ -12,3 +12,4 @@ Makefile.coq.all.conf
 .lia.cache
 *.vcd
 *.hex
+*.sv
