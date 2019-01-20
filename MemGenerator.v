@@ -165,7 +165,13 @@ Section Mem.
                       Ret #writeEx)
                    else
                      Ret (@Invalid _ Exception)
-                   as writeEx;
+                  as writeEx;
+                 If (addr == $$ (Xlen 'h"0000000080001000")%word)
+                 then (If #writeVal == $1
+                        then Sys ((DispString _"\033[32;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                        else Sys ((DispString _"\033[31;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
+                      ; Retv
+                       );
                  LET memRet
                    :  MemRet
                    <- STRUCT {
