@@ -166,7 +166,7 @@ Section Mem.
                    else
                      Ret (@Invalid _ Exception)
                   as writeEx;
-                 If (addr == $$ (Xlen 'h"0000000080001000")%word)
+                 If (addr == $$ (Xlen 'h"80001000")%word && #memoryOutput @% "mem" @% "valid")
                  then (If #writeVal == $1
                         then Sys ((DispString _"\033[32;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
                         else Sys ((DispString _"\033[31;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
