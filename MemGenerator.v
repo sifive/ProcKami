@@ -110,16 +110,16 @@ Section Mem.
           "reg_data" ::= i @% "reg_data"
         }.
 
-    Definition applyMask (read: Data @# ty) (write: MaskedMem @# ty): Data ## ty.
+    Definition applyMask (read: Data @# ty) (write: Maybe MaskedMem @# ty): Data ## ty.
       refine (
-          LETC mask <- write @% "mask" ;
-          LETC data <- write @% "data" ;
+          LETC mask <- write @% "data" @% "mask" ;
+          LETC data <- write @% "data" @% "data" ;
           LETC dataByte <- unpack (Array Xlen_over_8 (Bit 8)) (castBits _ #data) ;
           LETC readByte <- unpack (Array Xlen_over_8 (Bit 8)) (castBits _ read) ;
           LETC writeByte <- BuildArray (fun i => (IF ReadArrayConst #mask i
                                                   then ReadArrayConst #dataByte i
                                                   else ReadArrayConst #readByte i)) ;
-          RetE (castBits _ (pack #writeByte))); unfold size; try abstract lia.
+          RetE (IF write @% "valid" then castBits _ (pack #writeByte) else read)); unfold size; try abstract lia.
     Defined.
 
     Section MemAddr.
@@ -152,7 +152,7 @@ Section Mem.
                  LETA writeVal
                    :  Data
                    <- convertLetExprSyntax_ActionT
-                        (applyMask (#memRead @% "data") (#memoryOutput @% "mem" @% "data"));
+                        (applyMask (#memRead @% "data") (#memoryOutput @% "mem" ));
                  LET memWrite
                    :  MemWrite
                    <- STRUCT {
