@@ -7,8 +7,8 @@
 `include "Register32.sv"
 
 module system(
-  input clk,
-  input reset
+  input CLK,
+  input RESET
 );
 
 // Fetch wires.
@@ -127,8 +127,8 @@ top system (
   .proc_core_regWrite$_enable(proc_core_regWrite_enable_req),
   .proc_core_fregWrite$_enable(proc_core_fregWrite_enable_req),
   .proc_core_csrWrite$_enable(proc_core_csrWrite_enable_req),
-  .CLK(clk),
-  .RESET(reset)
+  .CLK(CLK),
+  .RESET(RESET)
 );
 
 (* TODO: wire up exceptions. *)
@@ -138,8 +138,8 @@ wire ram_void1;
 wire ram_void2;
 
 memory32 ram (
-  .clk (clk),
-  .reset (reset),
+  .clk (CLK),
+  .reset (RESET),
   .in_fetch_enable (fetch_enable),
   .in_write_enable (memRead_enable_req),
   .in_fetch_address (fetch_address_req),
@@ -158,8 +158,8 @@ wire register_void0;
 wire register_void1;
 
 register32 registers (
-  .clk (clk),
-  .reset (reset),
+  .clk (CLK),
+  .reset (RESET),
   .in_write_enable (proc_core_regWrite_enable_req),
   .in_write_register_select (proc_core_regWrite_req.index), (* TODO: check bit width *)
   .in_read_register_select_0 (read_reg_1_id_req),
@@ -172,8 +172,8 @@ register32 registers (
 );
 
 register32 fp_registers (
-  .clk (clk),
-  .reset (reset),
+  .clk (CLK),
+  .reset (RESET),
   .in_write_enable (proc_core_regWrite_enable_req),
   .in_write_register_select (proc_core_fregWrite_req.index), (* TODO: check bit width *)
   .in_read_register_select_0 (read_freg_1_id_req),
