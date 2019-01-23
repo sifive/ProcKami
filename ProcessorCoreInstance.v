@@ -28,9 +28,10 @@ Let func_units
        Rem       Xlen_over_8 _;
 
        (* RVI memory instructions. *)
-       Mem       Xlen_over_8 _;
+       Mem       Xlen_over_8 _
 
        (* RVF instructions. *)
+(*
        Mac       _ Xlen_over_8;
        FMinMax   _ Xlen_over_8;
 (*
@@ -43,7 +44,7 @@ Let func_units
        FCmp      _ Xlen_over_8;
        FClass    _ Xlen_over_8;
        FDivSqrt  _ Xlen_over_8
-
+*)
      ].
 
 Let mode
