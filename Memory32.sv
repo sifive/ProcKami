@@ -2,8 +2,8 @@
   This module simulates the 32 bit memory attached to the processor core.
 */
 module memory32 (
-  input clk,
-  input reset,
+  input CLK,
+  input RESET,
   input in_fetch_enable,
   input in_write_enable,
   input [31:0] in_fetch_address,
@@ -18,7 +18,7 @@ module memory32 (
   output out_write_exception
 );
 
-parameter integer numBlockBytes = 2 ^ 20;
+parameter integer numBlockBytes = 1048575;
 parameter integer numWordBytes = 4;
 
 reg [7:0] block [numBlockBytes:0];
@@ -70,11 +70,14 @@ assign out_read_data = {
   32/64 bit word, modifies the relevant bits, and writes the entire
   word back as the result.
 */
-always @(posedge clk)
+always @(posedge CLK)
 begin
-  if (in_write_enable && !reset)
+  if (in_write_enable && !RESET)
   begin
-    block [in_write_address] <= in_write_data [31:0];
+    block [in_read_address + 3] <= in_write_data [31:24];
+    block [in_read_address + 2] <= in_write_data [23:16];
+    block [in_read_address + 1] <= in_write_data [15:8];
+    block [in_read_address + 0] <= in_write_data [7:0];
   end
 end
 endmodule

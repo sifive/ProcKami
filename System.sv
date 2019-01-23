@@ -103,16 +103,16 @@ top system (
   .read_freg_1$_return(read_freg_1_res),
   .read_freg_2$_return(read_freg_2_res),
   .read_freg_3$_return(read_freg_3_res),
-  memRead_res,
-  memWrite_res,
+  .memRead$_return(memRead_res),
+  .memWrite$_return(memWrite_res),
   .fetch$_argument(fetch_address_req),
-  .read_reg_1$_argument(read_reg_1_res),
-  .read_reg_2$_argument(read_reg_2_res),
-  .read_freg_1$_argument(read_freg_1_res),
-  .read_freg_2$_argument(read_freg_2_res),
-  .read_freg_3$_argument(read_freg_3_res),
-  memRead_address_req,
-  memWrite_req,
+  .read_reg_1$_argument(read_reg_1_id_req),
+  .read_reg_2$_argument(read_reg_2_id_req),
+  .read_freg_1$_argument(read_freg_1_id_req),
+  .read_freg_2$_argument(read_freg_2_id_req),
+  .read_freg_3$_argument(read_freg_3_id_req),
+  .memRead$_argument(memRead_address_req),
+  .memWrite$_argument(memWrite_req),
   .proc_core_regWrite$_argument(proc_core_regWrite_req),
   .proc_core_fregWrite$_argument(proc_core_fregWrite_req),
   .proc_core_csrWrite$_argument(proc_core_csrWrite_req),
@@ -122,8 +122,8 @@ top system (
   .read_freg_1$_enable(read_freg_1_enable_req),
   .read_freg_2$_enable(read_freg_2_enable_req),
   .read_freg_3$_enable(read_freg_3_enable_req),
-  memRead_enable_req,
-  memWrite_enable_req,
+  .memRead$_enable(memRead_enable_req),
+  .memWrite$_enable(memWrite_enable_req),
   .proc_core_regWrite$_enable(proc_core_regWrite_enable_req),
   .proc_core_fregWrite$_enable(proc_core_fregWrite_enable_req),
   .proc_core_csrWrite$_enable(proc_core_csrWrite_enable_req),
@@ -136,10 +136,11 @@ top system (
 wire ram_void0;
 wire ram_void1;
 wire ram_void2;
+wire ram_void3;
 
 memory32 ram (
-  .clk (CLK),
-  .reset (RESET),
+  .CLK (CLK),
+  .RESET (RESET),
   .in_fetch_enable (fetch_enable),
   .in_write_enable (memRead_enable_req),
   .in_fetch_address (fetch_address_req),
@@ -148,18 +149,18 @@ memory32 ram (
   .in_write_data (memWrite_req.data),
   .out_fetch_data (fetch_res.inst),
   .out_read_data (memRead_res.data),
-  .out_reservation (memRead_res.reservation),
-  .out_fetch_exception (ram_void0),
-  .out_read_exception (ram_void1),
-  .out_write_exception (ram_void2)
+  .out_reservation (ram_void0),
+  .out_fetch_exception (ram_void1),
+  .out_read_exception (ram_void2),
+  .out_write_exception (ram_void3)
 );
 
-wire register_void0;
-wire register_void1;
+wire logic [4:0] register_void0;
+wire logic [31:0] register_void1;
 
 register32 registers (
-  .clk (CLK),
-  .reset (RESET),
+  .CLK (CLK),
+  .RESET (RESET),
   .in_write_enable (proc_core_regWrite_enable_req),
   .in_write_register_select (proc_core_regWrite_req.index), (* TODO: check bit width *)
   .in_read_register_select_0 (read_reg_1_id_req),
@@ -172,8 +173,8 @@ register32 registers (
 );
 
 register32 fp_registers (
-  .clk (CLK),
-  .reset (RESET),
+  .CLK (CLK),
+  .RESET (RESET),
   .in_write_enable (proc_core_regWrite_enable_req),
   .in_write_register_select (proc_core_fregWrite_req.index), (* TODO: check bit width *)
   .in_read_register_select_0 (read_freg_1_id_req),
