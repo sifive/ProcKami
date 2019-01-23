@@ -53,7 +53,7 @@ Section Params.
                                             "data" ::= #val2_data };
          LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
                                            "data" ::= #val2_data };
-
+         (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
          If (!(cxt @% "exception" @% "valid"))
          then (
            If (#val1 @% "valid")
@@ -251,6 +251,7 @@ Section Params.
                              DispString _ "\n"
                           ]
                           Retv;
+                   (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    LETA disp5
                      <- Sys ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil) Retv;
                    LETA mem_pkt

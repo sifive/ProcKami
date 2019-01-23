@@ -88,11 +88,16 @@ Section Params.
     Local Close Scope kami_expr.
   End Fields.
 
+  Definition csr_value_width : nat := 32.
+
+  Definition csr_value_kind : Kind := Bit csr_value_width.
+
   Definition ExecContextPkt :=
     STRUCT { "pc"                       :: VAddr ;
              "reg1"                     :: Data ;
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
+             "csr"                      :: Maybe csr_value_kind;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;

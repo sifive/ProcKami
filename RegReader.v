@@ -36,8 +36,7 @@ Section reg_reader.
 
   Let Xlen : nat := 8 * Xlen_over_8.
 
-  Let exec_context_pkt_kind : Kind
-    := ExecContextPkt Xlen_over_8.
+  Let exec_context_pkt_kind : Kind := ExecContextPkt Xlen_over_8.
 
   (* register ID definitions *)
 
@@ -180,33 +179,50 @@ Section reg_reader.
       := Call freg_val : reg_val_kind <- ("read_freg_" ++ natToHexStr n)(freg_id : reg_id_kind);
            Ret (#freg_val).
 
+    Definition reg_reader_read_csr
+      (raw_instr : uncomp_inst_kind @# ty)
+      :  ActionT ty (Maybe csr_value_kind)
+      := If rd raw_instr == $0
+           then Ret (@Invalid ty csr_value_kind)
+           else
+             Call csr_value
+               :  csr_value_kind
+               <- "read_csr" (imm raw_instr : Bit 12);
+             Ret (Valid (#csr_value) : Maybe csr_value_kind @# ty)
+           as csr_reader_pkt;
+         Ret (#csr_reader_pkt).
+
     Definition reg_reader
                (decoder_pkt : decoder_pkt_kind @# ty)
       :  ActionT ty exec_context_pkt_kind
       := let raw_inst
            :  uncomp_inst_kind @# ty
            := decoder_pkt @% "inst" in
-         LETA reg1_val : reg_val_kind <- reg_reader_read_reg 1 (rs1 raw_inst);
-           LETA reg2_val : reg_val_kind <- reg_reader_read_reg 2 (rs2 raw_inst);
-           LETA freg1_val : reg_val_kind <- reg_reader_read_freg 1 (rs1 raw_inst);
-           LETA freg2_val : reg_val_kind <- reg_reader_read_freg 2 (rs2 raw_inst);
-           LETA freg3_val : reg_val_kind <- reg_reader_read_freg 3 (rs3 raw_inst);
-           Ret
-             (STRUCT {
-                  "pc"   ::= decoder_pkt @% "pc";
-                  "reg1" ::= ((ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0) |
-                              (ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0));
-                  "reg2" ::= ((ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0) |
-                              (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
-                  "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
-                  "inst" ::= raw_inst;
-                  (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
-                  "instMisalignedException?" ::= instMisalignedException;
-                  "memMisalignedException?"  ::= memMisalignedException;
-                  "accessException?" ::= accessException;
-                  "mode" ::= decoder_pkt @% "mode";
-                  "compressed?" ::= !(decode_uncompressed raw_inst)
-                } : exec_context_pkt_kind @# ty).
+         LETA reg1_val  : reg_val_kind <- reg_reader_read_reg  1 (rs1 raw_inst);
+         LETA reg2_val  : reg_val_kind <- reg_reader_read_reg  2 (rs2 raw_inst);
+         LETA freg1_val : reg_val_kind <- reg_reader_read_freg 1 (rs1 raw_inst);
+         LETA freg2_val : reg_val_kind <- reg_reader_read_freg 2 (rs2 raw_inst);
+         LETA freg3_val : reg_val_kind <- reg_reader_read_freg 3 (rs3 raw_inst);
+         LETA csr_val
+           :  Maybe csr_value_kind
+           <- reg_reader_read_csr raw_inst;
+         Ret
+           (STRUCT {
+                "pc"   ::= decoder_pkt @% "pc";
+                "reg1" ::= ((ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0) |
+                            (ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0));
+                "reg2" ::= ((ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0) |
+                            (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
+                "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
+                "csr"  ::= #csr_val;
+                "inst" ::= raw_inst;
+                (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
+                "instMisalignedException?" ::= instMisalignedException;
+                "memMisalignedException?"  ::= memMisalignedException;
+                "accessException?" ::= accessException;
+                "mode" ::= decoder_pkt @% "mode";
+                "compressed?" ::= !(decode_uncompressed raw_inst)
+              } : exec_context_pkt_kind @# ty).
 
     Definition readerWithException
       (decoder_pkt : PktWithException decoder_pkt_kind @# ty)

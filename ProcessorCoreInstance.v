@@ -11,6 +11,7 @@ Import ListNotations.
 Require Import Alu.
 Require Import Mem.
 Require Import Fpu.
+Require Import Zicsr.
 
 Let Xlen_over_8 := 4.
 
@@ -28,7 +29,10 @@ Let func_units
        Rem       Xlen_over_8 _;
 
        (* RVI memory instructions. *)
-       Mem       Xlen_over_8 _
+       Mem       Xlen_over_8 _;
+
+       (* RV Zicsr instructions. *)
+       Zicsr     Xlen_over_8 _
 
        (* RVF instructions. *)
 (*
@@ -59,7 +63,7 @@ Let exts
             "RV32I"    ::= $$(true);
             "RV64I"    ::= $$(false);
             "Zifencei" ::= $$(false);
-            "Zicsr"    ::= $$(false);
+            "Zicsr"    ::= $$(true);
             "RV32M"    ::= $$(false);
             "RV64M"    ::= $$(false);
             "RV32A"    ::= $$(false);

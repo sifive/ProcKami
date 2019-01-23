@@ -31,9 +31,9 @@ initial $readmemh ("MemoryInit.hex", block);
 
   Note: this restriction prevents 
 */
-assign out_fetch_exception = in_read_address >= (numBlockBytes - numWordBytes);
-assign out_read_exception = in_read_address >= (numBlockBytes - numWordBytes);
-assign out_write_exception = in_write_address >= (numBlockBytes - numWordBytes);
+assign out_fetch_exception = 0; // in_read_address >= (numBlockBytes - numWordBytes);
+assign out_read_exception = 0; // in_read_address >= (numBlockBytes - numWordBytes);
+assign out_write_exception = 0; // in_write_address >= (numBlockBytes - numWordBytes);
 
 /*
   This memory model executes requests in the order in which they

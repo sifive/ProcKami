@@ -858,9 +858,9 @@ Section Alu.
     Local Definition jumpTag (jumpOut: JumpOutputType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
       LETE jOut <- jumpOut;
         RetE (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                                   "data" ::= #jOut @% "retPc" }))]
+                                                   "data" ::= #jOut @% "retPc"}))]
                       @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                                                   "data" ::= #jOut @% "newPc" }))]
+                                                   "data" ::= #jOut @% "newPc"}))]
                       @%["taken?" <- $$ true]
                       @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                 "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
