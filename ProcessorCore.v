@@ -35,6 +35,7 @@ Section Params.
     Local Open Scope kami_expr.
 
     Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: ExecContextUpdPkt Xlen_over_8 @# ty)
+      (exec_context_pkt : ExecContextPkt Xlen_over_8 @# ty)
       : ActionT ty Void :=
       (LET val1: Maybe (RoutedReg Xlen_over_8) <- cxt @% "val1";
          LET val2: Maybe (RoutedReg Xlen_over_8) <- cxt @% "val2";
@@ -51,36 +52,34 @@ Section Params.
 
          If (!(cxt @% "exception" @% "valid"))
          then (
-             If (#val1 @% "valid")
-             then (
-                 If (#val1_pos == $PcTag)
-                 then Write "pc" : VAddr <- #val1_data ; Retv
-                 else (If (#val1_pos == $IntRegTag)
-                       then (If (#write1Pkt @% "index" != $0) then (Call ^"regWrite"(#write1Pkt: _); Retv); Retv)
-                       else (If (#val1_pos == $FloatRegTag)
-                             then Call ^"fregWrite"(#write1Pkt: _); Retv
-                             else (If (#val1_pos == $CsrTag)
-                                   then Call ^"csrWrite"(#writeCsr: _); Retv
-                                   else (If (#val1_pos == $FflagsTag)
-                                         then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
-                                                Retv);
-                                     Retv); Retv); Retv); Retv);
-             If (#val2 @% "valid")
-             then (
-                 If (#val2_pos == $PcTag)
-                 then Write "pc" : VAddr <- #val2_data ; Retv
-                 else (If (#val2_pos == $IntRegTag)
-                       then (If (#write2Pkt @% "index" != $0) then (Call ^"regWrite"(#write2Pkt: _); Retv); Retv)
-                       else (If (#val2_pos == $FloatRegTag)
-                             then Call ^"fregWrite"(#write2Pkt: _); Retv
-                             else (If (#val2_pos == $CsrTag)
-                                   then Call ^"csrWrite"(#writeCsr: _); Retv
-                                   else (If (#val2_pos == $FflagsTag)
-                                         then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
-                                                Retv);
-                                     Retv); Retv); Retv); Retv);
-                    Retv);
-                Retv
+           If (#val1 @% "valid")
+           then 
+               (If (#val1_pos == $IntRegTag)
+                then (If (#write1Pkt @% "index" != $0) then (Call ^"regWrite"(#write1Pkt: _); Retv); Retv)
+                else (If (#val1_pos == $FloatRegTag)
+                      then Call ^"fregWrite"(#write1Pkt: _); Retv
+                      else (If (#val1_pos == $CsrTag)
+                            then Call ^"csrWrite"(#writeCsr: _); Retv
+                            else (If (#val1_pos == $FflagsTag)
+                                  then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
+                                  Retv);
+                            Retv);
+                      Retv);
+                Retv);
+           If (#val2 @% "valid")
+           then
+               (If (#val2_pos == $IntRegTag)
+                then (If (#write2Pkt @% "index" != $0) then (Call ^"regWrite"(#write2Pkt: _); Retv); Retv)
+                else (If (#val2_pos == $FloatRegTag)
+                      then Call ^"fregWrite"(#write2Pkt: _); Retv
+                      else (If (#val2_pos == $CsrTag)
+                            then Call ^"csrWrite"(#writeCsr: _); Retv
+                            else (If (#val2_pos == $FflagsTag)
+                                  then (Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv);
+                                         Retv);
+                              Retv); Retv); Retv);
+           Retv);
+         Retv
       ).
 
   End Ty.
@@ -117,61 +116,108 @@ Section Params.
 
     Definition pipeline 
       :  BaseModule
-      := MODULE {
-           Register ^"PC" : VAddr <- getDefaultConst VAddr with
-           Rule ^"pipeline"
-             := Read pc : VAddr <- ^"PC";
-                LETA fetch_pkt
-                  :  FetchStruct
-                  <- fetch Xlen_over_8 (#pc);
-                LETA decoder_pkt
-                  :  decoder_pkt_kind
-                  <- convertLetExprSyntax_ActionT
-                       (decoderWithException func_units extensions PrivMode
-                         (RetE (#fetch_pkt)));
-                LETA exec_context_pkt
-                  :  exec_context_pkt_kind
-                  <- readerWithException
-                       (ITE
-                         (#fetch_pkt @% "snd" @% "valid")
-                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
-                         $$(false))
-                       (* TODO: does fetch raise this exception? *)
-                       (ITE
-                         (#fetch_pkt @% "snd" @% "valid")
-                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $LoadAddrMisaligned)
-                         $$(false))
-                       (ITE
-                         (#fetch_pkt @% "snd" @% "valid")
-                         ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
-                         $$(false))
-                       (#decoder_pkt);
-                LETA trans_pkt
-                  :  trans_pkt_kind 
-                  <- convertLetExprSyntax_ActionT
-                       (transWithException
-                         (#decoder_pkt @% "fst")
-                         (#exec_context_pkt));
-                LETA exec_update_pkt
-                  :  exec_update_pkt_kind
-                  <- convertLetExprSyntax_ActionT
-                       (execWithException (#trans_pkt));
-                LETA mem_pkt
-                  :  MemRet Xlen_over_8
-                  <- @fullMemAction
-                       Xlen_over_8 _ func_units
-                       (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
-                       (#decoder_pkt @% "fst" @% "FuncUnitTag")
-                       (#decoder_pkt @% "fst" @% "InstTag")
-                       (STRUCT {
-                         "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
-                         "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
-                         "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
-                       } : MemUnitInput Xlen_over_8 @# _);
-                commit
-                  (#pc)
-                  (#decoder_pkt @% "fst" @% "inst")
-                  (#exec_update_pkt @% "fst")
+      := 
+         MODULE {
+              Register ^"pc" : VAddr <- getDefaultConst VAddr with
+              Rule ^"pipeline"
+                := LETA disp0
+                     <- Sys
+                          ((DispString _ "\033[32;1m Start\033[0m\n") :: nil)
+                          Retv;
+                   Read pc : VAddr <- ^"pc";
+                   LETA disp0
+                     <- Sys
+                          ((DispString _ "\033[32;1m Fetch\033[0m\n") ::
+                           (DispBit (#pc) (32, Decimal)) ::
+                            nil)
+                          Retv;
+                   LETA fetch_pkt
+                     :  FetchStruct
+                     <- fetch Xlen_over_8 (#pc);
+                   LETA disp1
+                     <- Sys ((DispString _ "\033[32;1m Decoder\033[0m\n") :: nil) Retv;
+                   LETA decoder_pkt
+                     :  decoder_pkt_kind
+                     <- convertLetExprSyntax_ActionT
+                          (decoderWithException func_units extensions PrivMode
+                            (RetE (#fetch_pkt)));
+                   LETA disp2
+                     <- Sys ((DispString _ "\033[32;1m Exec\033[0m\n") :: nil) Retv;
+                   LETA exec_context_pkt
+                     :  exec_context_pkt_kind
+                     <- readerWithException
+                          (ITE
+                            (#fetch_pkt @% "snd" @% "valid")
+                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
+                            $$(false))
+                          (* TODO: does fetch raise this exception? *)
+                          (ITE
+                            (#fetch_pkt @% "snd" @% "valid")
+                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $LoadAddrMisaligned)
+                            $$(false))
+                          (ITE
+                            (#fetch_pkt @% "snd" @% "valid")
+                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
+                            $$(false))
+                          (#decoder_pkt);
+                   LETA disp3
+                     <- Sys ((DispString _ "\033[32;1m Trans\033[0m\n") :: nil) Retv;
+                   LETA trans_pkt
+                     :  trans_pkt_kind 
+                     <- convertLetExprSyntax_ActionT
+                          (transWithException
+                            (#decoder_pkt @% "fst")
+                            (#exec_context_pkt));
+                   LETA disp4
+                     <- Sys ((DispString _ "\033[32;1m RegWrite\033[0m\n") :: nil) Retv;
+                   LETA exec_update_pkt
+                     :  exec_update_pkt_kind
+                     <- convertLetExprSyntax_ActionT
+                          (execWithException (#trans_pkt));
+                   LETA disp5
+                     <- Sys ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil) Retv;
+                   LETA mem_pkt
+                     :  MemRet Xlen_over_8
+                     <- @fullMemAction
+                          Xlen_over_8 _ func_units
+                          (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
+                          (#decoder_pkt @% "fst" @% "FuncUnitTag")
+                          (#decoder_pkt @% "fst" @% "InstTag")
+                          (STRUCT {
+                            "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
+                            "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
+                            "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
+                          } : MemUnitInput Xlen_over_8 @# _);
+                   LETA disp6
+                     <- Sys ((DispString _ "\033[32;1m Reg Write\033[0m\n") :: nil) Retv;
+                   LETA commit_pkt
+                     :  Void
+                     <- commit
+                          (#pc)
+                          (#decoder_pkt @% "fst" @% "inst")
+                          (#exec_update_pkt @% "fst")
+                          (#exec_context_pkt @% "fst");
+                   LETA disp6
+                     <- Sys ((DispString _ "\033[32;1m Inc PC\033[0m\n") :: nil) Retv;
+                   Write ^"pc"
+                     :  VAddr
+                     <- (let opt_val1
+                          :  Maybe (RoutedReg Xlen_over_8) @# _
+                          := #exec_update_pkt @% "fst" @% "val1" in
+                        let opt_val2
+                          :  Maybe (RoutedReg Xlen_over_8) @# _
+                          := #exec_update_pkt @% "fst" @% "val2" in
+                        ITE
+                          ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
+                          ((opt_val1 @% "data") @% "data")
+                          (ITE
+                            ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
+                            ((opt_val2 @% "data") @% "data")
+                            (ITE
+                              (#exec_context_pkt @% "fst" @% "compressed?")
+                              (#pc + $16)
+                              (#pc + $32))));
+                   Retv
          }.
 
     Local Close Scope kami_expr.
