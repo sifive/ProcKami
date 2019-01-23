@@ -1,4 +1,6 @@
 Require Import Kami.All FU FuInputTrans Decoder RegReader Executor MemGenerator Fetch.
+Require Import List.
+Import ListNotations.
 
 Section Params.
   Variable name: string.
@@ -11,8 +13,10 @@ Section Params.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Array Xlen_over_8 Bool).
 
+  Let PktWithException := Fetch.PktWithException Xlen_over_8.
+  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
+
   Local Notation FullException := (Fetch.FullException Xlen_over_8).
-  Local Notation FetchStruct := (Fetch.FetchStruct Xlen_over_8).
   Local Notation InstException := (Fetch.InstException Xlen_over_8).
   
   Definition RegWrite := STRUCT {
@@ -94,19 +98,19 @@ Section Params.
 
     Let decoder_pkt_kind
       := fun ty
-           => PktWithException Xlen_over_8 (@decoder_pkt_kind Xlen_over_8 ty func_units).
+           => PktWithException (@decoder_pkt_kind Xlen_over_8 ty func_units).
     Arguments decoder_pkt_kind {ty}.
 
     Let exec_context_pkt_kind
-      := PktWithException Xlen_over_8 (ExecContextPkt Xlen_over_8).
+      := PktWithException (ExecContextPkt Xlen_over_8).
 
     Let trans_pkt_kind
       := fun ty
-           => PktWithException Xlen_over_8 (@trans_pkt_kind Xlen_over_8 ty func_units).
+           => PktWithException (@trans_pkt_kind Xlen_over_8 ty func_units).
     Arguments trans_pkt_kind {ty}.
 
     Let exec_update_pkt_kind
-      := PktWithException Xlen_over_8 (ExecContextUpdPkt Xlen_over_8).
+      := PktWithException (ExecContextUpdPkt Xlen_over_8).
 
     Variable PrivMode : forall ty, PrivMode @# ty.
     Arguments PrivMode {ty}.
@@ -114,6 +118,7 @@ Section Params.
     Variable extensions : forall ty, Extensions @# ty.
     Arguments extensions {ty}.
 
+    Local Open Scope list.
     Definition pipeline 
       :  BaseModule
       := 
@@ -127,13 +132,28 @@ Section Params.
                    Read pc : VAddr <- ^"pc";
                    LETA disp0
                      <- Sys
-                          ((DispString _ "\033[32;1m Fetch\033[0m\n") ::
-                           (DispBit (#pc) (32, Decimal)) ::
-                            nil)
+                          [
+                            DispString _ "\033[32;1m Fetch\033[0m\n";
+                            DispString _ "  Address: ";
+                            DispBit (#pc) (32, Decimal);
+                            DispString _ "\n"
+                          ]
                           Retv;
                    LETA fetch_pkt
-                     :  FetchStruct
+                     :  PktWithException FetchPkt
                      <- fetch Xlen_over_8 (#pc);
+                   LETA fetch_msg
+                     <- Sys
+                          [
+                             DispString _ "Fetched\n";
+                             DispString _ "  Inst: ";
+                             DispBit (#fetch_pkt @% "fst" @% "inst") (32, Binary);
+                             DispString _ "\n";
+                             DispString _ "  Exception: ";
+                             DispBool (#fetch_pkt @% "snd" @% "valid") (1, Binary);
+                             DispString _ "\n"
+                          ]
+                          Retv;
                    LETA disp1
                      <- Sys ((DispString _ "\033[32;1m Decoder\033[0m\n") :: nil) Retv;
                    LETA decoder_pkt
@@ -141,8 +161,26 @@ Section Params.
                      <- convertLetExprSyntax_ActionT
                           (decoderWithException func_units extensions PrivMode
                             (RetE (#fetch_pkt)));
+                   LETA decoder_msg
+                     <- Sys
+                          [
+                             DispString _ "Decode Pkt\n";
+                             DispString _ "  func unit id: ";
+                             DispBit (#decoder_pkt @% "fst" @% "FuncUnitTag") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  inst id: ";
+                             DispBit (#decoder_pkt @% "fst" @% "InstTag") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  compressed: ";
+                             DispBool (#decoder_pkt @% "fst" @% "compressed?") (1, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  Exception: ";
+                             DispBool (#decoder_pkt @% "snd" @% "valid") (1, Binary);
+                             DispString _ "\n"
+                          ]
+                          Retv;
                    LETA disp2
-                     <- Sys ((DispString _ "\033[32;1m Exec\033[0m\n") :: nil) Retv;
+                     <- Sys ((DispString _ "\033[32;1m Reg Read\033[0m\n") :: nil) Retv;
                    LETA exec_context_pkt
                      :  exec_context_pkt_kind
                      <- readerWithException
@@ -160,6 +198,21 @@ Section Params.
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
                           (#decoder_pkt);
+                   LETA reader_msg
+                     <- Sys
+                          [
+                             DispString _ "Reg Vals\n";
+                             DispString _ "  reg1: ";
+                             DispBit (#exec_context_pkt @% "fst" @% "reg1") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  reg2: ";
+                             DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  Exception: ";
+                             DispBool (#exec_context_pkt @% "snd" @% "valid") (1, Binary);
+                             DispString _ "\n"
+                          ]
+                          Retv;
                    LETA disp3
                      <- Sys ((DispString _ "\033[32;1m Trans\033[0m\n") :: nil) Retv;
                    LETA trans_pkt
@@ -174,6 +227,30 @@ Section Params.
                      :  exec_update_pkt_kind
                      <- convertLetExprSyntax_ActionT
                           (execWithException (#trans_pkt));
+                   LETA exec_msg
+                     <- Sys
+                          [
+                             DispString _ "New Reg Vals\n";
+                             DispString _ "  PC tag: ";
+                             DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  val1: ";
+                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  val1 tag: ";
+                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  val2: ";
+                             DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  val2 tag: ";
+                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                             DispString _ "\n";
+                             DispString _ "  Exception: ";
+                             DispBool (#exec_update_pkt @% "snd" @% "valid") (1, Binary);
+                             DispString _ "\n"
+                          ]
+                          Retv;
                    LETA disp5
                      <- Sys ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil) Retv;
                    LETA mem_pkt
@@ -219,6 +296,7 @@ Section Params.
                               (#pc + $32))));
                    Retv
          }.
+    Local Close Scope list.
 
     Local Close Scope kami_expr.
     Local Close Scope kami_action.

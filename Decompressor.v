@@ -29,8 +29,6 @@ Let PktWithException := Fetch.PktWithException Xlen_over_8.
 
 Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
 
-Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
-
 Let comp_inst_db := CompressedInsts.comp_inst_db ty.
 
 Definition opt_uncomp_inst_kind : Kind := Maybe uncomp_inst_kind.

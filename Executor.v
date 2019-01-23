@@ -26,10 +26,6 @@ Section executor.
 
   Let PktWithException := Fetch.PktWithException Xlen_over_8.
 
-  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
-
-  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
-
   Let func_unit_type
     :  Type
     := @FUEntry Xlen_over_8 ty.

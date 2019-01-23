@@ -56,7 +56,7 @@ Let exts
   :  forall ty, Extensions @# ty
   := fun _
        => STRUCT {
-            "RV32I"    ::= $$(false);
+            "RV32I"    ::= $$(true);
             "RV64I"    ::= $$(false);
             "Zifencei" ::= $$(false);
             "Zicsr"    ::= $$(false);

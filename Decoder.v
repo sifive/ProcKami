@@ -30,8 +30,6 @@ Section decoder.
 
   Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
 
-  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
-
   Section Ty.
     Variable ty : Kind -> Type.
 
@@ -230,16 +228,15 @@ Section decoder.
                  (raw_inst : uncomp_inst_kind @# ty)
         :  Bool ## ty
         := LETE inst_id_match : Bool
-                                  <- decode_match_fields raw_inst (uniqId inst);
-             LETE exts_match : Bool
-                                 <- decode_match_enabled_exts inst exts_pkt;
-             RetE
-               ((#inst_id_match) && (#exts_match)).
+             <- decode_match_fields raw_inst (uniqId inst);
+           LETE exts_match : Bool
+             <- decode_match_enabled_exts inst exts_pkt;
+           RetE ((#inst_id_match) && (#exts_match)).
 
       (*
-  Accepts a 32 bit string that represents an uncompressed RISC-V
-  instruction and decodes it.
-       *)
+        Accepts a 32 bit string that represents an uncompressed RISC-V
+        instruction and decodes it.
+      *)
       Definition decode 
                  (exts_pkt : Extensions @# ty)
                  (raw_inst : uncomp_inst_kind @# ty)
@@ -248,53 +245,53 @@ Section decoder.
              (fun (sem_in_kind sem_out_kind : Kind)
                   (inst : tagged_inst_type sem_in_kind sem_out_kind)
                   (func_unit_id : nat)
-              => RetE
-                   (STRUCT {
-                        "FuncUnitTag" ::= func_unit_id_encode func_unit_id;
-                        "InstTag"     ::= inst_id_encode (tagged_inst_id inst)
-                      } : int_decoder_pkt_kind @# ty))
+               => RetE
+                    (STRUCT {
+                         "FuncUnitTag" ::= func_unit_id_encode func_unit_id;
+                         "InstTag"     ::= inst_id_encode (tagged_inst_id inst)
+                       } : int_decoder_pkt_kind @# ty))
              (fun (sem_in_kind sem_out_kind : Kind)
                   (inst : tagged_inst_type sem_in_kind sem_out_kind)
                   (func_unit_id : nat)
-              => decode_match_inst (detag_inst inst) exts_pkt raw_inst).
+               => decode_match_inst (detag_inst inst) exts_pkt raw_inst).
       
       (*
-  Accepts a 32 bit string whose prefix may encode a compressed RISC-V
-  instruction. If the prefix encodes a compressed instruction, this
-  function decompresses it using the decompressor and decodes the
-  result. Otherwise, it attempts to decode the full 32 bit string.
-       *)
+        Accepts a 32 bit string whose prefix may encode a compressed RISC-V
+        instruction. If the prefix encodes a compressed instruction, this
+        function decompresses it using the decompressor and decodes the
+        result. Otherwise, it attempts to decode the full 32 bit string.
+      *)
       Definition decode_bstring
                  (comp_inst_db : list CompInst)
                  (exts_pkt : Extensions @# ty)
                  (bit_string : Bit uncomp_inst_width @# ty)
         :  Maybe int_decoder_pkt_kind ## ty
         := let prefix
-               :  Bit comp_inst_width @# ty
-               := bit_string $[15:0] in
+             :  Bit comp_inst_width @# ty
+             := bit_string $[15:0] in
            LETE opt_uncomp_inst
-           :  opt_uncomp_inst_kind
-                <- uncompress comp_inst_db exts_pkt prefix;
-             (decode exts_pkt
-                     (ITE ((#opt_uncomp_inst) @% "valid")
-                          ((#opt_uncomp_inst) @% "data")
-                          bit_string)).
+             :  opt_uncomp_inst_kind
+             <- uncompress comp_inst_db exts_pkt prefix;
+           (decode exts_pkt
+             (ITE ((#opt_uncomp_inst) @% "valid")
+                  ((#opt_uncomp_inst) @% "data")
+                  bit_string)).
       
       (*
-  Returns true iff the given 32 bit string starts with an
-  uncompressed instruction prefix.
-       *)
+        Returns true iff the given 32 bit string starts with an
+        uncompressed instruction prefix.
+      *)
       Definition decode_uncompressed
                  (bit_string : Bit uncomp_inst_width @# ty)
         :  Bool @# ty
         := (bit_string $[1:0] == $$(('b"11") : word 2)).
 
       (*
-  Accepts a fetch packet and decodes the RISC-V instruction encoded
-  by the 32 bit string contained within the fetch packet.
+        Accepts a fetch packet and decodes the RISC-V instruction encoded
+        by the 32 bit string contained within the fetch packet.
 
-  TODO: Set the exception flags.
-       *)
+        TODO: Set the exception flags.
+      *)
       Definition decode_full
                  (comp_inst_db : list CompInst)
                  (exts_pkt : Extensions @# ty)
@@ -323,24 +320,26 @@ Section decoder.
       Definition decoderWithException
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
-                 (fetch_struct : FetchStruct ## ty): PktWithException decoder_pkt_kind ## ty :=
-        LETE fetch <- fetch_struct;
-          let decoded := decoder exts_pkt mode (#fetch @% "fst") in
-          LETE dec <- decoded;
-          RetE
-            (mkPktWithException 
-              (#fetch)
-              (STRUCT {
-                         "fst" ::= #dec @% "data" ;
-                         "snd" ::= 
-                           (IF #dec @% "valid"
-                            then @Invalid ty FullException
-                            else Valid (STRUCT {
-                                            "exception" ::= (($IllegalInst):
-                                                               Exception @# ty) ;
-                                            "value" ::= $$ (getDefaultConst
-                                                              ExceptionInfo)
-              })) } : PktWithException decoder_pkt_kind @# ty)).
+                 (fetch_struct : PktWithException FetchPkt ## ty): PktWithException decoder_pkt_kind ## ty
+      := LETE fetch
+           :  PktWithException FetchPkt
+           <- fetch_struct;
+         LETE decoder_pkt
+           :  Maybe decoder_pkt_kind
+           <- decoder exts_pkt mode (#fetch @% "fst");
+         RetE
+           (mkPktWithException 
+             (#fetch)
+             (STRUCT {
+                 "fst" ::= #decoder_pkt @% "data" ;
+                 "snd"
+                   ::= IF #decoder_pkt @% "valid"
+                         then @Invalid ty FullException
+                         else Valid (STRUCT {
+                                  "exception" ::= (($IllegalInst): Exception @# ty);
+                                  "value"     ::= $$(getDefaultConst ExceptionInfo)
+                                })
+               } : PktWithException decoder_pkt_kind @# ty)).
       
       Local Close Scope kami_expr.
     End func_units.

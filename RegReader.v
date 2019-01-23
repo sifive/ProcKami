@@ -32,10 +32,6 @@ Section reg_reader.
 
   Let PktWithException := Fetch.PktWithException Xlen_over_8.
 
-  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
-
-  Let FetchStruct := Fetch.FetchStruct Xlen_over_8.
-
   Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
 
   Let Xlen : nat := 8 * Xlen_over_8.
