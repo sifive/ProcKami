@@ -5,6 +5,7 @@
 `include "Processor.sv"
 `include "Memory32.sv"
 `include "Register32.sv"
+`include "CSRRegister.sv"
 
 module system(
   input CLK,
@@ -68,6 +69,21 @@ wire logic proc_core_regWrite_enable_req;
 wire logic proc_core_fregWrite_enable_req;
 wire logic proc_core_csrWrite_enable_req;
 
+// CSR read wires.
+
+wire logic read_csr_en_req;
+wire logic [11:0] read_csr_sel_req;
+wire logic [31:0] read_csr_data_res;
+
+// CSR write wires.
+
+wire logic write_csr_en_req;
+wire logic [11:0] write_csr_sel_req;
+wire logic [31:0] write_csr_data_req;
+
+wire logic write_fcsr_en_req;
+wire logic [31:0] write_fcsr_data_req;
+
 // Memory wires
 
 wire logic[31:0] memRead_address_req;
@@ -103,30 +119,36 @@ top system (
   .read_freg_1$_return(read_freg_1_res),
   .read_freg_2$_return(read_freg_2_res),
   .read_freg_3$_return(read_freg_3_res),
+  .read_csr$_return(read_csr_data_res),
   .memRead$_return(memRead_res),
   .memWrite$_return(memWrite_res),
+
   .fetch$_argument(fetch_address_req),
   .read_reg_1$_argument(read_reg_1_id_req),
   .read_reg_2$_argument(read_reg_2_id_req),
   .read_freg_1$_argument(read_freg_1_id_req),
   .read_freg_2$_argument(read_freg_2_id_req),
   .read_freg_3$_argument(read_freg_3_id_req),
+  .read_csr$_argument(read_csr_sel_req),
   .memRead$_argument(memRead_address_req),
   .memWrite$_argument(memWrite_req),
   .proc_core_regWrite$_argument(proc_core_regWrite_req),
   .proc_core_fregWrite$_argument(proc_core_fregWrite_req),
   .proc_core_csrWrite$_argument(proc_core_csrWrite_req),
+  .proc_core_fcsrWrite$_argument(write_fcsr_data_req),
   .fetch$_enable(fetch_enable),
   .read_reg_1$_enable(read_reg_1_enable_req),
   .read_reg_2$_enable(read_reg_2_enable_req),
   .read_freg_1$_enable(read_freg_1_enable_req),
   .read_freg_2$_enable(read_freg_2_enable_req),
   .read_freg_3$_enable(read_freg_3_enable_req),
+  .read_csr$_enable(read_csr_en_req),
   .memRead$_enable(memRead_enable_req),
   .memWrite$_enable(memWrite_enable_req),
   .proc_core_regWrite$_enable(proc_core_regWrite_enable_req),
   .proc_core_fregWrite$_enable(proc_core_fregWrite_enable_req),
   .proc_core_csrWrite$_enable(proc_core_csrWrite_enable_req),
+  .proc_core_fcsrWrite$_enable(write_fcsr_en_req),
   .CLK(CLK),
   .RESET(RESET)
 );
@@ -184,6 +206,19 @@ register32 fp_registers (
   .out_read_data_0 (read_reg_1_res),
   .out_read_data_1 (read_reg_2_res),
   .out_read_data_2 (read_reg_2_res)
+);
+
+csr_register csr_registers (
+  .CLK (CLK),
+  .RESET (RESET),
+  .in_read_csr_enable (read_csr_en_req),
+  .in_write_csr_enable (write_csr_en_req),
+  .in_write_fcsr_enable (write_fcsr_en_req),
+  .in_read_csr_select (read_csr_sel_req),
+  .in_write_csr_select (write_csr_sel_req),
+  .in_write_csr_data (write_csr_data_req),
+  .in_write_fcsr_data (write_fcsr_data_req),
+  .out_read_csr_data (read_csr_data_res)
 );
 
 endmodule

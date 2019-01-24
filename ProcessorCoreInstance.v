@@ -72,7 +72,7 @@ Let exts
             "RV64F"    ::= $$(false);
             "RV32D"    ::= $$(false);
             "RV64D"    ::= $$(false);
-            "RV32C"    ::= $$(false);
+            "RV32C"    ::= $$(true);
             "RV64C"    ::= $$(false)
           }%kami_expr.
 
