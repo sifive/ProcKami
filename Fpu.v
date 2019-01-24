@@ -209,7 +209,7 @@ Let muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
                       "data" ::= from_kami_float (#sem_out_pkt @% "out")
                     });
          "val2" ::= Valid (STRUCT {
-                      "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                      "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                       "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Xlen @# ty)
                     });
          "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
@@ -251,7 +251,7 @@ Definition float_int_out (sem_out_pkt_expr : float_int_out_pkt_kind ## ty)
                      });
          "val2"
            ::= Valid (STRUCT {
-                       "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                        "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Xlen @# ty))
                      });
          "memBitMask"
@@ -279,7 +279,7 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
                      });
          "val2"
            ::= Valid (STRUCT {
-                       "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                        "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Xlen @# ty)) 
                      });
          "memBitMask"
@@ -314,7 +314,7 @@ Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out
          (* TODO: determine conditions for signalling an invalid instruction exception *)
          "val2"
            ::= Valid (STRUCT {
-                 "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                 "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                  "data" ::= (csr (#cmp_out_pkt @% "exceptionFlags"))
                });
          "memBitMask"
@@ -353,7 +353,7 @@ Let fdiv_sqrt_out_pkt (sem_out_pkt_expr : fdiv_sqrt_out_pkt_kind ## ty)
                });
          "val2"
            ::= Valid (STRUCT {
-                 "tag"  ::= Const ty (natToWord RoutingTagSz CsrTag);
+                 "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                  "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Xlen @# ty)
                });
          "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));

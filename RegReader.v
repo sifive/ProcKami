@@ -241,7 +241,6 @@ Section reg_reader.
                        (((#exec_context_pkt) @% "instMisalignedException?") ||
                         ((#exec_context_pkt) @% "memMisalignedException?") ||
                         ((#exec_context_pkt) @% "accessException?"))
-                       (@Invalid ty FullException)
                        (Valid
                          (STRUCT {
                            "exception"
@@ -263,6 +262,7 @@ Section reg_reader.
                                    nil);
                            "value"     ::= $$(getDefaultConst ExceptionInfo)
                          } : FullException @# ty))
+                       (@Invalid ty FullException)
              } : PktWithException exec_context_pkt_kind @# ty)).
 
   End func_units.

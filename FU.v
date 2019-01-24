@@ -88,6 +88,7 @@ Section Params.
     Local Close Scope kami_expr.
   End Fields.
 
+  (* TODO: Verify *)
   Definition csr_value_width : nat := 32.
 
   Definition csr_value_kind : Kind := Bit csr_value_width.
@@ -105,9 +106,11 @@ Section Params.
              "mode"                     :: PrivMode ;
              "compressed?"              :: Bool }.
 
-  Definition RoutingTagSz := 3.
+  Definition RoutingTagSz := 4.
   Definition RoutingTag := Bit RoutingTagSz.
 
+  (* TODO: add floating point CSR tag and update the reg writer and FPU instrs to write to the FP CSR. *)
+  (* NOTE: the CSRTag here refers to the Zicsr extension CSR registers. *)
   Definition PcTag := 0.
   Definition IntRegTag := 1.
   Definition FloatRegTag := 2.
@@ -115,6 +118,7 @@ Section Params.
   Definition MemDataTag := 4.
   Definition MemAddrTag := 5.
   Definition FflagsTag := 6.
+  Definition FloatCsrTag := 7.
 
   Definition RoutedReg := STRUCT { "tag" :: RoutingTag ; "data" :: Data }.
 
