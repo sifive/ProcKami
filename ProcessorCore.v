@@ -64,62 +64,55 @@ Section Params.
          MODULE {
               Register ^"pc" : VAddr <- getDefaultConst VAddr with
               Rule ^"pipeline"
-                := LETA disp0
-                     <- Sys
-                          ((DispString _ "\033[32;1m Start\033[0m\n") :: nil)
-                          Retv;
+                := System
+                     ((DispString _ "\033[32;1m Start\033[0m\n") :: nil);
                    Read pc : VAddr <- ^"pc";
-                   LETA disp0
-                     <- Sys
-                          [
-                            DispString _ "\033[32;1m Fetch\033[0m\n";
-                            DispString _ "  Address: ";
-                            DispBit (#pc) (32, Decimal);
-                            DispString _ "\n"
-                          ]
-                          Retv;
+                   System
+                     [
+                       DispString _ "\033[32;1m Fetch\033[0m\n";
+                         DispString _ "  Address:\t";
+                         DispBit (#pc) (32, Hex);
+                         DispString _ "\n"
+                     ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
                      <- fetch Xlen_over_8 (#pc);
-                   LETA fetch_msg
-                     <- Sys
-                          [
-                             DispString _ "Fetched\n";
-                             DispString _ "  Inst: ";
-                             DispBit (#fetch_pkt @% "fst" @% "inst") (32, Binary);
-                             DispString _ "\n";
-                             DispString _ "  Exception: ";
-                             DispBool (#fetch_pkt @% "snd" @% "valid") (1, Binary);
-                             DispString _ "\n"
-                          ]
-                          Retv;
-                   LETA disp1
-                     <- Sys ((DispString _ "\033[32;1m Decoder\033[0m\n") :: nil) Retv;
+                   System
+                     [
+                       DispString _ "Fetched\n";
+                         DispString _ "  Inst:\t";
+                         DispBit (#fetch_pkt @% "fst" @% "inst") (32, Binary);
+                         DispString _ "\n";
+                         DispString _ "  InstHex:\t";
+                         DispBit (#fetch_pkt @% "fst" @% "inst") (32, Hex);
+                         DispString _ "\n";
+                         DispString _ "  Exception:\t";
+                         DispBool (#fetch_pkt @% "snd" @% "valid") (32, Binary);
+                         DispString _ "\n"
+                     ];
+                   System ((DispString _ "\033[32;1m Decoder\033[0m\n") :: nil);
                    LETA decoder_pkt
                      :  decoder_pkt_kind
                      <- convertLetExprSyntax_ActionT
                           (decoderWithException func_units extensions PrivMode
                             (RetE (#fetch_pkt)));
-                   LETA decoder_msg
-                     <- Sys
-                          [
-                             DispString _ "Decode Pkt\n";
-                             DispString _ "  func unit id: ";
-                             DispBit (#decoder_pkt @% "fst" @% "FuncUnitTag") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  inst id: ";
-                             DispBit (#decoder_pkt @% "fst" @% "InstTag") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  compressed: ";
-                             DispBool (#decoder_pkt @% "fst" @% "compressed?") (1, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  Exception: ";
-                             DispBool (#decoder_pkt @% "snd" @% "valid") (1, Binary);
-                             DispString _ "\n"
-                          ]
-                          Retv;
-                   LETA disp2
-                     <- Sys ((DispString _ "\033[32;1m Reg Read\033[0m\n") :: nil) Retv;
+                   System
+                     [
+                       DispString _ "Decode Pkt\n";
+                         DispString _ "  func unit id:\t";
+                         DispBit (#decoder_pkt @% "fst" @% "FuncUnitTag") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  inst id:\t";
+                         DispBit (#decoder_pkt @% "fst" @% "InstTag") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  compressed:\t";
+                         DispBool (#decoder_pkt @% "fst" @% "compressed?") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  Exception:\t";
+                         DispBool (#decoder_pkt @% "snd" @% "valid") (32, Binary);
+                         DispString _ "\n"
+                     ];
+                   System ((DispString _ "\033[32;1m Reg Read\033[0m\n") :: nil);
                    LETA exec_context_pkt
                      :  exec_context_pkt_kind
                      <- readerWithException
@@ -137,62 +130,55 @@ Section Params.
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
                           (#decoder_pkt);
-                   LETA reader_msg
-                     <- Sys
-                          [
-                             DispString _ "Reg Vals\n";
-                             DispString _ "  reg1: ";
-                             DispBit (#exec_context_pkt @% "fst" @% "reg1") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  reg2: ";
-                             DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  Exception: ";
-                             DispBool (#exec_context_pkt @% "snd" @% "valid") (1, Binary);
-                             DispString _ "\n"
-                          ]
-                          Retv;
-                   LETA disp3
-                     <- Sys ((DispString _ "\033[32;1m Trans\033[0m\n") :: nil) Retv;
+                   System
+                     [
+                       DispString _ "Reg Vals\n";
+                         DispString _ "  reg1:\t\t";
+                         DispBit (#exec_context_pkt @% "fst" @% "reg1") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  reg2:\t\t";
+                         DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  Exception:\t";
+                         DispBool (#exec_context_pkt @% "snd" @% "valid") (32, Binary);
+                         DispString _ "\n"
+                     ];
+                   System ((DispString _ "\033[32;1m Trans\033[0m\n") :: nil);
                    LETA trans_pkt
                      :  trans_pkt_kind 
                      <- convertLetExprSyntax_ActionT
                           (transWithException
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
-                   LETA disp4
-                     <- Sys ((DispString _ "\033[32;1m RegWrite\033[0m\n") :: nil) Retv;
+                   System ((DispString _ "\033[32;1m RegWrite\033[0m\n") :: nil);
                    LETA exec_update_pkt
                      :  exec_update_pkt_kind
                      <- convertLetExprSyntax_ActionT
                           (execWithException (#trans_pkt));
-                   LETA exec_msg
-                     <- Sys
-                          [
-                             DispString _ "New Reg Vals\n";
-                             DispString _ "  PC tag: ";
-                             DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  val1: ";
-                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  val1 tag: ";
-                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  val2: ";
-                             DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  val2 tag: ";
-                             DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
-                             DispString _ "\n";
-                             DispString _ "  Exception: ";
-                             DispBool (#exec_update_pkt @% "snd" @% "valid") (1, Binary);
-                             DispString _ "\n"
-                          ]
-                          Retv;
+                   System
+                     [
+                       DispString _ "New Reg Vals\n";
+                         DispString _ "  PC tag:\t";
+                         DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  val1:\t\t";
+                         DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  val1 tag:\t";
+                         DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  val2:\t\t";
+                         DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  val2 tag:\t";
+                         DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                         DispString _ "\n";
+                         DispString _ "  Exception:\t";
+                         DispBool (#exec_update_pkt @% "snd" @% "valid") (32, Binary);
+                         DispString _ "\n"
+                     ];
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
-                   LETA disp5
-                     <- Sys ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil) Retv;
+                   System ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil);
                    LETA mem_pkt
                      :  MemRet Xlen_over_8
                      <- @fullMemAction
@@ -205,8 +191,7 @@ Section Params.
                             "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
                             "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
                           } : MemUnitInput Xlen_over_8 @# _);
-                   LETA disp6
-                     <- Sys ((DispString _ "\033[32;1m Reg Write\033[0m\n") :: nil) Retv;
+                   System ((DispString _ "\033[32;1m Reg Write\033[0m\n") :: nil);
                    LETA commit_pkt
                      :  Void
                      <- commit
@@ -215,8 +200,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           (#exec_update_pkt @% "fst")
                           (#exec_context_pkt @% "fst");
-                   LETA disp6
-                     <- Sys ((DispString _ "\033[32;1m Inc PC\033[0m\n") :: nil) Retv;
+                   System ((DispString _ "\033[32;1m Inc PC\033[0m\n") :: nil);
                    Write ^"pc"
                      :  VAddr
                      <- (let opt_val1
