@@ -169,7 +169,7 @@ Section Alu.
                                                                           "arg2" ::= #gcp @% "reg2"
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
-                                                               LETC result : Data <- #res @% "res" ;
+                                                               LETC result : Data <- #res @% "res";
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
@@ -289,7 +289,7 @@ Section Alu.
                                                       $$(natToWord 12 0)
                                                     >} in
                                                RetE ((STRUCT {
-                                                        "arg1" ::= SignExtendTruncLsb Xlen imm;
+                                                        "arg1" ::= ZeroExtendTruncLsb Xlen imm;
                                                         "arg2" ::= $0
                                                       }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
@@ -311,12 +311,13 @@ Section Alu.
                                                       $$(natToWord 12 0)
                                                     >} in
                                                     RetE ((STRUCT {
-                                                             "arg1" ::= SignExtendTruncLsb Xlen imm;
+                                                             "arg1" ::= ZeroExtendTruncLsb Xlen imm;
                                                              "arg2" ::= #gcp @% "pc"
                                                           }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: AddOutputType <- resultExpr;
-                                                               LETC result : Data <- #res @% "res" ;
-                                                               RetE (intRegTag #result)) ;
+                          outputXform  := (fun resultExpr
+                                            => LETE res: AddOutputType <- resultExpr;
+                                               LETC result : Data <- #res @% "res" ;
+                                               RetE (intRegTag #result)) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRd := true]
                        |} ::

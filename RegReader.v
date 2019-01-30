@@ -188,6 +188,15 @@ Section reg_reader.
              Call csr_value
                :  csr_value_kind
                <- "read_csr" (imm raw_instr : Bit 12);
+             System [
+               DispString _ "Read CSR Register\n";
+               DispString _ "  CSR ID: ";
+               DispBit (imm raw_instr) (32, Decimal);
+               DispString _ "\n";
+               DispString _ "  CSR Value: ";
+               DispBit (#csr_value) (32, Decimal);
+               DispString _ "\n"
+             ];
              Ret (Valid (#csr_value) : Maybe csr_value_kind @# ty)
            as csr_reader_pkt;
          Ret (#csr_reader_pkt).
@@ -206,6 +215,32 @@ Section reg_reader.
          LETA csr_val
            :  Maybe csr_value_kind
            <- reg_reader_read_csr raw_inst;
+         LETA msg <- Sys [
+             DispString _ "Reg 1 selector: ";
+             DispBit (rs1 raw_inst) (32, Decimal);
+             DispString _ "\n";
+             DispString _ "Reg 2 selector: ";
+             DispBit (rs2 raw_inst) (32, Decimal);
+             DispString _ "\n";
+             DispString _ "CSR selector: ";
+             DispBit (imm raw_inst) (12, Decimal);
+             DispString _ "\n";
+             DispString _ "has RS1: ";
+             DispBool (reg_reader_has_rs1 decoder_pkt) (1, Binary);
+             DispString _ "\n";
+             DispString _ "has FRS1: ";
+             DispBool (reg_reader_has_frs1 decoder_pkt) (1, Binary);
+             DispString _ "\n";
+             DispString _ "has RS2: ";
+             DispBool (reg_reader_has_rs2 decoder_pkt) (1, Binary);
+             DispString _ "\n";
+             DispString _ "has FRS2: ";
+             DispBool (reg_reader_has_frs2 decoder_pkt) (1, Binary);
+             DispString _ "\n";
+             DispString _ "has FRS3: ";
+             DispBool (reg_reader_has_frs3 decoder_pkt) (1, Binary);
+             DispString _ "\n"
+           ] Retv;
          Ret
            (STRUCT {
                 "pc"   ::= decoder_pkt @% "pc";

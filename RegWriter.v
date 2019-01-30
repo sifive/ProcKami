@@ -4,6 +4,8 @@
   computation.
 *)
 Require Import Kami.All FU FuInputTrans Decoder RegReader Executor MemGenerator Fetch.
+Require Import List.
+Import ListNotations.
 
 Section reg_writer.
   Variable name: string.
@@ -54,7 +56,7 @@ Section reg_writer.
        LET write2Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
                                           "data" ::= #val2_data };
        LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
-                                         "data" ::= #val2_data };
+                                         "data" ::= #val1_data };
        (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
        If (!(cxt @% "exception" @% "valid"))
        then (
@@ -62,12 +64,28 @@ Section reg_writer.
          then 
              (If (#val1_pos == $IntRegTag)
               then (If (#write1Pkt @% "index" != $0)
-                    then (Call ^"regWrite"(#write1Pkt: _); Retv);
+                    then (Call ^"regWrite"(#write1Pkt: _);
+                          System [
+                            DispString _ " Reg Write Wrote ";
+                            DispBit (#write2Pkt @% "data") (32, Decimal);
+                            DispString _ " to register ";
+                            DispBit (#write2Pkt @% "index") (32, Decimal);
+                            DispString _ "\n"
+                          ]%list;
+                          Retv);
                     Retv)
               else (If (#val1_pos == $FloatRegTag)
                     then Call ^"fregWrite"(#write1Pkt: _); Retv
                     else (If (#val1_pos == $CsrTag)
-                          then Call ^"csrWrite"(#writeCsr: _); Retv
+                          then Call ^"csrWrite"(#writeCsr: _);
+                               System [
+                                 DispString _ " Reg Write Wrote ";
+                                 DispBit (#writeCsr @% "data") (32, Decimal);
+                                 DispString _ " to CSR ";
+                                 DispBit (#writeCsr @% "index") (32, Decimal);
+                                 DispString _ "\n"
+                               ]%list;
+                               Retv
                           else (If (#val1_pos == $FflagsTag)
                                 then Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv
                                 else (If (#val1_pos == $FloatCsrTag)
@@ -81,12 +99,28 @@ Section reg_writer.
          then
              (If (#val2_pos == $IntRegTag)
               then (If (#write2Pkt @% "index" != $0)
-                    then (Call ^"regWrite"(#write2Pkt: _); Retv);
+                    then (Call ^"regWrite"(#write2Pkt: _);
+                          System [
+                            DispString _ " Reg Write Wrote ";
+                            DispBit (#write2Pkt @% "data") (32, Decimal);
+                            DispString _ " to register ";
+                            DispBit (#write2Pkt @% "index") (32, Decimal);
+                            DispString _ "\n"
+                          ]%list;
+                          Retv);
                     Retv)
               else (If (#val2_pos == $FloatRegTag)
                     then Call ^"fregWrite"(#write2Pkt: _); Retv
                     else (If (#val2_pos == $CsrTag)
-                          then Call ^"csrWrite"(#writeCsr: _); Retv
+                          then Call ^"csrWrite"(#writeCsr: _);
+                               System [
+                                 DispString _ " Reg Write Wrote ";
+                                 DispBit (#writeCsr @% "data") (32, Decimal);
+                                 DispString _ " to CSR ";
+                                 DispBit (#writeCsr @% "index") (32, Decimal);
+                                 DispString _ "\n"
+                               ]%list;
+                               Retv
                           else (If (#val2_pos == $FflagsTag)
                                 then Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv
                                 else (If (#val2_pos == $FloatCsrTag)

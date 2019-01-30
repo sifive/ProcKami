@@ -98,7 +98,7 @@ Definition Zicsr : @FUEntry Xlen_over_8 ty
                               } : sem_in_pkt_kind @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints[[hasRd := true]][[isCsr := true]]
+                instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
               |};
               {|
                 instName   := "csrrs";
@@ -129,7 +129,7 @@ Definition Zicsr : @FUEntry Xlen_over_8 ty
                               } : sem_in_pkt_kind @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints[[hasRd := true]][[isCsr := true]]
+                instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
               |};
               {|
                 instName   := "csrrc";
@@ -161,7 +161,7 @@ Definition Zicsr : @FUEntry Xlen_over_8 ty
                               } : sem_in_pkt_kind @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints[[hasRd := true]][[isCsr := true]]
+                instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
               |};
               {|
                 instName   := "csrrwi";

@@ -65,11 +65,11 @@ Section Params.
               Register ^"pc" : VAddr <- getDefaultConst VAddr with
               Rule ^"pipeline"
                 := System
-                     ((DispString _ "\033[32;1m Start\033[0m\n") :: nil);
+                     ((DispString _ "Start\n") :: nil);
                    Read pc : VAddr <- ^"pc";
                    System
                      [
-                       DispString _ "\033[32;1m Fetch\033[0m\n";
+                       DispString _ "Fetch\n";
                          DispString _ "  Address:\t";
                          DispBit (#pc) (32, Hex);
                          DispString _ "\n"
@@ -90,7 +90,7 @@ Section Params.
                          DispBool (#fetch_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
-                   System ((DispString _ "\033[32;1m Decoder\033[0m\n") :: nil);
+                   System ((DispString _ "Decoder\n") :: nil);
                    LETA decoder_pkt
                      :  decoder_pkt_kind
                      <- convertLetExprSyntax_ActionT
@@ -112,7 +112,7 @@ Section Params.
                          DispBool (#decoder_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
-                   System ((DispString _ "\033[32;1m Reg Read\033[0m\n") :: nil);
+                   System ((DispString _ "Reg Read\n") :: nil);
                    LETA exec_context_pkt
                      :  exec_context_pkt_kind
                      <- readerWithException
@@ -139,18 +139,24 @@ Section Params.
                          DispString _ "  reg2:\t\t";
                          DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
                          DispString _ "\n";
+                         DispString _ "  csr:\t\t";
+                         DispBit (#exec_context_pkt @% "fst" @% "csr" @% "data") (32, Decimal); 
+                         DispString _ "\n";
+                         DispString _ "  csr valid?:\t\t";
+                         DispBool (#exec_context_pkt @% "fst" @% "csr" @% "valid") (1, Binary); 
+                         DispString _ "\n";
                          DispString _ "  Exception:\t";
                          DispBool (#exec_context_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
-                   System ((DispString _ "\033[32;1m Trans\033[0m\n") :: nil);
+                   System ((DispString _ "Trans\n") :: nil);
                    LETA trans_pkt
                      :  trans_pkt_kind 
                      <- convertLetExprSyntax_ActionT
                           (transWithException
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
-                   System ((DispString _ "\033[32;1m RegWrite\033[0m\n") :: nil);
+                   System ((DispString _ "RegWrite\n") :: nil);
                    LETA exec_update_pkt
                      :  exec_update_pkt_kind
                      <- convertLetExprSyntax_ActionT
@@ -178,7 +184,7 @@ Section Params.
                          DispString _ "\n"
                      ];
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
-                   System ((DispString _ "\033[32;1m Mem\033[0m\n") :: nil);
+                   System ((DispString _ "Mem\n") :: nil);
                    LETA mem_pkt
                      :  MemRet Xlen_over_8
                      <- @fullMemAction
@@ -191,7 +197,7 @@ Section Params.
                             "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
                             "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
                           } : MemUnitInput Xlen_over_8 @# _);
-                   System ((DispString _ "\033[32;1m Reg Write\033[0m\n") :: nil);
+                   System ((DispString _ "Reg Write\n") :: nil);
                    LETA commit_pkt
                      :  Void
                      <- commit
@@ -200,7 +206,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           (#exec_update_pkt @% "fst")
                           (#exec_context_pkt @% "fst");
-                   System ((DispString _ "\033[32;1m Inc PC\033[0m\n") :: nil);
+                   System ((DispString _ "Inc PC\n") :: nil);
                    Write ^"pc"
                      :  VAddr
                      <- (let opt_val1

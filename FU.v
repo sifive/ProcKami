@@ -120,7 +120,11 @@ Section Params.
   Definition FflagsTag := 6.
   Definition FloatCsrTag := 7.
 
-  Definition RoutedReg := STRUCT { "tag" :: RoutingTag ; "data" :: Data }.
+  Definition RoutedReg
+    := STRUCT {
+         "tag"  :: RoutingTag;
+         "data" :: Data
+       }.
 
   Definition ExecContextUpdPkt :=
     STRUCT { "val1"       :: Maybe RoutedReg ;
