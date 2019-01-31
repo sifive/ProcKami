@@ -67,9 +67,9 @@ Section reg_writer.
                     then (Call ^"regWrite"(#write1Pkt: _);
                           System [
                             DispString _ " Reg Write Wrote ";
-                            DispBit (#write2Pkt @% "data") (32, Decimal);
+                            DispBit (#write1Pkt @% "data") (32, Decimal);
                             DispString _ " to register ";
-                            DispBit (#write2Pkt @% "index") (32, Decimal);
+                            DispBit (#write1Pkt @% "index") (32, Decimal);
                             DispString _ "\n"
                           ]%list;
                           Retv);
