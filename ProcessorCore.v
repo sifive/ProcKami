@@ -70,7 +70,7 @@ Section Params.
                    System
                      [
                        DispString _ "Fetch\n";
-                         DispString _ "  Address:\t";
+                         DispString _ "  Address: ";
                          DispBit (#pc) (32, Hex);
                          DispString _ "\n"
                      ];
@@ -80,13 +80,13 @@ Section Params.
                    System
                      [
                        DispString _ "Fetched\n";
-                         DispString _ "  Inst:\t";
+                         DispString _ "  Inst: ";
                          DispBit (#fetch_pkt @% "fst" @% "inst") (32, Binary);
                          DispString _ "\n";
-                         DispString _ "  InstHex:\t";
+                         DispString _ "  InstHex: ";
                          DispBit (#fetch_pkt @% "fst" @% "inst") (32, Hex);
                          DispString _ "\n";
-                         DispString _ "  Exception:\t";
+                         DispString _ "  Exception: ";
                          DispBool (#fetch_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
@@ -99,16 +99,16 @@ Section Params.
                    System
                      [
                        DispString _ "Decode Pkt\n";
-                         DispString _ "  func unit id:\t";
+                         DispString _ "  func unit id: ";
                          DispBit (#decoder_pkt @% "fst" @% "FuncUnitTag") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  inst id:\t";
+                         DispString _ "  inst id: ";
                          DispBit (#decoder_pkt @% "fst" @% "InstTag") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  compressed:\t";
+                         DispString _ "  compressed: ";
                          DispBool (#decoder_pkt @% "fst" @% "compressed?") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  Exception:\t";
+                         DispString _ "  Exception: ";
                          DispBool (#decoder_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
@@ -133,19 +133,19 @@ Section Params.
                    System
                      [
                        DispString _ "Reg Vals\n";
-                         DispString _ "  reg1:\t\t";
+                         DispString _ "  reg1: ";
                          DispBit (#exec_context_pkt @% "fst" @% "reg1") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  reg2:\t\t";
+                         DispString _ "  reg2: ";
                          DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  csr:\t\t";
+                         DispString _ "  csr: ";
                          DispBit (#exec_context_pkt @% "fst" @% "csr" @% "data") (32, Decimal); 
                          DispString _ "\n";
-                         DispString _ "  csr valid?:\t\t";
+                         DispString _ "  csr valid?: ";
                          DispBool (#exec_context_pkt @% "fst" @% "csr" @% "valid") (1, Binary); 
                          DispString _ "\n";
-                         DispString _ "  Exception:\t";
+                         DispString _ "  Exception: ";
                          DispBool (#exec_context_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
@@ -164,22 +164,22 @@ Section Params.
                    System
                      [
                        DispString _ "New Reg Vals\n";
-                         DispString _ "  PC tag:\t";
+                         DispString _ "  PC tag: ";
                          DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  val1:\t\t";
+                         DispString _ "  val1: ";
                          DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  val1 tag:\t";
+                         DispString _ "  val1 tag: ";
                          DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  val2:\t\t";
+                         DispString _ "  val2: ";
                          DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  val2 tag:\t";
+                         DispString _ "  val2 tag: ";
                          DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
                          DispString _ "\n";
-                         DispString _ "  Exception:\t";
+                         DispString _ "  Exception: ";
                          DispBool (#exec_update_pkt @% "snd" @% "valid") (32, Binary);
                          DispString _ "\n"
                      ];
