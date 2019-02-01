@@ -87,7 +87,11 @@ Section Alu.
       (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                             "data" ::= val }))]).
 
+    (* signed negation *)
     Definition neg (n : nat) (x : Bit n @# ty) := (~ x) + $1.
+
+    (* signed subtraction *)
+    Definition ssub (x y : Data @# ty) : Data @# ty := x + (neg y).
 
     (*
       forall a b : Z,  a  <  -b  <-> lt a b
@@ -774,10 +778,10 @@ Section Alu.
          fuFunc := (fun i => LETE x: BranchInputType <- i;
                                LETC a <- #x @% "reg1";
                                LETC b <- #x @% "reg2";
-                               LETC sub <- #a - #b;
-                               LETE lt_ltu <- lt_ltu_fn #a ($0-#b) #sub;
+                               LETC sub <- ssub #a #b;
+                               LETE lt_ltu <- lt_ltu_fn #a (neg #b) #sub;
                                LETC lt <- #lt_ltu @% "lt" ;
-                               LETC ltu <- #lt_ltu @% "ltu" ;
+                               LETC ltu : Bit 1 <- ITE (#a < #b) ($1) ($0); (* #lt_ltu @% "ltu" ; *)
                                
                                LETC taken: Bool <- (((#x @% "op" == $BeqOp) && (#sub == $0))
                                                     || ((#x @% "op" == $BneOp) && (#sub != $0))
@@ -1456,39 +1460,53 @@ Section lt_ltu_fn_tests.
 Notation "X ==? Y" := (evalLetExpr X = evalExpr Y) (at level 75).
 Notation "{{ X }}" := (eq_refl (evalLetExpr X)).
 
-Let f (x : Bit 3 @# type) (y : Bit 3 @# type)
+Let lt (x : Bit 3 @# type) (y : Bit 3 @# type)
   := LETE packet
        :  Lt_Ltu
        <- lt_ltu_fn x y (x + y);
      RetE 
        ((Var type (SyntaxKind Lt_Ltu) packet) @% "lt").
 
+Let ltu (x y : Bit 3 @# type)
+  := LETE packet
+       :  Lt_Ltu
+       <- lt_ltu_fn x y (x + y);
+     RetE 
+       ((Var type (SyntaxKind Lt_Ltu) packet) @% "ltu").
+
 (*
   x@[n] =  n
   y@[n] = -n
 *)
-Let test_0  : f (x@[0]) (y@[0]) ==? $0 := [[ $0 ]].
-Let test_1  : f (x@[0]) (y@[1]) ==? $1 := [[ $1 ]].
-Let test_2  : f (x@[0]) (y@[2]) ==? $1 := [[ $1 ]].
-Let test_3  : f (x@[0]) (y@[3]) ==? $1 := [[ $1 ]].
-Let test_4  : f (x@[1]) (y@[0]) ==? $0 := [[ $0 ]].
-Let test_5  : f (x@[1]) (y@[1]) ==? $0 := [[ $0 ]].
-Let test_6  : f (x@[1]) (y@[2]) ==? $1 := [[ $1 ]].
-Let test_7  : f (x@[1]) (y@[3]) ==? $1 := [[ $1 ]].
-Let test_8  : f (x@[2]) (y@[0]) ==? $0 := [[ $0 ]].
-Let test_9  : f (x@[2]) (y@[1]) ==? $0 := [[ $0 ]].
-Let test_10 : f (x@[2]) (y@[2]) ==? $0 := [[ $0 ]].
-Let test_11 : f (x@[2]) (y@[3]) ==? $1 := [[ $1 ]].
-Let test_12 : f (y@[0]) (x@[0]) ==? $0 := [[ $0 ]].
-Let test_13 : f (y@[0]) (x@[1]) ==? $0 := [[ $0 ]].
-Let test_14 : f (y@[0]) (x@[2]) ==? $0 := [[ $0 ]].
-Let test_15 : f (y@[1]) (x@[0]) ==? $1 := [[ $1 ]].
-Let test_16 : f (y@[1]) (x@[1]) ==? $0 := [[ $0 ]].
-Let test_17 : f (y@[1]) (x@[2]) ==? $0 := [[ $0 ]].
-Let test_18 : f (y@[2]) (x@[0]) ==? $1 := [[ $1 ]].
-Let test_19 : f (y@[2]) (x@[1]) ==? $1 := [[ $1 ]].
-Let test_20 : f (y@[2]) (x@[2]) ==? $0 := [[ $0 ]].
-
+Let test_0  : lt (x@[0]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_1  : lt (x@[0]) (y@[1]) ==? $1 := [[ $1 ]].
+Let test_2  : lt (x@[0]) (y@[2]) ==? $1 := [[ $1 ]].
+Let test_3  : lt (x@[0]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_4  : lt (x@[1]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_5  : lt (x@[1]) (y@[1]) ==? $0 := [[ $0 ]].
+Let test_6  : lt (x@[1]) (y@[2]) ==? $1 := [[ $1 ]].
+Let test_7  : lt (x@[1]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_8  : lt (x@[2]) (y@[0]) ==? $0 := [[ $0 ]].
+Let test_9  : lt (x@[2]) (y@[1]) ==? $0 := [[ $0 ]].
+Let test_10 : lt (x@[2]) (y@[2]) ==? $0 := [[ $0 ]].
+Let test_11 : lt (x@[2]) (y@[3]) ==? $1 := [[ $1 ]].
+Let test_12 : lt (y@[0]) (x@[0]) ==? $0 := [[ $0 ]].
+Let test_13 : lt (y@[0]) (x@[1]) ==? $0 := [[ $0 ]].
+Let test_14 : lt (y@[0]) (x@[2]) ==? $0 := [[ $0 ]].
+Let test_15 : lt (y@[1]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_16 : lt (y@[1]) (x@[1]) ==? $0 := [[ $0 ]].
+Let test_17 : lt (y@[1]) (x@[2]) ==? $0 := [[ $0 ]].
+Let test_18 : lt (y@[2]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_19 : lt (y@[2]) (x@[1]) ==? $1 := [[ $1 ]].
+Let test_20 : lt (y@[2]) (x@[2]) ==? $0 := [[ $0 ]].
+(*
+Let test_21  : ltu (x@[0]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_22  : ltu (x@[0]) (x@[1]) ==? $1 := [[ $1 ]].
+Let test_23  : ltu (x@[0]) (x@[2]) ==? $1 := [[ $1 ]].
+Let test_24  : ltu (x@[1]) (x@[0]) ==? $1 := [[ $1 ]]. (* <- *)
+Let test_25  : ltu (x@[2]) (x@[0]) ==? $1 := [[ $1 ]].
+Let test_26  : ltu (x@[2]) (x@[1]) ==? $0 := [[ $0 ]].
+*)
 End lt_ltu_fn_tests.
 
 Section mult_tests.
