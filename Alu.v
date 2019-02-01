@@ -54,12 +54,19 @@ Section Alu.
     Definition BgeuOp := 7.
 
     Definition JumpInputType :=
+      STRUCT {
+        "pc"                   :: VAddr;
+        "new_pc"               :: VAddr;
+        "compressed?"          :: Bool;
+        "misalignedException?" :: Bool
+      }.
+(*
       STRUCT { "pc" :: VAddr ;
                "reg_data" :: VAddr ;
                "offset" :: VAddr ;
                "compressed?" :: Bool ;
                "misalignedException?" :: Bool }.
-
+*)
     Definition JumpOutputType :=
       STRUCT { "misaligned?" :: Bool ;
                "newPc" :: VAddr ;
@@ -881,63 +888,98 @@ Section Alu.
            := ZeroExtendTruncMsb Xlen ({< ZeroExtendTruncMsb (Xlen -1) (#sem_output @% "newPc"), $$ WO~0 >}) in
          RetE (#sem_output @%["newPc" <- newPc]).
 
-    Definition Jump: @FUEntry Xlen_over_8 ty :=
-      {| fuName := "jump" ;
-         fuFunc := (fun i => LETE x: JumpInputType <- i;
-                               LETC newPc: VAddr <- (#x @% "pc") + (#x @% "reg_data" + #x @% "offset") ;
-                               LETC retPc: VAddr <- (#x @% "pc") + (IF #x @% "compressed?" then $2 else $4) ;
-                               LETC retVal: JumpOutputType <- (STRUCT{"misaligned?" ::= #x @% "misalignedException?" && ((ZeroExtendTruncLsb 2 #newPc)$[1:1] != $0);
-                                                                      "newPc" ::= #newPc ;
-                                                                      "retPc" ::= #retPc }) ;
-                               RetE #retVal) ;
-         fuInsts := {| instName     := "jal" ; (* checked *)
-                       extensions   := "RV32I" :: "RV64I" :: nil;
-                       uniqId       := fieldVal instSizeField ('b"11") ::
-                                                fieldVal opcodeField ('b"11011") :: nil ;
-                       inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
-                                          LETE x <- gcp;
-                                            LETC inst: Inst <- #x @% "inst";
-                                            LETC funct7v: Bit 7 <- funct7 #inst;
-                                            LETC rs2v: Bit 5 <- rs2 #inst;
-                                            LETC rs1v: Bit 5 <- rs1 #inst;
-                                            LETC funct3v: Bit 3 <- funct3 #inst;
-                                            LETC imm <- {< ( #funct7v$[6:6]), (#rs1v), (#funct3v), (#rs2v$[0:0]), (#funct7v$[5:0]), (#rs2v$[4:1]), $$ WO~0 >} ;
-                                            LETC offset <- SignExtendTruncLsb Xlen #imm ;
-                                            LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
-                                                                                   "reg_data" ::= $0 ;
-                                                                                   "offset" ::= #offset ;
-                                                                                   "compressed?" ::= #x @% "compressed?" ;
-                                                                                   "misalignedException?" ::= #x @% "instMisalignedException?" } ;
-                                            RetE #inpVal
-                                       ) ;
-                       outputXform  := jumpTag;
-                       optMemXform  := None ;
-                       instHints    := falseHints[hasRd := true]
-                    |} ::
-                       {| instName     := "jalr" ; (* checked *)
-                          extensions   := "RV32I" :: "RV64I" :: nil;
-                          uniqId       := fieldVal instSizeField ('b"11") ::
-                                                   fieldVal opcodeField ('b"11001") :: nil ;
-                          inputXform   := (fun gcp: ExecContextPkt Xlen_over_8 ## ty =>
-                                             LETE x <- gcp;
-                                               LETC inst: Inst <- #x @% "inst";
-                                               LETC funct7v: Bit 7 <- funct7 #inst;
-                                               LETC rs2v: Bit 5 <- rs2 #inst;
-                                               LETC imm <- {< #funct7v, #rs2v >} ;
-                                               LETC offset <- SignExtendTruncLsb Xlen #imm ;
-                                               LETC inpVal: JumpInputType <- STRUCT { "pc" ::= #x @% "pc" ;
-                                                                                      "reg_data" ::= #x @% "reg1" ;
-                                                                                      "offset" ::= #offset ;
-                                                                                      "compressed?" ::= #x @% "compressed?" ;
-                                                                                      "misalignedException?" ::= #x @% "instMisalignedException?" } ;
-                                               RetE #inpVal
-                                          ) ;
-                          outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
-                                            => jumpTag (transPC sem_output_expr);
-                          optMemXform  := None ;
-                          instHints    := falseHints[hasRd := true]
-                       |} ::
-                       nil |}.
+    Definition Jump: @FUEntry Xlen_over_8 ty
+      := {|
+           fuName := "jump";
+           fuFunc
+             := fun sem_in_pkt_expr : JumpInputType ## ty
+                  => LETE sem_in_pkt
+                       :  JumpInputType
+                       <- sem_in_pkt_expr;
+                     let new_pc
+                       :  VAddr @# ty
+                       := #sem_in_pkt @% "new_pc" in
+                     RetE
+                       (STRUCT {
+                          "misaligned?"
+                            ::= (#sem_in_pkt @% "misalignedException?" &&
+                                ((ZeroExtendTruncLsb 2 new_pc)$[1:1] != $0));
+                          "newPc" ::= new_pc;
+                          "retPc"
+                            ::= ((#sem_in_pkt @% "pc") +
+                                 (IF (#sem_in_pkt @% "compressed?")
+                                    then $2
+                                    else $4))
+                        } : JumpOutputType @# ty);
+           fuInsts
+             := {|
+                  instName     := "jal" ; (* checked *)
+                  extensions   := "RV32I" :: "RV64I" :: nil;
+                  uniqId       := fieldVal instSizeField ('b"11") ::
+                                  fieldVal opcodeField ('b"11011") ::
+                                  nil;
+                  inputXform 
+                    := fun exec_context_pkt_expr: ExecContextPkt Xlen_over_8 ## ty
+                         => LETE exec_context_pkt
+                              :  ExecContextPkt Xlen_over_8
+                              <- exec_context_pkt_expr;
+                            let inst
+                              :  Inst @# ty
+                              := #exec_context_pkt @% "inst" in
+                            RetE
+                              (STRUCT {
+                                 "pc" ::= #exec_context_pkt @% "pc";
+                                 "new_pc"
+                                   ::= ((#exec_context_pkt @% "pc") +
+                                        (SignExtendTruncLsb Xlen 
+                                           ({<
+                                             (inst $[31:31]),
+                                             (inst $[19:12]),
+                                             (inst $[20:20]),
+                                             (inst $[30:21]),
+                                             $$ WO~0
+                                           >})));
+                                  "compressed?" ::= #exec_context_pkt @% "compressed?";
+                                  "misalignedException?" ::= #exec_context_pkt @% "instMisalignedException?"
+                               } : JumpInputType @# ty);
+                  outputXform  := jumpTag;
+                  optMemXform  := None ;
+                  instHints    := falseHints[hasRd := true]
+                |} ::
+                {| instName     := "jalr" ; (* checked *)
+                   extensions   := "RV32I" :: "RV64I" :: nil;
+                   uniqId       := fieldVal instSizeField ('b"11") ::
+                                   fieldVal opcodeField ('b"11001") ::
+                                   nil;
+                   inputXform
+                     := fun exec_context_pkt_expr: ExecContextPkt Xlen_over_8 ## ty
+                          => LETE exec_context_pkt
+                               :  ExecContextPkt Xlen_over_8
+                               <- exec_context_pkt_expr;
+                             let inst
+                               :  Inst @# ty
+                               := #exec_context_pkt @% "inst" in
+                             RetE
+                               (STRUCT {
+                                  "pc" ::= #exec_context_pkt @% "pc";
+                                  "new_pc"
+                                    ::= SignExtendTruncLsb Xlen
+                                          ({<
+                                            SignExtendTruncMsb (Xlen - 1)
+                                              ((#exec_context_pkt @% "reg1") +
+                                               (SignExtendTruncLsb Xlen (imm inst))),
+                                            $$ WO~0
+                                          >});
+                                  "compressed?" ::= #exec_context_pkt @% "compressed?";
+                                  "misalignedException?" ::= #exec_context_pkt @% "instMisalignedException?"
+                                } : JumpInputType @# ty);
+                   outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
+                                     => jumpTag (transPC sem_output_expr);
+                   optMemXform  := None ;
+                   instHints    := falseHints[hasRs1 := true][hasRd := true]
+                |} ::
+                nil
+         |}.
 
     Definition Mult : @FUEntry Xlen_over_8 ty
       := {|
