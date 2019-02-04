@@ -54,6 +54,9 @@ Section Mem.
     Let exec_context_pkt_kind : Kind
       := ExecContextPkt Xlen_over_8.
 
+    Let exec_update_pkt_kind
+      := ExecContextUpdPkt Xlen_over_8.
+
     (* The functional units that comprise the instruction database. *)
     Variable func_units : list func_unit_type.
 
@@ -134,71 +137,103 @@ Section Mem.
                                                 "exception?" ::= Invalid }.
 
       Local Open Scope kami_action.
-      Definition memAction (tag: nat) : ActionT ty MemRet :=
-        (If instTag == $tag
-         then 
-           match getMemEntry tag with
-           | Some fn =>
-             Call memRead: MemRead <- "memRead"(addr: _);
-             (If #memRead @% "exception?" @% "valid"
-              then Ret defMemRet
-              else
-                (LETA memoryOutput
-                   :  MemoryOutput
-                   <- convertLetExprSyntax_ActionT
-                        (fn (RetE (makeMemoryInput memUnitInput
-                                    (#memRead @% "data")
-                                    (#memRead @% "reservation"))));
-                 LETA writeVal
-                   :  Data
-                   <- convertLetExprSyntax_ActionT
-                        (applyMask (#memRead @% "data") (#memoryOutput @% "mem" ));
-                 LET memWrite
-                   :  MemWrite
-                   <- STRUCT {
-                        "addr" ::= addr;
-                        "data" ::= #writeVal
-                      };
-                 If (#memoryOutput @% "mem" @% "valid")
-                   then
-                     (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
-                      Ret #writeEx)
-                   else
-                     Ret (@Invalid _ Exception)
-                  as writeEx;
-                 If (addr == $$ (Xlen 'h"80001000")%word && #memoryOutput @% "mem" @% "valid")
-                 then (If #writeVal == $1
-                        then Sys ((DispString _"\033[32;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
-                        else Sys ((DispString _"\033[31;1mWrite to Host ") :: (DispBit (#writeVal) (1, Decimal)) :: (DispString _ "\033[0m\n") :: (Finish _) :: nil) Retv
-                      ; Retv
-                       );
-                 LET memRet
-                   :  MemRet
-                   <- STRUCT {
-                        "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
-                        "data" ::= #memoryOutput @% "reg_data" @% "data";
-                        "exception?" ::= #writeEx
-                      };
-                 Ret #memRet
-                ) as ret;
-             Ret #ret)
-           | None => Ret defMemRet
-           end
-         else Ret defMemRet
-          as ret;
-           Ret #ret).
+      Definition memAction (tag: nat)
+        :  ActionT ty MemRet
+        := If instTag == $tag
+           then 
+             match getMemEntry tag with
+             | Some fn =>
+               Call memRead: MemRead <- "memRead"(addr: _);
+               (If #memRead @% "exception?" @% "valid"
+                then Ret defMemRet
+                else
+                  (LETA memoryOutput
+                     :  MemoryOutput
+                     <- convertLetExprSyntax_ActionT
+                          (fn (RetE (makeMemoryInput memUnitInput
+                                      (#memRead @% "data")
+                                      (#memRead @% "reservation"))));
+                   LETA writeVal
+                     :  Data
+                     <- convertLetExprSyntax_ActionT
+                          (applyMask (#memRead @% "data") (#memoryOutput @% "mem" ));
+                   LET memWrite
+                     :  MemWrite
+                     <- STRUCT {
+                          "addr" ::= addr;
+                          "data" ::= #writeVal
+                        };
+                   If (#memoryOutput @% "mem" @% "valid")
+                     then
+                       (Call writeEx: Maybe Exception <- "memWrite"(#memWrite: _);
+                        Ret #writeEx)
+                     else
+                       Ret (@Invalid _ Exception)
+                    as writeEx;
+                   LET memRet
+                     :  MemRet
+                     <- STRUCT {
+                          "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                          "data" ::= #memoryOutput @% "reg_data" @% "data";
+                          "exception?" ::= #writeEx
+                        };
+                   Ret #memRet
+                  ) as ret;
+               Ret #ret)
+             | None => Ret defMemRet
+             end
+           else Ret defMemRet
+           as ret;
+           Ret #ret.
 
-      Definition fullMemAction: ActionT ty MemRet :=
-        If (fuTag == $ tagMemFu)
-        then 
-          (GatherActions (map memAction (0 upto lengthMemFu)) as retVals;
-             Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
-        else
-          Ret (STRUCT {"writeReg?" ::= $$ false ;
-                       "data" ::= $0 ;
-                       "exception?" ::= Invalid})
-        as ret;
-        Ret #ret.
+      Definition fullMemAction
+        :  ActionT ty MemRet
+        := If (fuTag == $ tagMemFu)
+             then 
+               (GatherActions (map memAction (0 upto lengthMemFu)) as retVals;
+                Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
+             else
+               Ret
+                 (STRUCT {
+                    "writeReg?"  ::= $$ false ;
+                    "data"       ::= $0 ;
+                    "exception?" ::= Invalid
+                 })
+             as ret;
+           Ret #ret.
+
+      (*
+        TODO: connect exceptions from the memory unit.
+        TODO: replace with record updates.
+        TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
+        TODO: accept an exception packet and return an exception packet.
+      *)
+      Definition MemUnit
+        (exec_update_pkt : exec_update_pkt_kind @# ty)
+        :  ActionT ty exec_update_pkt_kind
+        := LETA memRet
+             :  MemRet
+             <- fullMemAction;
+           LET x
+             <- exec_update_pkt @% "val1";
+           Ret
+             ITE
+               (#memRet @% "writeReg?")
+               (STRUCT {
+                 "val1"
+                   ::= Valid (STRUCT {
+                          "tag"  ::= $IntRegTag;
+                          "data" ::= #memRet @% "data"
+                        } : RoutedReg Xlen_over_8 @# ty);
+                 "val2"       ::= exec_update_pkt @% "val2";
+                 "memBitMask" ::= exec_update_pkt @% "memBitMask";
+                 "taken?"     ::= exec_update_pkt @% "taken?";
+                 "aq"         ::= exec_update_pkt @% "aq";
+                 "rl"         ::= exec_update_pkt @% "rl";
+                 "exception"  ::= #memRet @% "exception?"
+               } : exec_update_pkt_kind @# ty)
+               (exec_update_pkt).
+
       Local Close Scope kami_action.
     End MemAddr.
   End Ty.
