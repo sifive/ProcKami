@@ -1,4 +1,4 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Mem Decoder.
+Require Import Kami.All RecordUpdate.RecordSet Fetch FU Mem Decoder.
 Require Import List.
 Import RecordNotations.
 
@@ -57,6 +57,8 @@ Section Mem.
     Let exec_update_pkt_kind
       := ExecContextUpdPkt Xlen_over_8.
 
+    Let PktWithException := Fetch.PktWithException Xlen_over_8.
+
     (* The functional units that comprise the instruction database. *)
     Variable func_units : list func_unit_type.
 
@@ -68,6 +70,7 @@ Section Mem.
 
     Let inst_id_kind := Decoder.inst_id_kind func_units.
 
+    Let decoder_pkt_kind := Decoder.decoder_pkt_kind func_units.
     
     Definition getMemEntryFromInsts ik ok (insts: list (inst_type ik ok)) pos :
       option (LetExprSyntax ty (FU.MemoryInput Xlen_over_8) ->
@@ -202,39 +205,56 @@ Section Mem.
              as ret;
            Ret #ret.
 
-      (*
-        TODO: connect exceptions from the memory unit.
-        TODO: replace with record updates.
-        TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
-        TODO: accept an exception packet and return an exception packet.
-      *)
-      Definition MemUnit
-        (exec_update_pkt : exec_update_pkt_kind @# ty)
-        :  ActionT ty exec_update_pkt_kind
-        := LETA memRet
-             :  MemRet
-             <- fullMemAction;
-           LET x
-             <- exec_update_pkt @% "val1";
-           Ret
-             ITE
-               (#memRet @% "writeReg?")
-               (STRUCT {
-                 "val1"
-                   ::= Valid (STRUCT {
-                          "tag"  ::= $IntRegTag;
-                          "data" ::= #memRet @% "data"
-                        } : RoutedReg Xlen_over_8 @# ty);
-                 "val2"       ::= exec_update_pkt @% "val2";
-                 "memBitMask" ::= exec_update_pkt @% "memBitMask";
-                 "taken?"     ::= exec_update_pkt @% "taken?";
-                 "aq"         ::= exec_update_pkt @% "aq";
-                 "rl"         ::= exec_update_pkt @% "rl";
-                 "exception"  ::= #memRet @% "exception?"
-               } : exec_update_pkt_kind @# ty)
-               (exec_update_pkt).
-
       Local Close Scope kami_action.
     End MemAddr.
+
+    Local Open Scope kami_action.
+
+    (*
+      TODO: connect exceptions from the memory unit.
+      TODO: replace with record updates.
+      TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
+      TODO: accept an exception packet and return an exception packet.
+    *)
+    Definition MemUnit
+      (decoder_pkt : decoder_pkt_kind @# ty)
+      (exec_context_pkt : exec_context_pkt_kind @# ty)
+      (opt_exec_update_pkt : PktWithException exec_update_pkt_kind @# ty)
+      :  ActionT ty (PktWithException exec_update_pkt_kind)
+      := let exec_update_pkt
+           :  exec_update_pkt_kind @# ty
+           := opt_exec_update_pkt @% "fst" in
+         LETA memRet
+           :  MemRet
+           <- fullMemAction
+                (exec_update_pkt @% "val1" @% "data" @% "data")
+                (decoder_pkt @% "FuncUnitTag")
+                (decoder_pkt @% "InstTag")
+                (STRUCT {
+                   "aq"       ::= exec_update_pkt @% "aq";
+                   "rl"       ::= exec_update_pkt @% "rl";
+                   "reg_data" ::= exec_context_pkt @% "reg2"
+                 } : MemUnitInput @# ty);
+         Ret
+           (mkPktWithException
+             opt_exec_update_pkt
+             (STRUCT {
+                "fst"
+                  ::= (ITE
+                        (#memRet @% "writeReg?")
+                        (exec_update_pkt
+                           @%["val1"
+                                <- Valid (STRUCT {
+                                     "tag"  ::= $IntRegTag;
+                                     "data" ::= #memRet @% "data"
+                                   } : RoutedReg Xlen_over_8 @# ty)]
+                           @%["exception" <- #memRet @% "exception?"])
+                        (exec_update_pkt));
+                "snd" ::= (Invalid : Maybe (FullException Xlen_over_8) @# ty)
+                (* "snd" ::= (#memRet @% "exception?" : Maybe (FullException Xlen_over_8) @# ty) *)
+              } : PktWithException exec_update_pkt_kind @# ty)).
+
+      Local Close Scope kami_action.
+
   End Ty.
 End Mem.

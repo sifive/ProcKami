@@ -186,18 +186,13 @@ Section Params.
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    System ((DispString _ "Mem\n") :: nil);
                    LETA mem_update_pkt
-                     :  ExecContextUpdPkt Xlen_over_8
+                     :  exec_update_pkt_kind
                      <- @MemUnit
                           Xlen_over_8 _ func_units
-                          (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")
-                          (#decoder_pkt @% "fst" @% "FuncUnitTag")
-                          (#decoder_pkt @% "fst" @% "InstTag")
-                          (STRUCT {
-                            "aq"  ::= (#exec_update_pkt @% "fst" @% "aq");
-                            "rl"  ::= (#exec_update_pkt @% "fst" @% "rl"); 
-                            "reg_data" ::= (#exec_context_pkt @% "fst" @% "reg2")
-                          } : MemUnitInput Xlen_over_8 @# _)
-                          (#exec_update_pkt @% "fst");
+                          (#decoder_pkt @% "fst")
+                          (#exec_context_pkt @% "fst")
+                          (#exec_update_pkt);
+                   (* TODO: the call to commit currently ignores any exceptions propogated through mem_update_pkt. *)
                    System ((DispString _ "Reg Write\n") :: nil);
                    LETA commit_pkt
                      :  Void
@@ -205,7 +200,7 @@ Section Params.
                           name
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
-                          (#mem_update_pkt)
+                          (#mem_update_pkt @% "fst")
                           (#exec_context_pkt @% "fst");
                    System ((DispString _ "Inc PC\n") :: nil);
                    Write ^"pc"
