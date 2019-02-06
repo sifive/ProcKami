@@ -340,12 +340,13 @@ Section Alu.
     
     Definition Logical: @FUEntry Xlen_over_8 ty :=
       {| fuName := "logical" ;
-         fuFunc := (fun i => LETE x: LogicalType <- i;
-                               RetE (IF (#x @% "op") == $ XorOp
-                                     then (#x @% "arg1") ^ (#x @% "arg2")
-                                     else (IF (#x @% "op") == $ OrOp
-                                           then (#x @% "arg1") | (#x @% "arg2")
-                                           else (#x @% "arg1") & (#x @% "arg2")))) ;
+         fuFunc := (fun i
+                      => LETE x: LogicalType <- i;
+                         RetE (IF (#x @% "op") == $ XorOp
+                                 then ((#x @% "arg1") ^ (#x @% "arg2"))
+                                 else (IF (#x @% "op") == $ OrOp
+                                         then ((#x @% "arg1") | (#x @% "arg2"))
+                                         else ((#x @% "arg1") & (#x @% "arg2"))))) ;
          fuInsts := {| instName     := "xori" ; (* checked *)
                        extensions   := "RV32I" :: "RV64I" :: nil ;
                        uniqId       := fieldVal instSizeField ('b"11") ::
@@ -418,8 +419,10 @@ Section Alu.
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= #gcp @% "reg2"
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE result: Data <- resultExpr;
-                                                               RetE (intRegTag #result)) ;
+                          outputXform  := (fun resultExpr
+                                             => LETE result: Data <- resultExpr;
+                                                (* RetE (intRegTag $999)) ; *) (* worked *)
+                                                RetE (intRegTag #result)); 
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
@@ -1615,6 +1618,47 @@ Let test_6 : (rems (y@[4]) (x@[2]) === x@[0]) := [[ x@[0] ]].
 Let test_7 : (rems (y@[4]) (y@[3]) === y@[1]) := [[ y@[1] ]].
 
 End rems_tests.
+
+Section or_tests.
+
+(* f0 | 0f = ff *)
+Let test_0
+  :  ((($240) : Bit 8 @# type) |
+      (($15)  : Bit 8 @# type)) ===
+     (($255) : Bit 8 @# type)
+  := [[ ($255) ]].
+(* 0f | 0f = 0f *)
+Let test_1
+  :  ((($15) : Bit 8 @# type) |
+      (($15) : Bit 8 @# type)) ===
+     (($15) : Bit 8 @# type)
+  := [[ ($15) ]].
+(* f0 | f0 = f0 *)
+Let test_2
+  :  ((($240) : Bit 8 @# type) |
+      (($240) : Bit 8 @# type)) ===
+     (($240) : Bit 8 @# type)
+  := [[ ($240) ]].
+(* f0f | 0ff = ff *)
+Let test_3
+  :  ((($3855) : Bit 12 @# type) |
+      (($15)   : Bit 12 @# type)) ===
+     (($3855) : Bit 12 @# type)
+  := [[ ($3855) ]].
+(* f0f | f0 = fff *)
+Let test_4
+  :  ((($3855) : Bit 12 @# type) |
+      (($240)  : Bit 12 @# type)) ===
+     (($4095) : Bit 12 @# type)
+  := [[ ($4095) ]].
+(* f0f | f0f = f0f *)
+Let test_5
+  :  ((($3855) : Bit 12 @# type) |
+      (($3855) : Bit 12 @# type)) ===
+     (($3855) : Bit 12 @# type)
+  := [[ ($3855) ]].
+
+End or_tests.
 
 Close Scope kami_expr.
 
