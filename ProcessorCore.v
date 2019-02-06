@@ -62,7 +62,7 @@ Section Params.
       :  BaseModule
       := 
          MODULE {
-              Register ^"pc" : VAddr <- getDefaultConst VAddr with
+              Register ^"pc" : VAddr <- ConstBit (_ 'h "80000000") with
               Rule ^"pipeline"
                 := System
                      ((DispString _ "Start\n") :: nil);
@@ -70,7 +70,7 @@ Section Params.
                    System
                      [
                        DispString _ "Fetch\n";
-                         DispString _ "  Address: ";
+                         DispString _ "  Fetched: ";
                          DispBit (#pc) (32, Hex);
                          DispString _ "\n"
                      ];
