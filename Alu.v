@@ -150,7 +150,7 @@ Section Alu.
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
-                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
+                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
                        |} ::
