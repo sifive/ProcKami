@@ -221,6 +221,7 @@ Section Params.
                               (#exec_context_pkt @% "fst" @% "compressed?")
                               (#pc + $2)
                               (#pc + $4))));
+                   Call ^"pc"(#pc: VAddr);
                    Retv
          }.
     Local Close Scope list.
