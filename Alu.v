@@ -70,7 +70,7 @@ Section Alu.
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
-                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (~#resultMsb)))) ;
+                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
                           instHints    := falseHints[hasRs1 := true][hasRd := true]
                        |} ::
@@ -145,8 +145,8 @@ Section Alu.
                                                    fieldVal funct3Field ('b"011") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
-                                                                          "arg2" ::= neg (SignExtend 1 (#gcp @% "reg2"))
+                                                          RetE ((STRUCT { "arg1" ::= ZeroExtend 1 (#gcp @% "reg1");
+                                                                          "arg2" ::= neg (ZeroExtend 1 (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
