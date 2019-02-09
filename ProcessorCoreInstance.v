@@ -25,8 +25,7 @@ Let func_units
        Branch    Xlen_over_8 _;
        Jump      Xlen_over_8 _;
        Mult      Xlen_over_8 _;
-       Div       Xlen_over_8 _;
-       Rem       Xlen_over_8 _;
+       DivRem    Xlen_over_8 _;
 
        (* RVI memory instructions. *)
        Mem       Xlen_over_8 _;
