@@ -1173,7 +1173,7 @@ Section Alu.
       := div_rem_pkt
            (abs x)
            (abs y)
-           ((pos x) == pos (y))
+           (((pos x) == pos (y)) || (y == $0))
            (pos x).
 
     Definition DivRem : @FUEntry Xlen_over_8 ty
