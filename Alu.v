@@ -1299,7 +1299,7 @@ Section Alu.
                      => LETE context_pkt
                         :  ExecContextPkt Xlen_over_8
                                           <- context_pkt_expr;
-                          divu_remu_pkt
+                          divs_rems_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
                outputXform
@@ -1323,7 +1323,7 @@ Section Alu.
                      => LETE context_pkt
                         :  ExecContextPkt Xlen_over_8
                                           <- context_pkt_expr;
-                          divs_rems_pkt
+                          divu_remu_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
                outputXform
