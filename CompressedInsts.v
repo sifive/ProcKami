@@ -73,16 +73,7 @@ Section database.
   Definition comp_inst_map_reg
              (comp_inst_reg : Bit 3 @# ty)
     :  Bit 5 @# ty
-    := Switch comp_inst_reg Retn Bit 5 With {
-                ($$(('b"000") : word 3)) ::= uncomp_inst_reg 8;
-                ($$(('b"001") : word 3)) ::= uncomp_inst_reg 9;
-                ($$(('b"010") : word 3)) ::= uncomp_inst_reg 10;
-                ($$(('b"011") : word 3)) ::= uncomp_inst_reg 11;
-                ($$(('b"100") : word 3)) ::= uncomp_inst_reg 12;
-                ($$(('b"101") : word 3)) ::= uncomp_inst_reg 13;
-                ($$(('b"110") : word 3)) ::= uncomp_inst_reg 14;
-                ($$(('b"111") : word 3)) ::= uncomp_inst_reg 15
-              }.
+    := (ZeroExtendTruncLsb 5 comp_inst_reg) + (uncomp_inst_reg 8).
 
   Let extensions_all := [["RV32C"]; ["RV64C"]].
 
@@ -99,53 +90,54 @@ Section database.
         Build_CompInst
           extensions_all
           ([
-              fieldVal comp_inst_opcode_field ('b"00");
-                fieldVal comp_inst_funct3_field ('b"000")
+             fieldVal comp_inst_opcode_field ('b"00");
+             fieldVal comp_inst_funct3_field ('b"000")
           ])
           (fun comp_inst
            => RetE (
-                  {<
-                   (ZeroExtend 4 ({<
-                                   (comp_inst $[10:7]),
-                                   (comp_inst $[12:11]),
-                                   (comp_inst $[5:5]),
-                                   (comp_inst $[6:6])
-                                   >})),
-                   uncomp_inst_reg 2,
-                   $$(('b"000") : word 3),
-                   comp_inst_map_reg (comp_inst $[4:2]),
-                   $$(('b"0010011") : word 7)
-                   >}
-          ));
+                {<
+                  (ZeroExtend 2 ({<
+                                 (comp_inst $[10:7]),
+                                 (comp_inst $[12:11]),
+                                 (comp_inst $[5:5]),
+                                 (comp_inst $[6:6]),
+                                 $$(natToWord 2 0)
+                                 >})),
+                  uncomp_inst_reg 2,
+                  $$(('b"000") : word 3),
+                  comp_inst_map_reg (comp_inst $[4:2]),
+                  $$(('b"0010011") : word 7)
+                >}
+          )); 
           (* C.FLD => FLD checked *)
           Build_CompInst
             [["RV32D"; "RV32C"];
-               ["RV64D"; "RV64C"]]
+             ["RV64D"; "RV64C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"001")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"001")
             ])
             (fun comp_inst
              => RetE (
-                    {<
-                     (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})),
-                     comp_inst_map_reg (comp_inst $[9:7]),
-                     $$(('b"011") : word 3),
-                     comp_inst_map_reg (comp_inst $[4:2]),
-                     $$(('b"0000111") : word 7)
-                     >}
+                  {<
+                    (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})),
+                    comp_inst_map_reg (comp_inst $[9:7]),
+                    $$(('b"011") : word 3),
+                    comp_inst_map_reg (comp_inst $[4:2]),
+                    $$(('b"0000111") : word 7)
+                  >}
             ));
           (* C.LW => LW checked *)
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"010")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"010")
             ])
             (fun comp_inst
              => RetE (
                     {<
-                     (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})),
+                     (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"010") : word 3),
                      comp_inst_map_reg (comp_inst $[4:2]),
@@ -157,12 +149,12 @@ Section database.
             [["RV32F"; "RV32C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"011")
+                fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst
              => RetE (
                     {<
-                     (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})),
+                     (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"010") : word 3),
                      comp_inst_map_reg (comp_inst $[4:2]),
@@ -174,12 +166,12 @@ Section database.
             [["RV64C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"011")
+                fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst
              => RetE (
                     {<
-                     (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})),
+                     (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"011") : word 3),
                      comp_inst_map_reg (comp_inst $[4:2]),
@@ -190,15 +182,15 @@ Section database.
           Build_CompInst
             [
               ["RV32D"; "RV32C"];
-                ["RV64D"; "RV64C"]
+              ["RV64D"; "RV64C"]
             ]
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"101")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
              => let imm
-                    := (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})) in
+                    := (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})) in
                 RetE (
                     {<
                      (imm $[11:5]),
@@ -213,12 +205,12 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"110")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
              => let imm
-                    := (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})) in
+                    := (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})) in
                 RetE (
                     {<
                      (imm $[11:5]),
@@ -233,12 +225,12 @@ Section database.
           Build_CompInst
             [["RV32F"; "RV32C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"111")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
              => let imm
-                    := (ZeroExtend 7 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]) >})) in
+                    := (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})) in
                 RetE (
                     {<
                      (imm $[11:5]),
@@ -253,12 +245,12 @@ Section database.
           Build_CompInst
             [["RV64C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"00");
-                  fieldVal comp_inst_funct3_field ('b"111")
+               fieldVal comp_inst_opcode_field ('b"00");
+               fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
              => let imm
-                    := (ZeroExtend 7 ({< (comp_inst $[6:5]), (comp_inst $[12:10]) >})) in
+                    := (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})) in
                 RetE (
                     {<
                      (imm $[11:5]),
@@ -270,21 +262,21 @@ Section database.
                      >}
             ));
           (* 
-      C.ADDI and C.NOP checked
-      C.ADDI => ADDI checked
-      C.NOP => NOP = ADDI
-           *)
+            C.ADDI and C.NOP checked
+            C.ADDI => ADDI checked
+            C.NOP => NOP = ADDI
+          *)
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"000")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"000")
             ])
             (fun comp_inst : Bit 16 @# ty
              => let rd : Bit 5 @# ty := comp_inst $[11:7] in
                 RetE (
                     {<
-                     (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                     (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
                      rd,
                      $$(('b"000") : word 3),
                      rd,
@@ -295,8 +287,8 @@ Section database.
           Build_CompInst
             [["RV32C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"001")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"001")
             ])
             (fun comp_inst
              => let imm
@@ -345,13 +337,13 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"010")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"010")
             ])
             (fun comp_inst : Bit 16 @# ty
              => RetE (
                     {<
-                     (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                     (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
                      uncomp_inst_reg 0,
                      $$(('b"000") : word 3),
                      (comp_inst $[11:7]),
@@ -359,43 +351,44 @@ Section database.
                      >}
             ));
           (*
-      C.ADDI16SP and C.LUI checked
-      C.ADDI16SP => ADDI checked
-      C.LUI => LUI checked
-           *)
+            C.ADDI16SP and C.LUI checked
+            C.ADDI16SP => ADDI checked
+            C.LUI => LUI checked
+          *)
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"011")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst : Bit 16 @# ty
              => let rd := (comp_inst $[11:7]) in
                 RetE (
-                    (ITE (rd == $$(natToWord 5 2))
-                         (* C.ADDI16SP *)
-                         (let imm
-                              :  Bit 12 @# ty
-                              := ZeroExtend 6 ({<
-                                                (comp_inst $[12:12]),
-                                                (comp_inst $[4:3]),
-                                                (comp_inst $[5:5]),
-                                                (comp_inst $[2:2]),
-                                                (comp_inst $[6:6])
-                                                >}) in
-                          {<
-                           imm,
-                           uncomp_inst_reg 2,
-                           $$(('b"000") : word 3),
-                           uncomp_inst_reg 2,
-                           $$(('b"0010011") : word 7)
-                           >})
-                         (* C.LUI *)
-                         ({<
-                           (ZeroExtend 14 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-                           rd,
-                           $$(('b"0110111") : word 7)
-                           >}))
+                  (ITE (rd == $$(natToWord 5 2))
+                     (* C.ADDI16SP *)
+                     (let imm
+                        :  Bit 12 @# ty
+                        := SignExtend 2 ({<
+                                           (comp_inst $[12:12]),
+                                           (comp_inst $[4:3]),
+                                           (comp_inst $[5:5]),
+                                           (comp_inst $[2:2]),
+                                           (comp_inst $[6:6]),
+                                           $$(natToWord 4 0)
+                                         >}) in
+                     {<
+                       imm,
+                       uncomp_inst_reg 2,
+                       $$(('b"000") : word 3),
+                       uncomp_inst_reg 2,
+                       $$(('b"0010011") : word 7)
+                     >})
+                     (* C.LUI *)
+                     ({<
+                       (SignExtend 14 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                       rd,
+                       $$(('b"0110111") : word 7)
+                     >}))
             ));
           (* C.SRLI => SRLI checked *)
           Build_CompInst
@@ -445,9 +438,9 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"100");
-                  fieldVal (11, 10) ('b"10")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"100");
+               fieldVal (11, 10) ('b"10")
             ])
             (fun comp_inst : Bit 16 @# ty
              => let rd
@@ -455,7 +448,7 @@ Section database.
                     := comp_inst_map_reg (comp_inst $[9:7]) in
                 RetE (
                     {<
-                     (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                     (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
                      rd,
                      $$(('b"111") : word 3),
                      rd, 
@@ -466,11 +459,11 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"100");
-                  fieldVal (6, 5) ('b"00");
-                  fieldVal (11, 10) ('b"11");
-                  fieldVal (12, 12) ('b"0")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"100");
+               fieldVal (6, 5) ('b"00");
+               fieldVal (11, 10) ('b"11");
+               fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst : Bit 16 @# ty
              => let rd
@@ -562,11 +555,11 @@ Section database.
           Build_CompInst
             [["RV64C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"100");
-                  fieldVal (6, 5) ('b"00");
-                  fieldVal (11, 10) ('b"11");
-                  fieldVal (12, 12) ('b"1")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"100");
+               fieldVal (6, 5) ('b"00");
+               fieldVal (11, 10) ('b"11");
+               fieldVal (12, 12) ('b"1")
             ])
             (fun comp_inst : Bit 16 @# ty
              => let rd
@@ -610,13 +603,13 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"101")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
              => let imm
                     : Bit 20 @# ty
-                    := ZeroExtend 9 ({<
+                    := SignExtend 9 ({<
                                       (comp_inst $[12:12]),
                                       (comp_inst $[8:8]),
                                       (comp_inst $[10:9]),
@@ -642,8 +635,8 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"110")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
              => let imm
@@ -675,8 +668,8 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"01");
-                  fieldVal comp_inst_funct3_field ('b"111")
+               fieldVal comp_inst_opcode_field ('b"01");
+               fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
              => let imm
@@ -764,12 +757,12 @@ Section database.
             [["RV32F"; "RV32C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"011")
+                fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst
              => RetE (
                     {<
-                     ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >}),
+                     ZeroExtend 4 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]), $$(natToWord 2 0) >}),
                      uncomp_inst_reg 2,
                      $$(('b"010") : word 3),
                      (comp_inst $[11:7]),
@@ -780,27 +773,29 @@ Section database.
           Build_CompInst
             [["RV64C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"011")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst
              => RetE (
                     {<
-                     (ZeroExtend 6 ({< (comp_inst $[4:2]), (comp_inst $[12:12]), (comp_inst $[6:5]) >})),
+                     (ZeroExtend 3 ({< (comp_inst $[4:2]), (comp_inst $[12:12]), (comp_inst $[6:5]), $$(natToWord 3 0) >})),
                      uncomp_inst_reg 2,
                      $$(('b"011") : word 3),
                      (comp_inst $[11:7]),
                      $$(('b"0000011") : word 7)
                      >}
             ));
-          (* C.JR and C.MV checked 
-       C.JR => JALR *)
+          (*
+            C.JR and C.MV checked 
+            C.JR => JALR
+          *)
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"100");
-                  fieldVal (12, 12) ('b"0")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"100");
+               fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst
              => RetE (
@@ -824,16 +819,16 @@ Section database.
                           >})
             ));
           (*
-       C.ADD, C.EBREAK, and C.JALR checked
-       C.EBREAK => EBREAK
-       C.JALR => JALR
-           *)
+            C.ADD, C.EBREAK, and C.JALR checked
+            C.EBREAK => EBREAK
+            C.JALR => JALR
+          *)
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"100");
-                  fieldVal (12, 12) ('b"1")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"100");
+               fieldVal (12, 12) ('b"1")
             ])
             (fun comp_inst
              => RetE (
@@ -867,13 +862,19 @@ Section database.
           (* C.FSDSP => FSD checked *)
           Build_CompInst
             [["RV32D"; "RV32C"];
-               ["RV64D"; "RV64C"]]
+             ["RV64D"; "RV64C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"101")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 6 ({< (comp_inst $[9:7]), (comp_inst $[12:10]) >}) in
+             => let imm
+                  := ZeroExtend 3
+                       ({<
+                          (comp_inst $[9:7]),
+                          (comp_inst $[12:10]),
+                          $$(natToWord 3 0)
+                       >}) in
                 RetE (
                     ({<
                       (imm $[11:5]),
@@ -888,11 +889,11 @@ Section database.
           Build_CompInst
             extensions_all
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"110")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 6 ({< (comp_inst $[8:7]), (comp_inst $[12:9]) >}) in
+             => let imm := ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >}) in
                 RetE (
                     ({<
                       (imm $[11:5]),
@@ -907,11 +908,11 @@ Section database.
           Build_CompInst
             [["RV32F"; "RV32C"]]
             ([
-                fieldVal comp_inst_opcode_field ('b"10");
-                  fieldVal comp_inst_funct3_field ('b"111")
+               fieldVal comp_inst_opcode_field ('b"10");
+               fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 6 ({< (comp_inst $[8:7]), (comp_inst $[12:9]) >}) in
+             => let imm := ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >}) in
                 RetE (
                     ({<
                       (imm $[11:5]),
@@ -930,7 +931,7 @@ Section database.
                   fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 6 ({< (comp_inst $[9:7]), (comp_inst $[12:10]) >}) in
+             => let imm := ZeroExtend 3 ({< (comp_inst $[9:7]), (comp_inst $[12:10]), $$(natToWord 3 0) >}) in
                 RetE (
                     ({<
                       (imm $[11:5]),

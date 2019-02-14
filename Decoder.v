@@ -89,7 +89,8 @@ Section decoder.
         :  Kind
         := STRUCT {
                "FuncUnitTag" :: func_unit_id_kind;
-               "InstTag"     :: inst_id_kind
+               "InstTag"     :: inst_id_kind;
+               "inst"        :: uncomp_inst_kind (* Todo: Temporary for debugging - remove when done. *)
              }.
 
       (* Represents the kind of packets output by the decoder. *)
@@ -248,7 +249,8 @@ Section decoder.
                => RetE
                     (STRUCT {
                          "FuncUnitTag" ::= func_unit_id_encode func_unit_id;
-                         "InstTag"     ::= inst_id_encode (tagged_inst_id inst)
+                         "InstTag"     ::= inst_id_encode (tagged_inst_id inst);
+                         "inst"        ::= raw_inst
                        } : int_decoder_pkt_kind @# ty))
              (fun (sem_in_kind sem_out_kind : Kind)
                   (inst : tagged_inst_type sem_in_kind sem_out_kind)
@@ -309,7 +311,7 @@ Section decoder.
                      "FuncUnitTag" ::= #decoder_pkt @% "data" @% "FuncUnitTag";
                      "InstTag"     ::= #decoder_pkt @% "data" @% "InstTag";
                      "pc"          ::= fetch_pkt @% "pc";
-                     "inst"        ::= fetch_pkt @% "inst";
+                     "inst"        ::= #decoder_pkt @% "data" @% "inst";
                      "mode"        ::= mode;
                      "compressed?" ::= (!(decode_uncompressed raw_inst) : Bool @# ty)
                    } : decoder_pkt_kind @# ty)

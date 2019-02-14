@@ -167,6 +167,7 @@ Section Params.
                                    "rl" :: Bool ;
                                    "reservation" :: Bit 2 ;
                                    "mem" :: Maybe MaskedMem ;
+                                   "tag" :: RoutingTag ;
                                    "reg_data" :: Maybe Data }.
     
     Record InstHints :=

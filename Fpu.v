@@ -176,10 +176,15 @@ Let add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
        (STRUCT {
          "op" ::= op;
          "a"  ::= to_kami_float (#context_pkt @% "reg1");
-         "b"  ::= to_kami_float ($0);
+         "b"  ::= to_kami_float ($1);
          "c"  ::= to_kami_float (#context_pkt @% "reg2");
+         (* TODO: testing
+         "a"  ::= to_kami_float ($3);
+         "b"  ::= to_kami_float ($5);
+         "c"  ::= to_kami_float ($7);
+         *)
          "roundingMode" ::= rm (#context_pkt @% "inst");
-         "detectTininess" ::= $$true
+         "detectTininess" ::= $$true (* TODO: testing *)
        } : sem_in_pkt_kind @# ty).
 
 Let mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty) 
@@ -435,8 +440,7 @@ Definition Mac : @FUEntry Xlen_over_8 ty
                 uniqId
                   := [
                        fieldVal instSizeField ('b"11");
-                       fieldVal opcodeField   ('b"10011");
-                       fieldVal fmtField      ('b"00");
+                       fieldVal opcodeField   ('b"10100");
                        fieldVal funct7Field   ('b"0000000")
                      ];
                 inputXform  := add_in_pkt $0;
@@ -451,7 +455,6 @@ Definition Mac : @FUEntry Xlen_over_8 ty
                   := [
                        fieldVal instSizeField ('b"11");
                        fieldVal opcodeField   ('b"10100");
-                       fieldVal fmtField      ('b"00");
                        fieldVal funct7Field   ('b"0000100")
                      ];
                 inputXform  := add_in_pkt $1;
@@ -466,7 +469,6 @@ Definition Mac : @FUEntry Xlen_over_8 ty
                   := [
                        fieldVal instSizeField ('b"11");
                        fieldVal opcodeField   ('b"10100");
-                       fieldVal fmtField      ('b"00");
                        fieldVal funct7Field   ('b"0001000")
                      ];
                 inputXform  := mul_in_pkt $0;

@@ -3,7 +3,6 @@ Require Import List.
 Import RecordNotations.
 
 Section Mem.
-  Variable memFuNames: list string.
   Variable Xlen_over_8: nat.
 
   Variable name: string.
@@ -26,6 +25,7 @@ Section Mem.
   
   Definition MemRet := STRUCT {
                            "writeReg?" :: Bool ;
+                           "tag"  :: RoutingTag ;
                            "data" :: Data ;
                            "exception?" :: Maybe Exception }.
   
@@ -85,17 +85,27 @@ Section Mem.
                      end
       end.
 
-    Definition memFus := filter (fun x => getBool (in_dec string_dec (fuName (snd x)) memFuNames))
-                                (tag func_units).
+    Definition memFu := find (fun x => getBool (string_dec (fuName (snd x)) "mem"))
+                             (tag func_units).
 
-    Definition lengthMemFus := map (fun x => length (fuInsts (snd x))) memFus.
+    Definition lengthMemFu := match memFu with
+                              | None => 0
+                              | Some (_, x) => length (fuInsts x)
+                              end.
 
-    Definition tagMemFus: list nat := map fst memFus.
+    Definition tagMemFu := match memFu with
+                           | None => 0
+                           | Some (x, _) => x
+                           end.
 
-    Definition getMemEntry fu pos:
+
+    Definition getMemEntry pos:
       option (LetExprSyntax ty (FU.MemoryInput Xlen_over_8) ->
               LetExprSyntax ty (FU.MemoryOutput Xlen_over_8)) :=
-      getMemEntryFromInsts (fuInsts fu) pos.
+      match memFu with
+      | None => None
+      | Some (_, x) => getMemEntryFromInsts (fuInsts x) pos
+      end.
 
     Local Open Scope kami_expr.
     Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty) (reservation : Bit 2 @# ty) : MemoryInput @# ty :=
@@ -127,15 +137,16 @@ Section Mem.
 
       Definition defMemRet: MemRet @# ty := STRUCT {
                                                 "writeReg?" ::= $$ false ;
+                                                "tag" ::= $ 0 ;
                                                 "data" ::= $ 0 ;
                                                 "exception?" ::= Invalid }.
 
       Local Open Scope kami_action.
-      Definition memAction fu (tag: nat)
+      Definition memAction (tag: nat)
         :  ActionT ty MemRet
         := If instTag == $tag
            then 
-             match getMemEntry fu tag with
+             match getMemEntry tag with
              | Some fn =>
                Call memRead: MemRead <- "memRead"(addr: _);
                (If #memRead @% "exception?" @% "valid"
@@ -168,6 +179,7 @@ Section Mem.
                      :  MemRet
                      <- STRUCT {
                           "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                          "tag" ::= #memoryOutput @% "tag";
                           "data" ::= #memoryOutput @% "reg_data" @% "data";
                           "exception?" ::= #writeEx
                         };
@@ -182,22 +194,20 @@ Section Mem.
 
       Definition fullMemAction
         :  ActionT ty MemRet
-        := GatherActions
-             (map (fun memFu =>
-                     (If (fuTag == $ (fst memFu))
-                      then 
-                        (GatherActions (map (memAction (snd memFu)) (0 upto (length (fuInsts (snd memFu))))) as retVals;
-                           Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
-                      else
-                        Ret
-                          (STRUCT {
-                               "writeReg?"  ::= $$ false ;
-                               "data"       ::= $0 ;
-                               "exception?" ::= Invalid
-                          })
-                       as ret;
-                           Ret #ret)) memFus) as retVals2;
-             Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals2))).
+        := If (fuTag == $ tagMemFu)
+             then 
+               (GatherActions (map memAction (0 upto lengthMemFu)) as retVals;
+                Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
+             else
+               Ret
+                 (STRUCT {
+                    "writeReg?"  ::= $$ false ;
+                    "tag"        ::= $0 ;
+                    "data"       ::= $0 ;
+                    "exception?" ::= Invalid
+                 })
+             as ret;
+           Ret #ret.
 
       Local Close Scope kami_action.
     End MemAddr.
@@ -239,7 +249,8 @@ Section Mem.
                         (exec_update_pkt
                            @%["val1"
                                 <- Valid (STRUCT {
-                                     "tag"  ::= $IntRegTag;
+                                     (* TODO: this is incorrect. floating point loads need the tag to be a fp register. *)
+                                     "tag"  ::= #memRet @% "tag";
                                      "data" ::= #memRet @% "data"
                                    } : RoutedReg Xlen_over_8 @# ty)]
                            @%["exception" <- #memRet @% "exception?"])
