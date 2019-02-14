@@ -29,6 +29,10 @@ Let func_units
 
        (* RVI memory instructions. *)
        Mem       Xlen_over_8 _;
+       Amo32     Xlen_over_8 _;
+       Amo64     Xlen_over_8 _;
+       LrSc32    Xlen_over_8 _;
+       LrSc64    Xlen_over_8 _;
 
        (* RV Zicsr instructions. *)
        Zicsr     Xlen_over_8 _;
@@ -61,7 +65,7 @@ Let exts
             "Zicsr"    ::= $$(true);
             "RV32M"    ::= $$(true);
             "RV64M"    ::= $$(false);
-            "RV32A"    ::= $$(false);
+            "RV32A"    ::= $$(true);
             "RV64A"    ::= $$(false);
             "RV32F"    ::= $$(false);
             "RV64F"    ::= $$(false);
