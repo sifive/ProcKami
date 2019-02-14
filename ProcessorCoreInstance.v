@@ -25,11 +25,14 @@ Let func_units
        Branch    Xlen_over_8 _;
        Jump      Xlen_over_8 _;
        Mult      Xlen_over_8 _;
-       (* Div       Xlen_over_8 _; *)
-       (* Rem       Xlen_over_8 _; *)
+       DivRem    Xlen_over_8 _;
 
        (* RVI memory instructions. *)
        Mem       Xlen_over_8 _;
+       Amo32     Xlen_over_8 _;
+       Amo64     Xlen_over_8 _;
+       LrSc32    Xlen_over_8 _;
+       LrSc64    Xlen_over_8 _;
 
        (* RV Zicsr instructions. *)
        Zicsr     Xlen_over_8 _;
@@ -60,9 +63,9 @@ Let exts
             "RV64I"    ::= $$(false);
             "Zifencei" ::= $$(false);
             "Zicsr"    ::= $$(true);
-            "RV32M"    ::= $$(false);
+            "RV32M"    ::= $$(true);
             "RV64M"    ::= $$(false);
-            "RV32A"    ::= $$(false);
+            "RV32A"    ::= $$(true);
             "RV64A"    ::= $$(false);
             "RV32F"    ::= $$(true);
             "RV64F"    ::= $$(false);

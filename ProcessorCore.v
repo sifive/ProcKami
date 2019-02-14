@@ -191,6 +191,7 @@ Section Params.
                    LETA mem_update_pkt
                      :  exec_update_pkt_kind
                      <- @MemUnit
+                          ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           Xlen_over_8 _ func_units
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")

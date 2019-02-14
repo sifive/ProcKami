@@ -66,7 +66,7 @@ Section Mem.
                   "memMisalignedException?" ::= #gcp @% "memMisalignedException?";
                   "accessException?" ::= #gcp @% "accessException?"
                 };
-      RetE #ret.
+         RetE #ret.
 
     Local Definition loadTag (valin: MemOutputAddrType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
       LETE val: MemOutputAddrType <- valin;
@@ -151,15 +151,15 @@ Section Mem.
                                   "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
 
-    Local Definition amoInput size (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
+    Local Definition amoInput sz (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin ;
       LETC ret: MemInputAddrType <-
                                  STRUCT {
                                    "base" ::= #gcp @% "reg1" ;
                                    "offset" ::= $0 ;
-                                   "numZeros" ::= $size ;
+                                   "numZeros" ::= $sz ;
                                    "data" ::= STRUCT { "data" ::= #gcp @% "reg2" ;
-                                                       "mask" ::= unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 size) - 1)) } ;
+                                                       "mask" ::= unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 sz) - 1)) } ;
                                    "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
                                    "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
                                    "memMisalignedException?" ::= $$ true ;
@@ -170,18 +170,24 @@ Section Mem.
     Local Definition amoTag := storeTag.
 
     Local Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
+      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memVal: Data <- #memReg @% "mem" ;
-             LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(if half then 15 else 255));
+             LETC memMask: Array Xlen_over_8 Bool <- $$ (ConstArray (if dohalf
+                                                                     then fun i: Fin.t Xlen_over_8 =>
+                                                                            if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
+                                                                            then true else false
+                                                                     else fun i => true));
+             LETC dataVal: Data <- fn #reg #memVal;
              LETC memOut: MaskedMem <-
                                     (STRUCT {
-                                         "data" ::= fn #reg #memVal;
+                                         "data" ::= #dataVal;
                                          "mask" ::= #memMask});
              LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
-             LETC loadVal <- SignExtendTruncLsb (if half then 32 else 64) #memVal;
+             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Xlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-
@@ -203,7 +209,7 @@ Section Mem.
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC memVal: Data <- #memReg @% "mem" ;
-             LETC loadVal <- SignExtendTruncLsb (if half then 32 else 64) #memVal;
+             LETC loadVal <- SignExtendTruncLsb (if half then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Xlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-
@@ -221,16 +227,21 @@ Section Mem.
     Local Definition scTag := storeTag.
 
     Local Definition scXform (half: bool) :=
+      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(if half then 15 else 255));
+             LETC memMask: Array Xlen_over_8 Bool <- $$ (ConstArray (if dohalf
+                                                                     then fun i: Fin.t Xlen_over_8 =>
+                                                                            if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
+                                                                            then true else false
+                                                                     else fun i => true));
              LETC memOut: MaskedMem <-
                                     (STRUCT {
                                          "data" ::= #reg;
                                          "mask" ::= #memMask});
-             LETC isStore: Bool <- #memReg @% "reservation" >= (if half then $1 else $2);
+             LETC isStore: Bool <- #memReg @% "reservation" >= (if dohalf then $1 else $2);
              LETC validMemOut: Maybe MaskedMem <- (STRUCT {
                                                        "valid" ::= #isStore ;
                                                        "data" ::= #memOut });
@@ -396,7 +407,27 @@ Section Mem.
               optMemXform  := storeXform 2 ;
               instHints    := falseHints[hasRs1 := true][hasFrs2 := true]
            |} ::
-           (*
+           nil |}.
+
+           
+    Definition Amo32: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "amo32" ;
+         fuFunc := (fun i => LETE x: MemInputAddrType <- i;
+                               LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
+                               LETC ret: MemOutputAddrType
+                                           <-
+                                           STRUCT {
+                                             "addr" ::= #addr ;
+                                             "data" ::= #x @% "data" ;
+                                             "aq" ::= #x @% "aq" ;
+                                             "rl" ::= #x @% "rl" ;
+                                             "misalignedException?" ::=
+                                               (#x @% "memMisalignedException?")
+                                                 && isAligned #addr (#x @% "numZeros") ;
+                                             "accessException?" ::= #x @% "accessException?"
+                                           } ;
+                               RetE #ret ) ;
+         fuInsts :=
            {| instName     := "amoswap.w" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
@@ -496,6 +527,26 @@ Section Mem.
               optMemXform  := amoXform true (fun reg mem => IF reg > mem then reg else mem) ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
+           nil |}.
+        
+    Definition Amo64: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "amo64" ;
+         fuFunc := (fun i => LETE x: MemInputAddrType <- i;
+                               LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
+                               LETC ret: MemOutputAddrType
+                                           <-
+                                           STRUCT {
+                                             "addr" ::= #addr ;
+                                             "data" ::= #x @% "data" ;
+                                             "aq" ::= #x @% "aq" ;
+                                             "rl" ::= #x @% "rl" ;
+                                             "misalignedException?" ::=
+                                               (#x @% "memMisalignedException?")
+                                                 && isAligned #addr (#x @% "numZeros") ;
+                                             "accessException?" ::= #x @% "accessException?"
+                                           } ;
+                               RetE #ret ) ;
+         fuInsts :=
            {| instName     := "amoswap.d" ;
               extensions   := "RV64I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
@@ -595,6 +646,28 @@ Section Mem.
               optMemXform  := amoXform false (fun reg mem => IF reg > mem then reg else mem) ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
+           nil |}.
+
+
+    
+    Definition LrSc32: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "lrsc32" ;
+         fuFunc := (fun i => LETE x: MemInputAddrType <- i;
+                               LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
+                               LETC ret: MemOutputAddrType
+                                           <-
+                                           STRUCT {
+                                             "addr" ::= #addr ;
+                                             "data" ::= #x @% "data" ;
+                                             "aq" ::= #x @% "aq" ;
+                                             "rl" ::= #x @% "rl" ;
+                                             "misalignedException?" ::=
+                                               (#x @% "memMisalignedException?")
+                                                 && isAligned #addr (#x @% "numZeros") ;
+                                             "accessException?" ::= #x @% "accessException?"
+                                           } ;
+                               RetE #ret ) ;
+         fuInsts :=
            {| instName     := "lr.w" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
@@ -606,19 +679,6 @@ Section Mem.
               inputXform   := lrInput 2;
               outputXform  := lrTag ;
               optMemXform  := lrXform true ;
-              instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
-           |} ::
-           {| instName     := "lr.d" ;
-              extensions   := "RV64I" :: nil;
-              uniqId       := fieldVal instSizeField ('b"11") ::
-                                       fieldVal opcodeField ('b"01011") ::
-                                       fieldVal funct3Field ('b"011") ::
-                                       fieldVal funct5Field ('b"00010") ::
-                                       fieldVal rs2Field ('b"00000") ::
-                                       nil ;
-              inputXform   := lrInput 3;
-              outputXform  := lrTag ;
-              optMemXform  := lrXform false ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
            {| instName     := "sc.w" ;
@@ -634,6 +694,39 @@ Section Mem.
               optMemXform  := scXform true ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
+           nil |}.
+    
+    Definition LrSc64: @FUEntry Xlen_over_8 ty :=
+      {| fuName := "lrsc64" ;
+         fuFunc := (fun i => LETE x: MemInputAddrType <- i;
+                               LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
+                               LETC ret: MemOutputAddrType
+                                           <-
+                                           STRUCT {
+                                             "addr" ::= #addr ;
+                                             "data" ::= #x @% "data" ;
+                                             "aq" ::= #x @% "aq" ;
+                                             "rl" ::= #x @% "rl" ;
+                                             "misalignedException?" ::=
+                                               (#x @% "memMisalignedException?")
+                                                 && isAligned #addr (#x @% "numZeros") ;
+                                             "accessException?" ::= #x @% "accessException?"
+                                           } ;
+                               RetE #ret ) ;
+         fuInsts :=
+           {| instName     := "lr.d" ;
+              extensions   := "RV64I" :: nil;
+              uniqId       := fieldVal instSizeField ('b"11") ::
+                                       fieldVal opcodeField ('b"01011") ::
+                                       fieldVal funct3Field ('b"011") ::
+                                       fieldVal funct5Field ('b"00010") ::
+                                       fieldVal rs2Field ('b"00000") ::
+                                       nil ;
+              inputXform   := lrInput 3;
+              outputXform  := lrTag ;
+              optMemXform  := lrXform false ;
+              instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+           |} ::
            {| instName     := "sc.d" ;
               extensions   := "RV64I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
@@ -647,7 +740,6 @@ Section Mem.
               optMemXform  := scXform false ;
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
-            *)
            nil |}.
   End Ty.
 End Mem.
