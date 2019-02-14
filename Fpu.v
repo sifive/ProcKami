@@ -121,13 +121,22 @@ Let from_IEEE_float (x : IEEE_float_kind @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack x).
 
-Let from_kami_float (x : kami_float_kind @# ty)
+Definition from_kami_float (x : kami_float_kind @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
 
 Let csr_bit (flag : Bool @# ty) (mask : Bit 5 @# ty)
   :  Bit 5 @# ty
   := ITE flag mask ($0 : Bit 5 @# ty).
+
+Definition const_1
+  :  kami_float_kind @# ty
+  := getNF_from_FN (
+       STRUCT {
+         "sign" ::= $$false;
+         "exp"  ::= $0;
+         "frac" ::= $0
+       } : IEEE_float_kind @# ty).
 
 (*
   Note: this function does not set the divide by zero CSR flag.
@@ -176,13 +185,8 @@ Let add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
        (STRUCT {
          "op" ::= op;
          "a"  ::= to_kami_float (#context_pkt @% "reg1");
-         "b"  ::= to_kami_float ($1);
+         "b"  ::= const_1;
          "c"  ::= to_kami_float (#context_pkt @% "reg2");
-         (* TODO: testing
-         "a"  ::= to_kami_float ($3);
-         "b"  ::= to_kami_float ($5);
-         "c"  ::= to_kami_float ($7);
-         *)
          "roundingMode" ::= rm (#context_pkt @% "inst");
          "detectTininess" ::= $$true (* TODO: testing *)
        } : sem_in_pkt_kind @# ty).
