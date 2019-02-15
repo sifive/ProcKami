@@ -745,7 +745,7 @@ Section database.
             (fun comp_inst
              => RetE (
                     {<
-                     ZeroExtend 6 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]) >}),
+                     ZeroExtend 4 ({< (comp_inst $[3:2]), (comp_inst $[12:12]), (comp_inst $[6:4]), $$(natToWord 2 0) >}),
                      uncomp_inst_reg 2,
                      $$(('b"010") : word 3),
                      (comp_inst $[11:7]),
