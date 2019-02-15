@@ -256,7 +256,7 @@ Section reg_reader.
                 "memMisalignedException?"  ::= memMisalignedException;
                 "accessException?" ::= accessException;
                 "mode" ::= decoder_pkt @% "mode";
-                "compressed?" ::= !(decode_uncompressed raw_inst)
+                "compressed?" ::= decoder_pkt @% "compressed?"
               } : exec_context_pkt_kind @# ty).
 
     Definition readerWithException
