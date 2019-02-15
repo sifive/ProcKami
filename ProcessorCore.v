@@ -1,4 +1,5 @@
 Require Import Kami.All FU  Fetch Decoder FuInputTrans RegReader Executor MemGenerator RegWriter.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
@@ -57,6 +58,28 @@ Section Params.
     Variable extensions : forall ty, Extensions @# ty.
     Arguments extensions {ty}.
 
+    Definition dispNF ty (x : kami_float_kind @# ty) := 
+      [
+        DispString ty "    isNaN: ";
+        DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary);
+        DispString ty "\n";
+        DispString ty "    isInf: ";
+        DispBool (x @% "isInf") (1, Binary);
+        DispString ty "\n";
+        DispString ty "    isZero: ";
+        DispBool (x @% "isZero") (1, Binary);
+        DispString ty "\n";
+        DispString ty "    sign: ";
+        DispBool (x @% "sign") (1, Binary);
+        DispString ty "\n";
+        DispString ty "    sExp: ";
+        DispBit (x @% "sExp") (32, Binary);
+        DispString ty "\n";
+        DispString ty "    sign: ";
+        DispBit (x @% "sig") (32, Binary);
+        DispString ty "\n"
+      ].
+
     Local Open Scope list.
     Definition pipeline 
       :  BaseModule
@@ -65,7 +88,9 @@ Section Params.
               Register ^"pc" : VAddr <- ConstBit (_ 'h "00000000") with
               Rule ^"pipeline"
                 := System
-                     ((DispString _ "Start\n") :: nil);
+                     [
+                       DispString _ "Start\n"
+                     ];
                    Read pc : VAddr <- ^"pc";
                    System
                      [
@@ -90,7 +115,7 @@ Section Params.
                        DispBool (#fetch_pkt @% "snd" @% "valid") (32, Binary);
                        DispString _ "\n"
                      ];
-                   System ((DispString _ "Decoder\n") :: nil);
+                   System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      :  decoder_pkt_kind
                      <- convertLetExprSyntax_ActionT
@@ -115,7 +140,7 @@ Section Params.
                        DispBool (#decoder_pkt @% "snd" @% "valid") (32, Binary);
                        DispString _ "\n"
                      ];
-                   System ((DispString _ "Reg Read\n") :: nil);
+                   System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      :  exec_context_pkt_kind
                      <- readerWithException
@@ -134,13 +159,25 @@ Section Params.
                             $$(false))
                           (#decoder_pkt);
                    System
-                     [
+                     ([
                        DispString _ "Reg Vals\n";
                        DispString _ "  reg1: ";
+                       DispString _ "    integer value: ";
                        DispBit (#exec_context_pkt @% "fst" @% "reg1") (32, Decimal);
                        DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg1"))) ++
+                     [
+                       DispString _ "\n";
                        DispString _ "  reg2: ";
+                       DispString _ "    integer value: ";
                        DispBit (#exec_context_pkt @% "fst" @% "reg2") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg1"))) ++
+                     [
                        DispString _ "\n";
                        DispString _ "  csr: ";
                        DispBit (#exec_context_pkt @% "fst" @% "csr" @% "data") (32, Decimal); 
@@ -151,39 +188,51 @@ Section Params.
                        DispString _ "  Exception: ";
                        DispBool (#exec_context_pkt @% "snd" @% "valid") (32, Binary);
                        DispString _ "\n"
-                     ];
-                   System ((DispString _ "Trans\n") :: nil);
+                     ]);
+                   System [DispString _ "Trans\n"];
                    LETA trans_pkt
                      :  trans_pkt_kind 
                      <- convertLetExprSyntax_ActionT
                           (transWithException
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
-                   System ((DispString _ "Executor\n") :: nil);
+                   System [DispString _ "Executor\n"];
                    LETA exec_update_pkt
                      :  exec_update_pkt_kind
                      <- convertLetExprSyntax_ActionT
                           (execWithException (#trans_pkt));
                    System
-                     [
+                     ([
                        DispString _ "New Reg Vals\n";
                        DispString _ "  PC tag: ";
                        DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
                        DispString _ "\n";
-                       DispString _ "  val1Valid: ";
+                       DispString _ "  val1 valid: ";
                        DispBool (#exec_update_pkt @% "fst" @% "val1" @% "valid") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  val1: ";
+                       DispString _ "    integer value: ";
                        DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++
+                     [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
                        DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
                        DispString _ "\n";
-                       DispString _ "  val2Valid: ";
+                       DispString _ "  val2 valid: ";
                        DispBool (#exec_update_pkt @% "fst" @% "val2" @% "valid") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  val2: ";
+                       DispString _ "    integer value: ";
                        DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++
+                     [
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
                        DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
@@ -194,9 +243,9 @@ Section Params.
                        DispString _ "  Exception: ";
                        DispBool (#exec_update_pkt @% "snd" @% "valid") (32, Binary);
                        DispString _ "\n"
-                     ];
+                     ]);
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
-                   System ((DispString _ "Mem\n") :: nil);
+                   System [DispString _ "Mem\n"];
                    LETA mem_update_pkt
                      :  exec_update_pkt_kind
                      <- @MemUnit
@@ -206,26 +255,38 @@ Section Params.
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);
                    System
-                     [
+                     ([
                        DispString _ "New Reg Vals (after memory ops)\n";
                        DispString _ "  val1: ";
+                       DispString _ "    integer value: ";
                        DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++
+                     [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
                        DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  val2: ";
+                       DispString _ "    integer value: ";
                        DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data") (32, Decimal);
                        DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++ 
+                     (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++
+                     [
+                       DispString _ "\n";
                        DispString _ "  val2 tag: ";
-                       DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                       DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  Exception: ";
                        DispBool (#mem_update_pkt @% "snd" @% "valid") (32, Binary);
                        DispString _ "\n"
-                     ];
+                     ]);
                    (* TODO: the call to commit currently ignores any exceptions propogated through mem_update_pkt. *)
-                   System ((DispString _ "Reg Write\n") :: nil);
+                   System [DispString _ "Reg Write\n"];
                    LETA commit_pkt
                      :  Void
                      <- commit
@@ -234,7 +295,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt @% "fst")
                           (#exec_context_pkt @% "fst");
-                   System ((DispString _ "Inc PC\n") :: nil);
+                   System [DispString _ "Inc PC\n"];
                    Write ^"pc"
                      :  VAddr
                      <- (let opt_val1

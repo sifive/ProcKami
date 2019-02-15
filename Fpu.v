@@ -40,13 +40,13 @@ Definition sem_out_pkt_kind
   :  Kind
   := MulAdd_Output (exp_width - 2) (sig_width - 2).
 
-Let IEEE_float_kind : Kind
+Definition IEEE_float_kind : Kind
   := FN (exp_width - 2) (sig_width - 2).
 
-Let kami_float_kind : Kind
+Definition kami_float_kind : Kind
   := NF (exp_width - 2) (sig_width - 2).
 
-Let chisel_float_kind : Kind
+Definition chisel_float_kind : Kind
   := RecFN (exp_width - 2) (sig_width - 2).
 
 Let fmin_max_in_pkt_kind
@@ -109,7 +109,7 @@ Let to_IEEE_float (x : Bit Xlen @# ty)
   := unpack IEEE_float_kind (ZeroExtendTruncLsb (size IEEE_float_kind) x).
 
 (* TODO: change to Flen *)
-Let to_kami_float (x : Bit Xlen @# ty)
+Definition to_kami_float (x : Bit Xlen @# ty)
   :  kami_float_kind @# ty
   := getNF_from_FN (to_IEEE_float x).
 
@@ -131,13 +131,22 @@ Let csr_bit (flag : Bool @# ty) (mask : Bit 5 @# ty)
 
 Definition const_1
   :  kami_float_kind @# ty
+  := STRUCT {
+       "isNaN" ::= $$false;
+       "isInf" ::= $$false;
+       "isZero" ::= $$false;
+       "sign" ::= $$false;
+       "sExp" ::= $0;
+       "sig" ::= $0
+     }.
+(*
   := getNF_from_FN (
        STRUCT {
          "sign" ::= $$false;
          "exp"  ::= $0;
          "frac" ::= $0
        } : IEEE_float_kind @# ty).
-
+*)
 (*
   Note: this function does not set the divide by zero CSR flag.
 *)
