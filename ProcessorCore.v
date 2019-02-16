@@ -72,10 +72,10 @@ Section Params.
         DispString ty "    sign: ";
         DispBool (x @% "sign") (1, Binary);
         DispString ty "\n";
-        DispString ty "    sExp: ";
+        DispString ty "    signed exponent: ";
         DispBit (x @% "sExp") (32, Binary);
         DispString ty "\n";
-        DispString ty "    sign: ";
+        DispString ty "    significand: ";
         DispBit (x @% "sig") (32, Binary);
         DispString ty "\n"
       ].
@@ -176,7 +176,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg1"))) ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg2"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";

@@ -30,7 +30,7 @@ Let flen : nat := 32.
 
 Let exp_width : nat := 8.
 
-Let sig_width : nat := 23.
+Let sig_width : nat := 24.
 
 Definition sem_in_pkt_kind
   :  Kind
@@ -667,6 +667,93 @@ Definition FSgn : @FUEntry Xlen_over_8 ty
                        => sem_out_pkt_expr;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+              |}
+            ]
+     |}.
+
+Definition FMvXW : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "fmvxw";
+       fuFunc
+         := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+              => LETE exec_context_pkt
+                   :  ExecContextPkt Xlen_over_8
+                   <- exec_context_pkt_expr;
+                 RetE
+                   (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                             "data" ::= SignExtendTruncLsb Xlen (#exec_context_pkt @% "reg1")
+                           });
+                     "val2" ::= @Invalid ty _;
+                     "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false;
+                     "exception" ::= @Invalid ty _
+                   } : ExecContextUpdPkt Xlen_over_8 @# ty);
+       fuInsts
+         := [
+              {|
+                instName   := "fmv.x.w";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"000");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1110000")
+                     ];
+                inputXform := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty => exec_context_pkt_expr;
+                outputXform := fun exec_update_pkt_expr => exec_update_pkt_expr;
+                optMemXform := None;
+                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+              |}
+            ]
+     |}.
+
+Definition FMvWX : @FUEntry Xlen_over_8 ty
+  := {|
+       fuName := "fmvwx";
+       fuFunc
+         := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+              => LETE exec_context_pkt
+                   :  ExecContextPkt Xlen_over_8
+                   <- exec_context_pkt_expr;
+                 RetE
+                   (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                             (* TODO change to flen output once converted to using flen *)
+                             "data" ::= ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb flen (#exec_context_pkt @% "reg1"))
+                           });
+                     "val2" ::= @Invalid ty _;
+                     "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false;
+                     "exception" ::= @Invalid ty _
+                   } : ExecContextUpdPkt Xlen_over_8 @# ty);
+       fuInsts
+         := [
+              {|
+                instName   := "fmv.w.x";
+                extensions := ["RV32F"; "RV64F"];
+                uniqId
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"10100");
+                       fieldVal funct3Field   ('b"000");
+                       fieldVal rs2Field      ('b"00000");
+                       fieldVal funct7Field   ('b"1111000")
+                     ];
+                inputXform := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty => exec_context_pkt_expr;
+                outputXform := fun exec_update_pkt_expr => exec_update_pkt_expr;
+                optMemXform := None;
+                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
               |}
             ]
      |}.
