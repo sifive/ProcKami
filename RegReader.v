@@ -179,6 +179,11 @@ Section reg_reader.
       := Call freg_val : reg_val_kind <- ("read_freg_" ++ natToHexStr n)(freg_id : reg_id_kind);
            Ret (#freg_val).
 
+    Definition reg_reader_read_fcsr
+      :  ActionT ty csr_value_kind
+      := Call fcsr_val : csr_value_kind <- "read_fcsr" ();
+         Ret (#fcsr_val).
+
     Definition reg_reader_read_csr
       (raw_instr : uncomp_inst_kind @# ty)
       :  ActionT ty (Maybe csr_value_kind)
@@ -215,6 +220,9 @@ Section reg_reader.
          LETA csr_val
            :  Maybe csr_value_kind
            <- reg_reader_read_csr raw_inst;
+         LETA fcsr_val
+           :  csr_value_kind
+           <- reg_reader_read_fcsr;
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
              DispBit (rs1 raw_inst) (32, Decimal);
@@ -239,6 +247,9 @@ Section reg_reader.
              DispString _ "\n";
              DispString _ "has FRS3: ";
              DispBool (reg_reader_has_frs3 decoder_pkt) (1, Binary);
+             DispString _ "\n";
+             DispString _ "Floating Point Control Status Register: ";
+             DispBit (#fcsr_val) (32, Binary);
              DispString _ "\n"
            ] Retv;
          Ret
@@ -250,6 +261,7 @@ Section reg_reader.
                             (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
                 "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
                 "csr"  ::= #csr_val;
+                "fcsr" ::= #fcsr_val;
                 "inst" ::= raw_inst;
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;

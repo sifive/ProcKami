@@ -3,6 +3,7 @@
   point arithmetic.
 
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
+  TODO: Pass the value of the rounding mode CSR to the MulAdd executor.
 *)
 Require Import Kami.All.
 Require Import FpuKami.Definitions.
@@ -139,14 +140,7 @@ Definition const_1
        "sExp" ::= $0;
        "sig" ::= $0
      }.
-(*
-  := getNF_from_FN (
-       STRUCT {
-         "sign" ::= $$false;
-         "exp"  ::= $0;
-         "frac" ::= $0
-       } : IEEE_float_kind @# ty).
-*)
+
 (*
   Note: this function does not set the divide by zero CSR flag.
 *)
@@ -170,6 +164,27 @@ Let excs (flags : ExceptionFlags @# ty)
        "data"  ::= excs_bit (flags @% "invalid") ($IllegalInst)
      }.
 
+Let rounding_mode_kind : Kind := Bit 3.
+
+Let rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
+
+Let fcsr_frmField := (7, 5).
+
+Let fcsr_frm (fcsr : csr_value_kind @# ty)
+  :  rounding_mode_kind @# ty
+  := fcsr $[fst fcsr_frmField:
+            snd fcsr_frmField].
+
+Let rounding_mode (context_pkt : ExecContextPkt Xlen_over_8 @# ty)
+  :  rounding_mode_kind @# ty
+  := let rounding_mode
+       :  rounding_mode_kind @# ty
+       := rm (context_pkt @% "inst") in
+     ITE
+       (rounding_mode == rounding_mode_dynamic)
+       (fcsr_frm (context_pkt @% "fcsr"))
+       rounding_mode.
+
 Let muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty) 
   :  sem_in_pkt_kind ## ty
   := LETE context_pkt
@@ -181,7 +196,7 @@ Let muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_ove
          "a"  ::= to_kami_float (#context_pkt @% "reg1");
          "b"  ::= to_kami_float (#context_pkt @% "reg2");
          "c"  ::= to_kami_float (#context_pkt @% "reg3");
-         "roundingMode" ::= rm (#context_pkt @% "inst");
+         "roundingMode"   ::= rounding_mode (#context_pkt);
          "detectTininess" ::= $$true
        } : sem_in_pkt_kind @# ty).
 
@@ -196,8 +211,8 @@ Let add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
          "a"  ::= to_kami_float (#context_pkt @% "reg1");
          "b"  ::= const_1;
          "c"  ::= to_kami_float (#context_pkt @% "reg2");
-         "roundingMode" ::= rm (#context_pkt @% "inst");
-         "detectTininess" ::= $$true (* TODO: testing *)
+         "roundingMode"   ::= rounding_mode (#context_pkt);
+         "detectTininess" ::= $$true (* TODO: verify *)
        } : sem_in_pkt_kind @# ty).
 
 Let mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty) 
@@ -211,7 +226,7 @@ Let mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
          "a"  ::= to_kami_float (#context_pkt @% "reg1");
          "b"  ::= to_kami_float (#context_pkt @% "reg2");
          "c"  ::= to_kami_float ($0);
-         "roundingMode" ::= rm (#context_pkt @% "inst");
+         "roundingMode"   ::= rounding_mode (#context_pkt);
          "detectTininess" ::= $$true
        } : sem_in_pkt_kind @# ty).
 
@@ -353,7 +368,7 @@ Let fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt Xlen
          "isSqrt" ::= $$false;
          "recA"   ::= to_chisel_float (#context_pkt @% "reg1");
          "recB"   ::= to_chisel_float (#context_pkt @% "reg2");
-         "round"  ::= rm (#context_pkt @% "inst");
+         "round"  ::= rounding_mode (#context_pkt);
          "tiny"   ::= $$true
        } : fdiv_sqrt_in_pkt_kind @# ty).
 

@@ -99,6 +99,7 @@ Section Params.
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
              "csr"                      :: Maybe csr_value_kind;
+             "fcsr"                     :: csr_value_kind;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
