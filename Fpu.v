@@ -33,6 +33,7 @@ Let exp_width : nat := 8.
 
 Let sig_width : nat := 24.
 
+(*
 Definition sem_in_pkt_kind
   :  Kind
   := MulAdd_Input (exp_width - 2) (sig_width - 2).
@@ -40,6 +41,24 @@ Definition sem_in_pkt_kind
 Definition sem_out_pkt_kind
   :  Kind
   := MulAdd_Output (exp_width - 2) (sig_width - 2).
+*)
+Let muladd_in_kind : Kind := MulAdd_Input (exp_width - 2) (sig_width - 2).
+
+Let muladd_out_kind : Kind := MulAdd_Output (exp_width - 2) (sig_width - 2).
+
+Definition sem_in_pkt_kind
+  :  Kind
+  := STRUCT {
+       "fcsr"      :: csr_value_kind;
+       "muladd_in" :: muladd_in_kind
+     }.
+
+Definition sem_out_pkt_kind
+  :  Kind
+  := STRUCT {
+       "fcsr"       :: csr_value_kind;
+       "muladd_out" :: muladd_out_kind
+     }.
 
 Definition IEEE_float_kind : Kind
   := FN (exp_width - 2) (sig_width - 2).
@@ -192,12 +211,16 @@ Let muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_ove
        <- context_pkt_expr;
      RetE
        (STRUCT {
-         "op" ::= op;
-         "a"  ::= to_kami_float (#context_pkt @% "reg1");
-         "b"  ::= to_kami_float (#context_pkt @% "reg2");
-         "c"  ::= to_kami_float (#context_pkt @% "reg3");
-         "roundingMode"   ::= rounding_mode (#context_pkt);
-         "detectTininess" ::= $$true
+         "fcsr" ::= #context_pkt @% "fcsr";
+         "muladd_in"
+           ::= (STRUCT {
+                  "op" ::= op;
+                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
+                  "b"  ::= to_kami_float (#context_pkt @% "reg2");
+                  "c"  ::= to_kami_float (#context_pkt @% "reg3");
+                  "roundingMode"   ::= rounding_mode (#context_pkt);
+                  "detectTininess" ::= $$true
+                } : muladd_in_kind @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Let add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty) 
@@ -207,12 +230,16 @@ Let add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
        <- context_pkt_expr;
      RetE
        (STRUCT {
-         "op" ::= op;
-         "a"  ::= to_kami_float (#context_pkt @% "reg1");
-         "b"  ::= const_1;
-         "c"  ::= to_kami_float (#context_pkt @% "reg2");
-         "roundingMode"   ::= rounding_mode (#context_pkt);
-         "detectTininess" ::= $$true (* TODO: verify *)
+         "fcsr" ::= #context_pkt @% "fcsr";
+         "muladd_in"
+           ::= (STRUCT {
+                  "op" ::= op;
+                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
+                  "b"  ::= const_1;
+                  "c"  ::= to_kami_float (#context_pkt @% "reg2");
+                  "roundingMode"   ::= rounding_mode (#context_pkt);
+                  "detectTininess" ::= $$true
+                } : muladd_in_kind @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Let mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty) 
@@ -222,12 +249,16 @@ Let mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8
        <- context_pkt_expr;
      RetE
        (STRUCT {
-         "op" ::= op;
-         "a"  ::= to_kami_float (#context_pkt @% "reg1");
-         "b"  ::= to_kami_float (#context_pkt @% "reg2");
-         "c"  ::= to_kami_float ($0);
-         "roundingMode"   ::= rounding_mode (#context_pkt);
-         "detectTininess" ::= $$true
+         "fcsr" ::= #context_pkt @% "fcsr";
+         "muladd_in"
+           ::= (STRUCT {
+                  "op" ::= op;
+                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
+                  "b"  ::= to_kami_float (#context_pkt @% "reg2");
+                  "c"  ::= to_kami_float ($0);
+                  "roundingMode"   ::= rounding_mode (#context_pkt);
+                  "detectTininess" ::= $$true
+                } : muladd_in_kind @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Let muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
@@ -239,17 +270,18 @@ Let muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
        (STRUCT {
          "val1" ::= Valid (STRUCT {
                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                      "data" ::= from_kami_float (#sem_out_pkt @% "out")
+                      "data" ::= from_kami_float (#sem_out_pkt @% "muladd_out" @% "out")
                     });
          "val2" ::= Valid (STRUCT {
                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                      "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Xlen @# ty)
+                      "data" ::= ((((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Xlen @# ty)
+                                   | (ZeroExtendTruncLsb Xlen ((#sem_out_pkt @% "fcsr" : csr_value_kind @# ty)))) : Bit Xlen @# ty)
                     });
          "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
          "taken?" ::= $$false;
          "aq" ::= $$false;
          "rl" ::= $$false;
-         "exception" ::= excs (#sem_out_pkt @% "exceptionFlags")
+         "exception" ::= excs (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")
        } : ExecContextUpdPkt Xlen_over_8 @# ty).
 
 Let fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty)
@@ -399,11 +431,25 @@ Let fdiv_sqrt_out_pkt (sem_out_pkt_expr : fdiv_sqrt_out_pkt_kind ## ty)
 Definition Mac : @FUEntry Xlen_over_8 ty
   := {|
        fuName :="mac";
+(*
        fuFunc := fun sem_in_pkt_expr : sem_in_pkt_kind ## ty
                    => LETE sem_in_pkt
                         :  sem_in_pkt_kind
                         <- sem_in_pkt_expr;
                       MulAdd_expr (#sem_in_pkt);
+*)
+       fuFunc := fun sem_in_pkt_expr : sem_in_pkt_kind ## ty
+                   => LETE sem_in_pkt
+                        :  sem_in_pkt_kind
+                        <- sem_in_pkt_expr;
+                      LETE muladd_out
+                        :  muladd_out_kind
+                        <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
+                      RetE
+                        (STRUCT {
+                           "fcsr"       ::= #sem_in_pkt @% "fcsr";
+                           "muladd_out" ::= #muladd_out
+                         } : sem_out_pkt_kind @# ty);
        fuInsts
          := [
               {|

@@ -1,6 +1,8 @@
 (*
   This module defines the functional unit entries for the Zicsr
   extension.
+
+  TODO: check new_csr_value write conditions based on immediate and RS1 values.
 *)
 Require Import Kami.All.
 Require Import FU.
@@ -89,12 +91,9 @@ Definition Zicsr : @FUEntry Xlen_over_8 ty
                             (STRUCT {
                                 "orig_csr_value" ::= #exec_context_pkt @% "csr";
                                 "new_csr_value" 
-                                  ::= ITE
-                                        (rs1 (#exec_context_pkt @% "inst") == $0)
-                                        (@Invalid ty csr_value_kind)
-                                        (Valid
-                                          (ZeroExtendTruncLsb csr_value_width
-                                            (#exec_context_pkt @% "reg1")))
+                                  ::= Valid
+                                        (ZeroExtendTruncLsb csr_value_width
+                                          (#exec_context_pkt @% "reg1"))
                               } : sem_in_pkt_kind @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
