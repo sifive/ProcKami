@@ -1,5 +1,5 @@
 Require Import Kami.All FU  Fetch Decoder FuInputTrans RegReader Executor MemGenerator RegWriter.
-Require Import Fpu.
+(* Require Import Fpu. *)
 Require Import List.
 Import ListNotations.
 
