@@ -35,7 +35,7 @@ Let func_units
        LrSc64    Xlen_over_8 _;
 
        (* RV Zicsr instructions. *)
-       Zicsr     Xlen_over_8 _;
+       Zicsr     Xlen_over_8 _
 
 (*        (* RVF instructions. *) *)
 (*        Mac       _ Xlen_over_8; *)
