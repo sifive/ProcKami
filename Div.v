@@ -74,22 +74,8 @@ Section divnat_expr.
                                                RetE #ret).
 End divnat_expr.
 
-Let test := evalLetExpr (@div_rem_final 4 type (Const type (ConstBit (wones 4))) $3)%kami_expr.
-Let div_test := wordToNat (test (Fin.F1)).
-Let rem_test := wordToNat (test (Fin.FS Fin.F1)).
-
-Require Import Program.Equality.
-Local Transparent wlt_dec.
-Goal True.
-  pose div_test as t.
-  pose rem_test as s.
-  compute in t.
-  compute in s.
-  repeat match goal with
-         | H := context[@Nat.add_comm ?P ?Q] |- _ =>
-                let f := fresh in
-                remember (Nat.add_comm P Q) as f;
-                  dependent destruction f
-         end.
-Abort.
-Local Opaque wlt_dec.
+Section test.
+  Let test := evalLetExpr (@div_rem_final 4 type (Const type (ConstBit (wones 4))) $3)%kami_expr.
+  Let div_test := wordToNat (test (Fin.F1)).
+  Let rem_test := wordToNat (test (Fin.FS Fin.F1)).
+End test.
