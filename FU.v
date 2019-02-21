@@ -1088,8 +1088,7 @@ Section Params.
     Section Memory.
       Definition MemRead := STRUCT {
                                 "data" :: Data ;
-                                "reservation" :: Bit 2 ;
-                                "exception?" :: Maybe FullException }.
+                                "reservation" :: Bit 2 }.
 
       Definition MemWrite := STRUCT {
                                  "addr" :: VAddr ;
@@ -1098,8 +1097,7 @@ Section Params.
       Definition MemRet := STRUCT {
                                "writeReg?" :: Bool ;
                                "tag"  :: RoutingTag ;
-                               "data" :: Data ;
-                               "exception?" :: Maybe FullException }.
+                               "data" :: Data }.
       
       Definition MemUnitInput := STRUCT {
                                      "aq" :: Bool ;
@@ -1161,33 +1159,35 @@ Section Params.
         Variable instTag: InstId @# ty.
         Variable memUnitInput: MemUnitInput @# ty.
 
-        Definition defMemRet: MemRet @# ty := STRUCT {
-                                                  "writeReg?" ::= $$ false ;
-                                                  "tag" ::= $ 0 ;
-                                                  "data" ::= $ 0 ;
-                                                  "exception?" ::= Invalid }.
+        Definition defMemRet: PktWithException MemRet @# ty :=
+          STRUCT {
+              "fst" ::= STRUCT { "writeReg?" ::= $$ false ;
+                                 "tag" ::= $ 0 ;
+                                 "data" ::= $ 0 } ;
+              "snd" ::= Invalid }.
+                                                  
 
         Local Open Scope kami_action.
         Definition memAction fu (tag: nat)
-          :  ActionT ty MemRet
+          :  ActionT ty (PktWithException MemRet)
           := If instTag == $tag
         then 
           match getMemEntry fu tag with
           | Some fn =>
-            Call memRead: MemRead <- ^"memRead"(addr: _);
-              (If #memRead @% "exception?" @% "valid"
+            Call memRead: PktWithException MemRead <- ^"memRead"(addr: _);
+              (If #memRead @% "snd" @% "valid"
                then Ret defMemRet
                else
                  (LETA memoryOutput
                   :  MemoryOutput
                        <- convertLetExprSyntax_ActionT
                        (fn (RetE (makeMemoryInput memUnitInput
-                                                  (#memRead @% "data")
-                                                  (#memRead @% "reservation"))));
+                                                  (#memRead @% "fst" @% "data")
+                                                  (#memRead @% "fst" @% "reservation"))));
                     LETA writeVal
                     :  Data
                          <- convertLetExprSyntax_ActionT
-                         (applyMask (#memRead @% "data") (#memoryOutput @% "mem" ));
+                         (applyMask (#memRead @% "fst" @% "data") (#memoryOutput @% "mem" ));
                     LET memWrite
                     :  MemWrite
                          <- STRUCT {
@@ -1202,13 +1202,13 @@ Section Params.
                     Ret (@Invalid _ FullException)
                    as writeEx;
                     LET memRet
-                    :  MemRet
+                    : PktWithException MemRet
                          <- STRUCT {
-                           "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
-                           "tag" ::= #memoryOutput @% "tag";
-                           "data" ::= #memoryOutput @% "reg_data" @% "data";
-                           "exception?" ::= #writeEx
-                         };
+                           "fst" ::= STRUCT {
+                                         "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                                         "tag" ::= #memoryOutput @% "tag";
+                                         "data" ::= #memoryOutput @% "reg_data" @% "data" } ;
+                           "snd" ::= #writeEx };
                     Ret #memRet
                  ) as ret;
                  Ret #ret)
@@ -1219,24 +1219,25 @@ Section Params.
           Ret #ret.
 
         Definition fullMemAction
-          :  ActionT ty MemRet
+          :  ActionT ty (PktWithException MemRet)
           := GatherActions
                (map (fun memFu =>
                        (If (fuTag == $ (fst memFu))
                         then 
                           (GatherActions (map (memAction (snd memFu)) (0 upto (length (fuInsts (snd memFu))))) as retVals;
-                             Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals))))
+                             Ret (unpack (PktWithException MemRet)
+                                         (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals))))
                         else
                           Ret
                             (STRUCT {
-                                 "writeReg?"  ::= $$ false ;
-                                 "tag"        ::= $0 ;
-                                 "data"       ::= $0 ;
-                                 "exception?" ::= Invalid
+                                 "fst" ::= STRUCT { "writeReg?"  ::= $$ false ;
+                                                    "tag"        ::= $0 ;
+                                                    "data"       ::= $0 } ;
+                                 "snd" ::= Invalid
                             })
                          as ret;
                           Ret #ret)) memFus) as retVals2;
-               Ret (unpack MemRet (CABit Bor (map (@pack ty MemRet) retVals2))).
+               Ret (unpack (PktWithException MemRet) (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals2))).
 
         Local Close Scope kami_action.
       End MemAddr.
@@ -1256,7 +1257,7 @@ Section Params.
         :  ActionT ty (PktWithException ExecContextUpdPkt)
         := LET exec_update_pkt: ExecContextUpdPkt <- opt_exec_update_pkt @% "fst";
            LETA memRet
-           :  MemRet
+           :  PktWithException MemRet
                 <- fullMemAction
                 (#exec_update_pkt @% "val1" @% "data" @% "data")
                 (decoder_pkt @% "funcUnitTag")
@@ -1272,15 +1273,15 @@ Section Params.
                   (STRUCT {
                        "fst"
                        ::= (ITE
-                              (#memRet @% "writeReg?")
+                              (#memRet @% "fst" @% "writeReg?")
                               (#exec_update_pkt
                                  @%["val1"
                                       <- Valid (STRUCT {
-                                                    "tag"  ::= #memRet @% "tag";
-                                                    "data" ::= #memRet @% "data"
+                                                    "tag"  ::= #memRet @% "fst" @% "tag";
+                                                    "data" ::= #memRet @% "fst" @% "data"
                                                   } : RoutedReg @# ty)])
                               (#exec_update_pkt));
-                       "snd" ::= #memRet @% "exception?"
+                       "snd" ::= #memRet @% "snd"
                      } : PktWithException ExecContextUpdPkt @# ty)).
       Local Close Scope kami_action.
     End Memory.
