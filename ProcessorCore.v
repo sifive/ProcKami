@@ -253,7 +253,7 @@ Section Params.
                           name
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
-                          (#mem_update_pkt @% "fst")
+                          (#mem_update_pkt)
                           (#exec_context_pkt @% "fst");
                    System [DispString _ "Inc PC\n"];
                    Write ^"pc"

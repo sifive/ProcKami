@@ -976,11 +976,11 @@ Section Params.
       Local Open Scope kami_expr.
       Import ListNotations.
 
-      Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: ExecContextUpdPkt @# ty)
+      Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
         : ActionT ty Void :=
-        (LET val1: Maybe RoutedReg <- cxt @% "val1";
-           LET val2: Maybe RoutedReg <- cxt @% "val2";
+        (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
+           LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
            LET val1_pos : RoutingTag <- (#val1 @% "data") @% "tag" ;
            LET val2_pos : RoutingTag <- (#val2 @% "data") @% "tag" ;
            LET val1_data : Data <- (#val1 @% "data") @% "data" ;
@@ -992,7 +992,7 @@ Section Params.
            LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
                                              "data" ::= #val1_data };
            (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
-           If (!(cxt @% "exception" @% "valid"))
+           If (!(cxt @% "snd" @% "valid"))
          then (
              If (#val1 @% "valid")
              then 
@@ -1089,7 +1089,7 @@ Section Params.
       Definition MemRead := STRUCT {
                                 "data" :: Data ;
                                 "reservation" :: Bit 2 ;
-                                "exception?" :: Maybe Exception }.
+                                "exception?" :: Maybe FullException }.
 
       Definition MemWrite := STRUCT {
                                  "addr" :: VAddr ;
@@ -1099,7 +1099,7 @@ Section Params.
                                "writeReg?" :: Bool ;
                                "tag"  :: RoutingTag ;
                                "data" :: Data ;
-                               "exception?" :: Maybe Exception }.
+                               "exception?" :: Maybe FullException }.
       
       Definition MemUnitInput := STRUCT {
                                      "aq" :: Bool ;
@@ -1196,10 +1196,10 @@ Section Params.
                          };
                     If (#memoryOutput @% "mem" @% "valid")
                   then
-                    (Call writeEx: Maybe Exception <- ^"memWrite"(#memWrite: _);
+                    (Call writeEx: Maybe FullException <- ^"memWrite"(#memWrite: _);
                        Ret #writeEx)
                   else
-                    Ret (@Invalid _ Exception)
+                    Ret (@Invalid _ FullException)
                    as writeEx;
                     LET memRet
                     :  MemRet
@@ -1278,11 +1278,9 @@ Section Params.
                                       <- Valid (STRUCT {
                                                     "tag"  ::= #memRet @% "tag";
                                                     "data" ::= #memRet @% "data"
-                                                  } : RoutedReg @# ty)]
-                                 @%["exception" <- #memRet @% "exception?"])
+                                                  } : RoutedReg @# ty)])
                               (#exec_update_pkt));
-                       "snd" ::= (Invalid : Maybe FullException @# ty)
-                                   (* "snd" ::= (#memRet @% "exception?" : Maybe (FullException Xlen_over_8) @# ty) *)
+                       "snd" ::= #memRet @% "exception?"
                      } : PktWithException ExecContextUpdPkt @# ty)).
       Local Close Scope kami_action.
     End Memory.
