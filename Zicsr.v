@@ -70,8 +70,7 @@ Section zicsr.
                        "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "exception"  ::= Invalid
+                       "rl"         ::= $$false
                      } : ExecContextUpdPkt @# ty);
                 "snd" ::= Invalid }): PktWithException ExecContextUpdPkt @# ty) ;
         fuInsts

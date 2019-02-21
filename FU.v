@@ -166,8 +166,7 @@ Section Params.
              "memBitMask" :: DataMask ;
              "taken?"     :: Bool ;
              "aq"         :: Bool ;
-             "rl"         :: Bool ;
-             "exception"  :: Maybe Exception }.
+             "rl"         :: Bool }.
 
   Definition MemoryInput := STRUCT {
                                 "aq" :: Bool ;
@@ -228,8 +227,7 @@ Section Params.
               "memBitMask" ::= $$ (getDefaultConst DataMask) ;
               "taken?" ::= $$ false ;
               "aq" ::= $$ false ;
-              "rl" ::= $$ false ;
-              "exception" ::= Invalid }).
+              "rl" ::= $$ false }).
     
   Section Fields.    
     Variable inst: Inst @# ty.
