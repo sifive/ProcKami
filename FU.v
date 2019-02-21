@@ -195,6 +195,25 @@ Section Params.
                              "index" :: Bit 12 ;
                              "data" :: Data }.
 
+  Definition MemRead := STRUCT {
+                            "data" :: Data ;
+                            "reservation" :: Bit 2 }.
+
+  Definition MemWrite := STRUCT {
+                             "addr" :: VAddr ;
+                             "data" :: Data }.
+  
+  Definition MemRet := STRUCT {
+                           "writeReg?" :: Bool ;
+                           "tag"  :: RoutingTag ;
+                           "data" :: Data }.
+  
+  Definition MemUnitInput := STRUCT {
+                                 "aq" :: Bool ;
+                                 "rl" :: Bool ;
+                                 "reg_data" :: Data
+                               }.
+
   Record CompInstEntry := { req_exts: list (list string);
                             comp_inst_id: UniqId;
                             decompressFn: (CompInst @# ty) -> (Inst ## ty) }.
@@ -228,7 +247,14 @@ Section Params.
               "taken?" ::= $$ false ;
               "aq" ::= $$ false ;
               "rl" ::= $$ false }).
-    
+
+  Definition defMemRet: PktWithException MemRet @# ty :=
+    STRUCT {
+        "fst" ::= STRUCT { "writeReg?" ::= $$ false ;
+                           "tag" ::= $ 0 ;
+                           "data" ::= $ 0 } ;
+        "snd" ::= Invalid }.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     
@@ -1084,25 +1110,6 @@ Section Params.
     End RegWriter.
 
     Section Memory.
-      Definition MemRead := STRUCT {
-                                "data" :: Data ;
-                                "reservation" :: Bit 2 }.
-
-      Definition MemWrite := STRUCT {
-                                 "addr" :: VAddr ;
-                                 "data" :: Data }.
-      
-      Definition MemRet := STRUCT {
-                               "writeReg?" :: Bool ;
-                               "tag"  :: RoutingTag ;
-                               "data" :: Data }.
-      
-      Definition MemUnitInput := STRUCT {
-                                     "aq" :: Bool ;
-                                     "rl" :: Bool ;
-                                     "reg_data" :: Data
-                                   }.
-
       Definition getMemEntryFromInsts ik ok (insts: list (InstEntry ik ok)) pos :
         option (LetExprSyntax ty MemoryInput ->
                 LetExprSyntax ty MemoryOutput) :=
@@ -1156,14 +1163,6 @@ Section Params.
         Variable fuTag: FuncUnitId @# ty.
         Variable instTag: InstId @# ty.
         Variable memUnitInput: MemUnitInput @# ty.
-
-        Definition defMemRet: PktWithException MemRet @# ty :=
-          STRUCT {
-              "fst" ::= STRUCT { "writeReg?" ::= $$ false ;
-                                 "tag" ::= $ 0 ;
-                                 "data" ::= $ 0 } ;
-              "snd" ::= Invalid }.
-                                                  
 
         Local Open Scope kami_action.
         Definition memAction fu (tag: nat)
@@ -1226,13 +1225,7 @@ Section Params.
                              Ret (unpack (PktWithException MemRet)
                                          (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals))))
                         else
-                          Ret
-                            (STRUCT {
-                                 "fst" ::= STRUCT { "writeReg?"  ::= $$ false ;
-                                                    "tag"        ::= $0 ;
-                                                    "data"       ::= $0 } ;
-                                 "snd" ::= Invalid
-                            })
+                          Ret defMemRet
                          as ret;
                           Ret #ret)) memFus) as retVals2;
                Ret (unpack (PktWithException MemRet) (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals2))).
