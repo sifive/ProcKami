@@ -12,15 +12,15 @@ Require Import RecordUpdate.RecordSet.
 Import RecordNotations.
 
 Section zicsr.
-
   Variable Xlen_over_8 : nat.
-
   Local Notation Xlen := (8 * Xlen_over_8).
-
+  Local Notation PktWithException := (PktWithException Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Xlen_over_8).
   Variable ty : Kind -> Type.
 
-  Let ZicsrInput
-    :  Kind
+  Definition ZicsrInput
     := STRUCT {
            "orig_csr_value" :: Maybe CsrValue;
            "new_csr_value"  :: Maybe CsrValue
@@ -42,35 +42,38 @@ Section zicsr.
               :  ZicsrInput
                    <- sem_in_pkt_expr;
         RetE
-          (STRUCT {
-               "val1" (* writes to the CSR *)
-               ::= ITE
-                     (#sem_in_pkt @% "new_csr_value" @% "valid")
-                     (Valid
-                        (STRUCT {
-                             "tag"  ::= $CsrTag;
-                             "data"
-                             ::= ZeroExtendTruncLsb Xlen
-                                                    (#sem_in_pkt @% "new_csr_value" @% "data")
-                           } : RoutedReg Xlen_over_8 @# ty))
-                     (@Invalid ty (RoutedReg Xlen_over_8));
-               "val2" (* writes to RD *)
-               ::= ITE
-                     (#sem_in_pkt @% "orig_csr_value" @% "valid")
-                     (Valid
-                        (STRUCT {
-                             "tag"  ::= $IntRegTag;
-                             "data"
-                             ::= ZeroExtendTruncLsb Xlen
-                                                    (#sem_in_pkt @% "orig_csr_value" @% "data")
-                           } : RoutedReg Xlen_over_8 @# ty))
-                     (@Invalid ty (RoutedReg Xlen_over_8));
-               "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-               "taken?"     ::= $$false;
-               "aq"         ::= $$false;
-               "rl"         ::= $$false;
-               "exception"  ::= Invalid
-             } : ExecContextUpdPkt Xlen_over_8 @# ty);
+          ((STRUCT {
+                "fst" ::=
+                  (STRUCT {
+                       "val1" (* writes to the CSR *)
+                       ::= ITE
+                             (#sem_in_pkt @% "new_csr_value" @% "valid")
+                             (Valid
+                                (STRUCT {
+                                     "tag"  ::= $CsrTag;
+                                     "data"
+                                     ::= ZeroExtendTruncLsb Xlen
+                                                            (#sem_in_pkt @% "new_csr_value" @% "data")
+                                   } : RoutedReg @# ty))
+                             (@Invalid ty (RoutedReg));
+                       "val2" (* writes to RD *)
+                       ::= ITE
+                             (#sem_in_pkt @% "orig_csr_value" @% "valid")
+                             (Valid
+                                (STRUCT {
+                                     "tag"  ::= $IntRegTag;
+                                     "data"
+                                     ::= ZeroExtendTruncLsb Xlen
+                                                            (#sem_in_pkt @% "orig_csr_value" @% "data")
+                                   } : RoutedReg @# ty))
+                             (@Invalid ty RoutedReg);
+                       "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false;
+                       "exception"  ::= Invalid
+                     } : ExecContextUpdPkt @# ty);
+                "snd" ::= Invalid }): PktWithException ExecContextUpdPkt @# ty) ;
         fuInsts
         := [
             {|
@@ -83,10 +86,9 @@ Section zicsr.
                     fieldVal funct3Field   ('b"001")
                 ];
               inputXform
-              := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+              := fun exec_context_pkt_expr : ExecContextPkt ## ty
                  => LETE exec_context_pkt
-                    :  ExecContextPkt Xlen_over_8
-                                      <- exec_context_pkt_expr;
+                    :  ExecContextPkt <- exec_context_pkt_expr;
               RetE
                 (STRUCT {
                      "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -109,10 +111,9 @@ Section zicsr.
                       fieldVal funct3Field   ('b"010")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
                    => LETE exec_context_pkt
-                      :  ExecContextPkt Xlen_over_8
-                                        <- exec_context_pkt_expr;
+                      :  ExecContextPkt <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
                        "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -140,10 +141,9 @@ Section zicsr.
                       fieldVal funct3Field   ('b"011")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
                    => LETE exec_context_pkt
-                      :  ExecContextPkt Xlen_over_8
-                                        <- exec_context_pkt_expr;
+                      :  ExecContextPkt <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
                        "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -172,10 +172,9 @@ Section zicsr.
                       fieldVal funct3Field   ('b"101")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
                    => LETE exec_context_pkt
-                      :  ExecContextPkt Xlen_over_8
-                                        <- exec_context_pkt_expr;
+                      :  ExecContextPkt <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
                        "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -201,10 +200,9 @@ Section zicsr.
                       fieldVal funct3Field   ('b"110")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
                    => LETE exec_context_pkt
-                      :  ExecContextPkt Xlen_over_8
-                                        <- exec_context_pkt_expr;
+                      :  ExecContextPkt <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
                        "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -231,10 +229,9 @@ Section zicsr.
                       fieldVal funct3Field   ('b"111")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
                    => LETE exec_context_pkt
-                      :  ExecContextPkt Xlen_over_8
-                                        <- exec_context_pkt_expr;
+                      :  ExecContextPkt <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
                        "orig_csr_value" ::= #exec_context_pkt @% "csr";

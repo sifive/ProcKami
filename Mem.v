@@ -4,8 +4,14 @@ Import RecordNotations.
 
 Section Mem.
   Variable Xlen_over_8: nat.
-
-  Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation PktWithException := (PktWithException Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
+  Local Notation MemoryInput := (MemoryInput Xlen_over_8).
+  Local Notation MemoryOutput := (MemoryOutput Xlen_over_8).
+  Local Notation MaskedMem := (MaskedMem Xlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8).
 
   Notation Data := (Bit Xlen).
   Notation VAddr := (Bit Xlen).
@@ -16,9 +22,6 @@ Section Mem.
 
              
     Local Notation noUpdPkt := (@noUpdPkt Xlen_over_8 ty).
-    Local Notation MemoryInput := (MemoryInput Xlen_over_8).
-    Local Notation MemoryOutput := (MemoryOutput Xlen_over_8).
-    Local Notation MaskedMem := (MaskedMem Xlen_over_8).
 
     Definition MemInputAddrType := STRUCT {
                                        "base" :: VAddr ;
@@ -45,10 +48,10 @@ Section Mem.
 
     Local Definition loadInput
       (size: nat)
-      (gcpin: ExecContextPkt Xlen_over_8 ## ty)
+      (gcpin: ExecContextPkt ## ty)
       :  MemInputAddrType ## ty
       := LETE gcp
-           :  ExecContextPkt Xlen_over_8
+           :  ExecContextPkt
            <- gcpin;
          LETC ret
            :  MemInputAddrType
@@ -68,16 +71,28 @@ Section Mem.
                 };
          RetE #ret.
 
-    Local Definition loadTag (valin: MemOutputAddrType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
+    Local Definition loadTag (valin: MemOutputAddrType ## ty): PktWithException ExecContextUpdPkt ## ty :=
       LETE val: MemOutputAddrType <- valin;
         LETC addr: VAddr <- #val @% "addr" ;
-        RetE (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                                                   "data" ::= #addr }))]
-                      @%["exception" <- (IF #val @% "misalignedException?"
-                                         then (IF #val @% "accessException?"
-                                               then Valid ((Const ty (natToWord _ LoadAccessFault)): Exception @# _)
-                                               else Valid ((Const ty (natToWord _ LoadAddrMisaligned)): Exception @# _))
-                                         else @Invalid _ Exception)]).
+        LETC valret :
+          ExecContextUpdPkt
+            <-
+            (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                                                  "data" ::= #addr }))]) ;
+        LETC retval :
+          (PktWithException ExecContextUpdPkt)
+            <-
+            STRUCT {
+              "fst" ::= #valret ;
+              "snd" ::= (IF #val @% "misalignedException?"
+                         then Valid (STRUCT {
+                                         "exception" ::=
+                                           ((IF #val @% "accessException?"
+                                             then $LoadAccessFault
+                                             else $LoadAddrMisaligned): Exception @# ty) ;
+                                         "value" ::= #addr } )
+                         else Invalid) } ;
+        RetE #retval.
 
     Local Definition loadXform (tag: RoutingTag @# ty) (size: nat) (ext: forall (ty : Kind -> Type) (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
       Some (fun memRegIn: MemoryInput ## ty =>
@@ -98,8 +113,8 @@ Section Mem.
                                    "reg_data" ::= #memOut };
               RetE #outMemReg).
 
-    Local Definition storeInput (size: nat) (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin ;
+    Local Definition storeInput (size: nat) (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
+      LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret: MemInputAddrType <-
                                  STRUCT {
                                    "base" ::= #gcp @% "reg1" ;
@@ -114,20 +129,30 @@ Section Mem.
                                  } ;
       RetE #ret.
 
-    Local Definition storeTag (valin: MemOutputAddrType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
+    Local Definition storeTag (valin: MemOutputAddrType ## ty): PktWithException ExecContextUpdPkt ## ty :=
       LETE val: MemOutputAddrType <- valin;
         LETC addr: VAddr <- #val @% "addr" ;
         LETC data: MaskedMem <- #val @% "data" ;
-        RetE (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                                                   "data" ::= #addr }))]
-                      @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                                                   "data" ::= #data @% "data"}))]
-                      @%["memBitMask" <- #data @% "mask"]
-                      @%["exception" <- (IF #val @% "misalignedException?"
-                                         then (IF #val @% "accessException?"
-                                               then Valid ((Const ty (natToWord _ LoadAccessFault)): Exception @# _)
-                                               else Valid ((Const ty (natToWord _ LoadAddrMisaligned)): Exception @# _))
-                                         else @Invalid _ Exception)]).
+        LETC valret :
+          ExecContextUpdPkt
+            <- (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                                                     "data" ::= #addr }))]
+                        @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
+                                                     "data" ::= #data @% "data"}))]
+                        @%["memBitMask" <- #data @% "mask"]) ;
+        LETC retval:
+          (PktWithException ExecContextUpdPkt)
+            <-
+            STRUCT { "fst" ::= #valret ;
+                     "snd" ::= (IF #val @% "misalignedException?"
+                                then Valid (STRUCT {
+                                                "exception" ::=
+                                                  ((IF #val @% "accessException?"
+                                                    then $LoadAccessFault
+                                                    else $LoadAddrMisaligned): Exception @# ty) ;
+                                                "value" ::= #addr })
+                                else Invalid) } ;
+        RetE #retval.
 
     Local Definition storeXform (size: nat) :=
       Some
@@ -151,8 +176,8 @@ Section Mem.
                                   "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
 
-    Local Definition amoInput sz (gcpin: ExecContextPkt Xlen_over_8 ## ty): MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin ;
+    Local Definition amoInput sz (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
+      LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret: MemInputAddrType <-
                                  STRUCT {
                                    "base" ::= #gcp @% "reg1" ;
@@ -257,7 +282,7 @@ Section Mem.
                                   "reg_data" ::= Valid #loadVal };
              RetE #outMemReg).
 
-    Definition Mem: @FUEntry Xlen_over_8 ty :=
+    Definition Mem: @FUEntry ty :=
       {| fuName := "mem" ;
          fuFunc
            := fun i
@@ -410,7 +435,7 @@ Section Mem.
            nil |}.
 
            
-    Definition Amo32: @FUEntry Xlen_over_8 ty :=
+    Definition Amo32: @FUEntry ty :=
       {| fuName := "amo32" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;
                                LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
@@ -529,7 +554,7 @@ Section Mem.
            |} ::
            nil |}.
         
-    Definition Amo64: @FUEntry Xlen_over_8 ty :=
+    Definition Amo64: @FUEntry ty :=
       {| fuName := "amo64" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;
                                LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
@@ -650,7 +675,7 @@ Section Mem.
 
 
     
-    Definition LrSc32: @FUEntry Xlen_over_8 ty :=
+    Definition LrSc32: @FUEntry ty :=
       {| fuName := "lrsc32" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;
                                LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
@@ -696,7 +721,7 @@ Section Mem.
            |} ::
            nil |}.
     
-    Definition LrSc64: @FUEntry Xlen_over_8 ty :=
+    Definition LrSc64: @FUEntry ty :=
       {| fuName := "lrsc64" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;
                                LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;

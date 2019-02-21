@@ -9,6 +9,11 @@ Section Alu.
   Local Notation Data := (Bit Xlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Xlen_over_8).
+  Local Notation PktWithException := (PktWithException Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -32,11 +37,13 @@ Section Alu.
       forall a b : Z, |a| < |-b| <-> ltu a b
     *)
 
-    Local Definition intRegTag (val: Data @# ty): ExecContextUpdPkt Xlen_over_8 @# ty :=
-      (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                            "data" ::= val }))]).
+    Local Definition intRegTag (val: Data @# ty): PktWithException ExecContextUpdPkt @# ty :=
+      STRUCT {
+          "fst" ::= noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                                         "data" ::= val }))] ;
+          "snd" ::= Invalid}.
 
-    Definition Add: @FUEntry Xlen_over_8 ty :=
+    Definition Add: @FUEntry ty :=
       {| fuName := "add" ;
          fuFunc := (fun i => LETE x: AddInputType <- i;
                                LETC a: Bit (Xlen + 1) <- #x @% "arg1";
@@ -48,7 +55,7 @@ Section Alu.
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
-                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                        RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
                                                                        "arg2" ::= SignExtendTruncLsb (Xlen + 1) (imm (#gcp @% "inst"))
                                                              }): AddInputType @# _)) ;
@@ -63,7 +70,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"010") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= neg (SignExtendTruncLsb
                                                                                             (Xlen + 1) (imm (#gcp @% "inst")))
@@ -79,7 +86,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"011") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= ZeroExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= neg (ZeroExtend 1 (SignExtendTruncLsb
                                                                                                           Xlen (imm (#gcp @% "inst"))))
@@ -96,7 +103,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= SignExtend 1 (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
@@ -112,7 +119,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= neg (SignExtend 1 (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
@@ -128,7 +135,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"010") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= neg (SignExtend 1 (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
@@ -144,7 +151,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"011") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= ZeroExtend 1 (#gcp @% "reg1");
                                                                           "arg2" ::= neg (ZeroExtend 1 (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
@@ -159,7 +166,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
                                                    fieldVal funct3Field ('b"000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb (Xlen + 1)
                                                                                                         (imm (#gcp @% "inst"))
@@ -178,7 +185,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") :: 
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtend 1 (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
@@ -196,7 +203,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "arg1" ::= SignExtend 1 (#gcp @% "reg1") ;
                                                                           "arg2" ::=
                                                                             neg (SignExtend 1 (#gcp @% "reg2"))
@@ -214,7 +221,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01101") :: nil ;
                           inputXform   := (fun gcpin
-                                            => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                            => LETE gcp: ExecContextPkt <- gcpin;
                                                let imm
                                                  :  Bit 32 @# ty
                                                  := {<
@@ -236,7 +243,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00101") :: nil ;
                           inputXform   := (fun gcpin
-                                            => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                                            => LETE gcp: ExecContextPkt <- gcpin;
                                                let offset
                                                  :  Bit 32 @# ty
                                                  := {<
@@ -265,7 +272,7 @@ Section Alu.
     Definition AndOp := 3.
 
     Local Open Scope kami_expr.
-    Definition Logical: @FUEntry Xlen_over_8 ty :=
+    Definition Logical: @FUEntry ty :=
       {| fuName := "logical" ;
          fuFunc := (fun i
                       => LETE x: LogicalType <- i;
@@ -279,7 +286,7 @@ Section Alu.
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"100") :: nil ;
-                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                        RetE ((STRUCT { "op" ::= $ XorOp ;
                                                                        "arg1" ::= #gcp @% "reg1" ;
                                                                        "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
@@ -294,7 +301,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"110") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
@@ -309,7 +316,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"111") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
@@ -325,7 +332,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"100") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ XorOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= #gcp @% "reg2"
@@ -341,7 +348,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"110") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= #gcp @% "reg2"
@@ -359,7 +366,7 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"111") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
                                                                           "arg1" ::= #gcp @% "reg1" ;
                                                                           "arg2" ::= #gcp @% "reg2"
@@ -379,7 +386,7 @@ Section Alu.
                "arg2" :: Bit (Nat.log2_up Xlen)}.
 
     Local Open Scope kami_expr.
-    Definition Shift: @FUEntry Xlen_over_8 ty :=
+    Definition Shift: @FUEntry ty :=
       {| fuName := "shift" ;
          fuFunc := (fun i => LETE x: ShiftType <- i;
                                RetE (IF (#x @% "right?")
@@ -394,7 +401,7 @@ Section Alu.
                                                 fieldVal funct3Field ('b"001") ::
                                                 fieldVal funct7Field ('b"0000000") ::
                                                 nil ;
-                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                       inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                      RetE ((STRUCT {
                                                               "right?" ::= $$ false ;
                                                               "arith?" ::= $$ false ;
@@ -413,7 +420,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct7Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
@@ -432,7 +439,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct7Field ('b"0100000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
@@ -451,7 +458,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") ::
                                                    fieldVal funct7Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
@@ -470,7 +477,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct7Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
@@ -489,7 +496,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct7Field ('b"0100000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
@@ -508,7 +515,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") ::
                                                    fieldVal funct6Field ('b"000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
@@ -527,7 +534,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
@@ -546,7 +553,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"010000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
@@ -565,7 +572,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") ::
                                                    fieldVal funct7Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
@@ -587,7 +594,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
@@ -609,7 +616,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"0100000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
@@ -631,7 +638,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") ::
                                                    fieldVal funct7Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
@@ -653,7 +660,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"0000000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
@@ -675,7 +682,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") ::
                                                    fieldVal funct6Field ('b"0100000") ::
                                                    nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt Xlen_over_8 <- gcpin;
+                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
@@ -723,8 +730,8 @@ Section Alu.
         LETC rdv: Bit 5 <- rd inst;
         RetE ({<#funct7v$[6:6], (#rdv$[0:0]), (#funct7v$[5:0]), (#rdv$[4:1]), $$ WO~0>}).
 
-    Local Definition branchInput (lt unsigned inv: Bool @# ty) (gcp: ExecContextPkt Xlen_over_8 ## ty): BranchInputType ## ty :=
-      LETE x: ExecContextPkt Xlen_over_8 <- gcp;
+    Local Definition branchInput (lt unsigned inv: Bool @# ty) (gcp: ExecContextPkt ## ty): BranchInputType ## ty :=
+      LETE x: ExecContextPkt <- gcp;
         LETE bOffset <- branchOffset (#x @% "inst");
         RetE ((STRUCT { "lt?" ::= lt;
                         "unsigned?" ::= unsigned;
@@ -737,15 +744,24 @@ Section Alu.
                         "reg2" ::= IF unsigned then ZeroExtend 1 (#x @% "reg2") else SignExtend 1 (#x @% "reg2")
               }): BranchInputType @# ty).
 
-    Local Definition branchTag (branchOut: BranchOutputType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
-      LETE bOut <- branchOut;
-        RetE (noUpdPkt@%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                                                   "data" ::= #bOut @% "newPc" }))]
-                      @%["taken?" <- #bOut @% "taken?"]
-                      @%["exception" <- STRUCT {"valid" ::= (#bOut @% "misaligned?") ;
-                                                "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
+    Local Definition branchTag (branchOut: BranchOutputType ## ty): PktWithException ExecContextUpdPkt ## ty :=
+      LETE bOut: BranchOutputType <- branchOut;
+        LETC val:
+          ExecContextUpdPkt
+            <-
+            (noUpdPkt@%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                                  "data" ::= #bOut @% "newPc" }))]
+                     @%["taken?" <- #bOut @% "taken?"]);
+        LETC retval:
+          (PktWithException ExecContextUpdPkt)
+            <- STRUCT { "fst" ::= #val ;
+                        "snd" ::= STRUCT {"valid" ::= (#bOut @% "misaligned?") ;
+                                          "data"  ::= STRUCT {
+                                                          "exception" ::= ($InstAddrMisaligned : Exception @# ty) ;
+                                                          "value" ::= #bOut @% "newPc" } } } ;
+        RetE #retval.
 
-    Definition Branch: @FUEntry Xlen_over_8 ty :=
+    Definition Branch: @FUEntry ty :=
       {| fuName := "branch" ;
          fuFunc := (fun i => LETE x: BranchInputType <- i;
                                LETC a <- #x @% "reg1";
@@ -852,15 +868,23 @@ Section Alu.
                "retPc" :: VAddr }.
 
     Local Open Scope kami_expr.
-    Local Definition jumpTag (jumpOut: JumpOutputType ## ty): ExecContextUpdPkt Xlen_over_8 ## ty :=
+    Local Definition jumpTag (jumpOut: JumpOutputType ## ty): PktWithException ExecContextUpdPkt ## ty :=
       LETE jOut <- jumpOut;
-        RetE (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                                   "data" ::= #jOut @% "retPc"}))]
-                      @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                                                   "data" ::= #jOut @% "newPc"}))]
-                      @%["taken?" <- $$ true]
-                      @%["exception" <- STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
-                                                "data"  ::= ($InstAddrMisaligned : Exception @# ty)}]).
+        LETC val:
+          ExecContextUpdPkt
+            <- (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                                     "data" ::= #jOut @% "retPc"}))]
+                        @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                                     "data" ::= #jOut @% "newPc"}))]
+                        @%["taken?" <- $$ true]) ;
+        LETC retval:
+          (PktWithException ExecContextUpdPkt)
+            <- STRUCT { "fst" ::= #val ;
+                        "snd" ::= STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
+                                          "data"  ::= STRUCT {
+                                                          "exception" ::= ($InstAddrMisaligned : Exception @# ty) ;
+                                                          "value" ::= #jOut @% "newPc" } } } ;
+        RetE #retval.
 
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
       :  JumpOutputType ## ty
@@ -872,7 +896,7 @@ Section Alu.
          RetE (#sem_output @%["newPc" <- newPc]).
 
     Local Open Scope kami_expr.
-    Definition Jump: @FUEntry Xlen_over_8 ty
+    Definition Jump: @FUEntry ty
       := {|
            fuName := "jump";
            fuFunc
@@ -903,9 +927,8 @@ Section Alu.
                                   fieldVal opcodeField ('b"11011") ::
                                   nil;
                   inputXform 
-                    := fun exec_context_pkt_expr: ExecContextPkt Xlen_over_8 ## ty
+                    := fun exec_context_pkt_expr: ExecContextPkt ## ty
                          => LETE exec_context_pkt
-                              :  ExecContextPkt Xlen_over_8
                               <- exec_context_pkt_expr;
                             let inst
                               :  Inst @# ty
@@ -936,9 +959,8 @@ Section Alu.
                                    fieldVal opcodeField ('b"11001") ::
                                    nil;
                    inputXform
-                     := fun exec_context_pkt_expr: ExecContextPkt Xlen_over_8 ## ty
+                     := fun exec_context_pkt_expr: ExecContextPkt ## ty
                           => LETE exec_context_pkt
-                               :  ExecContextPkt Xlen_over_8
                                <- exec_context_pkt_expr;
                              let inst
                                :  Inst @# ty
@@ -975,7 +997,7 @@ Section Alu.
     
     Local Open Scope kami_expr.
 
-    Definition Mult : @FUEntry Xlen_over_8 ty
+    Definition Mult : @FUEntry ty
       := {|
         fuName := "mult";
         fuFunc := fun sem_in_pkt_expr : MultInputType ## ty
@@ -995,9 +1017,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                 := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
-                           :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
@@ -1023,9 +1044,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                 := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
-                           :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
@@ -1051,9 +1071,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                 := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
-                           :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
@@ -1079,9 +1098,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                 := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
-                           :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
@@ -1107,9 +1125,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
+                 := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
-                           :  ExecContextPkt Xlen_over_8
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
@@ -1176,7 +1193,7 @@ Section Alu.
            (((pos x) == pos (y)) || (y == $0))
            (pos x).
 
-    Definition DivRem : @FUEntry Xlen_over_8 ty
+    Definition DivRem : @FUEntry ty
       := {|
         fuName := "divRem";
         fuFunc
@@ -1197,10 +1214,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
@@ -1221,10 +1236,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
@@ -1245,10 +1258,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
                            (trunc_sign_extend (#context_pkt @% "reg1"))
                            (trunc_sign_extend (#context_pkt @% "reg2")));
@@ -1270,10 +1281,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
                             (trunc_sign_extend (#context_pkt @% "reg1"))
                             (trunc_sign_extend (#context_pkt @% "reg2")));
@@ -1295,10 +1304,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
@@ -1319,10 +1326,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
                             (#context_pkt @% "reg1")
                             (#context_pkt @% "reg2"));
@@ -1343,10 +1348,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
                             (trunc_sign_extend (#context_pkt @% "reg1"))
                             (trunc_sign_extend (#context_pkt @% "reg2")));
@@ -1367,10 +1370,8 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := (fun context_pkt_expr : ExecContextPkt Xlen_over_8 ## ty
-                     => LETE context_pkt
-                        :  ExecContextPkt Xlen_over_8
-                                          <- context_pkt_expr;
+                 := (fun context_pkt_expr : ExecContextPkt ## ty
+                     => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
                             (trunc_sign_extend (#context_pkt @% "reg1"))
                             (trunc_sign_extend (#context_pkt @% "reg2")));

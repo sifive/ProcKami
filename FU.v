@@ -205,7 +205,7 @@ Section Params.
       extensions   : list string ;
       uniqId       : UniqId ;        
       inputXform   : ExecContextPkt ## ty -> ik ## ty ;
-      outputXform  : ok ## ty -> ExecContextUpdPkt ## ty ;
+      outputXform  : ok ## ty -> PktWithException ExecContextUpdPkt ## ty ;
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
 
@@ -671,7 +671,7 @@ Section Params.
       Definition exec_func_unit
                  (trans_pkt : InputTransPkt @# ty)
                  (func_unit : (nat * FUEntry))
-        :  Maybe ExecContextUpdPkt ## ty
+        :  Maybe (PktWithException ExecContextUpdPkt) ## ty
         := (* I. execute the semantic function *)
           LETE sem_output
           :  fuOutputK (snd func_unit)
@@ -700,7 +700,7 @@ Section Params.
 
       Definition exec
                  (trans_pkt : InputTransPkt @# ty)
-        :  Maybe ExecContextUpdPkt ## ty
+        :  Maybe (PktWithException ExecContextUpdPkt) ## ty
         := utila_expr_find_pkt
              (map
                 (fun (func_unit : (nat * FUEntry))
@@ -715,7 +715,7 @@ Section Params.
                (mkPktWithException
                   trans_pkt
                   (STRUCT {
-                       "fst" ::= (#exec_update_pkt @% "data");
+                       "fst" ::= (#exec_update_pkt @% "data" @% "fst");
                        "snd"
                        ::= ITE
                              (#exec_update_pkt @% "valid")
