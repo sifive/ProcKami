@@ -5,31 +5,16 @@
   uncompressed RISC-V instructions.
  *)
 Require Import Kami.All.
-Import Syntax.
 Require Import FU.
 Require Import List.
 Import ListNotations.
 
 Section database.
-
-  Open Scope kami_expr.
-
   Variable ty : Kind -> Type.
 
-  Definition comp_inst_width : nat := 16.
-
-  Definition uncomp_inst_width : nat := 32.
-
-  Definition comp_inst_kind : Kind := Bit comp_inst_width.
-
-  Definition uncomp_inst_kind : Kind := Bit uncomp_inst_width.
-
-  Record CompInst := {
-    req_exts: list (list string);
-    comp_inst_id: UniqId;
-    decompress: comp_inst_kind @# ty -> uncomp_inst_kind ## ty
-                  }.
-
+  Local Notation CompInstEntry := (CompInstEntry ty).
+  
+  Local Open Scope kami_expr.
 
   (* common compressed instruction field ranges. *)
   Definition comp_inst_opcode_field := (1, 0).
@@ -83,11 +68,11 @@ Section database.
 
   TODO: verify immediate values - are these multiplied by 4, 8, etc?
    *)
-  Definition comp_inst_db
-    :  list CompInst
+  Definition CompInstDb
+    :  list CompInstEntry
     := [
         (* C.ADDI4SPN  => ADDI checked *)
-        Build_CompInst
+        Build_CompInstEntry
           extensions_all
           ([
              fieldVal comp_inst_opcode_field ('b"00");
@@ -110,7 +95,7 @@ Section database.
                 >}
           )); 
           (* C.FLD => FLD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32D"; "RV32C"];
              ["RV64D"; "RV64C"]]
             ([
@@ -128,7 +113,7 @@ Section database.
                   >}
             ));
           (* C.LW => LW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"00");
@@ -145,7 +130,7 @@ Section database.
                      >}
             ));
           (* C.FLW => FLW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32F"; "RV32C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
@@ -162,7 +147,7 @@ Section database.
                      >}
             ));
           (* C.LD => LD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
@@ -179,7 +164,7 @@ Section database.
                      >}
             ));
           (* C.FSD => FSD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [
               ["RV32D"; "RV32C"];
               ["RV64D"; "RV64C"]
@@ -202,7 +187,7 @@ Section database.
                      >}
             ));
           (* C.SW => SW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"00");
@@ -222,7 +207,7 @@ Section database.
                      >}
             ));
           (* C.FSW => FSW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32F"; "RV32C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
@@ -242,7 +227,7 @@ Section database.
                      >}
             ));
           (* C.SD => SD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
@@ -266,13 +251,13 @@ Section database.
             C.ADDI => ADDI checked
             C.NOP => NOP = ADDI
           *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"000")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd : Bit 5 @# ty := comp_inst $[11:7] in
                 RetE (
                     {<
@@ -284,7 +269,7 @@ Section database.
                      >}
             ));
           (* C.JAL => JAL checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -316,7 +301,7 @@ Section database.
                      >}
             ));
           (* C.ADDIW => ADDIW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
@@ -334,13 +319,13 @@ Section database.
                      >}
             ));
           (* C.LI => ADDI checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"010")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => RetE (
                     {<
                      (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
@@ -355,13 +340,13 @@ Section database.
             C.ADDI16SP => ADDI checked
             C.LUI => LUI checked
           *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"011")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd := (comp_inst $[11:7]) in
                 RetE (
                   (ITE (rd == $$(natToWord 5 2))
@@ -391,14 +376,14 @@ Section database.
                      >}))
             ));
           (* C.SRLI => SRLI checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
                   fieldVal (11, 10) ('b"00")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -413,14 +398,14 @@ Section database.
                      >}
             ));
           (* C.SRAI => SRAI checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
                   fieldVal (11, 10) ('b"01")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -435,14 +420,14 @@ Section database.
                      >}
             ));
           (* C.ANDI => ANDI checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"100");
                fieldVal (11, 10) ('b"10")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -456,7 +441,7 @@ Section database.
                      >}
             ));
           (* C.SUB => SUB checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -465,7 +450,7 @@ Section database.
                fieldVal (11, 10) ('b"11");
                fieldVal (12, 12) ('b"0")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -480,7 +465,7 @@ Section database.
                      >}
             ));
           (* C.XOR => XOR checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
@@ -489,7 +474,7 @@ Section database.
                   fieldVal (11, 10) ('b"11");
                   fieldVal (12, 12) ('b"0")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -504,7 +489,7 @@ Section database.
                      >}
             ));
           (* C.OR => OR checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
@@ -513,7 +498,7 @@ Section database.
                   fieldVal (11, 10) ('b"11");
                   fieldVal (12, 12) ('b"0")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -528,7 +513,7 @@ Section database.
                      >}
             ));
           (* C.AND => AND checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
@@ -537,7 +522,7 @@ Section database.
                   fieldVal (11, 10) ('b"11");
                   fieldVal (12, 12) ('b"0")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -552,7 +537,7 @@ Section database.
                      >}
             ));
           (* C.SUBW => SUB checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -561,7 +546,7 @@ Section database.
                fieldVal (11, 10) ('b"11");
                fieldVal (12, 12) ('b"1")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -576,7 +561,7 @@ Section database.
                      >}
             ));
           (* C.ADDW => ADDW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
@@ -585,7 +570,7 @@ Section database.
                   fieldVal (11, 10) ('b"11");
                   fieldVal (12, 12) ('b"1")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     :  Bit 5 @# ty
                     := comp_inst_map_reg (comp_inst $[9:7]) in
@@ -600,7 +585,7 @@ Section database.
                      >}
             ));
           (* C.J => JAL checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -632,7 +617,7 @@ Section database.
                      >}
             ));
           (* C.BEQZ => BEQ checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -665,7 +650,7 @@ Section database.
                      >}
             ));
           (* C.BNEZ => BNE checked*)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"01");
@@ -698,13 +683,13 @@ Section database.
                      >}
             ));
           (* C.SLLI => SLLI checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"000")
             ])
-            (fun comp_inst : Bit 16 @# ty
+            (fun comp_inst : CompInst @# ty
              => let rd
                     := comp_inst $[11:7] in
                 RetE (
@@ -718,7 +703,7 @@ Section database.
                       >})
             ));
           (* C.FLDSP => FLD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32D"; "RV32C"];
                ["RV64D"; "RV64C"]]
             ([
@@ -736,7 +721,7 @@ Section database.
                      >}
             ));
           (* C.LWSP => LW checked*)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
@@ -753,7 +738,7 @@ Section database.
                      >}
             ));
           (* C.FLWSP => FLW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32F"; "RV32C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
@@ -770,7 +755,7 @@ Section database.
                      >}
             ));
           (* C.LDSP => LD checked*)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
@@ -790,7 +775,7 @@ Section database.
             C.JR and C.MV checked 
             C.JR => JALR
           *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"10");
@@ -823,7 +808,7 @@ Section database.
             C.EBREAK => EBREAK
             C.JALR => JALR
           *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"10");
@@ -860,7 +845,7 @@ Section database.
                            >}))
             ));
           (* C.FSDSP => FSD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32D"; "RV32C"];
              ["RV64D"; "RV64C"]]
             ([
@@ -886,7 +871,7 @@ Section database.
                       >})
             ));
           (* C.SWSP => SW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             extensions_all
             ([
                fieldVal comp_inst_opcode_field ('b"10");
@@ -905,7 +890,7 @@ Section database.
                       >})
             ));
           (* C.FSWSP => FSW checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV32F"; "RV32C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
@@ -924,7 +909,7 @@ Section database.
                       >})
             ));
           (* C.SDSP => SD checked *)
-          Build_CompInst
+          Build_CompInstEntry
             [["RV64C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
@@ -943,5 +928,7 @@ Section database.
                       >})
             ))
       ]. 
+
+  Local Close Scope kami_expr.
 
 End database.

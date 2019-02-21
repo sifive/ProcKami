@@ -1,4 +1,4 @@
-Require Import Kami.All FU  Fetch Decoder FuInputTrans RegReader Executor MemGenerator RegWriter.
+Require Import Kami.All FU CompressedInsts.
 (* Require Import Fpu. *)
 Require Import List.
 Import ListNotations.
@@ -12,51 +12,17 @@ Section Params.
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Data := (Bit Xlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Array Xlen_over_8 Bool).
-
-  Let PktWithException := Fetch.PktWithException Xlen_over_8.
-  Let FetchPkt := Fetch.FetchPkt Xlen_over_8.
-
-  Local Notation FullException := (Fetch.FullException Xlen_over_8).
-  Local Notation InstException := (Fetch.InstException Xlen_over_8).
-  
-  Definition RegWrite := STRUCT {
-                             "index" :: Bit 5 ;
-                             "data" :: Data }.
-
-  Definition CsrWrite := STRUCT {
-                             "index" :: Bit 12 ;
-                             "data" :: Data }.
+  Local Notation FUEntry := (FUEntry Xlen_over_8).
+  Local Notation FetchPkt := (FetchPkt Xlen_over_8).
+  Local Notation PktWithException := (PktWithException Xlen_over_8).
 
   Section pipeline.
-
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Variable func_units: forall ty, list (@FUEntry Xlen_over_8 ty).
-    Arguments func_units {ty}.
-
-    Let decoder_pkt_kind
-      := fun ty
-           => PktWithException (@decoder_pkt_kind Xlen_over_8 ty func_units).
-    Arguments decoder_pkt_kind {ty}.
-
-    Let exec_context_pkt_kind
-      := PktWithException (ExecContextPkt Xlen_over_8).
-
-    Let trans_pkt_kind
-      := fun ty
-           => PktWithException (@trans_pkt_kind Xlen_over_8 ty func_units).
-    Arguments trans_pkt_kind {ty}.
-
-    Let exec_update_pkt_kind
-      := PktWithException (ExecContextUpdPkt Xlen_over_8).
-
-    Variable PrivMode : forall ty, PrivMode @# ty.
-    Arguments PrivMode {ty}.
-
+    Variable func_units: forall ty, list (FUEntry ty).
+    Variable mode : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
-    Arguments extensions {ty}.
 
     (* Definition dispNF ty (x : kami_float_kind @# ty) :=  *)
     (*   [ *)
@@ -101,7 +67,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch Xlen_over_8 (#pc);
+                     <- fetch name Xlen_over_8 (#pc);
                    System
                      [
                        DispString _ "Fetched\n";
@@ -117,18 +83,17 @@ Section Params.
                      ];
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
-                     :  decoder_pkt_kind
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException func_units extensions PrivMode
+                          (decoderWithException (func_units _) (CompInstDb _) (extensions _) (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [
                        DispString _ "Decode Pkt\n";
                        DispString _ "  func unit id: ";
-                       DispBit (#decoder_pkt @% "fst" @% "FuncUnitTag") (32, Decimal);
+                       DispBit (#decoder_pkt @% "fst" @% "funcUnitTag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  inst id: ";
-                       DispBit (#decoder_pkt @% "fst" @% "InstTag") (32, Decimal);
+                       DispBit (#decoder_pkt @% "fst" @% "instTag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  inst: ";
                        DispBit (#decoder_pkt @% "fst" @% "inst") (32, Binary);
@@ -142,8 +107,7 @@ Section Params.
                      ];
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
-                     :  exec_context_pkt_kind
-                     <- readerWithException
+                     <- readerWithException name
                           (ITE
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
@@ -191,14 +155,12 @@ Section Params.
                      ]);
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
-                     :  trans_pkt_kind 
                      <- convertLetExprSyntax_ActionT
                           (transWithException
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
                    System [DispString _ "Executor\n"];
                    LETA exec_update_pkt
-                     :  exec_update_pkt_kind
                      <- convertLetExprSyntax_ActionT
                           (execWithException (#trans_pkt));
                    System
@@ -247,10 +209,8 @@ Section Params.
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    System [DispString _ "Mem\n"];
                    LETA mem_update_pkt
-                     :  exec_update_pkt_kind
-                     <- @MemUnit
+                     <- MemUnit name
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
-                          Xlen_over_8 _ func_units
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);

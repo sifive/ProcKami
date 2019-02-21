@@ -69,7 +69,7 @@ Let exts
             "RV64M"    ::= $$(false);
             "RV32A"    ::= $$(true);
             "RV64A"    ::= $$(false);
-            "RV32F"    ::= $$(true);
+            "RV32F"    ::= $$(false);
             "RV64F"    ::= $$(false);
             "RV32D"    ::= $$(false);
             "RV64D"    ::= $$(false);
