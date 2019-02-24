@@ -999,115 +999,7 @@ Section Params.
       Local Open Scope kami_action.
       Local Open Scope kami_expr.
       Import ListNotations.
-(*
-      Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
-                 (exec_context_pkt : ExecContextPkt @# ty)
-        : ActionT ty Void :=
-        (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
-           LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
-           LET val1_pos : RoutingTag <- (#val1 @% "data") @% "tag" ;
-           LET val2_pos : RoutingTag <- (#val2 @% "data") @% "tag" ;
-           LET val1_data : Data <- (#val1 @% "data") @% "data" ;
-           LET val2_data : Data <- (#val2 @% "data") @% "data" ;
-           LET write1Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
-                                              "data" ::= #val1_data };
-           LET write2Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
-                                              "data" ::= #val2_data };
-           LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
-                                             "data" ::= #val1_data };
-           (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
-           If (!(cxt @% "snd" @% "valid"))
-         then (
-             If (#val1 @% "valid")
-             then 
-               (If (#val1_pos == $IntRegTag)
-                then (If (#write1Pkt @% "index" != $0)
-                      then (Call ^"regWrite"(#write1Pkt: _);
-                              System [
-                                  DispString _ " Reg Write Wrote ";
-                                    DispBit (#write1Pkt @% "data") (32, Decimal);
-                                    DispString _ " to register ";
-                                    DispBit (#write1Pkt @% "index") (32, Decimal);
-                                    DispString _ "\n"
-                                ]%list;
-                              Retv);
-                             Retv)
-                else (If (#val1_pos == $FloatRegTag)
-                      then (Call ^"fregWrite"(#write1Pkt: _);
-                              System [
-                                  DispString _ " Reg Write Wrote ";
-                                    DispBit (#write1Pkt @% "data") (32, Decimal);
-                                    DispString _ " to  floating point register ";
-                                    DispBit (#write1Pkt @% "index") (32, Decimal);
-                                    DispString _ "\n"
-                                ]%list;
-                              Retv)
-                      else (If (#val1_pos == $CsrTag)
-                            then Call ^"csrWrite"(#writeCsr: _);
-                                   System [
-                                       DispString _ " Reg Write Wrote ";
-                                         DispBit (#writeCsr @% "data") (32, Decimal);
-                                         DispString _ " to CSR ";
-                                         DispBit (#writeCsr @% "index") (32, Decimal);
-                                         DispString _ "\n"
-                                     ]%list;
-                                   Retv
-                            else (If (#val1_pos == $FflagsTag)
-                                  then Write "fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv
-                                  else (If (#val1_pos == $FloatCsrTag)
-                                        then (Call ^"fcsrWrite" (#val1_data : _); Retv);
-                                               Retv);
-                                    Retv);
-                              Retv);
-                        Retv);
-                  Retv);
-                 If (#val2 @% "valid")
-             then
-               (If (#val2_pos == $IntRegTag)
-                then (If (#write2Pkt @% "index" != $0)
-                      then (Call ^"regWrite"(#write2Pkt: _);
-                              System [
-                                  DispString _ " Reg Write Wrote ";
-                                    DispBit (#write2Pkt @% "data") (32, Decimal);
-                                    DispString _ " to register ";
-                                    DispBit (#write2Pkt @% "index") (32, Decimal);
-                                    DispString _ "\n"
-                                ]%list;
-                              Retv);
-                             Retv)
-                else (If (#val2_pos == $FloatRegTag)
-                      then (Call ^"fregWrite"(#write2Pkt: _);
-                              System [
-                                  DispString _ " Reg Write Wrote ";
-                                    DispBit (#write2Pkt @% "data") (32, Decimal);
-                                    DispString _ " to floating point register ";
-                                    DispBit (#write2Pkt @% "index") (32, Decimal);
-                                    DispString _ "\n"
-                                ]%list;
-                              Retv)
-                      else (If (#val2_pos == $CsrTag)
-                            then Call ^"csrWrite"(#writeCsr: _);
-                                   System [
-                                       DispString _ " Reg Write Wrote ";
-                                         DispBit (#writeCsr @% "data") (32, Decimal);
-                                         DispString _ " to CSR ";
-                                         DispBit (#writeCsr @% "index") (32, Decimal);
-                                         DispString _ "\n"
-                                     ]%list;
-                                   Retv
-                            else (If (#val2_pos == $FflagsTag)
-                                  then Write "fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv
-                                  else (If (#val2_pos == $FloatCsrTag)
-                                        then (Call ^"fcsrWrite" (#val2_data : _); Retv);
-                                               Retv);
-                                    Retv);
-                              Retv);
-                        Retv);
-                  Retv);
-                 Retv);
-                Retv
-        ).
-*)
+
       Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
         : ActionT ty Void :=
@@ -1293,7 +1185,16 @@ Section Params.
         then 
           match getMemEntry fu tag with
           | Some fn =>
+            (* TODO: is the proc_core_memRead input getting a PktWithException? *)
             Call memRead: PktWithException MemRead <- ^"memRead"(addr: _);
+            System
+              (DispString _ "MemRead Result valid: " ::
+               DispBool (#memRead @% "snd" @% "valid") (1, Binary) ::
+               DispString _ "\n" ::
+               DispString _ "MemRead Result data: " ::
+               DispBit (#memRead @% "fst" @% "data") (32, Hex) ::
+               DispString _ "\n" ::
+               nil);
               (If #memRead @% "snd" @% "valid"
                then Ret defMemRet
                else
@@ -1303,6 +1204,14 @@ Section Params.
                        (fn (RetE (makeMemoryInput memUnitInput
                                                   (#memRead @% "fst" @% "data")
                                                   (#memRead @% "fst" @% "reservation"))));
+                  System
+                    (DispString _ "Mem Output valid: " ::
+                     DispBool (#memoryOutput @% "reg_data" @% "valid") (1, Binary) ::
+                     DispString _ "\n" ::
+                     DispString _ "Mem Output data: " ::
+                     DispBit (#memoryOutput @% "reg_data" @% "data") (32, Hex) ::
+                     DispString _ "\n" ::
+                     nil);
                     LETA writeVal
                     :  Data
                          <- convertLetExprSyntax_ActionT
@@ -1391,8 +1300,7 @@ Section Params.
                                  @%["val1"
                                       <- Valid (STRUCT {
                                                     "tag"  ::= #memRet @% "fst" @% "tag";
-                                                    (* "data" ::= #memRet @% "fst" @% "data" *)
-                                                    "data" ::= $4777 (* #memRet @% "data" *)
+                                                    "data" ::= #memRet @% "fst" @% "data"
                                                   } : RoutedReg @# ty)])
                               (#exec_update_pkt));
                        "snd" ::= #memRet @% "snd"
