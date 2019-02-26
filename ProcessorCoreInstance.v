@@ -42,8 +42,7 @@ Section Parametrize.
            FSgn      Xlen_over_8 _;
            Float_int Xlen_over_8 _;
 *)
-           (* FMvXW     Xlen_over_8 _; *)
-           (* FMvWX     Xlen_over_8 _; *)
+           FMv       Xlen_over_8 _;
 (*
  (*        Int_float Xlen_over_8 _; (* causes shift error from verilator *) *)
            FCmp      Xlen_over_8 _;
