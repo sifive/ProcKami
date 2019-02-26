@@ -22,8 +22,8 @@ Import RecordNotations.
 
 Section Fpu.
 
-Variable ty : Kind -> Type.
 Variable Xlen_over_8: nat.
+Variable ty : Kind -> Type.
 Local Notation Xlen := (8 * Xlen_over_8).
 Local Notation PktWithException := (PktWithException Xlen_over_8).
 Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
