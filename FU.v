@@ -121,6 +121,8 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
+  Variable expWidthMinus2: nat.
+  Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
 
   Local Notation Xlen := (8 * Xlen_over_8).

@@ -23,7 +23,9 @@ Import RecordNotations.
 Section Fpu.
 
 Variable Xlen_over_8: nat.
+Variable expWidthMinus2 sigWidthMinus2: nat.
 Variable ty : Kind -> Type.
+
 Local Notation Xlen := (8 * Xlen_over_8).
 Local Notation PktWithException := (PktWithException Xlen_over_8).
 Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
@@ -32,34 +34,56 @@ Local Notation FullException := (FullException Xlen_over_8).
 Local Notation FUEntry := (FUEntry Xlen_over_8).
 Local Notation RoutedReg := (RoutedReg Xlen_over_8).
 
-Definition flen : nat := 32.
+Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
+Local Notation expWidth := (expWidthMinus1 + 1).
+
+Local Notation sigWidthMinus1 := (sigWidthMinus2 + 1).
+Local Notation sigWidth := (sigWidthMinus1 + 1).
+
+Local Notation MulAdd_Input := (MulAdd_Input expWidthMinus2 sigWidthMinus2).
+Local Notation MulAdd_Output := (MulAdd_Output expWidthMinus2 sigWidthMinus2).
+Local Notation FN := (FN expWidthMinus2 sigWidthMinus2).
+Local Notation NF := (NF expWidthMinus2 sigWidthMinus2).
+Local Notation RecFN := (RecFN expWidthMinus2 sigWidthMinus2).
+Local Notation NFToINInput := (NFToINInput expWidthMinus2 sigWidthMinus2).
+Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
+Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
+Local Notation OpOutput := (OpOutput expWidthMinus2 sigWidthMinus2).
+Local Notation inpK := (inpK expWidthMinus2 sigWidthMinus2).
+Local Notation outK := (outK expWidthMinus2 sigWidthMinus2).
+
+(*
+  Definition Flen : nat := 32.
+*)
+Definition Flen : nat := expWidth + sigWidth.
 
 Definition csr_value_width : nat := 32.
 
 Definition csr_value_kind : Kind := Bit csr_value_width.
-
+(*
 Definition exp_width : nat := 8.
 
 Definition sig_width : nat := 24.
-
+*)
+(*
 Definition muladd_in_kind : Kind := MulAdd_Input (exp_width - 2) (sig_width - 2).
 
 Definition muladd_out_kind : Kind := MulAdd_Output (exp_width - 2) (sig_width - 2).
-
+*)
 Definition sem_in_pkt_kind
   :  Kind
   := STRUCT {
        "fcsr"      :: csr_value_kind;
-       "muladd_in" :: muladd_in_kind
+       "muladd_in" :: MulAdd_Input
      }.
 
 Definition sem_out_pkt_kind
   :  Kind
   := STRUCT {
        "fcsr"       :: csr_value_kind;
-       "muladd_out" :: muladd_out_kind
+       "muladd_out" :: MulAdd_Output
      }.
-
+(*
 Definition IEEE_float_kind : Kind
   := FN (exp_width - 2) (sig_width - 2).
 
@@ -68,13 +92,13 @@ Definition kami_float_kind : Kind
 
 Definition chisel_float_kind : Kind
   := RecFN (exp_width - 2) (sig_width - 2).
-
+*)
 Definition fmin_max_in_pkt_kind
   :  Kind
   := STRUCT {
        "fcsr" :: csr_value_kind;
-       "arg1" :: kami_float_kind;
-       "arg2" :: kami_float_kind;
+       "arg1" :: NF;
+       "arg2" :: NF;
        "max"  :: Bool
      }.
 
@@ -95,8 +119,8 @@ Definition cmp_in_pkt_kind
        "signal" :: Bool;
        "cond0"  :: cmp_cond_kind;
        "cond1"  :: cmp_cond_kind;
-       "arg1"   :: kami_float_kind;
-       "arg2"   :: kami_float_kind
+       "arg1"   :: NF;
+       "arg2"   :: NF
      }.
 
 Definition cmp_out_pkt_kind
@@ -112,7 +136,7 @@ Definition fsgn_in_pkt_kind
        "sign_bit" :: Bit 1;
        "arg1"     :: Bit Xlen
      }.
-
+(*
 Definition float_int_in_pkt_kind
   :  Kind
   := NFToINInput (exp_width - 2) (sig_width - 2).
@@ -128,52 +152,69 @@ Definition int_float_in_pkt_kind
 Definition int_float_out_pkt_kind
   :  Kind
   := OpOutput (exp_width - 2) (sig_width - 2). 
+*)
 
 Local Notation "x [[ proj  :=  v ]]" := (set proj (constructor v) x)
                                     (at level 14, left associativity).
 Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
                                      (at level 14, f at next level, left associativity).
-
+(*
 Definition fdiv_sqrt_in_pkt_kind
   := inpK (exp_width - 2) (sig_width - 2).
 
 Definition fdiv_sqrt_out_pkt_kind
   := outK (exp_width - 2) (sig_width - 2).
-
+*)
 Open Scope kami_expr.
-
+(*
 Definition to_IEEE_float (x : Bit Xlen @# ty)
-  :  IEEE_float_kind @# ty
-  := unpack IEEE_float_kind (ZeroExtendTruncLsb (size IEEE_float_kind) x).
-
-(* TODO: change to Flen *)
+  :  FN @# ty
+  := unpack FN (ZeroExtendTruncLsb (size FN) x).
+*)
+Definition bitToFN (x : Bit Xlen @# ty)
+  :  FN @# ty
+  := unpack FN (ZeroExtendTruncLsb (size FN) x).
+(*
 Definition to_kami_float (x : Bit Xlen @# ty)
-  :  kami_float_kind @# ty
+  :  NF @# ty
   := getNF_from_FN (to_IEEE_float x).
-
+*)
+Definition bitToNF (x : Bit Xlen @# ty)
+  :  NF @# ty
+  := getNF_from_FN (bitToFN x).
+(*
 Definition to_chisel_float (x : Bit Xlen @# ty)
-  :  chisel_float_kind @# ty
+  :  RecFN @# ty
   := getRecFN_from_FN (to_IEEE_float x).
-
-Definition from_IEEE_float (x : IEEE_float_kind @# ty)
+*)
+Definition bitToRecFN (x : Bit Xlen @# ty)
+  :  RecFN @# ty
+  := getRecFN_from_FN (bitToFN x).
+(*
+Definition from_IEEE_float (x : FN @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack x).
-
-Definition from_kami_float (x : kami_float_kind @# ty)
+*)
+(*
+Definition from_kami_float (x : NF @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
-
+*)
+Definition NFToBit (x : NF @# ty)
+  :  Bit Xlen @# ty
+  := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
+(*
 Definition signals
-  (x : kami_float_kind @# ty)
+  (x : NF @# ty)
   :  Bool @# ty
   := isSigNaNRawFloat x.
-
+*)
 Definition csr_bit (flag : Bool @# ty) (mask : Bit 5 @# ty)
   :  Bit 5 @# ty
   := ITE flag mask ($0 : Bit 5 @# ty).
 
 Definition const_1
-  :  kami_float_kind @# ty
+  :  NF @# ty
   := STRUCT {
        "isNaN" ::= $$false;
        "isInf" ::= $$false;
@@ -254,12 +295,12 @@ Definition muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt #
          "muladd_in"
            ::= (STRUCT {
                   "op" ::= op;
-                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
-                  "b"  ::= to_kami_float (#context_pkt @% "reg2");
-                  "c"  ::= to_kami_float (#context_pkt @% "reg3");
+                  "a"  ::= bitToNF (#context_pkt @% "reg1");
+                  "b"  ::= bitToNF (#context_pkt @% "reg2");
+                  "c"  ::= bitToNF (#context_pkt @% "reg3");
                   "roundingMode"   ::= rounding_mode (#context_pkt);
                   "detectTininess" ::= $$true
-                } : muladd_in_kind @# ty)
+                } : MulAdd_Input @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Definition add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
@@ -273,12 +314,12 @@ Definition add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## t
          "muladd_in"
            ::= (STRUCT {
                   "op" ::= op;
-                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
+                  "a"  ::= bitToNF (#context_pkt @% "reg1");
                   "b"  ::= const_1;
-                  "c"  ::= to_kami_float (#context_pkt @% "reg2");
+                  "c"  ::= bitToNF (#context_pkt @% "reg2");
                   "roundingMode"   ::= rounding_mode (#context_pkt);
                   "detectTininess" ::= $$true
-                } : muladd_in_kind @# ty)
+                } : MulAdd_Input @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Definition mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
@@ -292,12 +333,12 @@ Definition mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## t
          "muladd_in"
            ::= (STRUCT {
                   "op" ::= op;
-                  "a"  ::= to_kami_float (#context_pkt @% "reg1");
-                  "b"  ::= to_kami_float (#context_pkt @% "reg2");
-                  "c"  ::= to_kami_float ($0);
+                  "a"  ::= bitToNF (#context_pkt @% "reg1");
+                  "b"  ::= bitToNF (#context_pkt @% "reg2");
+                  "c"  ::= bitToNF ($0);
                   "roundingMode"   ::= rounding_mode (#context_pkt);
                   "detectTininess" ::= $$true
-                } : muladd_in_kind @# ty)
+                } : MulAdd_Input @# ty)
        } : sem_in_pkt_kind @# ty).
 
 Definition muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
@@ -311,7 +352,7 @@ Definition muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
             ::= (STRUCT {
                   "val1" ::= Valid (STRUCT {
                                "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                               "data" ::= from_kami_float (#sem_out_pkt @% "muladd_out" @% "out")
+                               "data" ::= NFToBit (#sem_out_pkt @% "muladd_out" @% "out")
                              });
                   "val2" ::= Valid (STRUCT {
                                "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
@@ -333,8 +374,8 @@ Definition fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt
      RetE
        (STRUCT {
          "fcsr" ::= #context_pkt @% "fcsr";
-         "arg1" ::= to_kami_float (#context_pkt @% "reg1");
-         "arg2" ::= to_kami_float (#context_pkt @% "reg2");
+         "arg1" ::= bitToNF (#context_pkt @% "reg1");
+         "arg2" ::= bitToNF (#context_pkt @% "reg2");
          "max"  ::= max
        } : fmin_max_in_pkt_kind @# ty).
 
@@ -345,10 +386,10 @@ Conjecture assume_gt_2 : forall x : nat, (x >= 2)%nat.
 Conjecture assume_sqr
   : forall x y : nat, (pow2 x + 4 > y + 1 + 1)%nat.
 
-Definition float_int_out (sem_out_pkt_expr : float_int_out_pkt_kind ## ty)
+Definition float_int_out (sem_out_pkt_expr : NFToINOutput ## ty)
   :  PktWithException ExecContextUpdPkt ## ty
   := LETE sem_out_pkt
-       :  float_int_out_pkt_kind
+       :  NFToINOutput
        <- sem_out_pkt_expr;
      RetE
        (STRUCT {
@@ -373,10 +414,10 @@ Definition float_int_out (sem_out_pkt_expr : float_int_out_pkt_kind ## ty)
           "snd" ::= Invalid
         } : PktWithException ExecContextUpdPkt @# ty).
 
-Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
+Definition int_float_out (sem_out_pkt_expr : OpOutput ## ty)
   :  PktWithException ExecContextUpdPkt ## ty
   := LETE sem_out_pkt
-       :  int_float_out_pkt_kind
+       :  OpOutput
        <- sem_out_pkt_expr;
      RetE
        (STRUCT {
@@ -386,9 +427,9 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
                      ::= Valid (STRUCT {
                                  "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                                  "data" ::= ZeroExtendTruncLsb Xlen
-                                              (from_kami_float
+                                              (NFToBit
                                                 ((#sem_out_pkt @% "out")
-                                                  : NF (exp_width - 2) (sig_width - 2) @# ty)
+                                                  : NF @# ty)
                                                 : Bit Xlen @# ty)
                                });
                    "val2"
@@ -406,23 +447,23 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
         } : PktWithException ExecContextUpdPkt @# ty).
 
 Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-  :  fdiv_sqrt_in_pkt_kind ## ty
+  :  inpK ## ty
   := LETE context_pkt
        :  ExecContextPkt
        <- context_pkt_expr;
      RetE
        (STRUCT {
          "isSqrt" ::= sqrt;
-         "recA"   ::= to_chisel_float (#context_pkt @% "reg1");
-         "recB"   ::= to_chisel_float (#context_pkt @% "reg2");
+         "recA"   ::= bitToRecFN (#context_pkt @% "reg1");
+         "recB"   ::= bitToRecFN (#context_pkt @% "reg2");
          "round"  ::= rounding_mode (#context_pkt);
          "tiny"   ::= $$true
-       } : fdiv_sqrt_in_pkt_kind @# ty).
+       } : inpK @# ty).
 
-Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : fdiv_sqrt_out_pkt_kind ## ty)
+Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : outK ## ty)
   :  PktWithException ExecContextUpdPkt ## ty
   := LETE sem_out_pkt
-       :  fdiv_sqrt_out_pkt_kind
+       :  outK
        <- sem_out_pkt_expr;
      RetE
        (STRUCT {
@@ -431,7 +472,10 @@ Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : fdiv_sqrt_out_pkt_kind ## ty)
                    "val1"
                      ::= Valid (STRUCT {
                            "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                           "data" ::= (from_IEEE_float (#sem_out_pkt @% "outFN") : Bit Xlen @# ty)
+                           "data"
+                             ::= (ZeroExtendTruncLsb Xlen
+                                    (pack (#sem_out_pkt @% "outFN"))
+                                  : Bit Xlen @# ty)
                          });
                    "val2"
                      ::= Valid (STRUCT {
@@ -454,7 +498,7 @@ Definition Mac : @FUEntry ty
                         :  sem_in_pkt_kind
                         <- sem_in_pkt_expr;
                       LETE muladd_out
-                        :  muladd_out_kind
+                        :  MulAdd_Output
                         <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
                       RetE
                         (STRUCT {
@@ -566,12 +610,12 @@ Definition Mac : @FUEntry ty
 
 Definition canonical_nan
   :  Bit Xlen @# ty
-  := from_IEEE_float (
+  := ZeroExtendTruncLsb Xlen (pack (
        STRUCT {
          "sign" ::= $$false;
          "exp"  ::= $255;
          "frac" ::= $4194304
-       } : IEEE_float_kind @# ty).
+       } : FN @# ty)).
 
 Definition FMinMax : @FUEntry ty
   := {|
@@ -592,36 +636,36 @@ Definition FMinMax : @FUEntry ty
                    :  fmin_max_out_pkt_kind
                    <- STRUCT {
                         "fcsr"
-                          ::= ITE ((signals (#sem_in_pkt @% "arg1")) ||
-                                   (signals (#sem_in_pkt @% "arg2")))
+                          ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
+                                   (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
                                 (Valid #fcsr)
                                 (@Invalid ty csr_value_kind);
                         "result"
                           ::= ITE (#sem_in_pkt @% "arg1" @% "isNaN")
                                 (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
                                    canonical_nan
-                                   (from_kami_float (#sem_in_pkt @% "arg2")))
+                                   (NFToBit (#sem_in_pkt @% "arg2")))
                                 (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
-                                   (from_kami_float (#sem_in_pkt @% "arg1"))
+                                   (NFToBit (#sem_in_pkt @% "arg1"))
                                    (* patch to handle comparison of 0 and -0 *)
                                    (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
                                          (!(#sem_in_pkt @% "arg1" @% "sign")) &&
                                          (#sem_in_pkt @% "arg2" @% "isZero") &&
                                          (#sem_in_pkt @% "arg2" @% "sign"))
                                      (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                        (from_kami_float (#sem_in_pkt @% "arg1"))
-                                        (from_kami_float (#sem_in_pkt @% "arg2")))
+                                        (NFToBit (#sem_in_pkt @% "arg1"))
+                                        (NFToBit (#sem_in_pkt @% "arg2")))
                                      (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
                                            ((#sem_in_pkt @% "arg1" @% "sign")) &&
                                            (#sem_in_pkt @% "arg2" @% "isZero") &&
                                            (!(#sem_in_pkt @% "arg2" @% "sign")))
                                         (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                           (from_kami_float (#sem_in_pkt @% "arg2"))
-                                           (from_kami_float (#sem_in_pkt @% "arg1")))
+                                           (NFToBit (#sem_in_pkt @% "arg2"))
+                                           (NFToBit (#sem_in_pkt @% "arg1")))
                                         (* return result from comparator. *)
                                         (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                           (from_kami_float (#sem_in_pkt @% "arg2"))
-                                           (from_kami_float (#sem_in_pkt @% "arg1"))))))
+                                           (NFToBit (#sem_in_pkt @% "arg2"))
+                                           (NFToBit (#sem_in_pkt @% "arg1"))))))
                       } : fmin_max_out_pkt_kind @# ty;
                  RetE
                    (STRUCT {
@@ -814,7 +858,7 @@ Definition FMv : @FUEntry ty
                                                          ZeroExtendTruncLsb
                                                            Xlen
                                                            (ZeroExtendTruncLsb
-                                                              flen
+                                                              Flen
                                                               ((#inp @% "snd") : Bit Xlen @# ty)))                                                            
                                       }: RoutedReg @# ty));
                                "val2" ::= @Invalid ty _;
@@ -876,16 +920,16 @@ Definition Float_int : @FUEntry ty
   := {|
        fuName := "float_int";
        fuFunc
-         := fun sem_in_pkt_expr : float_int_in_pkt_kind ## ty
+         := fun sem_in_pkt_expr : NFToINInput ## ty
               => LETE sem_in_pkt
-                   :  float_int_in_pkt_kind
+                   :  NFToINInput
                    <- sem_in_pkt_expr;
                  @NFToIN_expr
                    (Xlen - 2)
-                   (exp_width - 2)
-                   (sig_width - 2)
-                   (assume_gt_2 (exp_width - 2))
-                   (assume_sqr (exp_width - 2) (sig_width - 2))
+                   expWidthMinus2
+                   sigWidthMinus2
+                   (assume_gt_2 expWidthMinus2)
+                   (assume_sqr expWidthMinus2 sigWidthMinus2)
                    ty
                    (#sem_in_pkt);
        fuInsts
@@ -906,10 +950,10 @@ Definition Float_int : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "inNF"         ::= bitToNF (#context_pkt @% "reg1");
                               "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$true
-                            } : float_int_in_pkt_kind @# ty);
+                            } : NFToINInput @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -930,10 +974,10 @@ Definition Float_int : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "inNF"         ::= bitToNF (#context_pkt @% "reg1");
                               "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$false
-                            } : float_int_in_pkt_kind @# ty);
+                            } : NFToINInput @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -954,10 +998,10 @@ Definition Float_int : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "inNF"         ::= bitToNF (#context_pkt @% "reg1");
                               "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$true
-                            } : float_int_in_pkt_kind @# ty);
+                            } : NFToINInput @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -978,10 +1022,10 @@ Definition Float_int : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
+                              "inNF"         ::= bitToNF (#context_pkt @% "reg1");
                               "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$false
-                            } : float_int_in_pkt_kind @# ty);
+                            } : NFToINInput @# ty);
                 outputXform := float_int_out;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -993,13 +1037,13 @@ Definition Int_float : @FUEntry ty
   := {|
        fuName := "int_float";
        fuFunc
-         := fun sem_in_pkt_expr : int_float_in_pkt_kind ## ty
+         := fun sem_in_pkt_expr : INToNFInput ## ty
               => LETE sem_in_pkt
-                   :  int_float_in_pkt_kind
+                   :  INToNFInput
                    <- sem_in_pkt_expr;
                  INToNF_expr
-                   (exp_width - 2)
-                   (sig_width - 2)
+                   expWidthMinus2
+                   sigWidthMinus2
                    (#sem_in_pkt);
        fuInsts
          := [
@@ -1023,7 +1067,7 @@ Definition Int_float : @FUEntry ty
                               "signedIn"      ::= $$true;
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
-                            } : int_float_in_pkt_kind @# ty);
+                            } : INToNFInput @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
@@ -1048,7 +1092,7 @@ Definition Int_float : @FUEntry ty
                               "signedIn"      ::= $$false;
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
-                            } : int_float_in_pkt_kind @# ty);
+                            } : INToNFInput @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
@@ -1073,7 +1117,7 @@ Definition Int_float : @FUEntry ty
                               "signedIn"      ::= $$true;
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
-                            } : int_float_in_pkt_kind @# ty);
+                            } : INToNFInput @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
@@ -1098,7 +1142,7 @@ Definition Int_float : @FUEntry ty
                               "signedIn"      ::= $$false;
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
-                            } : int_float_in_pkt_kind @# ty);
+                            } : INToNFInput @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
@@ -1131,8 +1175,8 @@ Definition FCmp : @FUEntry ty
                                      (#sem_in_pkt @% "arg2" @% "isNaN"))) ||
                                    (* quiet comparisons *)
                                    ((!(#sem_in_pkt @% "signal")) &&
-                                    ((signals (#sem_in_pkt @% "arg1")) ||
-                                     (signals (#sem_in_pkt @% "arg2")))))
+                                    ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
+                                     (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))))
                                 (Valid #fcsr)
                                 (@Invalid ty csr_value_kind);
                         "result"
@@ -1191,8 +1235,8 @@ Definition FCmp : @FUEntry ty
                               "signal" ::= $$false;
                               "cond0"  ::= cmp_cond_eq;
                               "cond1"  ::= cmp_cond_not_used;
-                              "arg1"   ::= to_kami_float (#context_pkt @% "reg1");
-                              "arg2"   ::= to_kami_float (#context_pkt @% "reg2")
+                              "arg1"   ::= bitToNF (#context_pkt @% "reg1");
+                              "arg2"   ::= bitToNF (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
                 outputXform := fun x => x;
                 optMemXform := None;
@@ -1218,8 +1262,8 @@ Definition FCmp : @FUEntry ty
                               "signal" ::= $$true;
                               "cond0"  ::= cmp_cond_lt;
                               "cond1"  ::= cmp_cond_not_used;
-                              "arg1"   ::= to_kami_float (#context_pkt @% "reg1");
-                              "arg2"   ::= to_kami_float (#context_pkt @% "reg2")
+                              "arg1"   ::= bitToNF (#context_pkt @% "reg1");
+                              "arg2"   ::= bitToNF (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
                 outputXform := fun x => x;
                 optMemXform := None;
@@ -1245,8 +1289,8 @@ Definition FCmp : @FUEntry ty
                               "signal" ::= $$true;
                               "cond0"  ::= cmp_cond_lt;
                               "cond1"  ::= cmp_cond_eq;
-                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
-                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                              "arg1" ::= bitToNF (#context_pkt @% "reg1");
+                              "arg2" ::= bitToNF (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
                 outputXform := fun x => x;
                 optMemXform := None;
@@ -1259,8 +1303,8 @@ Definition FClass : @FUEntry ty
   := {|
        fuName := "fclass";
        fuFunc
-         := fun x_expr : IEEE_float_kind ## ty
-              => LETE x : IEEE_float_kind <- x_expr;
+         := fun x_expr : FN ## ty
+              => LETE x : FN <- x_expr;
                  RetE (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10)));
        fuInsts
          := [
@@ -1280,7 +1324,7 @@ Definition FClass : @FUEntry ty
                        => LETE context_pkt
                             <- context_pkt_expr;
                           RetE
-                            (to_IEEE_float (#context_pkt @% "reg1"));
+                            (bitToFN (#context_pkt @% "reg1"));
                 outputXform
                   := fun res_expr : Bit Xlen ## ty
                        => LETE res : Bit Xlen <- res_expr;
@@ -1312,9 +1356,9 @@ Definition FDivSqrt : @FUEntry ty
   := {|
        fuName := "fdivsqrt";
        fuFunc
-         := fun sem_in_pkt_expr : fdiv_sqrt_in_pkt_kind ## ty
+         := fun sem_in_pkt_expr : inpK ## ty
               => LETE sem_in_pkt
-                   :  fdiv_sqrt_in_pkt_kind
+                   :  inpK
                    <- sem_in_pkt_expr;
                  div_sqrt_expr (#sem_in_pkt);
        fuInsts
