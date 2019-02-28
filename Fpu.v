@@ -22,8 +22,8 @@ Import RecordNotations.
 
 Section Fpu.
 
-Variable ty : Kind -> Type.
 Variable Xlen_over_8: nat.
+Variable ty : Kind -> Type.
 Local Notation Xlen := (8 * Xlen_over_8).
 Local Notation PktWithException := (PktWithException Xlen_over_8).
 Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
@@ -837,23 +837,30 @@ Definition FSgn : @FUEntry ty
             ]
      |}.
 
-Definition FMvXW : @FUEntry ty
+Definition FMv : @FUEntry ty
   := {|
-       fuName := "fmvxw";
+       fuName := "fmv";
        fuFunc
-         := fun exec_context_pkt_expr : ExecContextPkt ## ty
-              => LETE exec_context_pkt
-                   :  ExecContextPkt
-                   <- exec_context_pkt_expr;
-                 RetE
-                   (STRUCT {
+       := (fun inpVal: Pair Bool (Bit Xlen) ## ty =>
+             LETE inp <- inpVal;
+               LETC isInt <- #inp @% "fst";
+               RetE
+                 (STRUCT {
                       "fst"
-                        ::= (STRUCT {
+                      ::= (STRUCT {
                                "val1"
-                                 ::= Valid (STRUCT {
-                                       "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                       "data" ::= SignExtendTruncLsb Xlen (#exec_context_pkt @% "reg1")
-                                     });
+                               ::= Valid
+                                     ((STRUCT {
+                                           "tag"  ::= (IF #isInt then $IntRegTag else $FloatRegTag: Bit RoutingTagSz @# ty);
+                                           "data" ::= (IF #isInt
+                                                       then SignExtendTruncLsb Xlen (#inp @% "snd")
+                                                       else
+                                                         ZeroExtendTruncLsb
+                                                           Xlen
+                                                           (ZeroExtendTruncLsb
+                                                              flen
+                                                              ((#inp @% "snd") : Bit Xlen @# ty)))                                                            
+                                      }: RoutedReg @# ty));
                                "val2" ::= @Invalid ty _;
                                "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
                                "taken?" ::= $$false;
@@ -861,7 +868,7 @@ Definition FMvXW : @FUEntry ty
                                "rl" ::= $$false
                              } : ExecContextUpdPkt @# ty);
                       "snd" ::= Invalid
-                    } : PktWithException ExecContextUpdPkt @# ty);
+                    } : PktWithException ExecContextUpdPkt @# ty));
        fuInsts
          := [
               {|
@@ -875,44 +882,16 @@ Definition FMvXW : @FUEntry ty
                        fieldVal rs2Field      ('b"00000");
                        fieldVal funct7Field   ('b"1110000")
                      ];
-                inputXform
-                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                       => exec_context_pkt_expr;
-                outputXform := fun exec_update_pkt_expr => exec_update_pkt_expr;
+                inputXform := (fun x : ExecContextPkt ## ty =>
+                                 LETE inp <- x;
+                                   LETC ret: Pair Bool (Bit Xlen) <-
+                                                  (STRUCT { "fst" ::= $$ true ;
+                                                            "snd" ::= #inp @% "reg1" });
+                                   RetE #ret);
+                outputXform := id;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-              |}
-            ]
-     |}.
-
-Definition FMvWX : @FUEntry ty
-  := {|
-       fuName := "fmvwx";
-       fuFunc
-         := fun exec_context_pkt_expr : ExecContextPkt ## ty
-              => LETE exec_context_pkt
-                   :  ExecContextPkt
-                   <- exec_context_pkt_expr;
-                 RetE
-                   (STRUCT {
-                      "fst"
-                        ::= (STRUCT {
-                               "val1"
-                                 ::= Valid (STRUCT {
-                                       "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                                       (* TODO change to flen output once converted to using flen *)
-                                       "data" ::= ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb flen ((#exec_context_pkt @% "reg1") : Bit Xlen @# ty))
-                                     } : RoutedReg @# ty);
-                               "val2" ::= @Invalid ty _;
-                               "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                               "taken?" ::= $$false;
-                               "aq" ::= $$false;
-                               "rl" ::= $$false
-                             } : ExecContextUpdPkt @# ty);
-                      "snd" ::= Invalid
-                    } : PktWithException ExecContextUpdPkt @# ty);
-       fuInsts
-         := [
+              |} ;
               {|
                 instName   := "fmv.w.x";
                 extensions := ["RV32F"; "RV64F"];
@@ -924,10 +903,13 @@ Definition FMvWX : @FUEntry ty
                        fieldVal rs2Field      ('b"00000");
                        fieldVal funct7Field   ('b"1111000")
                      ];
-                inputXform
-                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                       => exec_context_pkt_expr;
-                outputXform := fun exec_update_pkt_expr => exec_update_pkt_expr;
+                inputXform := (fun x : ExecContextPkt ## ty =>
+                                 LETE inp <- x;
+                                   LETC ret: Pair Bool (Bit Xlen) <-
+                                                  (STRUCT { "fst" ::= $$ false ;
+                                                            "snd" ::= #inp @% "reg1" });
+                                   RetE #ret);
+                outputXform := id;
                 optMemXform := None;
                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
               |}

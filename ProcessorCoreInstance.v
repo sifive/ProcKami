@@ -35,10 +35,8 @@ Section Parametrize.
            LrSc32    Xlen_over_8 _;
            LrSc64    Xlen_over_8 _;
 
-           (* RV Zicsr instructions. *)
-           Zicsr     Xlen_over_8 _;
-
            (* RVF instructions. *)
+(*
            Mac       _ Xlen_over_8;
            FMinMax   _ Xlen_over_8;
            FSgn      _ Xlen_over_8; (* Triggered compilation errors in GHC *)
@@ -49,6 +47,18 @@ Section Parametrize.
            FCmp      _ Xlen_over_8; (* Triggered compilation errors in GHC *)
            FClass    _ Xlen_over_8;
            FDivSqrt  _ Xlen_over_8 (* Triggered compilation errors in GHC *)
+*)
+           Mac       Xlen_over_8 _;
+           FMinMax   Xlen_over_8 _;
+           FSgn      Xlen_over_8 _;
+           Float_int Xlen_over_8 _;
+           FMv       Xlen_over_8 _;
+           FCmp      Xlen_over_8 _;
+           FClass    Xlen_over_8 _;
+           FDivSqrt  Xlen_over_8 _;
+
+           (* RV Zicsr instructions. *)
+           Zicsr     Xlen_over_8 _
          ].
 
   Let mode
