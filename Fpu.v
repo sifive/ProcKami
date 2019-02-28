@@ -907,7 +907,7 @@ Definition Float_int : @FUEntry ty
                           RetE
                             (STRUCT {
                               "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
-                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$true
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
@@ -931,7 +931,7 @@ Definition Float_int : @FUEntry ty
                           RetE
                             (STRUCT {
                               "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
-                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$false
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
@@ -955,7 +955,7 @@ Definition Float_int : @FUEntry ty
                           RetE
                             (STRUCT {
                               "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
-                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$true
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
@@ -979,7 +979,7 @@ Definition Float_int : @FUEntry ty
                           RetE
                             (STRUCT {
                               "inNF"         ::= to_kami_float (#context_pkt @% "reg1");
-                              "roundingMode" ::= rm (#context_pkt @% "inst");
+                              "roundingMode" ::= rounding_mode (#context_pkt);
                               "signedOut"    ::= $$false
                             } : float_int_in_pkt_kind @# ty);
                 outputXform := float_int_out;
@@ -1022,7 +1022,7 @@ Definition Int_float : @FUEntry ty
                               "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
                               "signedIn"      ::= $$true;
                               "afterRounding" ::= $$true;
-                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                              "roundingMode" ::= rounding_mode (#context_pkt)
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
@@ -1047,7 +1047,7 @@ Definition Int_float : @FUEntry ty
                               "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
                               "signedIn"      ::= $$false;
                               "afterRounding" ::= $$true;
-                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                              "roundingMode" ::= rounding_mode (#context_pkt)
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
@@ -1072,7 +1072,7 @@ Definition Int_float : @FUEntry ty
                               "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
                               "signedIn"      ::= $$true;
                               "afterRounding" ::= $$true;
-                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                              "roundingMode" ::= rounding_mode (#context_pkt)
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
@@ -1097,7 +1097,7 @@ Definition Int_float : @FUEntry ty
                               "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
                               "signedIn"      ::= $$false;
                               "afterRounding" ::= $$true;
-                              "roundingMode" ::= rm (#context_pkt @% "inst")
+                              "roundingMode" ::= rounding_mode (#context_pkt)
                             } : int_float_in_pkt_kind @# ty);
                 outputXform := int_float_out;
                 optMemXform := None;
