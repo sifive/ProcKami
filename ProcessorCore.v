@@ -1,4 +1,7 @@
 Require Import Kami.All FU CompressedInsts.
+Require Import FpuKami.Definitions.
+Require Import FpuKami.Classify.
+Require Import FpuKami.Compare.
 Require Import Fpu.
 Require Import List.
 Import ListNotations.
@@ -24,27 +27,30 @@ Section Params.
     Variable mode : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
 (*
-    (* Definition dispNF ty (x : kami_float_kind @# ty) :=  *)
-    (*   [ *)
-    (*     DispString ty "    isNaN: "; *)
-    (*     DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary); *)
-    (*     DispString ty "\n"; *)
-    (*     DispString ty "    isInf: "; *)
-    (*     DispBool (x @% "isInf") (1, Binary); *)
-    (*     DispString ty "\n"; *)
-    (*     DispString ty "    isZero: "; *)
-    (*     DispBool (x @% "isZero") (1, Binary); *)
-    (*     DispString ty "\n"; *)
-    (*     DispString ty "    sign: "; *)
-    (*     DispBool (x @% "sign") (1, Binary); *)
-    (*     DispString ty "\n"; *)
-    (*     DispString ty "    signed exponent: "; *)
-    (*     DispBit (x @% "sExp") (32, Binary); *)
-    (*     DispString ty "\n"; *)
-    (*     DispString ty "    significand: "; *)
-    (*     DispBit (x @% "sig") (32, Binary); *)
-    (*     DispString ty "\n" *)
-    (*   ]. *)
+    Definition dispNF ty (x : kami_float_kind @# ty)
+      := [
+           DispString ty "    isNaN: ";
+           DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary);
+           DispString ty "\n";
+           DispString ty "    signals?: ";
+           DispBool ((isSigNaNRawFloat x) : Bool @# ty) (1, Binary);
+           DispString ty "\n";
+           DispString ty "    isInf: ";
+           DispBool (x @% "isInf") (1, Binary);
+           DispString ty "\n";
+           DispString ty "    isZero: ";
+           DispBool (x @% "isZero") (1, Binary);
+           DispString ty "\n";
+           DispString ty "    sign: ";
+           DispBool (x @% "sign") (1, Binary);
+           DispString ty "\n";
+           DispString ty "    signed exponent: ";
+           DispBit (x @% "sExp") (32, Binary);
+           DispString ty "\n";
+           DispString ty "    significand: ";
+           DispBit (x @% "sig") (32, Binary);
+           DispString ty "\n"
+         ].
 
     Local Open Scope list.
     Definition pipeline 
@@ -131,7 +137,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (* (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg1"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg1"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  reg2: ";
@@ -140,7 +146,16 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (* (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg2"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg2"))) ++
+                     [
+                       DispString _ "\n";
+                       DispString _ "  reg3: ";
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_context_pkt @% "fst" @% "reg3") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg3"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";
@@ -178,7 +193,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (* (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
@@ -193,7 +208,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (* (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
@@ -223,7 +238,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (* (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
@@ -235,7 +250,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++ 
-                     (* (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++ *)
+                     (dispNF (to_kami_float Xlen_over_8 (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
@@ -282,6 +297,9 @@ Section Params.
       [
         DispString ty "    isNaN: ";
         DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary);
+        DispString ty "\n";
+        DispString ty "    signals?: ";
+        DispBool ((isSigNaNRawFloat x) : Bool @# ty) (1, Binary);
         DispString ty "\n";
         DispString ty "    isInf: ";
         DispBool (x @% "isInf") (1, Binary);
@@ -395,6 +413,15 @@ Section Params.
                        DispString _ "    floating point value:\n"
                      ] ++
                      (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg2"))) ++
+                     [
+                       DispString _ "\n";
+                       DispString _ "  reg3: ";
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_context_pkt @% "fst" @% "reg3") (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "    floating point value: "
+                     ] ++
+                     (dispNF (to_kami_float Xlen_over_8 (#exec_context_pkt @% "fst" @% "reg3"))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";

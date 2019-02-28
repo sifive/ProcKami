@@ -34,7 +34,9 @@ Local Notation RoutedReg := (RoutedReg Xlen_over_8).
 
 Definition flen : nat := 32.
 
-Definition csr_value_kind : Kind := Bit 32.
+Definition csr_value_width : nat := 32.
+
+Definition csr_value_kind : Kind := Bit csr_value_width.
 
 Definition exp_width : nat := 8.
 
@@ -70,21 +72,39 @@ Definition chisel_float_kind : Kind
 Definition fmin_max_in_pkt_kind
   :  Kind
   := STRUCT {
+       "fcsr" :: csr_value_kind;
        "arg1" :: kami_float_kind;
        "arg2" :: kami_float_kind;
        "max"  :: Bool
      }.
 
+Definition fmin_max_out_pkt_kind
+  :  Kind
+  := STRUCT {
+       "fcsr"   :: Maybe csr_value_kind;
+       "result" :: Bit Xlen
+     }.
+
+Definition cmp_cond_width := 2.
+Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
+
 Definition cmp_in_pkt_kind
   :  Kind
   := STRUCT {
-       "arg1" :: kami_float_kind;
-       "arg2" :: kami_float_kind
+       "fcsr"   :: csr_value_kind;
+       "signal" :: Bool;
+       "cond0"  :: cmp_cond_kind;
+       "cond1"  :: cmp_cond_kind;
+       "arg1"   :: kami_float_kind;
+       "arg2"   :: kami_float_kind
      }.
 
 Definition cmp_out_pkt_kind
   :  Kind
-  := Compare_Output.
+  := STRUCT {
+       "fcsr"   :: Maybe csr_value_kind;
+       "result" :: Bit Xlen
+     }.
 
 Definition fsgn_in_pkt_kind
   :  Kind
@@ -143,6 +163,11 @@ Definition from_kami_float (x : kami_float_kind @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
 
+Definition signals
+  (x : kami_float_kind @# ty)
+  :  Bool @# ty
+  := isSigNaNRawFloat x.
+
 Definition csr_bit (flag : Bool @# ty) (mask : Bit 5 @# ty)
   :  Bit 5 @# ty
   := ITE flag mask ($0 : Bit 5 @# ty).
@@ -158,6 +183,8 @@ Definition const_1
        "sig" ::= $0
      }.
 
+Definition csr_invalid_mask : Bit 5 @# ty := Const ty ('b("10000")).
+
 (*
   Note: this function does not set the divide by zero CSR flag.
 *)
@@ -165,7 +192,7 @@ Definition csr (flags : ExceptionFlags @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen
      ($0 : Bit 5 @# ty
-       | (csr_bit (flags @% "invalid") (Const ty ('b("10000"))))
+       | (csr_bit (flags @% "invalid") csr_invalid_mask)
        | (csr_bit (flags @% "overflow") (Const ty ('b("00100"))))
        | (csr_bit (flags @% "underflow") (Const ty ('b("00010"))))
        | (csr_bit (flags @% "inexact") (Const ty ('b("00001"))))).
@@ -201,6 +228,20 @@ Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
        (rounding_mode == rounding_mode_dynamic)
        (fcsr_frm (context_pkt @% "fcsr"))
        rounding_mode.
+
+Definition cmp_cond_not_used : cmp_cond_kind @# ty := $0.
+Definition cmp_cond_eq : cmp_cond_kind @# ty := $1.
+Definition cmp_cond_lt : cmp_cond_kind @# ty := $2.
+Definition cmp_cond_gt : cmp_cond_kind @# ty := $3.
+
+Definition cmp_cond_get (cond : cmp_cond_kind @# ty) (result : Compare_Output @# ty)
+  := ITE (cond == cmp_cond_not_used)
+       ($$false)
+       (ITE (cond == cmp_cond_eq)
+          (result @% "eq")
+          (ITE (cond == cmp_cond_lt)
+            (result @% "lt")
+            (result @% "gt"))). 
 
 Definition muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
   :  sem_in_pkt_kind ## ty
@@ -295,6 +336,7 @@ Definition fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt
        <- context_pkt_expr;
      RetE
        (STRUCT {
+         "fcsr" ::= #context_pkt @% "fcsr";
          "arg1" ::= to_kami_float (#context_pkt @% "reg1");
          "arg2" ::= to_kami_float (#context_pkt @% "reg2");
          "max"  ::= max
@@ -366,8 +408,8 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
                  } : ExecContextUpdPkt @# ty);
           "snd" ::= Invalid
         } : PktWithException ExecContextUpdPkt @# ty).
-
-Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out_pkt_kind ## ty)
+(*
+Definition cmp_out (cond0 : string) (cond1 : string) (signals : Bool) (sem_out_pkt_expr : cmp_out_pkt_kind ## ty)
   := LETE cmp_out_pkt
        :  cmp_out_pkt_kind
        <- sem_out_pkt_expr;
@@ -381,21 +423,23 @@ Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out
                            "data"
                              ::= (ITE
                                    ((struct_get_field_default
-                                     (#cmp_out_pkt)
+                                     (#cmp_out_pkt @% "result")
                                      cond0
                                      ($$false)) ||
                                     (struct_get_field_default
-                                     (#cmp_out_pkt)
+                                     (#cmp_out_pkt @% "result")
                                      cond1
                                      ($$false)))
                                    $1 $0)
                          } : RoutedReg @# ty);
                    (* TODO: determine conditions for signalling an invalid instruction exception *)
                    "val2"
+(*
                      ::= Valid (STRUCT {
                            "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                            "data" ::= (csr (#cmp_out_pkt @% "exceptionFlags"))
                          });
+*)
                    "memBitMask"
                      ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
                    "taken?" ::= $$false;
@@ -404,7 +448,7 @@ Definition cmp_out (cond0 : string) (cond1 : string) (sem_out_pkt_expr : cmp_out
                  } :  ExecContextUpdPkt @# ty);
           "snd" ::= Invalid
         } : PktWithException ExecContextUpdPkt @# ty).
-
+*)
 Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
   :  fdiv_sqrt_in_pkt_kind ## ty
   := LETE context_pkt
@@ -500,7 +544,7 @@ Definition Mac : @FUEntry ty
                        fieldVal opcodeField   ('b"10010");
                        fieldVal fmtField      ('b"00")
                      ];
-                inputXform  := muladd_in_pkt $3;
+                inputXform  := muladd_in_pkt $2;
                 outputXform := muladd_out_pkt;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
@@ -514,7 +558,7 @@ Definition Mac : @FUEntry ty
                        fieldVal opcodeField   ('b"10011");
                        fieldVal fmtField      ('b"00")
                      ];
-                inputXform  := muladd_in_pkt $2;
+                inputXform  := muladd_in_pkt $3; (* TODO: verify that it isn't. 2 *)
                 outputXform := muladd_out_pkt;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
@@ -564,6 +608,15 @@ Definition Mac : @FUEntry ty
             ]
      |}.
 
+Definition canonical_nan
+  :  Bit Xlen @# ty
+  := from_IEEE_float (
+       STRUCT {
+         "sign" ::= $$false;
+         "exp"  ::= $255;
+         "frac" ::= $4194304
+       } : IEEE_float_kind @# ty).
+
 Definition FMinMax : @FUEntry ty
   := {|
        fuName := "fmin_max";
@@ -573,14 +626,47 @@ Definition FMinMax : @FUEntry ty
                    :  fmin_max_in_pkt_kind
                    <- sem_in_pkt_expr;
                  LETE cmp_out_pkt
-                   :  cmp_out_pkt_kind
+                   :  Compare_Output
                    <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
-                 LETE result
-                   :  Bit Xlen
-                   <- RetE
-                        (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                          (from_kami_float (#sem_in_pkt @% "arg2"))
-                          (from_kami_float (#sem_in_pkt @% "arg1")));
+                 LETC fcsr
+                   :  csr_value_kind
+                   <- ((#sem_in_pkt @% "fcsr" : csr_value_kind @# ty) |
+                       (ZeroExtendTruncLsb csr_value_width csr_invalid_mask));
+                 LETC result
+                   :  fmin_max_out_pkt_kind
+                   <- STRUCT {
+                        "fcsr"
+                          ::= ITE ((signals (#sem_in_pkt @% "arg1")) ||
+                                   (signals (#sem_in_pkt @% "arg2")))
+                                (Valid #fcsr)
+                                (@Invalid ty csr_value_kind);
+                        "result"
+                          ::= ITE (#sem_in_pkt @% "arg1" @% "isNaN")
+                                (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
+                                   canonical_nan
+                                   (from_kami_float (#sem_in_pkt @% "arg2")))
+                                (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
+                                   (from_kami_float (#sem_in_pkt @% "arg1"))
+                                   (* patch to handle comparison of 0 and -0 *)
+                                   (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
+                                         (!(#sem_in_pkt @% "arg1" @% "sign")) &&
+                                         (#sem_in_pkt @% "arg2" @% "isZero") &&
+                                         (#sem_in_pkt @% "arg2" @% "sign"))
+                                     (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                        (from_kami_float (#sem_in_pkt @% "arg1"))
+                                        (from_kami_float (#sem_in_pkt @% "arg2")))
+                                     (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
+                                           ((#sem_in_pkt @% "arg1" @% "sign")) &&
+                                           (#sem_in_pkt @% "arg2" @% "isZero") &&
+                                           (!(#sem_in_pkt @% "arg2" @% "sign")))
+                                        (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                           (from_kami_float (#sem_in_pkt @% "arg2"))
+                                           (from_kami_float (#sem_in_pkt @% "arg1")))
+                                        (* return result from comparator. *)
+                                        (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                           (from_kami_float (#sem_in_pkt @% "arg2"))
+                                           (from_kami_float (#sem_in_pkt @% "arg1"))))))
+                      } : fmin_max_out_pkt_kind @# ty;
                  RetE
                    (STRUCT {
                       "fst"
@@ -588,22 +674,22 @@ Definition FMinMax : @FUEntry ty
                                "val1"
                                  ::= Valid (STRUCT {
                                        "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                       "data" ::= #result
+                                       "data" ::= #result @% "result"
                                      });
-                               "val2" ::= @Invalid ty _;
+                               "val2"
+                                 ::= ITE (#result @% "fcsr" @% "valid")
+                                       (* (@Invalid ty _) *)
+                                       (Valid (STRUCT {
+                                         "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
+                                         "data" ::= ZeroExtendTruncLsb Xlen (#result @% "fcsr" @% "data")
+                                        }))
+                                        Invalid;
                                "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
                                "taken?" ::= $$false;
                                "aq" ::= $$false;
                                "rl" ::= $$false
                              } : ExecContextUpdPkt @# ty);
                        "snd" ::= Invalid
-(*
-                         ::= (STRUCT {
-                                "valid" ::= (((#sem_in_pkt @% "arg2") @% "isNaN") ||
-                                             ((#sem_in_pkt @% "arg1") @% "isNaN"));
-                                "data"  ::= $IllegalInst
-                              } : Maybe Exception @# ty)
-*)
                     } : PktWithException ExecContextUpdPkt @# ty);
        fuInsts
          := [
@@ -1090,7 +1176,61 @@ Definition FCmp : @FUEntry ty
               => LETE sem_in_pkt
                    :  cmp_in_pkt_kind
                    <- sem_in_pkt_expr;
-                 Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
+                 LETE cmp_result
+                   :  Compare_Output
+                   <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
+                 LETC fcsr
+                   :  csr_value_kind
+                   <- ((#sem_in_pkt @% "fcsr") |
+                       (ZeroExtendTruncLsb csr_value_width csr_invalid_mask));
+                 LETC result
+                   :  cmp_out_pkt_kind
+                   <- STRUCT {
+                        "fcsr"
+                          ::= ITE ((* signaling comparisons *)
+                                   ((#sem_in_pkt @% "signal") &&
+                                    ((#sem_in_pkt @% "arg1" @% "isNaN") ||
+                                     (#sem_in_pkt @% "arg2" @% "isNaN"))) ||
+                                   (* quiet comparisons *)
+                                   ((!(#sem_in_pkt @% "signal")) &&
+                                    ((signals (#sem_in_pkt @% "arg1")) ||
+                                     (signals (#sem_in_pkt @% "arg2")))))
+                                (Valid #fcsr)
+                                (@Invalid ty csr_value_kind);
+                        "result"
+                          ::= ITE ((#sem_in_pkt @% "arg1" @% "isNaN") ||
+                                   (#sem_in_pkt @% "arg2" @% "isNaN"))
+                                  ($0 : Bit Xlen @# ty)
+                                  (ITE
+                                     (cmp_cond_get (#sem_in_pkt @% "cond0") #cmp_result ||
+                                      cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
+                                     $1 $0)
+                      } : cmp_out_pkt_kind @# ty;
+                 RetE
+                   (STRUCT {
+                      "fst"
+                        ::= (STRUCT {
+                               "val1"
+                                  ::= Valid (STRUCT {
+                                        "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
+                                        "data" ::= #result @% "result"
+                                      } : RoutedReg @# ty);
+                               "val2"
+                                 ::= ITE
+                                       (#result @% "fcsr" @% "valid")
+                                       (Valid (STRUCT {
+                                          "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
+                                          "data" ::= ZeroExtendTruncLsb Xlen (#result @% "fcsr" @% "data")
+                                        } : RoutedReg @# ty))
+                                       (@Invalid ty _);
+                               "memBitMask"
+                                 ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                               "taken?" ::= $$false;
+                               "aq" ::= $$false;
+                               "rl" ::= $$false
+                             } :  ExecContextUpdPkt @# ty);
+                      "snd" ::= @Invalid ty _
+                    } : PktWithException ExecContextUpdPkt @# ty);
        fuInsts
          := [
               {|
@@ -1109,10 +1249,14 @@ Definition FCmp : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
-                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                              "fcsr"   ::= #context_pkt @% "fcsr";
+                              "signal" ::= $$false;
+                              "cond0"  ::= cmp_cond_eq;
+                              "cond1"  ::= cmp_cond_not_used;
+                              "arg1"   ::= to_kami_float (#context_pkt @% "reg1");
+                              "arg2"   ::= to_kami_float (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
-                outputXform := cmp_out "eq" "not used";
+                outputXform := fun x => x;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |};
@@ -1132,10 +1276,14 @@ Definition FCmp : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                              "arg1" ::= to_kami_float (#context_pkt @% "reg1");
-                              "arg2" ::= to_kami_float (#context_pkt @% "reg2")
+                              "fcsr"   ::= #context_pkt @% "fcsr";
+                              "signal" ::= $$true;
+                              "cond0"  ::= cmp_cond_lt;
+                              "cond1"  ::= cmp_cond_not_used;
+                              "arg1"   ::= to_kami_float (#context_pkt @% "reg1");
+                              "arg2"   ::= to_kami_float (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
-                outputXform := cmp_out "lt" "not used";
+                outputXform := fun x => x;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |};
@@ -1155,10 +1303,14 @@ Definition FCmp : @FUEntry ty
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
+                              "fcsr"   ::= #context_pkt @% "fcsr";
+                              "signal" ::= $$true;
+                              "cond0"  ::= cmp_cond_lt;
+                              "cond1"  ::= cmp_cond_eq;
                               "arg1" ::= to_kami_float (#context_pkt @% "reg1");
                               "arg2" ::= to_kami_float (#context_pkt @% "reg2")
                             } : cmp_in_pkt_kind @# ty);
-                outputXform := cmp_out "lt" "eq";
+                outputXform := fun x => x;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |}
