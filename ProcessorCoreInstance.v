@@ -36,23 +36,12 @@ Section Parametrize.
            LrSc64    Xlen_over_8 _;
 
            (* RVF instructions. *)
-(*
-           Mac       _ Xlen_over_8;
-           FMinMax   _ Xlen_over_8;
-           FSgn      _ Xlen_over_8; (* Triggered compilation errors in GHC *)
-           Float_int _ Xlen_over_8; (* Triggered compilation errors in GHC *)
-           FMvXW     _ Xlen_over_8;
-           FMvWX     _ Xlen_over_8;
-           Int_float _ Xlen_over_8; (* causes shift error from verilator *)
-           FCmp      _ Xlen_over_8; (* Triggered compilation errors in GHC *)
-           FClass    _ Xlen_over_8;
-           FDivSqrt  _ Xlen_over_8 (* Triggered compilation errors in GHC *)
-*)
+           FMv       Xlen_over_8 _;
            Mac       Xlen_over_8 _;
            FMinMax   Xlen_over_8 _;
            FSgn      Xlen_over_8 _;
            Float_int Xlen_over_8 _;
-           FMv       Xlen_over_8 _;
+           Int_float Xlen_over_8 _;
            FCmp      Xlen_over_8 _;
            FClass    Xlen_over_8 _;
            FDivSqrt  Xlen_over_8 _;

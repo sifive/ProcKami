@@ -315,10 +315,6 @@ Definition muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
                              });
                   "val2" ::= Valid (STRUCT {
                                "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-(*
-                               "data" ::= ((((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Xlen @# ty)
-                                            | (ZeroExtendTruncLsb Xlen ((#sem_out_pkt @% "fcsr" : csr_value_kind @# ty)))) : Bit Xlen @# ty)
-*)
                                "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Xlen @# ty)
                              });
                   "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
@@ -408,47 +404,7 @@ Definition int_float_out (sem_out_pkt_expr : int_float_out_pkt_kind ## ty)
                  } : ExecContextUpdPkt @# ty);
           "snd" ::= Invalid
         } : PktWithException ExecContextUpdPkt @# ty).
-(*
-Definition cmp_out (cond0 : string) (cond1 : string) (signals : Bool) (sem_out_pkt_expr : cmp_out_pkt_kind ## ty)
-  := LETE cmp_out_pkt
-       :  cmp_out_pkt_kind
-       <- sem_out_pkt_expr;
-     RetE
-       (STRUCT {
-          "fst"
-            ::= (STRUCT {
-                   "val1"
-                     ::= Valid (STRUCT {
-                           "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
-                           "data"
-                             ::= (ITE
-                                   ((struct_get_field_default
-                                     (#cmp_out_pkt @% "result")
-                                     cond0
-                                     ($$false)) ||
-                                    (struct_get_field_default
-                                     (#cmp_out_pkt @% "result")
-                                     cond1
-                                     ($$false)))
-                                   $1 $0)
-                         } : RoutedReg @# ty);
-                   (* TODO: determine conditions for signalling an invalid instruction exception *)
-                   "val2"
-(*
-                     ::= Valid (STRUCT {
-                           "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                           "data" ::= (csr (#cmp_out_pkt @% "exceptionFlags"))
-                         });
-*)
-                   "memBitMask"
-                     ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                   "taken?" ::= $$false;
-                   "aq" ::= $$false;
-                   "rl" ::= $$false
-                 } :  ExecContextUpdPkt @# ty);
-          "snd" ::= Invalid
-        } : PktWithException ExecContextUpdPkt @# ty).
-*)
+
 Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
   :  fdiv_sqrt_in_pkt_kind ## ty
   := LETE context_pkt
@@ -456,7 +412,7 @@ Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextP
        <- context_pkt_expr;
      RetE
        (STRUCT {
-         "isSqrt" ::= $$false;
+         "isSqrt" ::= sqrt;
          "recA"   ::= to_chisel_float (#context_pkt @% "reg1");
          "recB"   ::= to_chisel_float (#context_pkt @% "reg2");
          "round"  ::= rounding_mode (#context_pkt);
@@ -558,7 +514,7 @@ Definition Mac : @FUEntry ty
                        fieldVal opcodeField   ('b"10011");
                        fieldVal fmtField      ('b"00")
                      ];
-                inputXform  := muladd_in_pkt $3; (* TODO: verify that it isn't. 2 *)
+                inputXform  := muladd_in_pkt $3;
                 outputXform := muladd_out_pkt;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
@@ -1390,11 +1346,11 @@ Definition FDivSqrt : @FUEntry ty
                 inputXform  := fdiv_sqrt_in_pkt ($$true);
                 outputXform := fdiv_sqrt_out_pkt;
                 optMemXform := None;
-                instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
+                instHints   := falseHints[[hasFrs1 := true]][[hasFrd := true]]
               |}
             ]
      |}.
-(* *)
+
 Close Scope kami_expr.
 
 End Fpu.
