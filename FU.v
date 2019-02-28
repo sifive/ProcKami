@@ -23,6 +23,7 @@ Definition immField := (31,20).
 Definition rmField := (14,12).
 Definition fmtField := (26,25).
 Definition rs3Field := (31,27).
+Definition fcsr_frmField := (7, 5).
 
 Definition RegIdWidth := 5.
 Definition RegId := Bit RegIdWidth.
@@ -274,6 +275,8 @@ Section Params.
     Definition rm := inst$[fst rmField: snd rmField].
     Definition fmt := inst$[fst fmtField: snd fmtField].
     Definition rs3 := inst$[fst rs3Field: snd rs3Field].
+    Definition fcsr_frm (fcsr : CsrValue @# ty)
+      := fcsr $[fst fcsr_frmField: snd fcsr_frmField].
 
   End Fields.
 

@@ -57,9 +57,11 @@ Local Notation outK := (outK expWidthMinus2 sigWidthMinus2).
 *)
 Definition Flen : nat := expWidth + sigWidth.
 
+(*
 Definition csr_value_width : nat := 32.
 
 Definition csr_value_kind : Kind := Bit csr_value_width.
+*)
 (*
 Definition exp_width : nat := 8.
 
@@ -73,14 +75,14 @@ Definition muladd_out_kind : Kind := MulAdd_Output (exp_width - 2) (sig_width - 
 Definition sem_in_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr"      :: csr_value_kind;
+       "fcsr"      :: CsrValue;
        "muladd_in" :: MulAdd_Input
      }.
 
 Definition sem_out_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr"       :: csr_value_kind;
+       "fcsr"       :: CsrValue;
        "muladd_out" :: MulAdd_Output
      }.
 (*
@@ -96,7 +98,7 @@ Definition chisel_float_kind : Kind
 Definition fmin_max_in_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr" :: csr_value_kind;
+       "fcsr" :: CsrValue;
        "arg1" :: NF;
        "arg2" :: NF;
        "max"  :: Bool
@@ -105,7 +107,7 @@ Definition fmin_max_in_pkt_kind
 Definition fmin_max_out_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr"   :: Maybe csr_value_kind;
+       "fcsr"   :: Maybe CsrValue;
        "result" :: Bit Xlen
      }.
 
@@ -115,7 +117,7 @@ Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
 Definition cmp_in_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr"   :: csr_value_kind;
+       "fcsr"   :: CsrValue;
        "signal" :: Bool;
        "cond0"  :: cmp_cond_kind;
        "cond1"  :: cmp_cond_kind;
@@ -126,7 +128,7 @@ Definition cmp_in_pkt_kind
 Definition cmp_out_pkt_kind
   :  Kind
   := STRUCT {
-       "fcsr"   :: Maybe csr_value_kind;
+       "fcsr"   :: Maybe CsrValue;
        "result" :: Bit Xlen
      }.
 
@@ -209,9 +211,13 @@ Definition signals
   :  Bool @# ty
   := isSigNaNRawFloat x.
 *)
-Definition csr_bit (flag : Bool @# ty) (mask : Bit 5 @# ty)
-  :  Bit 5 @# ty
-  := ITE flag mask ($0 : Bit 5 @# ty).
+Definition fflags_width : nat := 5.
+
+Definition fflags_value_kind : Kind := Bit fflags_width.
+
+Definition csr_bit (flag : Bool @# ty) (mask : fflags_value_kind @# ty)
+  :  fflags_value_kind @# ty
+  := ITE flag mask ($0 : fflags_value_kind @# ty).
 
 Definition const_1
   :  NF @# ty
@@ -224,7 +230,7 @@ Definition const_1
        "sig" ::= $0
      }.
 
-Definition csr_invalid_mask : Bit 5 @# ty := Const ty ('b("10000")).
+Definition csr_invalid_mask : fflags_value_kind @# ty := Const ty ('b("10000")).
 
 (*
   Note: this function does not set the divide by zero CSR flag.
@@ -232,12 +238,13 @@ Definition csr_invalid_mask : Bit 5 @# ty := Const ty ('b("10000")).
 Definition csr (flags : ExceptionFlags @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen
-     ($0 : Bit 5 @# ty
+     ($0 : fflags_value_kind @# ty
        | (csr_bit (flags @% "invalid") csr_invalid_mask)
        | (csr_bit (flags @% "overflow") (Const ty ('b("00100"))))
        | (csr_bit (flags @% "underflow") (Const ty ('b("00010"))))
        | (csr_bit (flags @% "inexact") (Const ty ('b("00001"))))).
 
+(*
 Definition excs_bit (flag : Bool @# ty) (mask : Bit 4 @# ty)
   :  Exception @# ty
   := ITE flag mask ($0 : Bit 4 @# ty).
@@ -248,17 +255,11 @@ Definition excs (flags : ExceptionFlags @# ty)
        "valid" ::= flags @% "invalid";
        "data"  ::= excs_bit (flags @% "invalid") ($IllegalInst)
      }.
-
+*)
 Definition rounding_mode_kind : Kind := Bit 3.
 
 Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
 
-Definition fcsr_frmField := (7, 5).
-
-Definition fcsr_frm (fcsr : csr_value_kind @# ty)
-  :  rounding_mode_kind @# ty
-  := fcsr $[fst fcsr_frmField:
-            snd fcsr_frmField].
 
 Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
   :  rounding_mode_kind @# ty
@@ -454,8 +455,8 @@ Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextP
      RetE
        (STRUCT {
          "isSqrt" ::= sqrt;
-         "recA"   ::= bitToRecFN (#context_pkt @% "reg1");
-         "recB"   ::= bitToRecFN (#context_pkt @% "reg2");
+         "nfA"   ::= bitToNF (#context_pkt @% "reg1");
+         "nfB"   ::= bitToNF (#context_pkt @% "reg2");
          "round"  ::= rounding_mode (#context_pkt);
          "tiny"   ::= $$true
        } : inpK @# ty).
@@ -474,7 +475,7 @@ Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : outK ## ty)
                            "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                            "data"
                              ::= (ZeroExtendTruncLsb Xlen
-                                    (pack (#sem_out_pkt @% "outFN"))
+                                    (pack (#sem_out_pkt @% "outNf"))
                                   : Bit Xlen @# ty)
                          });
                    "val2"
@@ -629,9 +630,9 @@ Definition FMinMax : @FUEntry ty
                    :  Compare_Output
                    <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
                  LETC fcsr
-                   :  csr_value_kind
-                   <- ((#sem_in_pkt @% "fcsr" : csr_value_kind @# ty) |
-                       (ZeroExtendTruncLsb csr_value_width csr_invalid_mask));
+                   :  CsrValue
+                   <- ((#sem_in_pkt @% "fcsr" : CsrValue @# ty) |
+                       (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
                  LETC result
                    :  fmin_max_out_pkt_kind
                    <- STRUCT {
@@ -639,7 +640,7 @@ Definition FMinMax : @FUEntry ty
                           ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
                                    (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
                                 (Valid #fcsr)
-                                (@Invalid ty csr_value_kind);
+                                (@Invalid ty CsrValue);
                         "result"
                           ::= ITE (#sem_in_pkt @% "arg1" @% "isNaN")
                                 (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
@@ -1162,9 +1163,9 @@ Definition FCmp : @FUEntry ty
                    :  Compare_Output
                    <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
                  LETC fcsr
-                   :  csr_value_kind
+                   :  CsrValue
                    <- ((#sem_in_pkt @% "fcsr") |
-                       (ZeroExtendTruncLsb csr_value_width csr_invalid_mask));
+                       (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
                  LETC result
                    :  cmp_out_pkt_kind
                    <- STRUCT {
@@ -1178,7 +1179,7 @@ Definition FCmp : @FUEntry ty
                                     ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
                                      (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))))
                                 (Valid #fcsr)
-                                (@Invalid ty csr_value_kind);
+                                (@Invalid ty CsrValue);
                         "result"
                           ::= ITE ((#sem_in_pkt @% "arg1" @% "isNaN") ||
                                    (#sem_in_pkt @% "arg2" @% "isNaN"))
