@@ -79,23 +79,24 @@ Section zicsr.
               instName   := "csrrw";
               extensions := ["Zicsr"];
               uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"11100");
-                    fieldVal funct3Field   ('b"001")
-                ];
+                := [
+                     fieldVal instSizeField ('b"11");
+                     fieldVal opcodeField   ('b"11100");
+                     fieldVal funct3Field   ('b"001")
+                   ];
               inputXform
-              := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                 => LETE exec_context_pkt
-                    :  ExecContextPkt <- exec_context_pkt_expr;
-              RetE
-                (STRUCT {
-                     "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                     "new_csr_value" 
-                     ::= Valid
-                           (ZeroExtendTruncLsb CsrValueWidth
-                                               (#exec_context_pkt @% "reg1"))
-                   } : ZicsrInput @# ty);
+                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                     => LETE exec_context_pkt
+                        :  ExecContextPkt
+                        <- exec_context_pkt_expr;
+                        RetE
+                          (STRUCT {
+                             "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                             "new_csr_value" 
+                               ::= Valid
+                                     (ZeroExtendTruncLsb CsrValueWidth
+                                        (#exec_context_pkt @% "reg1"))
+                             } : ZicsrInput @# ty);
               outputXform := fun pkt => pkt;
               optMemXform := None;
               instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
@@ -105,27 +106,27 @@ Section zicsr.
                 extensions := ["Zicsr"];
                 uniqId
                 := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"11100");
-                      fieldVal funct3Field   ('b"010")
-                  ];
+                     fieldVal instSizeField ('b"11");
+                     fieldVal opcodeField   ('b"11100");
+                     fieldVal funct3Field   ('b"010")
+                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                   => LETE exec_context_pkt
-                      :  ExecContextPkt <- exec_context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
-                       ::= ITE
-                             (rs1 (#exec_context_pkt @% "inst") != $0 &&
-                                  (#exec_context_pkt @% "csr" @% "valid"))
-                             (Valid
-                                ((ZeroExtendTruncLsb CsrValueWidth
-                                                     (#exec_context_pkt @% "reg1")) ^
-                                 (#exec_context_pkt @% "csr" @% "data")))
-                             (@Invalid ty CsrValue)
-                     } : ZicsrInput @# ty);
+                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                       => LETE exec_context_pkt
+                            :  ExecContextPkt
+                            <- exec_context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                               "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                               "new_csr_value" 
+                                 ::= ITE
+                                       (rs1 (#exec_context_pkt @% "inst") == $0)
+                                       (@Invalid ty CsrValue)
+                                       (Valid
+                                          ((ZeroExtendTruncLsb CsrValueWidth
+                                              (#exec_context_pkt @% "reg1")) ^
+                                           (#exec_context_pkt @% "csr" @% "data")))
+                               } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
                 instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
@@ -134,29 +135,29 @@ Section zicsr.
                 instName   := "csrrc";
                 extensions := ["Zicsr"];
                 uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"11100");
-                      fieldVal funct3Field   ('b"011")
-                  ];
+                  := [
+                       fieldVal instSizeField ('b"11");
+                       fieldVal opcodeField   ('b"11100");
+                       fieldVal funct3Field   ('b"011")
+                     ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                   => LETE exec_context_pkt
-                      :  ExecContextPkt <- exec_context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
-                       ::= ITE
-                             (rs1 (#exec_context_pkt @% "inst") != $0 &&
-                                  (#exec_context_pkt @% "csr" @% "valid"))
-                             (Valid
-                                (((ZeroExtendTruncLsb CsrValueWidth
-                                                      (#exec_context_pkt @% "reg1")) ^
-                                  (~ $(0))) &
-                                 (#exec_context_pkt @% "csr" @% "data")))
-                             (@Invalid ty CsrValue)
-                     } : ZicsrInput @# ty);
+                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                       => LETE exec_context_pkt
+                            :  ExecContextPkt
+                            <- exec_context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                               "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                               "new_csr_value" 
+                                 ::= ITE
+                                       (rs1 (#exec_context_pkt @% "inst") == $0)
+                                       (@Invalid ty CsrValue)
+                                       (Valid
+                                          (((ZeroExtendTruncLsb CsrValueWidth
+                                               (#exec_context_pkt @% "reg1")) ^
+                                            (~ $(0))) &
+                                           (#exec_context_pkt @% "csr" @% "data")))
+                               } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
                 instHints   := falseHints[[hasRs1 := true]][[hasRd := true]][[isCsr := true]]
@@ -165,27 +166,25 @@ Section zicsr.
                 instName   := "csrrwi";
                 extensions := ["Zicsr"];
                 uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"11100");
-                      fieldVal funct3Field   ('b"101")
-                  ];
+                  := [
+                      fieldVal instSizeField ('b"11");
+                      fieldVal opcodeField ('b"11100");
+                      fieldVal funct3Field ('b"101")
+                    ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                   => LETE exec_context_pkt
-                      :  ExecContextPkt <- exec_context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
-                       ::= ITE
-                             (#exec_context_pkt @% "csr" @% "valid")
-                             (Valid
-                                (ZeroExtendTruncLsb CsrValueWidth
-                                                    (rs1 (#exec_context_pkt @% "inst"))))
-                             (@Invalid ty CsrValue)
-                     } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                       => LETE exec_context_pkt
+                            :  ExecContextPkt
+                            <- exec_context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                               "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                               "new_csr_value" 
+                                 ::= Valid
+                                       (ZeroExtendTruncLsb CsrValueWidth
+                                         (rs1 (#exec_context_pkt @% "inst")))
+                             } : ZicsrInput @# ty);
+                          outputXform := fun pkt => pkt;
                 optMemXform := None;
                 instHints   := falseHints[[hasRd := true]][[isCsr := true]]
               |};
@@ -193,27 +192,28 @@ Section zicsr.
                 instName   := "csrrsi";
                 extensions := ["Zicsr"];
                 uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"11100");
-                      fieldVal funct3Field   ('b"110")
-                  ];
+                  := [
+                      fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"11100");
+                        fieldVal funct3Field   ('b"110")
+                    ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                   => LETE exec_context_pkt
-                      :  ExecContextPkt <- exec_context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
-                       ::= ITE
-                             (#exec_context_pkt @% "csr" @% "valid")
-                             (Valid
-                                ((ZeroExtendTruncLsb CsrValueWidth
-                                                     (rs1 (#exec_context_pkt @% "inst"))) ^
-                                 (#exec_context_pkt @% "csr" @% "data")))
-                             (@Invalid ty CsrValue)
-                     } : ZicsrInput @# ty);
+                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                       => LETE exec_context_pkt
+                            :  ExecContextPkt
+                            <- exec_context_pkt_expr;
+                          RetE
+                            (STRUCT {
+                               "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                               "new_csr_value" 
+                                 ::= ITE
+                                       (rs1 (#exec_context_pkt @% "inst") == $0)
+                                       (@Invalid ty CsrValue)
+                                       (Valid
+                                          ((ZeroExtendTruncLsb CsrValueWidth
+                                              (rs1 (#exec_context_pkt @% "inst"))) ^
+                                           (#exec_context_pkt @% "csr" @% "data")))
+                             } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
                 instHints   := falseHints[[hasRd := true]][[isCsr := true]]
@@ -222,28 +222,29 @@ Section zicsr.
                 instName   := "csrrci";
                 extensions := ["Zicsr"];
                 uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
+                  := [
+                      fieldVal instSizeField ('b"11");
                       fieldVal opcodeField   ('b"11100");
                       fieldVal funct3Field   ('b"111")
-                  ];
+                    ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
-                   => LETE exec_context_pkt
-                      :  ExecContextPkt <- exec_context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
-                       ::= ITE
-                             (#exec_context_pkt @% "csr" @% "valid")
-                             (Valid
-                                (((ZeroExtendTruncLsb CsrValueWidth
-                                                      (rs1 (#exec_context_pkt @% "inst"))) ^
-                                  (~ $(0))) &
-                                 (#exec_context_pkt @% "csr" @% "data")))
-                             (@Invalid ty CsrValue)
-                     } : ZicsrInput @# ty);
+                  := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                     => LETE exec_context_pkt
+                          :  ExecContextPkt
+                          <- exec_context_pkt_expr;
+                        RetE
+                          (STRUCT {
+                             "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                             "new_csr_value" 
+                               ::= ITE
+                                     (rs1 (#exec_context_pkt @% "inst") == $0)
+                                     (@Invalid ty CsrValue)
+                                     (Valid
+                                        (((ZeroExtendTruncLsb CsrValueWidth
+                                             (rs1 (#exec_context_pkt @% "inst"))) ^
+                                          (~ $(0))) &
+                                         (#exec_context_pkt @% "csr" @% "data")))
+                             } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
                 instHints   := falseHints[[hasRd := true]][[isCsr := true]]

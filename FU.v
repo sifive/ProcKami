@@ -317,7 +317,7 @@ Section Params.
                         => RetE (struct_get_field_default exts_pkt ext ($$false)))
                        exts))
               (req_exts comp_inst_entry)).
-
+(*
     Definition decomp_inst
                (comp_inst_entry : CompInstEntry)
                (exts_pkt : Extensions @# ty)
@@ -348,6 +348,30 @@ Section Params.
               (fun comp_inst_entry
                => decomp_inst comp_inst_entry exts_pkt raw_comp_inst)
               comp_inst_db).
+*)
+    Definition decompress
+        (comp_inst_db : list CompInstEntry)
+        (exts_pkt : Extensions @# ty)
+      :  CompInst @# ty -> Maybe Inst ## ty
+      := utila_expr_lookup_table
+           comp_inst_db
+           (fun (comp_inst_entry : CompInstEntry)
+                (raw_comp_inst : CompInst @# ty)
+              => LETE inst_match
+                   :  Bool
+                   <- raw_comp_inst_match_id
+                        raw_comp_inst
+                        (comp_inst_id comp_inst_entry);
+                 LETE exts_match
+                   :  Bool
+                   <- inst_match_enabled_exts
+                        comp_inst_entry
+                        exts_pkt;
+                 RetE ((#inst_match) && (#exts_match)))
+           (fun (comp_inst_entry : CompInstEntry)
+                (raw_comp_inst : CompInst @# ty)
+              => decompressFn comp_inst_entry raw_comp_inst).
+
   End Decompressor.
   Local Close Scope kami_expr.
 
@@ -874,24 +898,30 @@ Section Params.
     Definition reg_reader_read_csr
       (raw_instr : Inst @# ty)
       :  ActionT ty (Maybe CsrValue)
-      := If rd raw_instr == $0
-           then Ret (@Invalid ty CsrValue)
-           else
-             Call csr_value
-               :  CsrValue
-               <- ^"read_csr" (imm raw_instr : Bit 12);
-             System [
-               DispString _ "Read CSR Register\n";
-               DispString _ "  CSR ID: ";
-               DispBit (imm raw_instr) (32, Decimal);
-               DispString _ "\n";
-               DispString _ "  CSR Value: ";
-               DispBit (#csr_value) (32, Decimal);
-               DispString _ "\n"
-             ];
-             Ret (Valid (#csr_value) : Maybe CsrValue @# ty)
-           as csr_reader_pkt;
-         Ret (#csr_reader_pkt).
+      (*
+        WARNING: This is incorrect.
+        The spec requires us not to read the CSR value when the
+        instruction is CSRRW or CSRRWI and the destination register
+        is x0. It requires that no CSR read side effects occur in
+        this case.
+
+        TODO: Ensure that no side effects occur from this read
+        when the instruction is CSRRW or CSRRWI and the destination
+        register is x0 or the instruction is not CSRR*.
+      *)
+      := Call csr_value
+           :  CsrValue
+           <- ^"read_csr" (imm raw_instr : Bit 12);
+         System [
+           DispString _ "Read CSR Register\n";
+           DispString _ "  CSR ID: ";
+           DispBit (imm raw_instr) (32, Decimal);
+           DispString _ "\n";
+           DispString _ "  CSR Value: ";
+           DispBit (#csr_value) (32, Decimal);
+           DispString _ "\n"
+         ];
+         Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
 
     Definition reg_reader
                (decoder_pkt : DecoderPkt @# ty)
