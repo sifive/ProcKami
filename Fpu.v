@@ -52,26 +52,8 @@ Local Notation OpOutput := (OpOutput expWidthMinus2 sigWidthMinus2).
 Local Notation inpK := (inpK expWidthMinus2 sigWidthMinus2).
 Local Notation outK := (outK expWidthMinus2 sigWidthMinus2).
 
-(*
-  Definition Flen : nat := 32.
-*)
 Definition Flen : nat := expWidth + sigWidth.
 
-(*
-Definition csr_value_width : nat := 32.
-
-Definition csr_value_kind : Kind := Bit csr_value_width.
-*)
-(*
-Definition exp_width : nat := 8.
-
-Definition sig_width : nat := 24.
-*)
-(*
-Definition muladd_in_kind : Kind := MulAdd_Input (exp_width - 2) (sig_width - 2).
-
-Definition muladd_out_kind : Kind := MulAdd_Output (exp_width - 2) (sig_width - 2).
-*)
 Definition sem_in_pkt_kind
   :  Kind
   := STRUCT {
@@ -85,16 +67,7 @@ Definition sem_out_pkt_kind
        "fcsr"       :: CsrValue;
        "muladd_out" :: MulAdd_Output
      }.
-(*
-Definition IEEE_float_kind : Kind
-  := FN (exp_width - 2) (sig_width - 2).
 
-Definition kami_float_kind : Kind
-  := NF (exp_width - 2) (sig_width - 2).
-
-Definition chisel_float_kind : Kind
-  := RecFN (exp_width - 2) (sig_width - 2).
-*)
 Definition fmin_max_in_pkt_kind
   :  Kind
   := STRUCT {
@@ -138,79 +111,29 @@ Definition fsgn_in_pkt_kind
        "sign_bit" :: Bit 1;
        "arg1"     :: Bit Xlen
      }.
-(*
-Definition float_int_in_pkt_kind
-  :  Kind
-  := NFToINInput (exp_width - 2) (sig_width - 2).
-
-Definition float_int_out_pkt_kind
-  :  Kind
-  := NFToINOutput (Xlen - 2). 
-
-Definition int_float_in_pkt_kind
-  :  Kind
-  := INToNFInput (Xlen - 2).
-
-Definition int_float_out_pkt_kind
-  :  Kind
-  := OpOutput (exp_width - 2) (sig_width - 2). 
-*)
 
 Local Notation "x [[ proj  :=  v ]]" := (set proj (constructor v) x)
                                     (at level 14, left associativity).
 Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
                                      (at level 14, f at next level, left associativity).
-(*
-Definition fdiv_sqrt_in_pkt_kind
-  := inpK (exp_width - 2) (sig_width - 2).
-
-Definition fdiv_sqrt_out_pkt_kind
-  := outK (exp_width - 2) (sig_width - 2).
-*)
 Open Scope kami_expr.
-(*
-Definition to_IEEE_float (x : Bit Xlen @# ty)
-  :  FN @# ty
-  := unpack FN (ZeroExtendTruncLsb (size FN) x).
-*)
+
 Definition bitToFN (x : Bit Xlen @# ty)
   :  FN @# ty
   := unpack FN (ZeroExtendTruncLsb (size FN) x).
-(*
-Definition to_kami_float (x : Bit Xlen @# ty)
-  :  NF @# ty
-  := getNF_from_FN (to_IEEE_float x).
-*)
+
 Definition bitToNF (x : Bit Xlen @# ty)
   :  NF @# ty
   := getNF_from_FN (bitToFN x).
-(*
-Definition to_chisel_float (x : Bit Xlen @# ty)
-  :  RecFN @# ty
-  := getRecFN_from_FN (to_IEEE_float x).
-*)
+
 Definition bitToRecFN (x : Bit Xlen @# ty)
   :  RecFN @# ty
   := getRecFN_from_FN (bitToFN x).
-(*
-Definition from_IEEE_float (x : FN @# ty)
-  :  Bit Xlen @# ty
-  := ZeroExtendTruncLsb Xlen (pack x).
-*)
-(*
-Definition from_kami_float (x : NF @# ty)
-  :  Bit Xlen @# ty
-  := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
-*)
+
 Definition NFToBit (x : NF @# ty)
   :  Bit Xlen @# ty
   := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
-(*
-Definition signals
-  (x : NF @# ty)
-  :  Bool @# ty
-  := isSigNaNRawFloat x.
-*)
+
 Definition fflags_width : nat := 5.
 
 Definition fflags_value_kind : Kind := Bit fflags_width.
@@ -244,22 +167,9 @@ Definition csr (flags : ExceptionFlags @# ty)
        | (csr_bit (flags @% "underflow") (Const ty ('b("00010"))))
        | (csr_bit (flags @% "inexact") (Const ty ('b("00001"))))).
 
-(*
-Definition excs_bit (flag : Bool @# ty) (mask : Bit 4 @# ty)
-  :  Exception @# ty
-  := ITE flag mask ($0 : Bit 4 @# ty).
-
-Definition excs (flags : ExceptionFlags @# ty)
-  :  Maybe Exception @# ty
-  := STRUCT {
-       "valid" ::= flags @% "invalid";
-       "data"  ::= excs_bit (flags @% "invalid") ($IllegalInst)
-     }.
-*)
 Definition rounding_mode_kind : Kind := Bit 3.
 
 Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
-
 
 Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
   :  rounding_mode_kind @# ty
