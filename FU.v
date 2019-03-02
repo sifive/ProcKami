@@ -317,38 +317,7 @@ Section Params.
                         => RetE (struct_get_field_default exts_pkt ext ($$false)))
                        exts))
               (req_exts comp_inst_entry)).
-(*
-    Definition decomp_inst
-               (comp_inst_entry : CompInstEntry)
-               (exts_pkt : Extensions @# ty)
-               (raw_comp_inst : CompInst @# ty)
-      :  Maybe Inst ## ty
-      := LETE raw_uncomp_inst
-         :  Inst
-              <- decompressFn comp_inst_entry raw_comp_inst;
-           LETE raw_comp_inst_match
-           :  Bool
-                <- raw_comp_inst_match_id
-                raw_comp_inst
-                (comp_inst_id comp_inst_entry);
-           LETE exts_match
-           :  Bool
-                <- inst_match_enabled_exts comp_inst_entry exts_pkt;
-           utila_expr_opt_pkt
-             (#raw_uncomp_inst)
-             ((#raw_comp_inst_match) && (#exts_match)).
 
-    Definition decompress
-               (comp_inst_db : list CompInstEntry)
-               (exts_pkt : Extensions @# ty)
-               (raw_comp_inst : CompInst @# ty)
-      :  Maybe Inst ## ty
-      := utila_expr_find_pkt
-           (map
-              (fun comp_inst_entry
-               => decomp_inst comp_inst_entry exts_pkt raw_comp_inst)
-              comp_inst_db).
-*)
     Definition decompress
         (comp_inst_db : list CompInstEntry)
         (exts_pkt : Extensions @# ty)

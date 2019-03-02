@@ -6,6 +6,7 @@
  *)
 Require Import Kami.All.
 Require Import FU.
+Require Import CSRMasks.
 Require Import List.
 Import ListNotations.
 Require Import RecordUpdate.RecordSet.
@@ -115,6 +116,9 @@ Section zicsr.
                        => LETE exec_context_pkt
                             :  ExecContextPkt
                             <- exec_context_pkt_expr;
+                          LETE mask
+                            :  CsrValue
+                            <- csr_mask (imm (#exec_context_pkt @% "inst"));
                           RetE
                             (STRUCT {
                                "orig_csr_value" ::= #exec_context_pkt @% "csr";
