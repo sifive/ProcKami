@@ -33,6 +33,16 @@ Record CsrMaskEntry
 Definition CsrMaskEntries
   := [
        {|
+         csrName := "fflags";
+         csrID   := Const ty $1;
+         csrMask := Const ty $31
+       |};
+       {|
+         csrName := "frm";
+         csrID   := Const ty $2;
+         csrMask := Const ty $7
+       |};
+       {|
          csrName := "fcsr";
          csrID   := Const ty $3;
          csrMask := Const ty $255
