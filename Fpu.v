@@ -725,7 +725,7 @@ Section Fpu.
                 := [
                     fieldVal instSizeField ('b"11");
                       fieldVal opcodeField   ('b"10100");
-                      fieldVal funct3Field   ('b"001");
+                      fieldVal funct3Field   ('b"010");
                       fieldVal funct7Field   ('b"0010000")
                   ];
                 inputXform
