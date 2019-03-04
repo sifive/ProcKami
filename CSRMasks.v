@@ -42,13 +42,13 @@ Definition CsrMaskEntries
 Open Scope kami_expr.
 
 Definition csr_mask
-  :  csr_id_kind @# ty -> CsrValue ## ty
+    (csr_id : csr_id_kind @# ty)
+  :  CsrValue ## ty
   := utila_expr_lookup_table_default
        CsrMaskEntries
        (fun (csr_mask_entry : CsrMaskEntry)
-            (csr_id : csr_id_kind @# ty)
           => RetE (csrID csr_mask_entry == csr_id))
-       (fun (csr_mask_entry : CsrMaskEntry) _
+       (fun (csr_mask_entry : CsrMaskEntry)
           => RetE (csrMask csr_mask_entry))
        ($0 : CsrValue @# ty).
 

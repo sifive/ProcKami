@@ -321,11 +321,11 @@ Section Params.
     Definition decompress
         (comp_inst_db : list CompInstEntry)
         (exts_pkt : Extensions @# ty)
-      :  CompInst @# ty -> Maybe Inst ## ty
+        (raw_comp_inst : CompInst @# ty)
+      :  Maybe Inst ## ty
       := utila_expr_lookup_table
            comp_inst_db
            (fun (comp_inst_entry : CompInstEntry)
-                (raw_comp_inst : CompInst @# ty)
               => LETE inst_match
                    :  Bool
                    <- raw_comp_inst_match_id
@@ -338,7 +338,6 @@ Section Params.
                         exts_pkt;
                  RetE ((#inst_match) && (#exts_match)))
            (fun (comp_inst_entry : CompInstEntry)
-                (raw_comp_inst : CompInst @# ty)
               => decompressFn comp_inst_entry raw_comp_inst).
 
   End Decompressor.
@@ -413,40 +412,62 @@ Section Params.
       (*
         Applies [f] to every instruction in the instruction database and
         returns the result for the instruction entry that satisfies [p].
-       *)
+      *)
       Definition inst_db_find_pkt
-                 (k : Kind)
-                 (f : forall sem_in_kind sem_out_kind : Kind,
-                     (nat * InstEntry sem_in_kind sem_out_kind) ->
-                     nat ->
-                     k ## ty)
-                 (p : forall sem_in_kind sem_out_kind : Kind,
-                     (nat * InstEntry sem_in_kind sem_out_kind) ->
-                     nat ->
-                     Bool ## ty)
-        :  Maybe k ## ty
+          (result_kind : Kind)
+          (p : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 Bool ## ty)
+          (f : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 result_kind ## ty)
+
+        :  Maybe result_kind ## ty
         := utila_expr_find_pkt
              (map
                 (fun tagged_func_unit : (nat * FUEntry)
-                 => let (func_unit_id, func_unit)
+                   => let (func_unit_id, func_unit)
                         := tagged_func_unit in
-                    utila_expr_find_pkt
-                      (map
-                         (fun inst
-                          => LETE x : k
-                                        <- f (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
-                               LETE selected : Bool
-                                                 <- p (fuInputK func_unit) (fuOutputK func_unit) inst func_unit_id;
-                               utila_expr_opt_pkt (#x) (#selected))
-                         (tag (fuInsts func_unit))))
+                      utila_expr_lookup_table
+                        (tag (fuInsts func_unit))
+                        (fun tagged_inst
+                           => p func_unit
+                                func_unit_id
+                                tagged_inst)
+                        (fun tagged_inst
+                           => f func_unit
+                                func_unit_id
+                                tagged_inst))
                 (tag func_units)).
+      (*
+        Applies [f] to every instruction in the instruction database and
+        returns the result for the instruction referenced by [func_unit_id]
+        and [inst_id].
+      *)
+      Definition inst_db_get_pkt
+          (result_kind : Kind)
+          (f : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 result_kind ## ty)
+          (sel_func_unit_id : FuncUnitId @# ty)
+          (sel_inst_id : InstId @# ty)
+        :  Maybe result_kind ## ty
+        := inst_db_find_pkt
+             (fun _ func_unit_id tagged_inst
+                => RetE
+                     (($(fst tagged_inst) == sel_inst_id) &&
+                      ($(func_unit_id)    == sel_func_unit_id)))
+             f.
 
       Definition decode_match_field
                  (raw_inst : Inst @# ty)
                  (field : FieldRange)
         :  Bool ## ty
         := LETE x <- extractArbitraryRange (RetE raw_inst) (projT1 field);
-             RetE (#x == $$(projT2 field)).
+           RetE (#x == $$(projT2 field)).
 
       Definition decode_match_fields
                  (raw_inst : Inst @# ty)
@@ -462,7 +483,7 @@ Section Params.
         := utila_expr_any
              (map
                 (fun ext : string
-                 => RetE (struct_get_field_default exts_pkt ext ($$false)))
+                   => RetE (struct_get_field_default exts_pkt ext ($$false)))
                 (extensions inst)).
 
       Definition decode_match_inst
@@ -472,40 +493,39 @@ Section Params.
                  (raw_inst : Inst @# ty)
         :  Bool ## ty
         := LETE inst_id_match : Bool
-                                  <- decode_match_fields raw_inst (uniqId inst);
-             LETE exts_match : Bool
-                                 <- decode_match_enabled_exts inst exts_pkt;
-             RetE ((#inst_id_match) && (#exts_match)).
+             <- decode_match_fields raw_inst (uniqId inst);
+           LETE exts_match : Bool
+             <- decode_match_enabled_exts inst exts_pkt;
+           RetE ((#inst_id_match) && (#exts_match)).
 
       (*
         Accepts a 32 bit string that represents an uncompressed RISC-V
         instruction and decodes it.
-       *)
+      *)
       Definition decode 
-                 (exts_pkt : Extensions @# ty)
-                 (raw_inst : Inst @# ty)
+          (exts_pkt : Extensions @# ty)
+          (raw_inst : Inst @# ty)
         :  Maybe DecoderPktInternal ## ty
-        := inst_db_find_pkt
-             (fun (sem_in_kind sem_out_kind : Kind)
-                  (inst : (nat * InstEntry sem_in_kind sem_out_kind))
-                  (func_unit_id : nat)
-              => RetE
-                   (STRUCT {
-                        "funcUnitTag" ::= $ func_unit_id;
-                        "instTag"     ::= $ (fst inst);
+        := inst_db_find_pkt 
+             (fun _ _ tagged_inst
+                => decode_match_inst
+                     (snd tagged_inst)
+                     exts_pkt
+                     raw_inst)
+             (fun _ func_unit_id tagged_inst
+                => RetE
+                     (STRUCT {
+                        "funcUnitTag" ::= $func_unit_id;
+                        "instTag"     ::= $(fst tagged_inst);
                         "inst"        ::= raw_inst
-                      } : DecoderPktInternal @# ty))
-             (fun (sem_in_kind sem_out_kind : Kind)
-                  (inst : (nat * InstEntry sem_in_kind sem_out_kind))
-                  (func_unit_id : nat)
-              => decode_match_inst (snd inst) exts_pkt raw_inst).
-      
+                      } : DecoderPktInternal @# ty)).
+
       (*
         Accepts a 32 bit string whose prefix may encode a compressed RISC-V
         instruction. If the prefix encodes a compressed instruction, this
         function decompresses it using the decompressor and decodes the
         result. Otherwise, it attempts to decode the full 32 bit string.
-       *)
+      *)
       Definition decode_bstring
                  (comp_inst_db : list CompInstEntry)
                  (exts_pkt : Extensions @# ty)
@@ -590,57 +610,30 @@ Section Params.
     Section FUInputTrans.
       Local Open Scope kami_expr.
 
-      (*
-        Applies [f] to every instruction in the instruction database and
-        returns the result for the instruction referenced by [func_unit_id]
-        and [inst_id].
-       *)
-      Definition inst_db_get_pkt
-                 (k : Kind)
-                 (f : forall sem_in_kind sem_out_kind : Kind,
-                     (nat * InstEntry sem_in_kind sem_out_kind) ->
-                     nat ->
-                     k ## ty)
-                 (sel_func_unit_id : FuncUnitId @# ty)
-                 (sel_inst_id : InstId @# ty)
-        :  Maybe k ## ty
-        := inst_db_find_pkt f
-                            (fun sem_in_kind sem_out_kind tagged_inst func_unit_id
-                             => RetE 
-                                  (($(fst tagged_inst) == sel_inst_id)
-                                     && ($ func_unit_id == sel_func_unit_id))).
-
-      Fixpoint trans_func_unit
-               (decoder_pkt : DecoderPkt @# ty)
-               (exec_context_pkt : ExecContextPkt @# ty)
-               (func_unit : (nat * FUEntry))
-        :  Maybe FuncUnitInput ## ty
-        := inst_db_get_pkt
-             (fun sem_in_kind sem_out_kind inst func_unit_id
-              => LETE args_pkt <- inputXform (snd inst) (RetE exec_context_pkt);
-                   RetE
-                     (ZeroExtendTruncLsb
-                        FuncUnitInputWidth
-                        (pack (#args_pkt))))
-             (decoder_pkt @% "funcUnitTag")
-             (decoder_pkt @% "instTag").
-
       Definition createInputXForm
-                 (decoder_pkt : DecoderPkt @# ty)
-                 (exec_context_pkt : ExecContextPkt @# ty)
+          (decoder_pkt : DecoderPkt @# ty)
+          (exec_context_pkt : ExecContextPkt @# ty)
         :  Maybe InputTransPkt ## ty
         := LETE opt_args_pkt
-                <- utila_expr_find_pkt
-                (map
-                   (trans_func_unit decoder_pkt exec_context_pkt)
-                   (tag func_units));
-             (utila_expr_opt_pkt
-                (STRUCT {
-                     "funcUnitTag" ::= (decoder_pkt @% "funcUnitTag");
-                     "instTag"     ::= (decoder_pkt @% "instTag");
-                     "inp"         ::= ((#opt_args_pkt) @% "data")
-                   } : InputTransPkt @# ty)
-                ((#opt_args_pkt) @% "valid")).
+             <- inst_db_get_pkt
+                  (fun _ _ tagged_inst
+                     => LETE args_pkt
+                          <- inputXform
+                               (snd tagged_inst)
+                               (RetE exec_context_pkt);
+                        RetE
+                          (ZeroExtendTruncLsb
+                             FuncUnitInputWidth
+                             (pack (#args_pkt))))
+                  (decoder_pkt @% "funcUnitTag")
+                  (decoder_pkt @% "instTag");
+           utila_expr_opt_pkt
+             (STRUCT {
+                "funcUnitTag" ::= (decoder_pkt @% "funcUnitTag");
+                "instTag"     ::= (decoder_pkt @% "instTag");
+                "inp"         ::= (#opt_args_pkt @% "data")
+              } : InputTransPkt @# ty)
+             ((#opt_args_pkt) @% "valid").
 
       (* TODO: revise to accept the exec_context_pkt with exceptions *)
       Definition transWithException
@@ -670,64 +663,22 @@ Section Params.
 
     Section Executor.
       Local Open Scope kami_expr.
-      (*
-        Applies the output transform associated with [inst] to the result
-        returned by a functional unit and mark the resulting packet as
-        valid iff the [inst]'s ID equals [inst_id].
-       *)
-      Definition exec_inst
-                 sem_input_kind sem_output_kind
-                 (inst: (nat * InstEntry sem_input_kind sem_output_kind))
-                 (inst_id : InstId @# ty)
-                 (sem_output : sem_output_kind @# ty)
-        := LETE exec_update_pkt <- outputXform (snd inst) (RetE sem_output);
-             utila_expr_opt_pkt (#exec_update_pkt) ($ (fst inst) == inst_id).
-      
-      (*
-      Executes the semantic function belonging to [func_unit] on the
-      arguments contained in [trans_pkt] and marks the result as valid
-      iff [func_unit]'s ID matches the ID given in [trans_pkt] and one
-      of the instructions associated with [func_unit] has an ID that
-      matches that given in [trans_pkt].
-       *)
-      Definition exec_func_unit
-                 (trans_pkt : InputTransPkt @# ty)
-                 (func_unit : (nat * FUEntry))
-        :  Maybe (PktWithException ExecContextUpdPkt) ## ty
-        := (* I. execute the semantic function *)
-          LETE sem_output
-          :  fuOutputK (snd func_unit)
-                       <- fuFunc
-                       (snd func_unit)
-                       (RetE
-                          (unpack
-                             (fuInputK (snd func_unit))
-                             (ZeroExtendTruncLsb
-                                (size (fuInputK (snd func_unit)))
-                                (trans_pkt @% "inp"))));
-            (* II. map output onto an update packet *)
-            LETE exec_update_pkt
-                 <- utila_expr_find_pkt
-                 (map
-                    (fun (inst : (nat * InstEntry
-                                          (fuInputK (snd func_unit))
-                                          (fuOutputK (snd func_unit))))
-                     => exec_inst inst (trans_pkt @% "instTag") (#sem_output))
-                    (tag (fuInsts (snd func_unit))));
-            (* III. return the update packet and set valid flag *)
-            utila_expr_opt_pkt
-              ((#exec_update_pkt) @% "data")
-              (($ (fst func_unit) == (trans_pkt @% "funcUnitTag"))
-                 && ((#exec_update_pkt) @% "valid")).
 
       Definition exec
                  (trans_pkt : InputTransPkt @# ty)
         :  Maybe (PktWithException ExecContextUpdPkt) ## ty
-        := utila_expr_find_pkt
-             (map
-                (fun (func_unit : (nat * FUEntry))
-                 => exec_func_unit trans_pkt func_unit)
-                (tag func_units)).
+        := inst_db_get_pkt
+             (fun func_unit func_unit_id tagged_inst
+                => outputXform (snd tagged_inst)
+                     (fuFunc func_unit
+                        (RetE
+                           (unpack
+                              (fuInputK func_unit)
+                              (ZeroExtendTruncLsb
+                                 (size (fuInputK func_unit))
+                                 (trans_pkt @% "inp"))))))
+             (trans_pkt @% "funcUnitTag")
+             (trans_pkt @% "instTag").
 
       Definition execWithException
                  (trans_pkt : PktWithException InputTransPkt @# ty)
