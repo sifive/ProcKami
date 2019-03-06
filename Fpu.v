@@ -156,6 +156,27 @@ Section Fpu.
            "sig" ::= $0
          }.
 
+  Definition const_x
+    :  NF @# ty
+    := STRUCT {
+           "isNaN" ::= $$false;
+           "isInf" ::= $$false;
+           "isZero" ::= $$false;
+           "sign" ::= $$false;
+           "sExp" ::= $2;
+           "sig" ::= $2
+         }.
+
+  Definition const_y
+    :  NF @# ty
+    := STRUCT {
+           "isNaN" ::= $$false;
+           "isInf" ::= $$false;
+           "isZero" ::= $$false;
+           "sign" ::= $$false;
+           "sExp" ::= $2;
+           "sig" ::= $3
+         }.
   Definition csr_invalid_mask : fflags_value_kind @# ty := Const ty ('b("10000")).
 
   (*
@@ -790,7 +811,7 @@ Section Fpu.
                         fieldVal opcodeField   ('b"10100");
                         fieldVal funct3Field   ('b"000");
                         fieldVal rs2Field      ('b"00000");
-                        fieldVal funct7Field   ('b"11100")
+                        fieldVal rs3Field      ('b"11100")
                       ];
                  inputXform
                    := fun x : ExecContextPkt ## ty
@@ -815,7 +836,7 @@ Section Fpu.
                         fieldVal opcodeField   ('b"10100");
                         fieldVal funct3Field   ('b"000");
                         fieldVal rs2Field      ('b"00000");
-                        fieldVal funct7Field   ('b"11110")
+                        fieldVal rs3Field      ('b"11110")
                       ];
                  inputXform
                    := fun x : ExecContextPkt ## ty

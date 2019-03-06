@@ -60,8 +60,8 @@ Section Parametrize.
   Let sigWidthMinus2
     :  nat
     := if exts_D_enabled
-         then 50
-         else 21.
+         then 51
+         else 22.
 
   Let func_units 
     :  forall ty, list (@FUEntry Xlen_over_8 Flen_over_8 ty)
