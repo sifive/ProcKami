@@ -122,14 +122,27 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
 
+  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
+  Local Notation Rlen := (8 * Rlen_over_8).
+
   Local Notation Xlen := (8 * Xlen_over_8).
-  Local Notation Data := (Bit Xlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Array Xlen_over_8 Bool).
+
+  Local Notation Flen := (8 * Flen_over_8).
+
+  Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
+  Local Notation expWidth := (expWidthMinus1 + 1).
+
+  Local Notation sigWidthMinus1 := (sigWidthMinus2 + 1).
+  Local Notation sigWidth := (sigWidthMinus1 + 1).
+
+  Local Notation Data := (Bit Rlen).
+  Local Notation DataMask := (Array Rlen_over_8 Bool).
 
   Definition ExceptionInfo := Bit Xlen.
 
@@ -180,7 +193,7 @@ Section Params.
 
   Definition MaskedMem := STRUCT {
                               "data" :: Data ;
-                              "mask" :: Array Xlen_over_8 Bool }.
+                              "mask" :: Array Rlen_over_8 Bool }.
   
   Definition MemoryOutput := STRUCT {
                                  "aq" :: Bool ;
@@ -551,9 +564,7 @@ Section Params.
       (*
         Accepts a fetch packet and decodes the RISC-V instruction encoded
         by the 32 bit string contained within the fetch packet.
-
-        TODO: Set the exception flags.
-       *)
+      *)
       Definition decode_full
                  (comp_inst_db : list CompInstEntry)
                  (exts_pkt : Extensions @# ty)
@@ -635,7 +646,6 @@ Section Params.
               } : InputTransPkt @# ty)
              ((#opt_args_pkt) @% "valid").
 
-      (* TODO: revise to accept the exec_context_pkt with exceptions *)
       Definition transWithException
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : PktWithException ExecContextPkt @# ty)
@@ -701,7 +711,7 @@ Section Params.
                      } : PktWithException ExecContextUpdPkt @# ty)).
       Local Close Scope kami_expr.
     End Executor.
-    
+   
     Section RegReader.
       Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
         
@@ -1119,8 +1129,8 @@ Section Params.
         refine (
             LETC mask <- write @% "data" @% "mask" ;
             LETC data <- write @% "data" @% "data" ;
-            LETC dataByte <- unpack (Array Xlen_over_8 (Bit 8)) (castBits _ #data) ;
-            LETC readByte <- unpack (Array Xlen_over_8 (Bit 8)) (castBits _ read) ;
+            LETC dataByte <- unpack (Array Rlen_over_8 (Bit 8)) (castBits _ #data) ;
+            LETC readByte <- unpack (Array Rlen_over_8 (Bit 8)) (castBits _ read) ;
             LETC writeByte <- BuildArray (fun i => (IF ReadArrayConst #mask i
                                                     then ReadArrayConst #dataByte i
                                                     else ReadArrayConst #readByte i)) ;
@@ -1215,7 +1225,6 @@ Section Params.
                          as ret;
                           Ret #ret)) memFus) as retVals2;
                Ret (unpack (PktWithException MemRet) (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals2))).
-
         Local Close Scope kami_action.
       End MemAddr.
 
@@ -1236,7 +1245,8 @@ Section Params.
            LETA memRet
            :  PktWithException MemRet
                 <- fullMemAction
-                (#exec_update_pkt @% "val1" @% "data" @% "data")
+                (ZeroExtendTruncLsb Xlen
+                  (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                 (decoder_pkt @% "funcUnitTag")
                 (decoder_pkt @% "instTag")
                 (STRUCT {
@@ -1255,11 +1265,12 @@ Section Params.
                                  @%["val1"
                                       <- Valid (STRUCT {
                                                     "tag"  ::= #memRet @% "fst" @% "tag";
-                                                    "data" ::= #memRet @% "fst" @% "data"
+                                                    "data" ::= (#memRet @% "fst" @% "data" : Bit Rlen @# ty)
                                                   } : RoutedReg @# ty)])
                               (#exec_update_pkt));
                        "snd" ::= #memRet @% "snd"
                      } : PktWithException ExecContextUpdPkt @# ty)).
+
       Local Close Scope kami_action.
     End Memory.
   End func_units.

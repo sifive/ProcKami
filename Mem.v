@@ -4,24 +4,28 @@ Import RecordNotations.
 
 Section Mem.
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
+
+  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
+  Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
-  Local Notation MemoryInput := (MemoryInput Xlen_over_8).
-  Local Notation MemoryOutput := (MemoryOutput Xlen_over_8).
-  Local Notation MaskedMem := (MaskedMem Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
+  Local Notation MemoryInput := (MemoryInput Xlen_over_8 Flen_over_8).
+  Local Notation MemoryOutput := (MemoryOutput Xlen_over_8 Flen_over_8).
+  Local Notation MaskedMem := (MaskedMem Xlen_over_8 Flen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
 
-  Notation Data := (Bit Xlen).
+  Notation Data := (Bit Rlen).
   Notation VAddr := (Bit Xlen).
-  Notation DataMask := (Bit Xlen_over_8).
+  Notation DataMask := (Bit Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
 
              
-    Local Notation noUpdPkt := (@noUpdPkt Xlen_over_8 ty).
+    Local Notation noUpdPkt := (@noUpdPkt Xlen_over_8 Flen_over_8 ty).
 
     Definition MemInputAddrType := STRUCT {
                                        "base" :: VAddr ;
@@ -56,52 +60,59 @@ Section Mem.
          LETC ret
            :  MemInputAddrType
            <- STRUCT {
-                  "base"     ::= #gcp @% "reg1";
+                  "base"     ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
                   "offset"   ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"));
                   "numZeros" ::= $size;
                   "data"
-                    ::= STRUCT {
-                          "data" ::= #gcp @% "reg2";
-                          "mask" ::= unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
-                        };
+                    ::= (STRUCT {
+                          "data" ::= (#gcp @% "reg2" : Data @# ty);
+                          "mask"
+                            ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                                 : Array Rlen_over_8 Bool @# ty)
+                        } : MaskedMem @# ty);
                   "aq" ::= $$ false;
                   "rl" ::= $$ false;
                   "memMisalignedException?" ::= #gcp @% "memMisalignedException?";
                   "accessException?" ::= #gcp @% "accessException?"
-                };
+                } : MemInputAddrType @# ty;
          RetE #ret.
 
-    Local Definition loadTag (valin: MemOutputAddrType ## ty): PktWithException ExecContextUpdPkt ## ty :=
-      LETE val: MemOutputAddrType <- valin;
-        LETC addr: VAddr <- #val @% "addr" ;
-        LETC valret :
-          ExecContextUpdPkt
-            <-
-            (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                                                  "data" ::= #addr }))]) ;
-        LETC retval :
-          (PktWithException ExecContextUpdPkt)
-            <-
-            STRUCT {
-              "fst" ::= #valret ;
-              "snd" ::= (IF #val @% "misalignedException?"
+    Local Definition loadTag (valin: MemOutputAddrType ## ty)
+      :  PktWithException ExecContextUpdPkt ## ty
+      := LETE val: MemOutputAddrType <- valin;
+         LETC addr: VAddr <- #val @% "addr";
+         LETC valret
+           :  ExecContextUpdPkt
+           <- (noUpdPkt
+                 @%["val1"
+                      <- (Valid (STRUCT {
+                            "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                            "data" ::= ZeroExtendTruncLsb Rlen #addr
+                          }))]) ;
+         LETC retval
+           :  (PktWithException ExecContextUpdPkt)
+           <- STRUCT {
+                "fst" ::= #valret ;
+                "snd"
+                  ::= (IF #val @% "misalignedException?"
                          then Valid (STRUCT {
-                                         "exception" ::=
-                                           ((IF #val @% "accessException?"
-                                             then $LoadAccessFault
-                                             else $LoadAddrMisaligned): Exception @# ty) ;
-                                         "value" ::= #addr } )
-                         else Invalid) } ;
-        RetE #retval.
+                                "exception"
+                                  ::= ((IF #val @% "accessException?"
+                                          then $LoadAccessFault
+                                          else $LoadAddrMisaligned): Exception @# ty) ;
+                                "value" ::= #addr
+                              })
+                         else Invalid)} ;
+         RetE #retval.
 
     Local Definition loadXform (tag: RoutingTag @# ty) (size: nat) (ext: forall (ty : Kind -> Type) (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
       Some (fun memRegIn: MemoryInput ## ty =>
               LETE memReg : MemoryInput <- memRegIn ;
               LETC mem : Data <- #memReg @% "mem" ;
               LETC memByte: Bit size <-
-                                ext ty Xlen size #mem ;
+                                ext ty Rlen size #mem ;
               LETC memOut: Maybe Data <-
-                                 Valid (ext ty size Xlen #memByte);
+                                 Valid (ext ty size Rlen #memByte);
               LETC outMemReg : MemoryOutput
                                  <-
                                  STRUCT {
@@ -115,51 +126,64 @@ Section Mem.
 
     Local Definition storeInput (size: nat) (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
-      LETC ret: MemInputAddrType <-
-                                 STRUCT {
-                                   "base" ::= #gcp @% "reg1" ;
-                                   "offset" ::= SignExtendTruncLsb Xlen ({< funct7 (#gcp @% "inst"), rd (#gcp @% "inst") >}) ;
-                                   "numZeros" ::= $size ;
-                                   "data" ::= STRUCT { "data" ::= #gcp @% "reg2" ;
-                                                       "mask" ::= unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 size) - 1)) } ;
-                                   "aq" ::= $$ false ;
-                                   "rl" ::= $$ false ;
-                                   "memMisalignedException?" ::= #gcp @% "memMisalignedException?" ;
-                                   "accessException?" ::= #gcp @% "accessException?"
-                                 } ;
+      LETC ret
+        :  MemInputAddrType
+        <- STRUCT {
+             "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
+             "offset" ::= SignExtendTruncLsb Xlen ({< funct7 (#gcp @% "inst"), rd (#gcp @% "inst") >});
+             "numZeros" ::= $size;
+             "data" ::= (STRUCT {
+                           "data" ::= (#gcp @% "reg2" : Data @# ty);
+                           "mask"
+                             ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                                  : Array Rlen_over_8 Bool @# ty)
+                         } : MaskedMem @# ty);
+             "aq" ::= $$ false;
+             "rl" ::= $$ false;
+             "memMisalignedException?" ::= #gcp @% "memMisalignedException?";
+             "accessException?" ::= #gcp @% "accessException?"
+           };
       RetE #ret.
 
-    Local Definition storeTag (valin: MemOutputAddrType ## ty): PktWithException ExecContextUpdPkt ## ty :=
-      LETE val: MemOutputAddrType <- valin;
-        LETC addr: VAddr <- #val @% "addr" ;
-        LETC data: MaskedMem <- #val @% "data" ;
-        LETC valret :
-          ExecContextUpdPkt
-            <- (noUpdPkt@%["val1" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                                                     "data" ::= #addr }))]
-                        @%["val2" <- (Valid (STRUCT {"tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                                                     "data" ::= #data @% "data"}))]
-                        @%["memBitMask" <- #data @% "mask"]) ;
-        LETC retval:
-          (PktWithException ExecContextUpdPkt)
-            <-
-            STRUCT { "fst" ::= #valret ;
-                     "snd" ::= (IF #val @% "misalignedException?"
-                                then Valid (STRUCT {
-                                                "exception" ::=
-                                                  ((IF #val @% "accessException?"
-                                                    then $LoadAccessFault
-                                                    else $LoadAddrMisaligned): Exception @# ty) ;
-                                                "value" ::= #addr })
-                                else Invalid) } ;
-        RetE #retval.
+    Local Definition storeTag (valin: MemOutputAddrType ## ty)
+      :  PktWithException ExecContextUpdPkt ## ty
+      := LETE val: MemOutputAddrType <- valin;
+         LETC addr: VAddr <- #val @% "addr" ;
+         LETC data: MaskedMem <- #val @% "data" ;
+         LETC valret
+           :  ExecContextUpdPkt
+             <- (noUpdPkt
+                   @%["val1"
+                        <- (Valid (STRUCT {
+                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                              "data" ::= ZeroExtendTruncLsb Rlen #addr
+                            }))]
+                   @%["val2"
+                        <- (Valid (STRUCT {
+                              "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
+                              "data" ::= ZeroExtendTruncLsb Rlen (#data @% "data")
+                            }))]
+                   @%["memBitMask" <- #data @% "mask"]) ;
+         LETC retval:
+           (PktWithException ExecContextUpdPkt)
+             <-
+             STRUCT { "fst" ::= #valret ;
+                      "snd" ::= (IF #val @% "misalignedException?"
+                                 then Valid (STRUCT {
+                                                 "exception" ::=
+                                                   ((IF #val @% "accessException?"
+                                                     then $LoadAccessFault
+                                                     else $LoadAddrMisaligned): Exception @# ty) ;
+                                                 "value" ::= #addr })
+                                 else Invalid) } ;
+         RetE #retval.
 
     Local Definition storeXform (size: nat) :=
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memMask: _ <- unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
+             LETC memMask: _ <- unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
              LETC memOut: MaskedMem <-
                                     (STRUCT {
                                          "data" ::= #reg ;
@@ -180,11 +204,15 @@ Section Mem.
       LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret: MemInputAddrType <-
                                  STRUCT {
-                                   "base" ::= #gcp @% "reg1" ;
+                                   "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
                                    "offset" ::= $0 ;
                                    "numZeros" ::= $sz ;
-                                   "data" ::= STRUCT { "data" ::= #gcp @% "reg2" ;
-                                                       "mask" ::= unpack (Array Xlen_over_8 Bool) ($(pow2 (pow2 sz) - 1)) } ;
+                                   "data" ::= STRUCT {
+                                                "data" ::= (#gcp @% "reg2" : Data @# ty);
+                                                "mask"
+                                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
+                                                       : Array Rlen_over_8 Bool @# ty)
+                                              };
                                    "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
                                    "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
                                    "memMisalignedException?" ::= $$ true ;
@@ -201,8 +229,8 @@ Section Mem.
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memVal: Data <- #memReg @% "mem" ;
-             LETC memMask: Array Xlen_over_8 Bool <- $$ (ConstArray (if dohalf
-                                                                     then fun i: Fin.t Xlen_over_8 =>
+             LETC memMask: Array Rlen_over_8 Bool <- $$ (ConstArray (if dohalf
+                                                                     then fun i: Fin.t Rlen_over_8 =>
                                                                             if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
                                                                             then true else false
                                                                      else fun i => true));
@@ -213,7 +241,7 @@ Section Mem.
                                          "mask" ::= #memMask});
              LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
              LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Xlen #loadVal);
+             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-
                                 STRUCT {
@@ -235,7 +263,7 @@ Section Mem.
            LETE memReg : MemoryInput <- memRegIn ;
              LETC memVal: Data <- #memReg @% "mem" ;
              LETC loadVal <- SignExtendTruncLsb (if half then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Xlen #loadVal);
+             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-
                                 STRUCT {
@@ -251,36 +279,59 @@ Section Mem.
 
     Local Definition scTag := storeTag.
 
-    Local Definition scXform (half: bool) :=
-      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memMask: Array Xlen_over_8 Bool <- $$ (ConstArray (if dohalf
-                                                                     then fun i: Fin.t Xlen_over_8 =>
-                                                                            if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
-                                                                            then true else false
-                                                                     else fun i => true));
-             LETC memOut: MaskedMem <-
-                                    (STRUCT {
-                                         "data" ::= #reg;
-                                         "mask" ::= #memMask});
-             LETC isStore: Bool <- #memReg @% "reservation" >= (if dohalf then $1 else $2);
-             LETC validMemOut: Maybe MaskedMem <- (STRUCT {
-                                                       "valid" ::= #isStore ;
-                                                       "data" ::= #memOut });
-             LETC loadVal: Data <- IF #isStore then $0 else $1 ;
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "reservation" ::= $ 0 ;
-                                  "mem" ::= #validMemOut ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= Valid #loadVal };
-             RetE #outMemReg).
+    Local Definition scXform (half: bool)
+      := let dohalf
+           := andb half (getBool (Nat.eq_dec Rlen 64)) in
+         Some
+           (fun memRegIn
+              => LETE memReg
+                   :  MemoryInput
+                   <- memRegIn;
+                 LETC reg
+                   :  Data
+                   <- #memReg @% "reg_data";
+                 LETC memMask
+                   :  Array Rlen_over_8 Bool
+                   <- $$(ConstArray
+                           (if dohalf
+                              then
+                                fun i : Fin.t Rlen_over_8
+                                  => if Compare_dec.lt_dec
+                                          (proj1_sig (Fin.to_nat i))
+                                          (Rlen_over_8/2)
+                                       then true
+                                       else false
+                              else
+                                fun _ => true));
+                 LETC memOut
+                   :  MaskedMem
+                   <- (STRUCT {
+                         "data" ::= (#reg : Data @# ty);
+                         "mask" ::= (#memMask : Array Rlen_over_8 Bool @# ty)
+                       } : MaskedMem @# ty);
+                 LETC isStore
+                   :  Bool
+                   <- #memReg @% "reservation" >= (if dohalf then $1 else $2);
+                 LETC validMemOut
+                   :  Maybe MaskedMem
+                   <- (STRUCT {
+                         "valid" ::= #isStore;
+                         "data" ::= #memOut
+                       });
+                 LETC loadVal
+                   :  Data
+                   <- IF #isStore then $0 else $1;
+                 LETC outMemReg
+                   :  MemoryOutput
+                   <- STRUCT {
+                        "aq" ::= #memReg @% "aq";
+                        "rl" ::= #memReg @% "rl";
+                        "reservation" ::= $ 0;
+                        "mem" ::= #validMemOut;
+                        "tag" ::= $IntRegTag;
+                        "reg_data" ::= Valid #loadVal
+                      };
+                 RetE #outMemReg).
 
     Definition Mem: @FUEntry ty :=
       {| fuName := "mem" ;
@@ -672,8 +723,6 @@ Section Mem.
               instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
            |} ::
            nil |}.
-
-
     
     Definition LrSc32: @FUEntry ty :=
       {| fuName := "lrsc32" ;

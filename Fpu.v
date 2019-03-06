@@ -23,16 +23,21 @@ Import RecordNotations.
 Section Fpu.
 
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
+
   Variable expWidthMinus2 sigWidthMinus2: nat.
   Variable ty : Kind -> Type.
 
+  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
+  Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8).
-  Local Notation RoutedReg := (RoutedReg Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8 Flen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
+  Local Notation RoutedReg := (RoutedReg Xlen_over_8 Flen_over_8).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
@@ -51,8 +56,6 @@ Section Fpu.
   Local Notation OpOutput := (OpOutput expWidthMinus2 sigWidthMinus2).
   Local Notation inpK := (inpK expWidthMinus2 sigWidthMinus2).
   Local Notation outK := (outK expWidthMinus2 sigWidthMinus2).
-
-  Definition Flen : nat := expWidth + sigWidth.
 
   Definition sem_in_pkt_kind
     :  Kind
@@ -80,7 +83,7 @@ Section Fpu.
     :  Kind
     := STRUCT {
            "fcsr"   :: Maybe CsrValue;
-           "result" :: Bit Xlen
+           "result" :: Bit Flen
          }.
 
   Definition cmp_cond_width := 2.
@@ -101,36 +104,38 @@ Section Fpu.
     :  Kind
     := STRUCT {
            "fcsr"   :: Maybe CsrValue;
-           "result" :: Bit Xlen
+           "result" :: Bit Flen
          }.
 
   Definition fsgn_in_pkt_kind
     :  Kind
     := STRUCT {
            "sign_bit" :: Bit 1;
-           "arg1"     :: Bit Xlen
+           "arg1"     :: Bit Flen
          }.
+
   Local Notation "x [[ proj  :=  v ]]" := (set proj (constructor v) x)
                                             (at level 14, left associativity).
   Local Notation "x [[ proj  ::=  f ]]" := (set proj f x)
                                              (at level 14, f at next level, left associativity).
 
   Open Scope kami_expr.
-  Definition bitToFN (x : Bit Xlen @# ty)
+
+  Definition bitToFN (x : Bit Flen @# ty)
     :  FN @# ty
     := unpack FN (ZeroExtendTruncLsb (size FN) x).
 
-  Definition bitToNF (x : Bit Xlen @# ty)
+  Definition bitToNF (x : Bit Flen @# ty)
     :  NF @# ty
     := getNF_from_FN (bitToFN x).
 
-  Definition bitToRecFN (x : Bit Xlen @# ty)
+  Definition bitToRecFN (x : Bit Flen @# ty)
     :  RecFN @# ty
     := getRecFN_from_FN (bitToFN x).
 
   Definition NFToBit (x : NF @# ty)
-    :  Bit Xlen @# ty
-    := ZeroExtendTruncLsb Xlen (pack (getFN_from_NF x)).
+    :  Bit Flen @# ty
+    := ZeroExtendTruncLsb Flen (pack (getFN_from_NF x)).
 
   Definition fflags_width : nat := 5.
 
@@ -157,8 +162,8 @@ Section Fpu.
   Note: this function does not set the divide by zero CSR flag.
    *)
   Definition csr (flags : ExceptionFlags @# ty)
-    :  Bit Xlen @# ty
-    := ZeroExtendTruncLsb Xlen
+    :  Bit Rlen @# ty
+    := ZeroExtendTruncLsb Rlen
                           ($0 : fflags_value_kind @# ty
                           | (csr_bit (flags @% "invalid") csr_invalid_mask)
                           | (csr_bit (flags @% "overflow") (Const ty ('b("00100"))))
@@ -204,9 +209,9 @@ Section Fpu.
                 "muladd_in"
                 ::= (STRUCT {
                          "op" ::= op;
-                         "a"  ::= bitToNF (#context_pkt @% "reg1");
-                         "b"  ::= bitToNF (#context_pkt @% "reg2");
-                         "c"  ::= bitToNF (#context_pkt @% "reg3");
+                         "a"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                         "b"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
+                         "c"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg3"));
                          "roundingMode"   ::= rounding_mode (#context_pkt);
                          "detectTininess" ::= $$true
                        } : MulAdd_Input @# ty)
@@ -223,9 +228,9 @@ Section Fpu.
                 "muladd_in"
                 ::= (STRUCT {
                          "op" ::= op;
-                         "a"  ::= bitToNF (#context_pkt @% "reg1");
+                         "a"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
                          "b"  ::= const_1;
-                         "c"  ::= bitToNF (#context_pkt @% "reg2");
+                         "c"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
                          "roundingMode"   ::= rounding_mode (#context_pkt);
                          "detectTininess" ::= $$true
                        } : MulAdd_Input @# ty)
@@ -242,8 +247,8 @@ Section Fpu.
                 "muladd_in"
                 ::= (STRUCT {
                          "op" ::= op;
-                         "a"  ::= bitToNF (#context_pkt @% "reg1");
-                         "b"  ::= bitToNF (#context_pkt @% "reg2");
+                         "a"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                         "b"  ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
                          "c"  ::= bitToNF ($0);
                          "roundingMode"   ::= rounding_mode (#context_pkt);
                          "detectTininess" ::= $$true
@@ -261,13 +266,13 @@ Section Fpu.
                 ::= (STRUCT {
                          "val1" ::= Valid (STRUCT {
                                                "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                                               "data" ::= NFToBit (#sem_out_pkt @% "muladd_out" @% "out")
+                                               "data" ::= ZeroExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "muladd_out" @% "out"))
                                           });
                          "val2" ::= Valid (STRUCT {
                                                "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                                               "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Xlen @# ty)
+                                               "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Rlen @# ty)
                                           });
-                         "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                         "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                          "taken?" ::= $$false;
                          "aq" ::= $$false;
                          "rl" ::= $$false
@@ -283,8 +288,8 @@ Section Fpu.
          RetE
            (STRUCT {
                 "fcsr" ::= #context_pkt @% "fcsr";
-                "arg1" ::= bitToNF (#context_pkt @% "reg1");
-                "arg2" ::= bitToNF (#context_pkt @% "reg2");
+                "arg1" ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                "arg2" ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
                 "max"  ::= max
               } : fmin_max_in_pkt_kind @# ty).
 
@@ -307,15 +312,15 @@ Section Fpu.
                          "val1"
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                        "data" ::= ZeroExtendTruncLsb Xlen ((#sem_out_pkt) @% "outIN")
+                                        "data" ::= ZeroExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
                                    });
                          "val2"
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                                        "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Xlen @# ty))
+                                        "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
                                    });
                          "memBitMask"
-                         ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                         ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                          "taken?" ::= $$false;
                          "aq" ::= $$false;
                          "rl" ::= $$false
@@ -335,19 +340,19 @@ Section Fpu.
                          "val1"
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                                        "data" ::= ZeroExtendTruncLsb Xlen
-                                                                      (NFToBit
-                                                                         ((#sem_out_pkt @% "out")
-                                                                          : NF @# ty)
-                                                                       : Bit Xlen @# ty)
+                                        "data" ::= ZeroExtendTruncLsb Rlen
+                                                     (NFToBit
+                                                        ((#sem_out_pkt @% "out")
+                                                         : NF @# ty)
+                                                      : Bit Flen @# ty)
                                    });
                          "val2"
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                                        "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Xlen @# ty)) 
+                                        "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
                                    });
                          "memBitMask"
-                         ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                         ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                          "taken?" ::= $$false;
                          "aq" ::= $$false;
                          "rl" ::= $$false
@@ -363,8 +368,8 @@ Section Fpu.
          RetE
            (STRUCT {
                 "isSqrt" ::= sqrt;
-                "nfA"   ::= bitToNF (#context_pkt @% "reg1");
-                "nfB"   ::= bitToNF (#context_pkt @% "reg2");
+                "nfA"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                "nfB"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
                 "round"  ::= rounding_mode (#context_pkt);
                 "tiny"   ::= $$true
               } : inpK @# ty).
@@ -382,16 +387,16 @@ Section Fpu.
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                                         "data"
-                                        ::= (ZeroExtendTruncLsb Xlen
-                                                                (pack (#sem_out_pkt @% "outNf"))
-                                             : Bit Xlen @# ty)
+                                        ::= (ZeroExtendTruncLsb Rlen
+                                               (pack (#sem_out_pkt @% "outNf"))
+                                             : Bit Rlen @# ty)
                                    });
                          "val2"
                          ::= Valid (STRUCT {
                                         "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                                        "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Xlen @# ty)
+                                        "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                                    });
-                         "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                         "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                          "taken?" ::= $$false;
                          "aq" ::= $$false;
                          "rl" ::= $$false
@@ -402,124 +407,121 @@ Section Fpu.
   Definition Mac : @FUEntry ty
     := {|
         fuName :="mac";
-        fuFunc := fun sem_in_pkt_expr : sem_in_pkt_kind ## ty
-                  => LETE sem_in_pkt
-                     :  sem_in_pkt_kind
-                          <- sem_in_pkt_expr;
-        LETE muladd_out
-        :  MulAdd_Output
-             <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
-        RetE
-          (STRUCT {
-               "fcsr"       ::= #sem_in_pkt @% "fcsr";
-               "muladd_out" ::= #muladd_out
-             } : sem_out_pkt_kind @# ty);
+        fuFunc
+          := fun sem_in_pkt_expr : sem_in_pkt_kind ## ty
+               => LETE sem_in_pkt
+                    :  sem_in_pkt_kind
+                    <- sem_in_pkt_expr;
+                  LETE muladd_out
+                    :  MulAdd_Output
+                    <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
+                  RetE
+                    (STRUCT {
+                       "fcsr"       ::= #sem_in_pkt @% "fcsr";
+                       "muladd_out" ::= #muladd_out
+                     } : sem_out_pkt_kind @# ty);
         fuInsts
-        := [
-            {|
-              instName   := "fmadd.s";
-              extensions := ["RV32F"; "RV64F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10000");
-                    fieldVal fmtField      ('b"00")
-                ];
-              inputXform  := muladd_in_pkt $0;
-              outputXform := muladd_out_pkt;
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-            |};
-              {|
-                instName   := "fmsub.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10001");
-                      fieldVal fmtField      ('b"00")
-                  ];
-                inputXform  := muladd_in_pkt $1;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fnmsub.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10010");
-                      fieldVal fmtField      ('b"00")
-                  ];
-                inputXform  := muladd_in_pkt $2;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fnmadd.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10011");
-                      fieldVal fmtField      ('b"00")
-                  ];
-                inputXform  := muladd_in_pkt $3;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fadd.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct7Field   ('b"0000000")
-                  ];
-                inputXform  := add_in_pkt $0;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fsub.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct7Field   ('b"0000100")
-                  ];
-                inputXform  := add_in_pkt $1;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fmult.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct7Field   ('b"0001000")
-                  ];
-                inputXform  := mul_in_pkt $0;
-                outputXform := muladd_out_pkt;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |}
-          ]
+          := [
+               {|
+                 instName   := "fmadd";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10000")
+                      ];
+                 inputXform  := muladd_in_pkt $0;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fmsub";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10001")
+                      ];
+                 inputXform  := muladd_in_pkt $1;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fnmsub";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10010")
+                      ];
+                 inputXform  := muladd_in_pkt $2;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fnmadd";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10011")
+                      ];
+                 inputXform  := muladd_in_pkt $3;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fadd";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal rs3Field      ('b"00000")
+                      ];
+                 inputXform  := add_in_pkt $0;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fsub";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal rs3Field      ('b"00001")
+                      ];
+                 inputXform  := add_in_pkt $1;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+               |};
+               {|
+                 instName   := "fmult";
+                 extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal rs3Field      ('b"00010")
+                      ];
+                 inputXform  := mul_in_pkt $0;
+                 outputXform := muladd_out_pkt;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+               |}
+             ]
       |}.
 
   Definition canonical_nan
-    :  Bit Xlen @# ty.
-    refine (ZeroExtendTruncLsb Xlen (pack (
+    :  Bit Flen @# ty.
+    refine (ZeroExtendTruncLsb Flen (pack (
                                          STRUCT {
                                              "sign" ::= $$false;
                                              "exp"  ::= $$ (wones expWidth);
@@ -529,418 +531,424 @@ Section Fpu.
     
   Definition FMinMax : @FUEntry ty
     := {|
-        fuName := "fmin_max";
-        fuFunc
-        := fun sem_in_pkt_expr : fmin_max_in_pkt_kind ## ty
-           => LETE sem_in_pkt
-              :  fmin_max_in_pkt_kind
-                   <- sem_in_pkt_expr;
-        LETE cmp_out_pkt
-        :  Compare_Output
-             <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
-        LETC fcsr
-        :  CsrValue
-             <- ((#sem_in_pkt @% "fcsr" : CsrValue @# ty) |
-                 (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
-        LETC result
-        :  fmin_max_out_pkt_kind
-             <- STRUCT {
-               "fcsr"
-               ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
-                        (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
-                       (Valid #fcsr)
-                       (@Invalid ty CsrValue);
-               "result"
-               ::= ITE (#sem_in_pkt @% "arg1" @% "isNaN")
-                       (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
-                            canonical_nan
-                            (NFToBit (#sem_in_pkt @% "arg2")))
-                       (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
-                            (NFToBit (#sem_in_pkt @% "arg1"))
-                            (* patch to handle comparison of 0 and -0 *)
-                            (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
-                                                                      (!(#sem_in_pkt @% "arg1" @% "sign")) &&
-                                                                      (#sem_in_pkt @% "arg2" @% "isZero") &&
-                                                                      (#sem_in_pkt @% "arg2" @% "sign"))
-                                 (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                      (NFToBit (#sem_in_pkt @% "arg1"))
-                                      (NFToBit (#sem_in_pkt @% "arg2")))
-                                 (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
-                                                                           ((#sem_in_pkt @% "arg1" @% "sign")) &&
-                                                                           (#sem_in_pkt @% "arg2" @% "isZero") &&
-                                                                           (!(#sem_in_pkt @% "arg2" @% "sign")))
-                                      (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                           (NFToBit (#sem_in_pkt @% "arg2"))
-                                           (NFToBit (#sem_in_pkt @% "arg1")))
-                                      (* return result from comparator. *)
-                                      (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
-                                           (NFToBit (#sem_in_pkt @% "arg2"))
-                                           (NFToBit (#sem_in_pkt @% "arg1"))))))
-             } : fmin_max_out_pkt_kind @# ty;
-        RetE
-          (STRUCT {
-               "fst"
-               ::= (STRUCT {
-                        "val1"
-                        ::= Valid (STRUCT {
-                                       "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                       "data" ::= #result @% "result"
-                                  });
-                        "val2"
-                        ::= ITE (#result @% "fcsr" @% "valid")
-                                (* (@Invalid ty _) *)
-                                (Valid (STRUCT {
+         fuName := "fmin_max";
+         fuFunc
+           := fun sem_in_pkt_expr : fmin_max_in_pkt_kind ## ty
+                => LETE sem_in_pkt
+                     :  fmin_max_in_pkt_kind
+                     <- sem_in_pkt_expr;
+                   LETE cmp_out_pkt
+                     :  Compare_Output
+                     <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
+                   LETC fcsr
+                     :  CsrValue
+                     <- ((#sem_in_pkt @% "fcsr" : CsrValue @# ty) |
+                         (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
+                   LETC result
+                     :  fmin_max_out_pkt_kind
+                     <- STRUCT {
+                          "fcsr"
+                            ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
+                                     (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
+                                  (Valid #fcsr)
+                                  (@Invalid ty CsrValue);
+                          "result"
+                            ::= ITE (#sem_in_pkt @% "arg1" @% "isNaN")
+                                  (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
+                                       canonical_nan
+                                       (NFToBit (#sem_in_pkt @% "arg2")))
+                                  (ITE (#sem_in_pkt @% "arg2" @% "isNaN")
+                                       (NFToBit (#sem_in_pkt @% "arg1"))
+                                       (* patch to handle comparison of 0 and -0 *)
+                                       (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
+                                                                                 (!(#sem_in_pkt @% "arg1" @% "sign")) &&
+                                                                                 (#sem_in_pkt @% "arg2" @% "isZero") &&
+                                                                                 (#sem_in_pkt @% "arg2" @% "sign"))
+                                            (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                                 (NFToBit (#sem_in_pkt @% "arg1"))
+                                                 (NFToBit (#sem_in_pkt @% "arg2")))
+                                            (ITE ((#sem_in_pkt @% "arg1" @% "isZero") &&
+                                                                                      ((#sem_in_pkt @% "arg1" @% "sign")) &&
+                                                                                      (#sem_in_pkt @% "arg2" @% "isZero") &&
+                                                                                      (!(#sem_in_pkt @% "arg2" @% "sign")))
+                                                 (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                                      (NFToBit (#sem_in_pkt @% "arg2"))
+                                                      (NFToBit (#sem_in_pkt @% "arg1")))
+                                                 (* return result from comparator. *)
+                                                 (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
+                                                      (NFToBit (#sem_in_pkt @% "arg2"))
+                                                      (NFToBit (#sem_in_pkt @% "arg1"))))))
+                     } : fmin_max_out_pkt_kind @# ty;
+                   RetE
+                     (STRUCT {
+                        "fst"
+                          ::= (STRUCT {
+                                 "val1"
+                                   ::= Valid (STRUCT {
+                                         "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
+                                         "data" ::= ZeroExtendTruncLsb Rlen (#result @% "result")
+                                       });
+                                 "val2"
+                                   ::= ITE (#result @% "fcsr" @% "valid")
+                                         (Valid (STRUCT {
                                             "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
-                                            "data" ::= ZeroExtendTruncLsb Xlen (#result @% "fcsr" @% "data")
-                                }))
-                                Invalid;
-                        "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                        "taken?" ::= $$false;
-                        "aq" ::= $$false;
-                        "rl" ::= $$false
-                      } : ExecContextUpdPkt @# ty);
-               "snd" ::= Invalid
-             } : PktWithException ExecContextUpdPkt @# ty);
-        fuInsts
-        := [
-            {|
-              instName   := "fmin.s";
-              extensions := ["RV32F"; "RV64F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10100");
-                    fieldVal funct3Field   ('b"000");
-                    fieldVal funct7Field   ('b"0010100")
-                ];
-              inputXform := fmin_max_in_pkt ($$false);
-              outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-            |};
-              {|
-                instName   := "fmax.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct3Field   ('b"001");
-                      fieldVal funct7Field   ('b"0010100")
-                  ];
-                inputXform := fmin_max_in_pkt ($$true);
-                outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |}
-          ]
-      |}.
+                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fcsr" @% "data")
+                                         }))
+                                         Invalid;
+                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                 "taken?" ::= $$false;
+                                 "aq" ::= $$false;
+                                 "rl" ::= $$false
+                               } : ExecContextUpdPkt @# ty);
+                        "snd" ::= Invalid
+                      } : PktWithException ExecContextUpdPkt @# ty);
+         fuInsts
+           := [
+                {|
+                  instName   := "fmin";
+                  extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal funct3Field   ('b"000");
+                         fieldVal rs3Field      ('b"00101")
+                       ];
+                  inputXform  := fmin_max_in_pkt ($$false);
+                  outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
+                  optMemXform := None;
+                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := "fmax";
+                  extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal funct3Field   ('b"001");
+                         fieldVal rs3Field      ('b"00101")
+                       ];
+                  inputXform  := fmin_max_in_pkt ($$true);
+                  outputXform := fun fmin_max_pkt_expr => fmin_max_pkt_expr;
+                  optMemXform := None;
+                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |}
+              ]
+       |}.
 
   Definition FSgn : @FUEntry ty
     := {|
-        fuName := "fsgn";
-        fuFunc
-        := fun sem_in_pkt_expr : fsgn_in_pkt_kind ## ty
-           => LETE sem_in_pkt
-              :  fsgn_in_pkt_kind
-                   <- sem_in_pkt_expr;
-        RetE
-          (STRUCT {
-               "fst"
-               ::= (STRUCT {
-                        "val1"
-                        ::= Valid (STRUCT {
-                                       "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                       "data"
-                                       ::= ZeroExtendTruncLsb Xlen
-                                                              ({<
-                                                                (#sem_in_pkt @% "sign_bit"),
-                                                                (ZeroExtendTruncLsb (Xlen - 1) (#sem_in_pkt @% "arg1"))
-                                                                >})
-                                  });
-                        "val2" ::= @Invalid ty _;
-                        "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                        "taken?" ::= $$false;
-                        "aq" ::= $$false;
-                        "rl" ::= $$false
-                      } : ExecContextUpdPkt @# ty);
-               "snd" ::= Invalid
-             } : PktWithException ExecContextUpdPkt@# ty);
-        fuInsts
-        := [
-            {|
-              instName   := "fsgnj.s";
-              extensions := ["RV32F"; "RV64F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10100");
-                    fieldVal funct3Field   ('b"000");
-                    fieldVal funct7Field   ('b"0010000")
-                ];
-              inputXform
-              := fun context_pkt_expr
-                 => LETE context_pkt
-                         <- context_pkt_expr;
-              RetE
-                (STRUCT {
-                     "sign_bit" ::= ZeroExtendTruncMsb 1 (#context_pkt @% "reg2");
-                     "arg1"     ::= (#context_pkt @% "reg1")
-                   } : fsgn_in_pkt_kind @# ty);
-              outputXform
-              := fun sem_out_pkt_expr
-                 => sem_out_pkt_expr;
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-            |};
-              {|
-                instName   := "fsgnjn.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct3Field   ('b"001");
-                      fieldVal funct7Field   ('b"0010000")
-                  ];
-                inputXform
-                := fun context_pkt_expr
-                   => LETE context_pkt
-                           <- context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "sign_bit" ::= ~ (ZeroExtendTruncMsb 1 (#context_pkt @% "reg2"));
-                       "arg1"     ::= (#context_pkt @% "reg1")
-                     } : fsgn_in_pkt_kind @# ty);
-                outputXform
-                := fun sem_out_pkt_expr
-                   => sem_out_pkt_expr;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |};
-              {|
-                instName   := "fsgnjx.s";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct3Field   ('b"010");
-                      fieldVal funct7Field   ('b"0010000")
-                  ];
-                inputXform
-                := fun context_pkt_expr
-                   => LETE context_pkt
-                           <- context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "sign_bit" ::= (ZeroExtendTruncMsb 1 (#context_pkt @% "reg2")) ^
-                                      (ZeroExtendTruncMsb 1 (#context_pkt @% "reg1"));
-                       "arg1"     ::= (#context_pkt @% "reg1")
-                     } : fsgn_in_pkt_kind @# ty);
-                outputXform
-                := fun sem_out_pkt_expr
-                   => sem_out_pkt_expr;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-              |}
-          ]
-      |}.
+         fuName := "fsgn";
+         fuFunc
+           := fun sem_in_pkt_expr : fsgn_in_pkt_kind ## ty
+                => LETE sem_in_pkt
+                     :  fsgn_in_pkt_kind
+                     <- sem_in_pkt_expr;
+                   RetE
+                     (STRUCT {
+                        "fst"
+                          ::= (STRUCT {
+                                 "val1"
+                                   ::= Valid (STRUCT {
+                                         "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
+                                         "data"
+                                           ::= ZeroExtendTruncLsb Rlen
+                                                 ({<
+                                                   (#sem_in_pkt @% "sign_bit"),
+                                                   (ZeroExtendTruncLsb (Flen - 1) (#sem_in_pkt @% "arg1"))
+                                                 >})
+                                       });
+                                 "val2" ::= @Invalid ty _;
+                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                 "taken?" ::= $$false;
+                                 "aq" ::= $$false;
+                                 "rl" ::= $$false
+                               } : ExecContextUpdPkt @# ty);
+                        "snd" ::= Invalid
+                      } : PktWithException ExecContextUpdPkt@# ty);
+         fuInsts
+           := [
+                {|
+                  instName   := "fsgnj";
+                  extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal funct3Field   ('b"000");
+                         fieldVal rs3Field      ('b"00100")
+                       ];
+                  inputXform
+                    := fun context_pkt_expr
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                 "sign_bit" ::= ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
+                                 "arg1"     ::= (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"))
+                               } : fsgn_in_pkt_kind @# ty);
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := "fsgnjn";
+                  extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal funct3Field   ('b"001");
+                         fieldVal rs3Field      ('b"00100")
+                       ];
+                  inputXform
+                    := fun context_pkt_expr
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                 "sign_bit" ::= ~ (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2")));
+                                 "arg1"     ::= (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"))
+                               } : fsgn_in_pkt_kind @# ty);
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := "fsgnjx";
+                  extensions := ["RV32F"; "RV64F"; "RV32D"; "RV64D"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal funct3Field   ('b"010");
+                         fieldVal rs3Field      ('b"00100")
+                       ];
+                  inputXform
+                    := fun context_pkt_expr
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                 "sign_bit" ::= (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"))) ^
+                                                (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1")));
+                                 "arg1"     ::= (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"))
+                               } : fsgn_in_pkt_kind @# ty);
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |}
+              ]
+       |}.
 
   Definition FMv : @FUEntry ty
     := {|
-        fuName := "fmv";
-        fuFunc
-        := (fun inpVal: Pair Bool (Bit Xlen) ## ty =>
-              LETE inp <- inpVal;
-                LETC isInt <- #inp @% "fst";
-                RetE
-                  (STRUCT {
-                       "fst"
-                       ::= (STRUCT {
-                                "val1"
-                                ::= Valid
-                                      ((STRUCT {
-                                            "tag"  ::= (IF #isInt then $IntRegTag else $FloatRegTag: Bit RoutingTagSz @# ty);
-                                            "data" ::= (IF #isInt
-                                                        then SignExtendTruncLsb Xlen (#inp @% "snd")
-                                                        else
-                                                          ZeroExtendTruncLsb
-                                                            Xlen
-                                                            (ZeroExtendTruncLsb
-                                                               Flen
-                                                               ((#inp @% "snd") : Bit Xlen @# ty)))                                                            
-                                          }: RoutedReg @# ty));
-                                "val2" ::= @Invalid ty _;
-                                "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                                "taken?" ::= $$false;
-                                "aq" ::= $$false;
-                                "rl" ::= $$false
-                              } : ExecContextUpdPkt @# ty);
-                       "snd" ::= Invalid
-                     } : PktWithException ExecContextUpdPkt @# ty));
-        fuInsts
-        := [
-            {|
-              instName   := "fmv.x.w";
-              extensions := ["RV32F"; "RV64F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10100");
-                    fieldVal funct3Field   ('b"000");
-                    fieldVal rs2Field      ('b"00000");
-                    fieldVal funct7Field   ('b"1110000")
-                ];
-              inputXform := (fun x : ExecContextPkt ## ty =>
-                               LETE inp <- x;
-                                 LETC ret: Pair Bool (Bit Xlen) <-
-                                                (STRUCT { "fst" ::= $$ true ;
-                                                          "snd" ::= #inp @% "reg1" });
-                                 RetE #ret);
-              outputXform := id;
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-            |} ;
-              {|
-                instName   := "fmv.w.x";
-                extensions := ["RV32F"; "RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal funct3Field   ('b"000");
-                      fieldVal rs2Field      ('b"00000");
-                      fieldVal funct7Field   ('b"1111000")
-                  ];
-                inputXform := (fun x : ExecContextPkt ## ty =>
-                                 LETE inp <- x;
-                                   LETC ret: Pair Bool (Bit Xlen) <-
-                                                  (STRUCT { "fst" ::= $$ false ;
-                                                            "snd" ::= #inp @% "reg1" });
-                                   RetE #ret);
-                outputXform := id;
-                optMemXform := None;
-                instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-              |}
-          ]
+         fuName := "fmv";
+         fuFunc
+           := fun inpVal: Pair Bool (Bit Rlen) ## ty
+                => LETE inp <- inpVal;
+                   LETC isInt <- #inp @% "fst";
+                   RetE
+                     (STRUCT {
+                        "fst"
+                          ::= (STRUCT {
+                                 "val1"
+                                   ::= Valid
+                                         ((STRUCT {
+                                             "tag"
+                                               ::= (IF #isInt
+                                                      then $IntRegTag
+                                                      else $FloatRegTag: Bit RoutingTagSz @# ty);
+                                             (* TODO: revise this. values taken from smaller integer registers and moved into larger floating registers must be NaN-boxed. *)
+                                             "data"
+                                               ::= IF #isInt
+                                                     then SignExtendTruncLsb Rlen (#inp @% "snd")
+                                                     else
+                                                       ZeroExtendTruncLsb
+                                                         Rlen
+                                                         (ZeroExtendTruncLsb
+                                                           Flen
+                                                           ((#inp @% "snd") : Bit Rlen @# ty))
+                                           }: RoutedReg @# ty));
+                                 "val2" ::= @Invalid ty _;
+                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                 "taken?" ::= $$false;
+                                 "aq" ::= $$false;
+                                 "rl" ::= $$false
+                               } : ExecContextUpdPkt @# ty);
+                        "snd" ::= Invalid
+                      } : PktWithException ExecContextUpdPkt @# ty);
+         fuInsts
+           := [
+               {|
+                 instName   := "fmv.x.w";
+                 extensions := ["RV32F"; "RV64F"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal funct3Field   ('b"000");
+                        fieldVal rs2Field      ('b"00000");
+                        fieldVal funct7Field   ('b"11100")
+                      ];
+                 inputXform
+                   := fun x : ExecContextPkt ## ty
+                        => LETE inp <- x;
+                           LETC ret
+                             :  Pair Bool (Bit Rlen)
+                             <- STRUCT {
+                                  "fst" ::= $$true;
+                                  "snd" ::= #inp @% "reg1"
+                                };
+                           RetE #ret;
+                 outputXform := id;
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+               |};
+               {|
+                 instName   := "fmv.w.x";
+                 extensions := ["RV32F"; "RV64F"; "RV64D"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal funct3Field   ('b"000");
+                        fieldVal rs2Field      ('b"00000");
+                        fieldVal funct7Field   ('b"11110")
+                      ];
+                 inputXform
+                   := fun x : ExecContextPkt ## ty
+                        => LETE inp <- x;
+                           LETC ret
+                             :  Pair Bool (Bit Rlen)
+                             <- STRUCT {
+                                  "fst" ::= $$false;
+                                  "snd" ::= #inp @% "reg1"
+                                };
+                                RetE #ret;
+                 outputXform := id;
+                 optMemXform := None;
+                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+               |}
+           ]
       |}.
 
   Definition Float_int : @FUEntry ty
     := {|
-        fuName := "float_int";
-        fuFunc
-        := fun sem_in_pkt_expr : NFToINInput ## ty
-           => LETE sem_in_pkt
-              :  NFToINInput
-                   <- sem_in_pkt_expr;
-        @NFToIN_expr
-          (Xlen - 2)
-          expWidthMinus2
-          sigWidthMinus2
-          (assume_gt_2 expWidthMinus2)
-          (assume_sqr expWidthMinus2 sigWidthMinus2)
-          ty
-          (#sem_in_pkt);
-        fuInsts
-        := [
-            {|
-              instName   := "fcvt.w.s";
-              extensions := ["RV32F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10100");
-                    fieldVal rs2Field      ('b"00000");
-                    fieldVal funct7Field   ('b"1100000")
-                ];
-              inputXform 
-              := fun context_pkt_expr : ExecContextPkt ## ty
-                 => LETE context_pkt
-                         <- context_pkt_expr;
-              RetE
-                (STRUCT {
-                     "inNF"         ::= bitToNF (#context_pkt @% "reg1");
-                     "roundingMode" ::= rounding_mode (#context_pkt);
-                     "signedOut"    ::= $$true
-                   } : NFToINInput @# ty);
-              outputXform := float_int_out;
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-            |};
-              {|
-                instName   := "fcvt.wu.s";
-                extensions := ["RV32F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal rs2Field      ('b"00001");
-                      fieldVal funct7Field   ('b"1100000")
-                  ];
-                inputXform 
-                := fun context_pkt_expr : ExecContextPkt ## ty
-                   => LETE context_pkt
-                           <- context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "inNF"         ::= bitToNF (#context_pkt @% "reg1");
-                       "roundingMode" ::= rounding_mode (#context_pkt);
-                       "signedOut"    ::= $$false
-                     } : NFToINInput @# ty);
-                outputXform := float_int_out;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-              |};
-              {|
-                instName   := "fcvt.l.s";
-                extensions := ["RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal rs2Field      ('b"00000");
-                      fieldVal funct7Field   ('b"1100000")
-                  ];
-                inputXform 
-                := fun context_pkt_expr : ExecContextPkt ## ty
-                   => LETE context_pkt
-                           <- context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "inNF"         ::= bitToNF (#context_pkt @% "reg1");
-                       "roundingMode" ::= rounding_mode (#context_pkt);
-                       "signedOut"    ::= $$true
-                     } : NFToINInput @# ty);
-                outputXform := float_int_out;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-              |};
-              {|
-                instName   := "fcvt.lu.s";
-                extensions := ["RV64F"];
-                uniqId
-                := [
-                    fieldVal instSizeField ('b"11");
-                      fieldVal opcodeField   ('b"10100");
-                      fieldVal rs2Field      ('b"00001");
-                      fieldVal funct7Field   ('b"1100000")
-                  ];
-                inputXform 
-                := fun context_pkt_expr : ExecContextPkt ## ty
-                   => LETE context_pkt
-                           <- context_pkt_expr;
-                RetE
-                  (STRUCT {
-                       "inNF"         ::= bitToNF (#context_pkt @% "reg1");
-                       "roundingMode" ::= rounding_mode (#context_pkt);
-                       "signedOut"    ::= $$false
-                     } : NFToINInput @# ty);
-                outputXform := float_int_out;
-                optMemXform := None;
-                instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-              |}
-          ]
+         fuName := "float_int";
+         fuFunc
+           := fun sem_in_pkt_expr : NFToINInput ## ty
+                => LETE sem_in_pkt
+                     :  NFToINInput
+                        <- sem_in_pkt_expr;
+                   @NFToIN_expr
+                     (Xlen - 2)
+                     expWidthMinus2
+                     sigWidthMinus2
+                     (assume_gt_2 expWidthMinus2)
+                     (assume_sqr expWidthMinus2 sigWidthMinus2)
+                     ty
+                     (#sem_in_pkt);
+         fuInsts
+           := [
+                {|
+                  instName   := "fcvt.w.s";
+                  extensions := ["RV32F"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs2Field      ('b"00000");
+                         fieldVal funct7Field   ('b"1100000")
+                       ];
+                  inputXform 
+                    := fun context_pkt_expr : ExecContextPkt ## ty
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                   "inNF"         ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                                   "roundingMode" ::= rounding_mode (#context_pkt);
+                                   "signedOut"    ::= $$true
+                                 } : NFToINInput @# ty);
+                  outputXform := float_int_out;
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                |};
+                {|
+                  instName   := "fcvt.wu.s";
+                  extensions := ["RV32F"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs2Field      ('b"00001");
+                         fieldVal funct7Field   ('b"1100000")
+                       ];
+                  inputXform 
+                    := fun context_pkt_expr : ExecContextPkt ## ty
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                   "inNF"         ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                                   "roundingMode" ::= rounding_mode (#context_pkt);
+                                   "signedOut"    ::= $$false
+                                 } : NFToINInput @# ty);
+                  outputXform := float_int_out;
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                |};
+                {|
+                  instName   := "fcvt.l.s";
+                  extensions := ["RV64F"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs2Field      ('b"00000");
+                         fieldVal funct7Field   ('b"1100000")
+                       ];
+                  inputXform 
+                    := fun context_pkt_expr : ExecContextPkt ## ty
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                   "inNF"         ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                                   "roundingMode" ::= rounding_mode (#context_pkt);
+                                   "signedOut"    ::= $$true
+                                 } : NFToINInput @# ty);
+                  outputXform := float_int_out;
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                |};
+                {|
+                  instName   := "fcvt.lu.s";
+                  extensions := ["RV64F"];
+                  uniqId
+                    := [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs2Field      ('b"00001");
+                         fieldVal funct7Field   ('b"1100000")
+                       ];
+                  inputXform 
+                    := fun context_pkt_expr : ExecContextPkt ## ty
+                         => LETE context_pkt
+                              <- context_pkt_expr;
+                            RetE
+                              (STRUCT {
+                                 "inNF"         ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                                 "roundingMode" ::= rounding_mode (#context_pkt);
+                                 "signedOut"    ::= $$false
+                               } : NFToINInput @# ty);
+                  outputXform := float_int_out;
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                |}
+              ]
       |}.
 
   Definition Int_float : @FUEntry ty
@@ -973,7 +981,7 @@ Section Fpu.
                          <- context_pkt_expr;
               RetE
                 (STRUCT {
-                     "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                     "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
                      "signedIn"      ::= $$true;
                      "afterRounding" ::= $$true;
                      "roundingMode" ::= rounding_mode (#context_pkt)
@@ -998,7 +1006,7 @@ Section Fpu.
                            <- context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
                        "signedIn"      ::= $$false;
                        "afterRounding" ::= $$true;
                        "roundingMode" ::= rounding_mode (#context_pkt)
@@ -1023,7 +1031,7 @@ Section Fpu.
                            <- context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
                        "signedIn"      ::= $$true;
                        "afterRounding" ::= $$true;
                        "roundingMode" ::= rounding_mode (#context_pkt)
@@ -1048,7 +1056,7 @@ Section Fpu.
                            <- context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1" : Bit Xlen @# ty);
+                       "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
                        "signedIn"      ::= $$false;
                        "afterRounding" ::= $$true;
                        "roundingMode" ::= rounding_mode (#context_pkt)
@@ -1092,7 +1100,7 @@ Section Fpu.
                "result"
                ::= ITE ((#sem_in_pkt @% "arg1" @% "isNaN") ||
                         (#sem_in_pkt @% "arg2" @% "isNaN"))
-                       ($0 : Bit Xlen @# ty)
+                       ($0 : Bit Flen @# ty)
                        (ITE
                           (cmp_cond_get (#sem_in_pkt @% "cond0") #cmp_result ||
                            cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
@@ -1105,18 +1113,18 @@ Section Fpu.
                         "val1"
                         ::= Valid (STRUCT {
                                        "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
-                                       "data" ::= #result @% "result"
+                                       "data" ::= ZeroExtendTruncLsb Rlen (#result @% "result")
                                      } : RoutedReg @# ty);
                         "val2"
                         ::= ITE
                               (#result @% "fcsr" @% "valid")
                               (Valid (STRUCT {
                                           "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
-                                          "data" ::= ZeroExtendTruncLsb Xlen (#result @% "fcsr" @% "data")
+                                          "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fcsr" @% "data")
                                         } : RoutedReg @# ty))
                               (@Invalid ty _);
                         "memBitMask"
-                        ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                        ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                         "taken?" ::= $$false;
                         "aq" ::= $$false;
                         "rl" ::= $$false
@@ -1145,10 +1153,10 @@ Section Fpu.
                      "signal" ::= $$false;
                      "cond0"  ::= cmp_cond_eq;
                      "cond1"  ::= cmp_cond_not_used;
-                     "arg1"   ::= bitToNF (#context_pkt @% "reg1");
-                     "arg2"   ::= bitToNF (#context_pkt @% "reg2")
+                     "arg1"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                     "arg2"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"))
                    } : cmp_in_pkt_kind @# ty);
-              outputXform := fun x => x;
+              outputXform := id;
               optMemXform := None;
               instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
             |};
@@ -1172,10 +1180,10 @@ Section Fpu.
                        "signal" ::= $$true;
                        "cond0"  ::= cmp_cond_lt;
                        "cond1"  ::= cmp_cond_not_used;
-                       "arg1"   ::= bitToNF (#context_pkt @% "reg1");
-                       "arg2"   ::= bitToNF (#context_pkt @% "reg2")
+                       "arg1"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                       "arg2"   ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"))
                      } : cmp_in_pkt_kind @# ty);
-                outputXform := fun x => x;
+                outputXform := id;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |};
@@ -1199,10 +1207,10 @@ Section Fpu.
                        "signal" ::= $$true;
                        "cond0"  ::= cmp_cond_lt;
                        "cond1"  ::= cmp_cond_eq;
-                       "arg1" ::= bitToNF (#context_pkt @% "reg1");
-                       "arg2" ::= bitToNF (#context_pkt @% "reg2")
+                       "arg1" ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+                       "arg2" ::= bitToNF (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"))
                      } : cmp_in_pkt_kind @# ty);
-                outputXform := fun x => x;
+                outputXform := id;
                 optMemXform := None;
                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
               |}
@@ -1213,53 +1221,52 @@ Section Fpu.
     := {|
         fuName := "fclass";
         fuFunc
-        := fun x_expr : FN ## ty
-           => LETE x : FN <- x_expr;
-        RetE (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10)));
+          := fun x_expr : FN ## ty
+               => LETE x : FN <- x_expr;
+                  RetE (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10)));
         fuInsts
-        := [
-            {|
-              instName   := "fclass.s";
-              extensions := ["RV32F"; "RV64F"];
-              uniqId
-              := [
-                  fieldVal instSizeField ('b"11");
-                    fieldVal opcodeField   ('b"10100");
-                    fieldVal funct3Field   ('b"001");
-                    fieldVal rs2Field      ('b"00000");
-                    fieldVal funct7Field   ('b"1110000")
-                ];
-              inputXform
-              := fun context_pkt_expr
-                 => LETE context_pkt
-                         <- context_pkt_expr;
-              RetE
-                (bitToFN (#context_pkt @% "reg1"));
-              outputXform
-              := fun res_expr : Bit Xlen ## ty
-                 => LETE res : Bit Xlen <- res_expr;
-              RetE
-                (STRUCT {
-                     "fst"
-                     ::= (STRUCT {
-                              "val1"
-                              ::= Valid (STRUCT {
-                                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                                             "data" ::= #res
-                                           } : RoutedReg @# ty);
-                              "val2" ::= @Invalid ty _;
-                              "memBitMask"
-                              ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
-                              "taken?" ::= $$false;
-                              "aq" ::= $$false;
-                              "rl" ::= $$false
-                            } : ExecContextUpdPkt @# ty);
-                     "snd" ::= Invalid
-                   } : PktWithException ExecContextUpdPkt @# ty);
-              optMemXform := None;
-              instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-            |}
-          ]
+          := [
+               {|
+                 instName   := "fclass.s";
+                 extensions := ["RV32F"; "RV64F"];
+                 uniqId
+                   := [
+                        fieldVal instSizeField ('b"11");
+                        fieldVal opcodeField   ('b"10100");
+                        fieldVal funct3Field   ('b"001");
+                        fieldVal rs2Field      ('b"00000");
+                        fieldVal funct7Field   ('b"1110000")
+                      ];
+                 inputXform
+                   := fun context_pkt_expr
+                        => LETE context_pkt
+                             <- context_pkt_expr;
+                           RetE
+                             (bitToFN (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1")));
+                 outputXform
+                   := fun res_expr : Bit Xlen ## ty
+                        => LETE res : Bit Xlen <- res_expr;
+                           RetE
+                             (STRUCT {
+                                "fst"
+                                  ::= (STRUCT {
+                                         "val1"
+                                           ::= Valid (STRUCT {
+                                                 "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                                 "data" ::= ZeroExtendTruncLsb Rlen #res
+                                               } : RoutedReg @# ty);
+                                         "val2" ::= @Invalid ty _;
+                                         "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                         "taken?" ::= $$false;
+                                         "aq" ::= $$false;
+                                         "rl" ::= $$false
+                                       } : ExecContextUpdPkt @# ty);
+                                "snd" ::= Invalid
+                              } : PktWithException ExecContextUpdPkt @# ty);
+                 optMemXform := None;
+                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+               |}
+            ]
       |}.
 
   Definition FDivSqrt : @FUEntry ty

@@ -14,11 +14,16 @@ Import RecordNotations.
 
 Section zicsr.
   Variable Xlen_over_8 : nat.
+  Variable Flen_over_8: nat.
+
+  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
+  Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8).
-  Local Notation RoutedReg := (RoutedReg Xlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
+  Local Notation RoutedReg := (RoutedReg Xlen_over_8 Flen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
   Variable ty : Kind -> Type.
 
   Definition ZicsrInput
@@ -34,7 +39,7 @@ Section zicsr.
 
   Local Open Scope kami_expr.
 
-  Definition Zicsr : @FUEntry Xlen_over_8 ty
+  Definition Zicsr : @FUEntry ty
     := {|
         fuName := "zicsr";
         fuFunc
@@ -53,7 +58,7 @@ Section zicsr.
                                   (STRUCT {
                                        "tag" ::= $CsrTag;
                                        "data"
-                                         ::= ZeroExtendTruncLsb Xlen
+                                         ::= ZeroExtendTruncLsb Rlen
                                                (#sem_in_pkt @% "new_csr_value" @% "data")
                                      } : RoutedReg @# ty))
                                (@Invalid ty (RoutedReg));
@@ -64,11 +69,11 @@ Section zicsr.
                                   (STRUCT {
                                      "tag" ::= $IntRegTag;
                                      "data"
-                                       ::= ZeroExtendTruncLsb Xlen
+                                       ::= ZeroExtendTruncLsb Rlen
                                              (#sem_in_pkt @% "orig_csr_value" @% "data")
                                    } : RoutedReg @# ty))
                                (@Invalid ty RoutedReg);
-                       "memBitMask" ::= $$(getDefaultConst (Array Xlen_over_8 Bool));
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
                        "rl"         ::= $$false
