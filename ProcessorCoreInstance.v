@@ -84,14 +84,14 @@ Section Parametrize.
 
            (* RVF instructions. *)
            FMv       Xlen_over_8 Flen_over_8 _;
-           Mac       Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
-           FMinMax   Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
+           Mac       Xlen_over_8 Flen_over_8  _;
+           FMinMax   Xlen_over_8 Flen_over_8  _;
            FSgn      Xlen_over_8 Flen_over_8 _;
-           Float_int Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
-           Int_float Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
-           FCmp      Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
-           FClass    Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
-           FDivSqrt  Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 _;
+           Float_int Xlen_over_8 Flen_over_8  _;
+           Int_float Xlen_over_8 Flen_over_8  _;
+           FCmp      Xlen_over_8 Flen_over_8  _;
+           FClass    Xlen_over_8 Flen_over_8  _;
+           FDivSqrt  Xlen_over_8 Flen_over_8  _;
 
            (* RV Zicsr instructions. *)
            Zicsr     Xlen_over_8 Flen_over_8 _
@@ -99,7 +99,7 @@ Section Parametrize.
 
   Definition rtlMod
     := getRtl
-         ([], ([], (@pipeline "proc_core" Xlen_over_8 Flen_over_8 expWidthMinus2 sigWidthMinus2 func_units mode exts))).
+         ([], ([], (@pipeline "proc_core" Xlen_over_8 Flen_over_8  func_units mode exts))).
 
   (* Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins. *)
 
