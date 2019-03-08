@@ -367,7 +367,7 @@ Section Fpu.
     := LETE context_pkt
          <- context_pkt_expr;
        RetE
-         (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1")));
+         (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
 
   Definition fdiv_sqrt_in_pkt (len : nat) (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  input_kind len ## ty
@@ -479,7 +479,7 @@ Section Fpu.
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE res
          :  Bit Xlen
-         <- res_expr;
+         <- sem_out_pkt_expr;
        RetE
          (STRUCT {
             "fst"
@@ -496,7 +496,7 @@ Section Fpu.
                      "rl" ::= $$false
                    } : ExecContextUpdPkt @# ty);
             "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty);
+          } : PktWithException ExecContextUpdPkt @# ty).
 
   Definition fdiv_sqrt_out_pkt (len : nat) (sem_out_pkt_expr : output_kind len ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
@@ -781,244 +781,200 @@ Section Fpu.
     :  UniqId
     := cons (fieldVal fmtField ('b"01")) uniqId.
 
-  Definition Mac_s : @FUEntry ty
-    := {|
-        fuName := "mac.s";
-        fuFunc := @mac_fn len_single;
-        fuInsts
-          := [
-               {|
-                 instName   := "fmadd.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10000")
-                      ];
-                 inputXform  := muladd_in_pkt len_single $0;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fmsub.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10001")
-                      ];
-                 inputXform  := muladd_in_pkt len_single $1;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fnmsub.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10010")
-                      ];
-                 inputXform  := muladd_in_pkt len_single $2;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fnmadd.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10011")
-                      ];
-                 inputXform  := muladd_in_pkt len_single $3;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fadd.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00000")
-                      ];
-                 inputXform  := add_in_pkt len_single $0;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fsub.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00001")
-                      ];
-                 inputXform  := add_in_pkt len_single $1;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fmul.s";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_single [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00010")
-                      ];
-                 inputXform  := mul_in_pkt len_single $0;
-                 outputXform := @muladd_out_pkt len_single;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |}
-             ]
-      |}.
+  Record fu_params_type
+    := {
+         fu_params_len              : nat;
+         fu_params_suffix           : string;
+         fu_params_int_suffix       : string;
+         fu_params_add_format_field : UniqId -> UniqId;
+         fu_params_exts             : list string;
+         fu_params_exts_32          : list string;
+         fu_params_exts_64          : list string
+       }.
 
-  Definition Mac_d : @FUEntry ty
+  Definition fu_params_single
     := {|
-        fuName := "mac.d";
-        fuFunc := @mac_fn len_double;
-        fuInsts
-          := [
-               {|
-                 instName   := "fmadd.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10000")
-                      ];
-                 inputXform  := muladd_in_pkt len_double $0;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fmsub.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10001")
-                      ];
-                 inputXform  := muladd_in_pkt len_double $1;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fnmsub.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10010")
-                      ];
-                 inputXform  := muladd_in_pkt len_double $2;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fnmadd.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10011")
-                      ];
-                 inputXform  := muladd_in_pkt len_double $3;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fadd.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00000")
-                      ];
-                 inputXform  := add_in_pkt len_double $0;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fsub.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00001")
-                      ];
-                 inputXform  := add_in_pkt len_double $1;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fmul.d";
-                 extensions := ["RV32D"; "RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs3Field      ('b"00010")
-                      ];
-                 inputXform  := mul_in_pkt len_double $0;
-                 outputXform := @muladd_out_pkt len_double;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-               |}
-             ]
-      |}.
+         fu_params_len              := len_single;
+         fu_params_suffix           := ".s";
+         fu_params_int_suffix       := ".w";
+         fu_params_add_format_field := id_single;
+         fu_params_exts             := ["RV32F"; "RV64F"];
+         fu_params_exts_32          := ["RV32F"];
+         fu_params_exts_64          := ["RV64F"]
+       |}.
 
-  Definition FMinMax_s : @FUEntry ty
+  Definition fu_params_double
     := {|
-         fuName := "fmin_max.s";
-         fuFunc := @fmin_max_fn len_single;
+         fu_params_len              := len_double;
+         fu_params_suffix           := ".d";
+         fu_params_int_suffix       := ".d";
+         fu_params_add_format_field := id_double;
+         fu_params_exts             := ["RV32D"; "RV64D"];
+         fu_params_exts_32          := ["RV32D"];
+         fu_params_exts_64          := ["RV64D"]
+       |}.
+
+  Definition fu_params_add_suffix
+      (fu_params : fu_params_type)
+      (name : string)
+    :  string
+    := append name (fu_params_suffix fu_params).
+
+  Definition fu_params_add_infix
+      (fu_params : fu_params_type)
+      (name suffix : string)
+    :  string
+    := append (fu_params_add_suffix fu_params name) suffix.
+
+  Definition fu_params_add_int_suffix
+      (fu_params : fu_params_type)
+      (name : string)
+    :  string
+    := append name (fu_params_int_suffix fu_params).
+
+  Definition fu_params_add_int_infix
+      (fu_params : fu_params_type)
+      (name suffix : string)
+    :  string
+    := append (fu_params_add_int_suffix fu_params name) suffix.
+
+  Definition mac_func_unit (params : fu_params_type)
+    :  @FUEntry ty
+    := {|
+         fuName := fu_params_add_suffix params "mac";
+         fuFunc := @mac_fn (fu_params_len params);
          fuInsts
            := [
                 {|
-                  instName   := "fmin.s";
-                  extensions := ["RV32F"; "RV64F"];
+                  instName   := fu_params_add_suffix params "fmadd";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10000")
+                       ];
+                  inputXform  := muladd_in_pkt (fu_params_len params) $0;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fmsub";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10001")
+                       ];
+                  inputXform  := muladd_in_pkt (fu_params_len params) $1;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fnmsub";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10010")
+                       ];
+                  inputXform  := muladd_in_pkt (fu_params_len params) $2;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fnmadd";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10011")
+                       ];
+                  inputXform  := muladd_in_pkt (fu_params_len params) $3;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fadd";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs3Field      ('b"00000")
+                       ];
+                  inputXform  := add_in_pkt (fu_params_len params) $0;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fsub";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs3Field      ('b"00001")
+                       ];
+                  inputXform  := add_in_pkt (fu_params_len params) $1;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |};
+                {|
+                  instName   := fu_params_add_suffix params "fmul";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
+                         fieldVal instSizeField ('b"11");
+                         fieldVal opcodeField   ('b"10100");
+                         fieldVal rs3Field      ('b"00010")
+                       ];
+                  inputXform  := mul_in_pkt (fu_params_len params) $0;
+                  outputXform := @muladd_out_pkt (fu_params_len params);
+                  optMemXform := None;
+                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                |}
+              ]
+      |}.
+
+  Definition fmin_max_func_unit (params : fu_params_type)
+    :  @FUEntry ty
+    := {|
+         fuName := fu_params_add_suffix params "fmin_max";
+         fuFunc := @fmin_max_fn (fu_params_len params);
+         fuInsts
+           := [
+                {|
+                  instName   := fu_params_add_suffix params "fmin";
+                  extensions := fu_params_exts params;
+                  uniqId
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"000");
                          fieldVal rs3Field      ('b"00101")
                        ];
-                  inputXform  := fmin_max_in_pkt len_single ($$false);
+                  inputXform  := fmin_max_in_pkt (fu_params_len params) ($$false);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
                 |};
                 {|
-                  instName   := "fmax.s";
-                  extensions := ["RV32F"; "RV64F"];
+                  instName   := fu_params_add_suffix params "fmax";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs3Field      ('b"00101")
                        ];
-                  inputXform  := fmin_max_in_pkt len_single ($$true);
+                  inputXform  := fmin_max_in_pkt (fu_params_len params) ($$true);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
@@ -1026,92 +982,54 @@ Section Fpu.
               ]
        |}.
 
-  Definition FMinMax_d : @FUEntry ty
+  Definition fsgn_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-         fuName := "fmin_max.d";
-         fuFunc := @fmin_max_fn len_double;
+         fuName := fu_params_add_suffix params "fsgn";
+         fuFunc := @fsgn_fn (fu_params_len params);
          fuInsts
            := [
                 {|
-                  instName   := "fmin.d";
-                  extensions := ["RV32D"; "RV64D"];
+                  instName   := fu_params_add_suffix params "fsgnj";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"000");
-                         fieldVal rs3Field      ('b"00101")
-                       ];
-                  inputXform  := fmin_max_in_pkt len_double ($$false);
-                  outputXform := id;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-                |};
-                {|
-                  instName   := "fmax.d";
-                  extensions := ["RV32D"; "RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"001");
-                         fieldVal rs3Field      ('b"00101")
-                       ];
-                  inputXform  := fmin_max_in_pkt len_double ($$true);
-                  outputXform := id;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-                |}
-              ]
-       |}.
-
-  Definition FSgn_s : @FUEntry ty
-    := {|
-         fuName := "fsgn.s";
-         fuFunc := @fsgn_fn len_single;
-         fuInsts
-           := [
-                {|
-                  instName   := "fsgnj.s";
-                  extensions := ["RV32F"; "RV64F"];
-                  uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"000");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := fsgn_in_pkt len_single $0;
+                  inputXform  := fsgn_in_pkt (fu_params_len params) $0;
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
                 |};
                 {|
-                  instName   := "fsgnjn.s";
-                  extensions := ["RV32F"; "RV64F"];
+                  instName   := fu_params_add_suffix params "fsgnjn";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := fsgn_in_pkt len_single $1;
+                  inputXform  := fsgn_in_pkt (fu_params_len params) $1;
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
                 |};
                 {|
-                  instName   := "fsgnjx.s";
-                  extensions := ["RV32F"; "RV64F"];
+                  instName   := fu_params_add_suffix params "fsgnjx";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"010");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := fsgn_in_pkt len_single $2;
+                  inputXform  := fsgn_in_pkt (fu_params_len params) $2;
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
@@ -1119,71 +1037,18 @@ Section Fpu.
               ]
        |}.
 
-  Definition FSgn_d : @FUEntry ty
+  Definition fmv_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-         fuName := "fsgn.d";
-         fuFunc := @fsgn_fn len_double;
-         fuInsts
-           := [
-                {|
-                  instName   := "fsgnj.d";
-                  extensions := ["RV32D"; "RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"000");
-                         fieldVal rs3Field      ('b"00100")
-                       ];
-                  inputXform  := fsgn_in_pkt len_double $0;
-                  outputXform := id;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-                |};
-                {|
-                  instName   := "fsgnjn.d";
-                  extensions := ["RV32D"; "RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"001");
-                         fieldVal rs3Field      ('b"00100")
-                       ];
-                  inputXform  := fsgn_in_pkt len_double $1;
-                  outputXform := id;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-                |};
-                {|
-                  instName   := "fsgnjx.d";
-                  extensions := ["RV32D"; "RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"010");
-                         fieldVal rs3Field      ('b"00100")
-                       ];
-                  inputXform  := fsgn_in_pkt len_double $2;
-                  outputXform := id;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
-                |}
-              ]
-       |}.
-
-  Definition FMv_s : @FUEntry ty
-    := {|
-         fuName := "fmv.s";
-         fuFunc := fmv_fn len_single;
+         fuName := fu_params_add_suffix params "fmv";
+         fuFunc := fmv_fn (fu_params_len params);
          fuInsts
            := [
                {|
-                 instName   := "fmv.x.w";
-                 extensions := ["RV32F"; "RV64F"];
+                 instName   := fu_params_add_int_suffix params "fmv.x";
+                 extensions := fu_params_exts params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal funct3Field   ('b"000");
@@ -1205,10 +1070,10 @@ Section Fpu.
                  instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
                |};
                {|
-                 instName   := "fmv.w.x";
-                 extensions := ["RV32F"; "RV64F"];
+                 instName   := fu_params_add_int_infix params "fmv" ".x";
+                 extensions := fu_params_exts params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal funct3Field   ('b"000");
@@ -1232,127 +1097,69 @@ Section Fpu.
            ]
       |}.
 
-  Definition FMv_d : @FUEntry ty
+  Definition float_int_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-         fuName := "fmv.d";
-         fuFunc := fmv_fn len_double;
-         fuInsts
-           := [
-               {|
-                 instName   := "fmv.x.d";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal funct3Field   ('b"000");
-                        fieldVal rs2Field      ('b"00000");
-                        fieldVal rs3Field      ('b"11100")
-                      ];
-                 inputXform
-                   := fun x : ExecContextPkt ## ty
-                        => LETE inp <- x;
-                           LETC ret
-                             :  Pair Bool (Bit Rlen)
-                             <- STRUCT {
-                                  "fst" ::= $$true;
-                                  "snd" ::= #inp @% "reg1"
-                                };
-                           RetE #ret;
-                 outputXform := id;
-                 optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-               |};
-               {|
-                 instName   := "fmv.d.x";
-                 extensions := ["RV32F"; "RV64F"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal funct3Field   ('b"000");
-                        fieldVal rs2Field      ('b"00000");
-                        fieldVal rs3Field      ('b"11110")
-                      ];
-                 inputXform
-                   := fun x : ExecContextPkt ## ty
-                        => LETE inp <- x;
-                           LETC ret
-                             :  Pair Bool (Bit Rlen)
-                             <- STRUCT {
-                                  "fst" ::= $$false;
-                                  "snd" ::= #inp @% "reg1"
-                                };
-                                RetE #ret;
-                 outputXform := id;
-                 optMemXform := None;
-                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-               |}
-           ]
-      |}.
-
-  Definition Float_int_s : @FUEntry ty
-    := {|
-         fuName := "float_int.s";
-         fuFunc := @float_int_fn len_single;
+         fuName := fu_params_add_suffix params "float_int";
+         fuFunc := @float_int_fn (fu_params_len params);
          fuInsts
            := [
                 {|
-                  instName   := "fcvt.w.s";
-                  extensions := ["RV32F"];
+                  instName   := fu_params_add_suffix params "fcvt.w";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt len_single ($$true);
+                  inputXform  := float_int_in_pkt (fu_params_len params) ($$true);
                   outputXform := float_int_out;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
                 |};
                 {|
-                  instName   := "fcvt.wu.s";
-                  extensions := ["RV32F"];
+                  instName   := fu_params_add_suffix params "fcvt.wu";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00001");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt len_single ($$false);
+                  inputXform  := float_int_in_pkt (fu_params_len params) ($$false);
                   outputXform := float_int_out;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
                 |};
                 {|
-                  instName   := "fcvt.l.s";
-                  extensions := ["RV64F"];
+                  instName   := fu_params_add_suffix params "fcvt.l";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt len_single ($$true);
+                  inputXform  := float_int_in_pkt (fu_params_len params) ($$true);
                   outputXform := float_int_out;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
                 |};
                 {|
-                  instName   := "fcvt.lu.s";
-                  extensions := ["RV64F"];
+                  instName   := fu_params_add_suffix params "fcvt.lu";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00001");
-                         fieldVal rs3Field   ('b"11000")
+                         fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt len_single ($$false);
+                  inputXform  := float_int_in_pkt (fu_params_len params) ($$false);
                   outputXform := float_int_out;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -1360,86 +1167,18 @@ Section Fpu.
               ]
       |}.
 
-  Definition Float_int_d : @FUEntry ty
+  Definition int_float_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-         fuName := "float_int.d";
-         fuFunc := @float_int_fn len_double;
-         fuInsts
-           := [
-                {|
-                  instName   := "fcvt.w.d";
-                  extensions := ["RV32D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00000");
-                         fieldVal rs3Field      ('b"11000")
-                       ];
-                  inputXform  := float_int_in_pkt len_double ($$true);
-                  outputXform := float_int_out;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-                |};
-                {|
-                  instName   := "fcvt.wu.d";
-                  extensions := ["RV32D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00001");
-                         fieldVal rs3Field      ('b"11000")
-                       ];
-                  inputXform  := float_int_in_pkt len_double ($$false);
-                  outputXform := float_int_out;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-                |};
-                {|
-                  instName   := "fcvt.l.d";
-                  extensions := ["RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00000");
-                         fieldVal rs3Field      ('b"11000")
-                       ];
-                  inputXform  := float_int_in_pkt len_double ($$true);
-                  outputXform := float_int_out;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-                |};
-                {|
-                  instName   := "fcvt.lu.d";
-                  extensions := ["RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00001");
-                         fieldVal rs3Field   ('b"11000")
-                       ];
-                  inputXform  := float_int_in_pkt len_double ($$false);
-                  outputXform := float_int_out;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-                |}
-              ]
-      |}.
-
-  Definition Int_float_s : @FUEntry ty
-    := {|
-        fuName := "int_float.s";
-        fuFunc := @int_float_fn len_single;
+        fuName := fu_params_add_suffix params "int_float";
+        fuFunc := @int_float_fn (fu_params_len params);
         fuInsts
           := [
                {|
-                 instName   := "fcvt.s.w";
-                 extensions := ["RV32F"];
+                 instName   := fu_params_add_infix params "fcvt" ".w";
+                 extensions := fu_params_exts_32 params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal rs2Field      ('b"00000");
@@ -1456,15 +1195,15 @@ Section Fpu.
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
                             } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_single;
+                 outputXform := @int_float_out (fu_params_len params);
                  optMemXform := None;
                  instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
                |};
                {|
-                 instName   := "fcvt.s.wu";
-                 extensions := ["RV32F"];
+                 instName   := fu_params_add_infix params "fcvt" ".wu";
+                 extensions := fu_params_exts_32 params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal rs2Field      ('b"00001");
@@ -1481,15 +1220,15 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_single;
+                 outputXform := @int_float_out (fu_params_len params);
                  optMemXform := None;
                  instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
                |};
                {|
-                 instName   := "fcvt.s.l";
-                 extensions := ["RV64F"];
+                 instName   := fu_params_add_infix params "fcvt" ".l";
+                 extensions := fu_params_exts_64 params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal rs2Field      ('b"00010");
@@ -1506,15 +1245,15 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_single;
+                 outputXform := @int_float_out (fu_params_len params);
                  optMemXform := None;
                  instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
                |};
                {|
-                 instName   := "fcvt.s.lu";
-                 extensions := ["RV64F"];
+                 instName   := fu_params_add_infix params "fcvt" ".lu";
+                 extensions := fu_params_exts_64 params;
                  uniqId
-                   := id_single [
+                   := fu_params_add_format_field params [
                         fieldVal instSizeField ('b"11");
                         fieldVal opcodeField   ('b"10100");
                         fieldVal rs2Field      ('b"00011");
@@ -1531,169 +1270,61 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_single;
+                 outputXform := @int_float_out (fu_params_len params);
                  optMemXform := None;
                  instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
                |}
             ]
       |}.
 
-  Definition Int_float_d : @FUEntry ty
+  Definition fcmp_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-        fuName := "int_float.d";
-        fuFunc := @int_float_fn len_double;
-        fuInsts
-          := [
-               {|
-                 instName   := "fcvt.d.w";
-                 extensions := ["RV32D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs2Field      ('b"00000");
-                        fieldVal rs3Field      ('b"11010")
-                      ];
-                 inputXform 
-                   := fun context_pkt_expr : ExecContextPkt ## ty
-                      => LETE context_pkt
-                           <- context_pkt_expr;
-                         RetE
-                           (STRUCT {
-                              "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
-                              "signedIn"      ::= $$true;
-                              "afterRounding" ::= $$true;
-                              "roundingMode" ::= rounding_mode (#context_pkt)
-                            } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_double;
-                 optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fcvt.d.wu";
-                 extensions := ["RV32D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs2Field      ('b"00001");
-                        fieldVal rs3Field      ('b"11010")
-                      ];
-                 inputXform 
-                   := fun context_pkt_expr : ExecContextPkt ## ty
-                        => LETE context_pkt
-                             <- context_pkt_expr;
-                           RetE
-                             (STRUCT {
-                                "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
-                                "signedIn"      ::= $$false;
-                                "afterRounding" ::= $$true;
-                                "roundingMode" ::= rounding_mode (#context_pkt)
-                              } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_double;
-                 optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fcvt.d.l";
-                 extensions := ["RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs2Field      ('b"00010");
-                        fieldVal rs3Field      ('b"1101000")
-                      ];
-                 inputXform 
-                   := fun context_pkt_expr : ExecContextPkt ## ty
-                        => LETE context_pkt
-                             <- context_pkt_expr;
-                           RetE
-                             (STRUCT {
-                                "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
-                                "signedIn"      ::= $$true;
-                                "afterRounding" ::= $$true;
-                                "roundingMode" ::= rounding_mode (#context_pkt)
-                              } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_double;
-                 optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-               |};
-               {|
-                 instName   := "fcvt.d.lu";
-                 extensions := ["RV64D"];
-                 uniqId
-                   := id_double [
-                        fieldVal instSizeField ('b"11");
-                        fieldVal opcodeField   ('b"10100");
-                        fieldVal rs2Field      ('b"00011");
-                        fieldVal rs3Field      ('b"11010")
-                      ];
-                 inputXform 
-                   := fun context_pkt_expr : ExecContextPkt ## ty
-                        => LETE context_pkt
-                             <- context_pkt_expr;
-                           RetE
-                             (STRUCT {
-                                "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
-                                "signedIn"      ::= $$false;
-                                "afterRounding" ::= $$true;
-                                "roundingMode" ::= rounding_mode (#context_pkt)
-                              } : INToNFInput @# ty);
-                 outputXform := @int_float_out len_double;
-                 optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
-               |}
-            ]
-      |}.
-
-  Definition FCmp_s : @FUEntry ty
-    := {|
-          fuName := "fcmp.s";
-          fuFunc := @cmp_fn len_single;
+          fuName := fu_params_add_suffix params "fcmp";
+          fuFunc := @cmp_fn (fu_params_len params);
           fuInsts
             := [
                  {|
-                   instName   := "feq.s";
-                   extensions := ["RV32F"; "RV64F"];
+                   instName   := fu_params_add_suffix params "feq";
+                   extensions := fu_params_exts params;
                    uniqId
-                     := id_single [
+                     := fu_params_add_format_field params [
                           fieldVal instSizeField ('b"11");
                           fieldVal opcodeField   ('b"10100");
                           fieldVal funct3Field   ('b"010");
                           fieldVal rs3Field      ('b"10100")
                         ];
-                   inputXform  := cmp_in_pkt len_single ($$false) cmp_cond_eq cmp_cond_not_used;
+                   inputXform  := cmp_in_pkt (fu_params_len params) ($$false) cmp_cond_eq cmp_cond_not_used;
                    outputXform := id;
                    optMemXform := None;
                    instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
                  |};
                  {|
-                   instName   := "flt.s";
-                   extensions := ["RV32F"; "RV64F"];
+                   instName   := fu_params_add_suffix params "flt";
+                   extensions := fu_params_exts params;
                    uniqId
-                     := id_single [
+                     := fu_params_add_format_field params [
                           fieldVal instSizeField ('b"11");
                           fieldVal opcodeField   ('b"10100");
                           fieldVal funct3Field   ('b"001");
                           fieldVal rs3Field      ('b"1010000")
                         ];
-                   inputXform  := cmp_in_pkt len_single ($$true) cmp_cond_lt cmp_cond_not_used;
+                   inputXform  := cmp_in_pkt (fu_params_len params) ($$true) cmp_cond_lt cmp_cond_not_used;
                    outputXform := id;
                    optMemXform := None;
                    instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
                  |};
                  {|
-                   instName   := "fle.s";
-                   extensions := ["RV32F"; "RV64F"];
+                   instName   := fu_params_add_suffix params "fle";
+                   extensions := fu_params_exts params;
                    uniqId
-                     := id_single [
+                     := fu_params_add_format_field params [
                           fieldVal instSizeField ('b"11");
                           fieldVal opcodeField   ('b"10100");
                           fieldVal funct3Field   ('b"000");
                           fieldVal rs3Field      ('b"1010000")
                         ];
-                   inputXform  := cmp_in_pkt len_single ($$true) cmp_cond_lt cmp_cond_eq;
+                   inputXform  := cmp_in_pkt (fu_params_len params) ($$true) cmp_cond_lt cmp_cond_eq;
                    outputXform := id;
                    optMemXform := None;
                    instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
@@ -1701,78 +1332,25 @@ Section Fpu.
                ]
        |}.
 
-  Definition FCmp_d : @FUEntry ty
+  Definition fclass_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-          fuName := "fcmp.d";
-          fuFunc := @cmp_fn len_double;
-          fuInsts
-            := [
-                 {|
-                   instName   := "feq.d";
-                   extensions := ["RV32D"; "RV64D"];
-                   uniqId
-                     := id_double [
-                          fieldVal instSizeField ('b"11");
-                          fieldVal opcodeField   ('b"10100");
-                          fieldVal funct3Field   ('b"010");
-                          fieldVal rs3Field      ('b"10100")
-                        ];
-                   inputXform  := cmp_in_pkt len_double ($$false) cmp_cond_eq cmp_cond_not_used;
-                   outputXform := id;
-                   optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
-                 |};
-                 {|
-                   instName   := "flt.d";
-                   extensions := ["RV32D"; "RV64D"];
-                   uniqId
-                     := id_double [
-                          fieldVal instSizeField ('b"11");
-                          fieldVal opcodeField   ('b"10100");
-                          fieldVal funct3Field   ('b"001");
-                          fieldVal rs3Field      ('b"1010000")
-                        ];
-                   inputXform  := cmp_in_pkt len_double ($$true) cmp_cond_lt cmp_cond_not_used;
-                   outputXform := id;
-                   optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
-                 |};
-                 {|
-                   instName   := "fle.d";
-                   extensions := ["RV32D"; "RV64D"];
-                   uniqId
-                     := id_double [
-                          fieldVal instSizeField ('b"11");
-                          fieldVal opcodeField   ('b"10100");
-                          fieldVal funct3Field   ('b"000");
-                          fieldVal rs3Field      ('b"1010000")
-                        ];
-                   inputXform  := cmp_in_pkt len_double ($$true) cmp_cond_lt cmp_cond_eq;
-                   outputXform := id;
-                   optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
-                 |}
-               ]
-       |}.
-
-  Definition FClass_s : @FUEntry ty
-    := {|
-         fuName := "fclass.s";
-         fuFunc := @fclass_fn len_single;
+         fuName := fu_params_add_suffix params "fclass";
+         fuFunc := @fclass_fn (fu_params_len params);
          fuInsts
            := [
                 {|
-                  instName   := "fclass.s";
-                  extensions := ["RV32F"; "RV64F"];
+                  instName   := fu_params_add_suffix params "fclass";
+                  extensions := fu_params_exts params;
                   uniqId
-                    := id_single [
+                    := fu_params_add_format_field params [
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11100")
                        ];
-                  inputXform  := fclass_in_pkt len_single;
+                  inputXform  := fclass_in_pkt (fu_params_len params);
                   outputXform := fclass_out_pkt;
                   optMemXform := None;
                   instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
@@ -1780,106 +1358,80 @@ Section Fpu.
              ]
        |}.
 
-  Definition FClass_d : @FUEntry ty
+  Definition fdiv_sqrt_func_unit (params : fu_params_type)
+    :  @FUEntry ty
     := {|
-         fuName := "fclass.d";
-         fuFunc := @fclass_fn len_double;
-         fuInsts
-           := [
-                {|
-                  instName   := "fclass.d";
-                  extensions := ["RV32D"; "RV64D"];
-                  uniqId
-                    := id_double [
-                         fieldVal instSizeField ('b"11");
-                         fieldVal opcodeField   ('b"10100");
-                         fieldVal funct3Field   ('b"001");
-                         fieldVal rs2Field      ('b"00000");
-                         fieldVal rs3Field      ('b"11100")
-                       ];
-                  inputXform  := fclass_in_pkt len_double;
-                  outputXform := fclass_out_pkt;
-                  optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
-                |}
-             ]
-       |}.
-
-  Definition FDivSqrt_s : @FUEntry ty
-    := {|
-         fuName := "fdivsqrt.s";
-         fuFunc := @div_sqrt_fn len_single;
+         fuName := fu_params_add_suffix params "fdivsqrt";
+         fuFunc := @div_sqrt_fn (fu_params_len params);
          fuInsts
          := [
               {|
-                instName   := "fdiv.s";
-                extensions := ["RV32F"; "RV64F"];
+                instName   := fu_params_add_suffix params "fdiv";
+                extensions := fu_params_exts params;
                 uniqId
-                  := id_single [
+                  := fu_params_add_format_field params [
                        fieldVal instSizeField ('b"11");
                        fieldVal opcodeField   ('b"10100");
                        fieldVal rs3Field      ('b"00011")
                      ];
-                inputXform  := fdiv_sqrt_in_pkt len_single ($$false);
-                outputXform := @fdiv_sqrt_out_pkt len_single;
+                inputXform  := fdiv_sqrt_in_pkt (fu_params_len params) ($$false);
+                outputXform := @fdiv_sqrt_out_pkt (fu_params_len params);
                 optMemXform := None;
                 instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
               |};
               {|
-                instName   := "fsqrt.s";
-                extensions := ["RV32F"; "RV64F"];
+                instName   := fu_params_add_suffix params "fsqrt";
+                extensions := fu_params_exts params;
                 uniqId
-                  := id_single [
+                  := fu_params_add_format_field params [
                        fieldVal instSizeField ('b"11");
                        fieldVal opcodeField   ('b"10100");
                        fieldVal rs2Field      ('b"00000");
                        fieldVal rs3Field      ('b"01011")
                      ];
-                inputXform  := fdiv_sqrt_in_pkt len_single ($$true);
-                outputXform := @fdiv_sqrt_out_pkt len_single;
+                inputXform  := fdiv_sqrt_in_pkt (fu_params_len params) ($$true);
+                outputXform := @fdiv_sqrt_out_pkt (fu_params_len params);
                 optMemXform := None;
                 instHints   := falseHints[[hasFrs1 := true]][[hasFrd := true]]
               |}
             ]
        |}.
 
-  Definition FDivSqrt_d : @FUEntry ty
-    := {|
-         fuName := "fdivsqrt.d";
-         fuFunc := @div_sqrt_fn len_double;
-         fuInsts
-         := [
-              {|
-                instName   := "fdiv.d";
-                extensions := ["RV32D"; "RV64D"];
-                uniqId
-                  := id_double [
-                       fieldVal instSizeField ('b"11");
-                       fieldVal opcodeField   ('b"10100");
-                       fieldVal rs3Field      ('b"00011")
-                     ];
-                inputXform  := fdiv_sqrt_in_pkt len_double ($$false);
-                outputXform := @fdiv_sqrt_out_pkt len_double;
-                optMemXform := None;
-                instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
-              |};
-              {|
-                instName   := "fsqrt.d";
-                extensions := ["RV32D"; "RV64D"];
-                uniqId
-                  := id_double [
-                       fieldVal instSizeField ('b"11");
-                       fieldVal opcodeField   ('b"10100");
-                       fieldVal rs2Field      ('b"00000");
-                       fieldVal rs3Field      ('b"01011")
-                     ];
-                inputXform  := fdiv_sqrt_in_pkt len_double ($$true);
-                outputXform := @fdiv_sqrt_out_pkt len_double;
-                optMemXform := None;
-                instHints   := falseHints[[hasFrs1 := true]][[hasFrd := true]]
-              |}
-            ]
-       |}.
+  Definition Mac_s : @FUEntry ty := mac_func_unit fu_params_single.
+
+  Definition Mac_d : @FUEntry ty := mac_func_unit fu_params_double.
+
+  Definition FMinMax_s : @FUEntry ty := fmin_max_func_unit fu_params_single.
+
+  Definition FMinMax_d : @FUEntry ty := fmin_max_func_unit fu_params_double.
+
+  Definition FSgn_s : @FUEntry ty := fsgn_func_unit fu_params_single.
+
+  Definition FSgn_d : @FUEntry ty := fsgn_func_unit fu_params_double.
+
+  Definition FMv_s : @FUEntry ty := fmv_func_unit fu_params_single.
+
+  Definition FMv_d : @FUEntry ty := fmv_func_unit fu_params_double.
+
+  Definition Float_int_s : @FUEntry ty := float_int_func_unit fu_params_single.
+
+  Definition Float_int_d : @FUEntry ty := float_int_func_unit fu_params_double.
+
+  Definition Int_float_s : @FUEntry ty := int_float_func_unit fu_params_single.
+
+  Definition Int_float_d : @FUEntry ty := int_float_func_unit fu_params_double.
+
+  Definition FCmp_s : @FUEntry ty := fcmp_func_unit fu_params_single.
+
+  Definition FCmp_d : @FUEntry ty := fcmp_func_unit fu_params_double.
+
+  Definition FClass_s : @FUEntry ty := fclass_func_unit fu_params_single.
+
+  Definition FClass_d : @FUEntry ty := fclass_func_unit fu_params_double.
+
+  Definition FDivSqrt_s : @FUEntry ty := fdiv_sqrt_func_unit fu_params_single.
+
+  Definition FDivSqrt_d : @FUEntry ty := fdiv_sqrt_func_unit fu_params_double.
 
   Close Scope kami_expr.
 
