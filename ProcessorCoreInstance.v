@@ -83,15 +83,24 @@ Section Parametrize.
            LrSc64    Xlen_over_8 Flen_over_8 _;
 
            (* RVF instructions. *)
-           FMv       Xlen_over_8 Flen_over_8 _;
-           Mac       Xlen_over_8 Flen_over_8  _;
-           FMinMax   Xlen_over_8 Flen_over_8  _;
-           FSgn      Xlen_over_8 Flen_over_8 _;
-           Float_int Xlen_over_8 Flen_over_8  _;
-           Int_float Xlen_over_8 Flen_over_8  _;
-           FCmp      Xlen_over_8 Flen_over_8  _;
-           FClass    Xlen_over_8 Flen_over_8  _;
-           FDivSqrt  Xlen_over_8 Flen_over_8  _;
+           FMv_s       Xlen_over_8 Flen_over_8 _;
+           FMv_d       Xlen_over_8 Flen_over_8 _;
+           Mac_s       Xlen_over_8 Flen_over_8  _;
+           Mac_d       Xlen_over_8 Flen_over_8  _;
+           FMinMax_s   Xlen_over_8 Flen_over_8  _;
+           FMinMax_d   Xlen_over_8 Flen_over_8  _;
+           FSgn_s      Xlen_over_8 Flen_over_8 _;
+           FSgn_d      Xlen_over_8 Flen_over_8 _;
+           Float_int_s Xlen_over_8 Flen_over_8  _;
+           Float_int_d Xlen_over_8 Flen_over_8  _;
+           Int_float_s Xlen_over_8 Flen_over_8  _;
+           Int_float_d Xlen_over_8 Flen_over_8  _;
+           FCmp_s      Xlen_over_8 Flen_over_8  _;
+           FCmp_d      Xlen_over_8 Flen_over_8  _;
+           FClass_s    Xlen_over_8 Flen_over_8  _;
+           FClass_d    Xlen_over_8 Flen_over_8  _;
+           FDivSqrt_s  Xlen_over_8 Flen_over_8  _;
+           FDivSqrt_d  Xlen_over_8 Flen_over_8  _;
 
            (* RV Zicsr instructions. *)
            Zicsr     Xlen_over_8 Flen_over_8 _

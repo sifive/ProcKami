@@ -12,10 +12,6 @@ Section Params.
   
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
-(*
-  Variable expWidthMinus2: nat.
-  Variable sigWidthMinus2: nat.
-*)
   Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
@@ -25,8 +21,6 @@ Section Params.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  (* Local Notation NF := (NF expWidthMinus2 sigWidthMinus2). *)
-  (* Local Notation bitToNF := (bitToNF Flen). (* expWidthMinus2 sigWidthMinus2). *) *)
 
   Section pipeline.
     Local Open Scope kami_action.
@@ -79,14 +73,6 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "RLEN: ";
                        DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);
-(*
-                       DispString _ "\n";
-                       DispString _ "exp width - 2: ";
-                       DispBit (Const _ (natToWord 32 expWidthMinus2)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "sig width - 2: ";
-                       DispBit (Const _ (natToWord 32 sigWidthMinus2)) (32, Decimal);
-*)
                        DispString _ "\n"
                      ];
                    Read pc : VAddr <- ^"pc";

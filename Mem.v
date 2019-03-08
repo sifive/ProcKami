@@ -483,6 +483,26 @@ Section Mem.
               optMemXform  := storeXform 2 ;
               instHints    := falseHints[hasRs1 := true][hasFrs2 := true]
            |} ::
+           {| instName     := "fld";
+              extensions   := "RV32D" :: nil;
+              uniqId       := fieldVal instSizeField ('b"11") ::
+                              fieldVal opcodeField ('b"00001") ::
+                              fieldVal funct3Field ('b"011") :: nil;
+              inputXform   := loadInput 3 ;
+              outputXform  := loadTag ;
+              optMemXform  := loadXform $FloatRegTag 64 SignExtendTruncLsb ;
+              instHints    := falseHints[hasRs1 := true][hasFrd := true]
+           |} ::
+           {| instName     := "fsw";
+              extensions   := "RV32F" :: nil;
+              uniqId       := fieldVal instSizeField ('b"11") ::
+                              fieldVal opcodeField ('b"01001") ::
+                              fieldVal funct3Field ('b"011") :: nil;
+              inputXform   := storeInput 3 ;
+              outputXform  := storeTag ;
+              optMemXform  := storeXform 3 ;
+              instHints    := falseHints[hasRs1 := true][hasFrs2 := true]
+           |} ::
            nil |}.
 
            
