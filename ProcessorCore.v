@@ -12,7 +12,7 @@ Section Params.
   
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
-  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
+  Variable Rlen_over_8: nat.
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Flen := (8 * Flen_over_8).
@@ -286,10 +286,10 @@ Section Params.
                    Write ^"pc"
                      :  VAddr
                      <- (let opt_val1
-                          :  Maybe (RoutedReg Xlen_over_8 Flen_over_8) @# _
+                          (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
                           := #exec_update_pkt @% "fst" @% "val1" in
                         let opt_val2
-                          :  Maybe (RoutedReg Xlen_over_8 Flen_over_8) @# _
+                          (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
                           := #exec_update_pkt @% "fst" @% "val2" in
                         ITE
                           ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))

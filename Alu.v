@@ -5,23 +5,23 @@ Import RecordNotations.
 Section Alu.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
-  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8 Flen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation noUpdPkt := (@noUpdPkt Xlen_over_8 Flen_over_8 ty).
+    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition AddInputType := STRUCT {"arg1" :: Bit (Xlen + 1) ; "arg2" :: Bit (Xlen + 1)}.
 

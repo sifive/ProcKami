@@ -24,19 +24,19 @@ Section Fpu.
 
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
 
   Variable ty : Kind -> Type.
 
-  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation Flen := (8 * Flen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8 Flen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
-  Local Notation RoutedReg := (RoutedReg Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
 
@@ -1307,7 +1307,7 @@ Section Fpu.
                           fieldVal instSizeField ('b"11");
                           fieldVal opcodeField   ('b"10100");
                           fieldVal funct3Field   ('b"001");
-                          fieldVal rs3Field      ('b"1010000")
+                          fieldVal rs3Field      ('b"10100")
                         ];
                    inputXform  := cmp_in_pkt (fu_params_len params) ($$true) cmp_cond_lt cmp_cond_not_used;
                    outputXform := id;
@@ -1322,7 +1322,7 @@ Section Fpu.
                           fieldVal instSizeField ('b"11");
                           fieldVal opcodeField   ('b"10100");
                           fieldVal funct3Field   ('b"000");
-                          fieldVal rs3Field      ('b"1010000")
+                          fieldVal rs3Field      ('b"10100")
                         ];
                    inputXform  := cmp_in_pkt (fu_params_len params) ($$true) cmp_cond_lt cmp_cond_eq;
                    outputXform := id;
@@ -1436,3 +1436,4 @@ Section Fpu.
   Close Scope kami_expr.
 
 End Fpu.
+

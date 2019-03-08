@@ -5,17 +5,17 @@ Import RecordNotations.
 Section Mem.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
-  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Xlen_over_8 Flen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Flen_over_8).
-  Local Notation MemoryInput := (MemoryInput Xlen_over_8 Flen_over_8).
-  Local Notation MemoryOutput := (MemoryOutput Xlen_over_8 Flen_over_8).
-  Local Notation MaskedMem := (MaskedMem Xlen_over_8 Flen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
+  Local Notation MemoryInput := (MemoryInput Rlen_over_8).
+  Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
+  Local Notation MaskedMem := (MaskedMem Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
 
   Notation Data := (Bit Rlen).
   Notation VAddr := (Bit Xlen).
@@ -24,8 +24,7 @@ Section Mem.
   Section Ty.
     Variable ty: Kind -> Type.
 
-             
-    Local Notation noUpdPkt := (@noUpdPkt Xlen_over_8 Flen_over_8 ty).
+    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition MemInputAddrType := STRUCT {
                                        "base" :: VAddr ;

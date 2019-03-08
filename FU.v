@@ -123,11 +123,11 @@ Section Params.
   
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
 
-  Local Notation Rlen_over_8 := (max Xlen_over_8 Flen_over_8).
   Local Notation Rlen := (8 * Rlen_over_8).
 
   Local Notation Xlen := (8 * Xlen_over_8).
