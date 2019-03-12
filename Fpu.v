@@ -93,11 +93,36 @@ Section Fpu.
       :  Bit len @# ty
       := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
 
+    Definition dims_valid
+      :  Prop
+      := (fp_dims_exp_width dims >= 2)%nat /\
+         (pow2 (fp_dims_exp_width dims) + 4 > (fp_dims_sig_width dims) + 1 + 1)%nat.
+
   End dims.
+
+  Definition dims_valid_type
+    :  Set
+    := {x : fp_dims_type | dims_valid x}.
+
+  Definition dims_valid_single
+    :  dims_valid_type
+    := exist dims_valid
+         fp_dims_single
+         (conj
+           (ltac:(lia) : 2 <= 6)
+           (ltac:(lia) : 25 <= 68)).
+
+  Definition dims_valid_double
+    :  dims_valid_type
+    := exist dims_valid
+         fp_dims_double
+         (conj
+           (ltac:(lia) : 2 <= 9)
+           (ltac:(lia) : 54 <= 516)).
 
   Record fu_params_type
     := {
-         fu_params_dims             : fp_dims_type;
+         fu_params_dims             : dims_valid_type;
          fu_params_suffix           : string;
          fu_params_int_suffix       : string;
          fu_params_add_format_field : UniqId -> UniqId;
@@ -116,7 +141,7 @@ Section Fpu.
 
   Definition fu_params_single
     := {|
-         fu_params_dims             := fp_dims_single;
+         fu_params_dims             := dims_valid_single;
          fu_params_suffix           := ".s";
          fu_params_int_suffix       := ".w";
          fu_params_add_format_field := id_single;
@@ -127,7 +152,7 @@ Section Fpu.
 
   Definition fu_params_double
     := {|
-         fu_params_dims             := fp_dims_double;
+         fu_params_dims             := dims_valid_double;
          fu_params_suffix           := ".d";
          fu_params_int_suffix       := ".d";
          fu_params_add_format_field := id_double;
@@ -140,7 +165,7 @@ Section Fpu.
 
     Variable fu_params : fu_params_type.
 
-    Local Notation dims             := (fu_params_dims fu_params).
+    Local Notation dims_valid       := (fu_params_dims fu_params).
     Local Notation suffix           := (fu_params_suffix fu_params).
     Local Notation int_suffix       := (fu_params_int_suffix fu_params).
     Local Notation add_format_field := (fu_params_add_format_field fu_params).
@@ -148,6 +173,7 @@ Section Fpu.
     Local Notation exts_32          := (fu_params_exts_32 fu_params).
     Local Notation exts_64          := (fu_params_exts_64 fu_params).
 
+    Local Notation dims             := (proj1_sig dims_valid).
     Local Notation len              := (fp_dims_len dims).
     Local Notation exp_width        := (fp_dims_exp_width dims).
     Local Notation sig_width        := (fp_dims_sig_width dims).
@@ -272,7 +298,6 @@ Section Fpu.
              "sig"    ::= $0
            }.
 
-    (* TODO: verify *)
     Definition canonical_nan
       :  Bit len @# ty
       := ZeroExtendTruncLsb len
@@ -417,7 +442,6 @@ Section Fpu.
               "arg1"     ::= (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))
             } : fsgn_in_pkt_kind @# ty).
 
-    (* TODO: Revise this to support single, double, long etc widths. *)
     Definition float_int_in_pkt (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
       :  NFToINInput exp_width sig_width ## ty
       := LETE context_pkt
@@ -494,13 +518,6 @@ Section Fpu.
                      } : ExecContextUpdPkt @# ty);
               "snd" ::= Invalid
             } : PktWithException ExecContextUpdPkt @# ty).
-
-    (* TODO *)
-    Conjecture assume_gt_2 : forall x : nat, (x >= 2)%nat. 
-
-    (* TODO *)
-    Conjecture assume_sqr
-      : forall x y : nat, (pow2 x + 4 > y + 1 + 1)%nat.
 
     Definition float_int_out (sem_out_pkt_expr : NFToINOutput ## ty)
       :  PktWithException ExecContextUpdPkt ## ty
@@ -769,8 +786,8 @@ Section Fpu.
            (Xlen - 2)
            exp_width
            sig_width
-           (assume_gt_2 exp_width)
-           (assume_sqr exp_width sig_width)
+           (proj1 (proj2_sig dims_valid))
+           (proj2 (proj2_sig dims_valid))
            ty
            (#sem_in_pkt).
 
