@@ -30,7 +30,8 @@ Section Params.
     Variable mode : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
 
-    Definition dispNF ty (x : nf_kind Flen @# ty) := 
+    (* Definition dispNF ty (x : nf_kind Flen @# ty) :=  *)
+    Definition dispNF ty (x : NF (fp_dims_exp_width fp_dims_single) (fp_dims_sig_width fp_dims_single) @# ty) := 
       [
         DispString ty "    isNaN: ";
         DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary);
@@ -149,7 +150,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value:\n"
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#exec_context_pkt @% "fst" @% "reg1")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#exec_context_pkt @% "fst" @% "reg1")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  reg2:\n";
@@ -158,7 +159,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value:\n"
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#exec_context_pkt @% "fst" @% "reg2")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#exec_context_pkt @% "fst" @% "reg2")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  reg3:\n";
@@ -167,7 +168,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#exec_context_pkt @% "fst" @% "reg3")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#exec_context_pkt @% "fst" @% "reg3")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";
@@ -205,7 +206,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
@@ -220,7 +221,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
@@ -250,7 +251,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
@@ -262,7 +263,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++ 
-                     (dispNF (bitToNF (ZeroExtendTruncLsb Flen (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
+                     (dispNF (bitToNF fp_dims_single (ZeroExtendTruncLsb len_single (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
