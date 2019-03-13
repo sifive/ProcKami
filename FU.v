@@ -243,6 +243,20 @@ Section Params.
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
 
+  Record fu_params_type
+    := {
+         fu_params_expWidthMinus2 : nat;
+         fu_params_sigWidthMinus2 : nat; 
+         fu_params_exp_valid      : (fu_params_expWidthMinus2 >= 2)%nat;
+         fu_params_sig_valid      : (pow2 fu_params_expWidthMinus2 + 4 > fu_params_sigWidthMinus2 + 1 + 1)%nat;
+         fu_params_suffix         : string;
+         fu_params_int_suffix     : string;
+         fu_params_format_field   : word 2;
+         fu_params_exts           : list string;
+         fu_params_exts_32        : list string;
+         fu_params_exts_64        : list string
+       }.
+
   Record FUEntry :=
     { fuName    : string ;
       fuInputK  : Kind ;

@@ -40,147 +40,38 @@ Section Fpu.
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
 
-  Definition len_single : nat := 32.
-
-  Definition len_single_exp_width : nat := 6.
-
-  Definition len_single_sig_width : nat := 22.
-
-  Definition len_double : nat := 64.
-
-  Definition len_double_exp_width : nat := 9.
-
-  Definition len_double_sig_width : nat := 51.
-
-  Record fp_dims_type
-    := {
-         fp_dims_len       : nat;
-         fp_dims_exp_width : nat;
-         fp_dims_sig_width : nat
-       }.
-
-  Definition fp_dims_single
-    := {|
-         fp_dims_len       := len_single;
-         fp_dims_exp_width := len_single_exp_width;
-         fp_dims_sig_width := len_single_sig_width
-       |}.
-
-  Definition fp_dims_double
-    := {|
-         fp_dims_len       := len_double;
-         fp_dims_exp_width := len_double_exp_width;
-         fp_dims_sig_width := len_double_sig_width
-       |}.
-
-  Section dims.
-
-    Variable dims : fp_dims_type.
-
-    Local Notation len              := (fp_dims_len dims).
-    Local Notation exp_width        := (fp_dims_exp_width dims).
-    Local Notation sig_width        := (fp_dims_sig_width dims).
-
-    Definition bitToFN (x : Bit len @# ty)
-      :  FN exp_width sig_width @# ty
-      := unpack (FN exp_width sig_width) (ZeroExtendTruncLsb (size (FN exp_width sig_width)) x).
-
-    Definition bitToNF (x : Bit len @# ty)
-      :  NF exp_width sig_width @# ty
-      := getNF_from_FN (bitToFN x).
-
-    Definition NFToBit (x : NF exp_width sig_width @# ty)
-      :  Bit len @# ty
-      := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-    Definition dims_valid
-      :  Prop
-      := (fp_dims_exp_width dims >= 2)%nat /\
-         (pow2 (fp_dims_exp_width dims) + 4 > (fp_dims_sig_width dims) + 1 + 1)%nat.
-
-  End dims.
-
-  Definition dims_valid_type
-    :  Set
-    := {x : fp_dims_type | dims_valid x}.
-
-  Definition dims_valid_single
-    :  dims_valid_type
-    := exist dims_valid
-         fp_dims_single
-         (conj
-           (ltac:(lia) : 2 <= 6)
-           (ltac:(lia) : 25 <= 68)).
-
-  Definition dims_valid_double
-    :  dims_valid_type
-    := exist dims_valid
-         fp_dims_double
-         (conj
-           (ltac:(lia) : 2 <= 9)
-           (ltac:(lia) : 54 <= 516)).
-
-  Record fu_params_type
-    := {
-         fu_params_dims             : dims_valid_type;
-         fu_params_suffix           : string;
-         fu_params_int_suffix       : string;
-         fu_params_add_format_field : UniqId -> UniqId;
-         fu_params_exts             : list string;
-         fu_params_exts_32          : list string;
-         fu_params_exts_64          : list string
-       }.
-
-  Definition id_single (uniqId : UniqId)
-    :  UniqId
-    := cons (fieldVal fmtField ('b"00")) uniqId.
-
-  Definition id_double (uniqId : UniqId)
-    :  UniqId
-    := cons (fieldVal fmtField ('b"01")) uniqId.
-
-  Definition fu_params_single
-    := {|
-         fu_params_dims             := dims_valid_single;
-         fu_params_suffix           := ".s";
-         fu_params_int_suffix       := ".w";
-         fu_params_add_format_field := id_single;
-         fu_params_exts             := ["RV32F"; "RV64F"];
-         fu_params_exts_32          := ["RV32F"];
-         fu_params_exts_64          := ["RV64F"]
-       |}.
-
-  Definition fu_params_double
-    := {|
-         fu_params_dims             := dims_valid_double;
-         fu_params_suffix           := ".d";
-         fu_params_int_suffix       := ".d";
-         fu_params_add_format_field := id_double;
-         fu_params_exts             := ["RV32D"; "RV64D"];
-         fu_params_exts_32          := ["RV32D"];
-         fu_params_exts_64          := ["RV64D"]
-       |}.
-
   Section func_units.
 
     Variable fu_params : fu_params_type.
 
-    Local Notation dims_valid       := (fu_params_dims fu_params).
-    Local Notation suffix           := (fu_params_suffix fu_params).
-    Local Notation int_suffix       := (fu_params_int_suffix fu_params).
-    Local Notation add_format_field := (fu_params_add_format_field fu_params).
-    Local Notation exts             := (fu_params_exts fu_params).
-    Local Notation exts_32          := (fu_params_exts_32 fu_params).
-    Local Notation exts_64          := (fu_params_exts_64 fu_params).
+    Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
+    Local Notation sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params).
+    Local Notation exp_valid      := (fu_params_exp_valid fu_params).
+    Local Notation sig_valid      := (fu_params_sig_valid fu_params).
+    Local Notation suffix         := (fu_params_suffix fu_params).
+    Local Notation int_suffix     := (fu_params_int_suffix fu_params).
+    Local Notation format_field   := (fu_params_format_field fu_params).
+    Local Notation exts           := (fu_params_exts fu_params).
+    Local Notation exts_32        := (fu_params_exts_32 fu_params).
+    Local Notation exts_64        := (fu_params_exts_64 fu_params).
 
-    Local Notation dims             := (proj1_sig dims_valid).
-    Local Notation len              := (fp_dims_len dims).
-    Local Notation exp_width        := (fp_dims_exp_width dims).
-    Local Notation sig_width        := (fp_dims_sig_width dims).
+    Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
-    Local Notation bitToFN := (bitToFN dims).
-    Local Notation bitToNF := (bitToNF dims).
-    Local Notation NFToBit := (NFToBit dims).
+    Definition add_format_field
+      :  UniqId -> UniqId
+      := cons (fieldVal fmtField format_field).
+
+    Definition bitToFN (x : Bit len @# ty)
+      :  FN expWidthMinus2 sigWidthMinus2 @# ty
+      := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
+
+    Definition bitToNF (x : Bit len @# ty)
+      :  NF expWidthMinus2 sigWidthMinus2 @# ty
+      := getNF_from_FN (bitToFN x).
+
+    Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
+      :  Bit len @# ty
+      := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
 
     Definition fu_params_add_suffix
         (name : string)
@@ -214,22 +105,22 @@ Section Fpu.
       :  Kind
       := STRUCT {
              "fcsr"      :: CsrValue;
-             "muladd_in" :: MulAdd_Input exp_width sig_width
+             "muladd_in" :: MulAdd_Input expWidthMinus2 sigWidthMinus2
            }.
 
     Definition sem_out_pkt_kind
       :  Kind
       := STRUCT {
              "fcsr"       :: CsrValue;
-             "muladd_out" :: MulAdd_Output exp_width sig_width
+             "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
            }.
 
     Definition fmin_max_in_pkt_kind
       :  Kind
       := STRUCT {
              "fcsr" :: CsrValue;
-             "arg1" :: NF exp_width sig_width;
-             "arg2" :: NF exp_width sig_width;
+             "arg1" :: NF expWidthMinus2 sigWidthMinus2;
+             "arg2" :: NF expWidthMinus2 sigWidthMinus2;
              "max"  :: Bool
            }.
 
@@ -251,8 +142,8 @@ Section Fpu.
              "signal" :: Bool;
              "cond0"  :: cmp_cond_kind;
              "cond1"  :: cmp_cond_kind;
-             "arg1"   :: NF exp_width sig_width;
-             "arg2"   :: NF exp_width sig_width
+             "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
+             "arg2"   :: NF expWidthMinus2 sigWidthMinus2
            }.
 
     Definition cmp_out_pkt_kind
@@ -288,7 +179,7 @@ Section Fpu.
       := ITE flag mask ($0 : fflags_value_kind @# ty).
 
     Definition const_1
-      :  NF exp_width sig_width @# ty
+      :  NF expWidthMinus2 sigWidthMinus2 @# ty
       := STRUCT {
              "isNaN"  ::= $$false;
              "isInf"  ::= $$false;
@@ -304,15 +195,15 @@ Section Fpu.
            (pack
               (STRUCT {
                  "sign" ::= $$false;
-                 "exp"  ::= $$(wones (exp_width + 1 + 1));
+                 "exp"  ::= $$(wones (expWidthMinus2 + 1 + 1));
                  "frac"
                    ::= ZeroExtendTruncLsb
-                         (sig_width + 1)
+                         (sigWidthMinus2 + 1)
                          ({<
                            $$WO~1,
-                           $$(wzero sig_width)
+                           $$(wzero sigWidthMinus2)
                          >})
-               } : FN exp_width sig_width @# ty)).
+               } : FN expWidthMinus2 sigWidthMinus2 @# ty)).
       
     Definition csr_invalid_mask : fflags_value_kind @# ty := Const ty ('b("10000")).
 
@@ -372,7 +263,7 @@ Section Fpu.
                        "c"  ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg3"));
                        "roundingMode"   ::= rounding_mode (#context_pkt);
                        "detectTininess" ::= $$true
-                     } : MulAdd_Input exp_width sig_width @# ty)
+                     } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
             } : sem_in_pkt_kind @# ty).
 
     Definition add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
@@ -391,7 +282,7 @@ Section Fpu.
                        "c"  ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
                        "roundingMode"   ::= rounding_mode (#context_pkt);
                        "detectTininess" ::= $$true
-                     } : MulAdd_Input exp_width sig_width @# ty)
+                     } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
             } : sem_in_pkt_kind @# ty).
 
     Definition mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
@@ -410,7 +301,7 @@ Section Fpu.
                        "c"  ::= bitToNF ($0);
                        "roundingMode"   ::= rounding_mode (#context_pkt);
                        "detectTininess" ::= $$true
-                     } : MulAdd_Input exp_width sig_width @# ty)
+                     } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
             } : sem_in_pkt_kind @# ty).
 
     Definition fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
@@ -443,7 +334,7 @@ Section Fpu.
             } : fsgn_in_pkt_kind @# ty).
 
     Definition float_int_in_pkt (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-      :  NFToINInput exp_width sig_width ## ty
+      :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
       := LETE context_pkt
            <- context_pkt_expr;
          RetE
@@ -451,7 +342,7 @@ Section Fpu.
               "inNF"         ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
               "roundingMode" ::= rounding_mode (#context_pkt);
               "signedOut"    ::= signed
-            } : NFToINInput exp_width sig_width @# ty).
+            } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
 
     Definition cmp_in_pkt
         (signal : Bool @# ty)
@@ -472,14 +363,14 @@ Section Fpu.
             } : cmp_in_pkt_kind @# ty).
 
     Definition fclass_in_pkt (context_pkt_expr : ExecContextPkt ## ty)
-      :  FN exp_width sig_width ## ty
+      :  FN expWidthMinus2 sigWidthMinus2 ## ty
       := LETE context_pkt
            <- context_pkt_expr;
          RetE
            (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
 
     Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-      :  inpK exp_width sig_width ## ty
+      :  inpK expWidthMinus2 sigWidthMinus2 ## ty
       := LETE context_pkt
            :  ExecContextPkt
            <- context_pkt_expr;
@@ -490,7 +381,7 @@ Section Fpu.
               "nfB"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
               "round"  ::= rounding_mode (#context_pkt);
               "tiny"   ::= $$true
-            } : inpK exp_width sig_width @# ty).
+            } : inpK expWidthMinus2 sigWidthMinus2 @# ty).
 
     Definition muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
       :  PktWithException ExecContextUpdPkt ## ty
@@ -546,10 +437,10 @@ Section Fpu.
               "snd" ::= Invalid
             } : PktWithException ExecContextUpdPkt @# ty).
 
-    Definition int_float_out (sem_out_pkt_expr : OpOutput exp_width sig_width ## ty)
+    Definition int_float_out (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
       :  PktWithException ExecContextUpdPkt ## ty
       := LETE sem_out_pkt
-           :  OpOutput exp_width sig_width
+           :  OpOutput expWidthMinus2 sigWidthMinus2
            <- sem_out_pkt_expr;
          RetE
            (STRUCT {
@@ -561,7 +452,7 @@ Section Fpu.
                                "data"
                                  ::= ZeroExtendTruncLsb Rlen
                                        (NFToBit
-                                          ((#sem_out_pkt @% "out") : NF exp_width sig_width @# ty)
+                                          ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
                                         : Bit len @# ty)
                                    });
                        "val2"
@@ -600,10 +491,10 @@ Section Fpu.
               "snd" ::= Invalid
             } : PktWithException ExecContextUpdPkt @# ty).
 
-    Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : outK exp_width sig_width ## ty)
+    Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : outK expWidthMinus2 sigWidthMinus2 ## ty)
       :  PktWithException ExecContextUpdPkt ## ty
       := LETE sem_out_pkt
-           :  outK exp_width sig_width
+           :  outK expWidthMinus2 sigWidthMinus2
            <- sem_out_pkt_expr;
          RetE
            (STRUCT {
@@ -636,7 +527,7 @@ Section Fpu.
            :  sem_in_pkt_kind
            <- sem_in_pkt_expr;
          LETE muladd_out
-           :  MulAdd_Output exp_width sig_width
+           :  MulAdd_Output expWidthMinus2 sigWidthMinus2
            <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
          RetE
            (STRUCT {
@@ -778,16 +669,16 @@ Section Fpu.
               "snd" ::= Invalid
             } : PktWithException ExecContextUpdPkt @# ty).
 
-    Definition float_int_fn (sem_in_pkt_expr : NFToINInput exp_width sig_width ## ty)
+    Definition float_int_fn (sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty)
       := LETE sem_in_pkt
-           :  NFToINInput exp_width sig_width
+           :  NFToINInput expWidthMinus2 sigWidthMinus2
            <- sem_in_pkt_expr;
          @NFToIN_expr
            (Xlen - 2)
-           exp_width
-           sig_width
-           (proj1 (proj2_sig dims_valid))
-           (proj2 (proj2_sig dims_valid))
+           expWidthMinus2
+           sigWidthMinus2
+           exp_valid
+           sig_valid
            ty
            (#sem_in_pkt).
 
@@ -796,8 +687,8 @@ Section Fpu.
            :  INToNFInput
            <- sem_in_pkt_expr;
         INToNF_expr
-          exp_width
-          sig_width
+          expWidthMinus2
+          sigWidthMinus2
           (#sem_in_pkt).
 
     Definition cmp_fn (sem_in_pkt_expr : cmp_in_pkt_kind ## ty)
@@ -861,17 +752,17 @@ Section Fpu.
               "snd" ::= @Invalid ty _
             } : PktWithException ExecContextUpdPkt @# ty).
 
-    Definition fclass_fn (x_expr : FN exp_width sig_width ## ty)
+    Definition fclass_fn (x_expr : FN expWidthMinus2 sigWidthMinus2 ## ty)
       :  Bit Xlen ## ty
       := LETE x
-           :  FN exp_width sig_width
+           :  FN expWidthMinus2 sigWidthMinus2
            <- x_expr;
          RetE (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10))).
 
-    Definition div_sqrt_fn (sem_in_pkt_expr : inpK exp_width sig_width ## ty)
-      :  outK exp_width sig_width ## ty
+    Definition div_sqrt_fn (sem_in_pkt_expr : inpK expWidthMinus2 sigWidthMinus2 ## ty)
+      :  outK expWidthMinus2 sigWidthMinus2 ## ty
       := LETE sem_in_pkt
-           :  inpK exp_width sig_width
+           :  inpK expWidthMinus2 sigWidthMinus2
            <- sem_in_pkt_expr;
          div_sqrt_expr (#sem_in_pkt).
 
@@ -1435,42 +1326,6 @@ Section Fpu.
          |}.
 
   End func_units.
-
-  Definition Mac_s : @FUEntry ty := mac_func_unit fu_params_single.
-
-  Definition Mac_d : @FUEntry ty := mac_func_unit fu_params_double.
-
-  Definition FMinMax_s : @FUEntry ty := fmin_max_func_unit fu_params_single.
-
-  Definition FMinMax_d : @FUEntry ty := fmin_max_func_unit fu_params_double.
-
-  Definition FSgn_s : @FUEntry ty := fsgn_func_unit fu_params_single.
-
-  Definition FSgn_d : @FUEntry ty := fsgn_func_unit fu_params_double.
-
-  Definition FMv_s : @FUEntry ty := fmv_func_unit fu_params_single.
-
-  Definition FMv_d : @FUEntry ty := fmv_func_unit fu_params_double.
-
-  Definition Float_int_s : @FUEntry ty := float_int_func_unit fu_params_single.
-
-  Definition Float_int_d : @FUEntry ty := float_int_func_unit fu_params_double.
-
-  Definition Int_float_s : @FUEntry ty := int_float_func_unit fu_params_single.
-
-  Definition Int_float_d : @FUEntry ty := int_float_func_unit fu_params_double.
-
-  Definition FCmp_s : @FUEntry ty := fcmp_func_unit fu_params_single.
-
-  Definition FCmp_d : @FUEntry ty := fcmp_func_unit fu_params_double.
-
-  Definition FClass_s : @FUEntry ty := fclass_func_unit fu_params_single.
-
-  Definition FClass_d : @FUEntry ty := fclass_func_unit fu_params_double.
-
-  Definition FDivSqrt_s : @FUEntry ty := fdiv_sqrt_func_unit fu_params_single.
-
-  Definition FDivSqrt_d : @FUEntry ty := fdiv_sqrt_func_unit fu_params_double.
 
   Close Scope kami_expr.
 
