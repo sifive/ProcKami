@@ -1,5 +1,6 @@
 (*
-  TODO: should Flen and the length parameter in fu_params be identical?
+  This module integrates the processor components defined in FU.v
+  into a single pipeline processor model.
 *)
 
 Require Import Kami.All FU CompressedInsts.
@@ -15,14 +16,12 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
-  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Flen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
 
@@ -41,7 +40,6 @@ Section Params.
 
     Local Notation bitToNF := (bitToNF fu_params).
 
-    (* Definition dispNF ty (x : nf_kind Flen @# ty) :=  *)
     Definition dispNF ty (x : NF expWidthMinus2 sigWidthMinus2 @# ty) := 
       [
         DispString ty "    isNaN: ";
@@ -79,9 +77,6 @@ Section Params.
                        DispString _ "Start\n";
                        DispString _ "XLEN: ";
                        DispBit (Const _ (natToWord 32 Xlen)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "FLEN: ";
-                       DispBit (Const _ (natToWord 32 Flen)) (32, Decimal);
                        DispString _ "\n";
                        DispString _ "RLEN: ";
                        DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);

@@ -15,6 +15,8 @@ Require Import Zicsr.
 
 Section Parametrize.
   Let Xlen_over_8 := 4.
+  Let Flen_over_8 := 4.
+  Let Rlen_over_8 := max Xlen_over_8 Flen_over_8.
 
   Let mode
     : forall ty, PrivMode @# ty
@@ -35,7 +37,7 @@ Section Parametrize.
               "RV64A"    ::= $$(false);
               "RV32F"    ::= $$(true);
               "RV64F"    ::= $$(false);
-              "RV32D"    ::= $$(false); (* will change RLEN to 64 bits *)
+              "RV32D"    ::= $$(true); (* will change RLEN to 64 bits *)
               "RV64D"    ::= $$(false);
               "RV32C"    ::= $$(true);
               "RV64C"    ::= $$(false)
@@ -44,12 +46,6 @@ Section Parametrize.
   Let exts_D_enabled
     :  bool
     := evalExpr (exts type @% "RV32D" || exts type @% "RV64D")%kami_expr.
-
-  Let Flen_over_8
-    :  nat
-    := if exts_D_enabled
-         then 8
-         else 4. 
 
   Let expWidthMinus2
     :  nat
@@ -91,94 +87,53 @@ Section Parametrize.
          fu_params_exts_64        := ["RV64D"]
        |}.
 
-  Section func_units.
-
-  Variable ty : Kind -> Type.
-
-  Definition Mac_s : @FUEntry Xlen_over_8 Flen_over_8 ty := mac_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition Mac_d : @FUEntry Xlen_over_8 Flen_over_8 ty := mac_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FMinMax_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fmin_max_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FMinMax_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fmin_max_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FSgn_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fsgn_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FSgn_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fsgn_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FMv_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fmv_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FMv_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fmv_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition Float_int_s : @FUEntry Xlen_over_8 Flen_over_8 ty := float_int_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition Float_int_d : @FUEntry Xlen_over_8 Flen_over_8 ty := float_int_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition Int_float_s : @FUEntry Xlen_over_8 Flen_over_8 ty := int_float_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition Int_float_d : @FUEntry Xlen_over_8 Flen_over_8 ty := int_float_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FCmp_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fcmp_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FCmp_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fcmp_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FClass_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fclass_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FClass_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fclass_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  Definition FDivSqrt_s : @FUEntry Xlen_over_8 Flen_over_8 ty := fdiv_sqrt_func_unit Xlen_over_8 Flen_over_8 ty fu_params_single.
-
-  Definition FDivSqrt_d : @FUEntry Xlen_over_8 Flen_over_8 ty := fdiv_sqrt_func_unit Xlen_over_8 Flen_over_8 ty fu_params_double.
-
-  End func_units.
-
   Let func_units 
-    :  forall ty, list (@FUEntry Xlen_over_8 Flen_over_8 ty)
+    :  forall ty, list (@FUEntry Xlen_over_8 Rlen_over_8 ty)
     := fun _ => [
            (* RVI logical instructions. *)
-           Add       Xlen_over_8 Flen_over_8 _;
-           Logical   Xlen_over_8 Flen_over_8 _;
-           Shift     Xlen_over_8 Flen_over_8 _;
-           Branch    Xlen_over_8 Flen_over_8 _;
-           Jump      Xlen_over_8 Flen_over_8 _;
-           Mult      Xlen_over_8 Flen_over_8 _;
-           DivRem    Xlen_over_8 Flen_over_8 _;
+           Add       Xlen_over_8 Rlen_over_8  _;
+           Logical   Xlen_over_8 Rlen_over_8 _;
+           Shift     Xlen_over_8 Rlen_over_8 _;
+           Branch    Xlen_over_8 Rlen_over_8 _;
+           Jump      Xlen_over_8 Rlen_over_8 _;
+           Mult      Xlen_over_8 Rlen_over_8 _;
+           DivRem    Xlen_over_8 Rlen_over_8 _;
 
            (* RVI memory instructions. *)
-           Mem       Xlen_over_8 Flen_over_8 _;
-           Amo32     Xlen_over_8 Flen_over_8 _;
-           Amo64     Xlen_over_8 Flen_over_8 _;
-           LrSc32    Xlen_over_8 Flen_over_8 _;
-           LrSc64    Xlen_over_8 Flen_over_8 _;
+           Mem       Xlen_over_8 Rlen_over_8 _;
+           Amo32     Xlen_over_8 Rlen_over_8 _;
+           Amo64     Xlen_over_8 Rlen_over_8 _;
+           LrSc32    Xlen_over_8 Rlen_over_8 _;
+           LrSc64    Xlen_over_8 Rlen_over_8 _;
 
            (* RVF instructions. *)
-           FMv_s       _;
-           FMv_d       _;
-           Mac_s       _;
-           Mac_d       _;
-           FMinMax_s   _;
-           FMinMax_d   _;
-           FSgn_s      _;
-           FSgn_d      _;
-           Float_int_s _;
-           Float_int_d _;
-           Int_float_s _;
-           Int_float_d _;
-           FCmp_s      _;
-           FCmp_d      _;
-           FClass_s    _;
-           FClass_d    _;
-           FDivSqrt_s  _;
-           FDivSqrt_d  _;
+           Mac       Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FMinMax   Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FSgn      Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FMv       Xlen_over_8 Rlen_over_8 fu_params_single _;
+           Float_int Xlen_over_8 Rlen_over_8 fu_params_single _;
+           Int_float Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FCmp      Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FClass    Xlen_over_8 Rlen_over_8 fu_params_single _;
+           FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_single _;
+
+           Mac       Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FMinMax   Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FSgn      Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FMv       Xlen_over_8 Rlen_over_8 fu_params_double _;
+           Float_int Xlen_over_8 Rlen_over_8 fu_params_double _;
+           Int_float Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FCmp      Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FClass    Xlen_over_8 Rlen_over_8 fu_params_double _;
+           FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_double _;
 
            (* RV Zicsr instructions. *)
-           Zicsr     Xlen_over_8 Flen_over_8 _
+           Zicsr     Xlen_over_8 Rlen_over_8 _
          ].
 
   Definition rtlMod
     := getRtl
-         ([], ([], (@pipeline "proc_core" Xlen_over_8 Flen_over_8 (max Xlen_over_8 Flen_over_8) fu_params_single func_units mode exts))).
+         ([], ([], (@pipeline "proc_core" Xlen_over_8 Rlen_over_8 fu_params_single func_units mode exts))).
 
   (* Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins. *)
 

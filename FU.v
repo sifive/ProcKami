@@ -122,7 +122,6 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
@@ -132,8 +131,6 @@ Section Params.
 
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation VAddr := (Bit Xlen).
-
-  Local Notation Flen := (8 * Flen_over_8).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).

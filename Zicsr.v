@@ -14,7 +14,6 @@ Import RecordNotations.
 
 Section zicsr.
   Variable Xlen_over_8 : nat.
-  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
 
   Local Notation Rlen := (8 * Rlen_over_8).
