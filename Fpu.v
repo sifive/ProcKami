@@ -95,21 +95,21 @@ Section Fpu.
 
   Local Notation add_int_infix := fu_params_add_int_infix.
 
-  Definition sem_in_pkt_kind
+  Definition MacInputType
     :  Kind
     := STRUCT {
            "fcsr"      :: CsrValue;
            "muladd_in" :: MulAdd_Input expWidthMinus2 sigWidthMinus2
          }.
 
-  Definition sem_out_pkt_kind
+  Definition MacOutputType
     :  Kind
     := STRUCT {
            "fcsr"       :: CsrValue;
            "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
          }.
 
-  Definition fmin_max_in_pkt_kind
+  Definition FMinMaxInputType
     :  Kind
     := STRUCT {
            "fcsr" :: CsrValue;
@@ -118,7 +118,7 @@ Section Fpu.
            "max"  :: Bool
          }.
 
-  Definition fmin_max_out_pkt_kind
+  Definition FMinMaxOutputType
     :  Kind
     := STRUCT {
            "fcsr"   :: Maybe CsrValue;
@@ -129,7 +129,7 @@ Section Fpu.
 
   Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
 
-  Definition cmp_in_pkt_kind
+  Definition FCmpInputType
     :  Kind
     := STRUCT {
            "fcsr"   :: CsrValue;
@@ -140,25 +140,25 @@ Section Fpu.
            "arg2"   :: NF expWidthMinus2 sigWidthMinus2
          }.
 
-  Definition cmp_out_pkt_kind
+  Definition FCmpOutputType
     :  Kind
     := STRUCT {
            "fcsr"   :: Maybe CsrValue;
            "result" :: Bit len
          }.
 
-  Definition fsgn_in_pkt_kind
+  Definition FSgnInputType
     :  Kind
     := STRUCT {
            "sign_bit" :: Bit 1;
            "arg1"     :: Bit len
          }.
 
-  Local Notation "x [[ proj  :=  v ]]"
+  Local Notation "x {{ proj  :=  v }}"
     := (set proj (constructor v) x)
          (at level 14, left associativity).
 
-  Local Notation "x [[ proj  ::=  f ]]"
+  Local Notation "x {{ proj  ::=  f }}"
     := (set proj f x)
          (at level 14, f at next level, left associativity).
 
@@ -241,8 +241,8 @@ Section Fpu.
                      (result @% "lt")
                      (result @% "gt"))). 
 
-  Definition muladd_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
-    :  sem_in_pkt_kind ## ty
+  Definition MacInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
+    :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
          <- context_pkt_expr;
@@ -258,10 +258,10 @@ Section Fpu.
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
-          } : sem_in_pkt_kind @# ty).
+          } : MacInputType @# ty).
 
   Definition add_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
-    :  sem_in_pkt_kind ## ty
+    :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
          <- context_pkt_expr;
@@ -277,10 +277,10 @@ Section Fpu.
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
-          } : sem_in_pkt_kind @# ty).
+          } : MacInputType @# ty).
 
   Definition mul_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
-    :  sem_in_pkt_kind ## ty
+    :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
          <- context_pkt_expr;
@@ -296,10 +296,10 @@ Section Fpu.
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
-          } : sem_in_pkt_kind @# ty).
+          } : MacInputType @# ty).
 
   Definition fmin_max_in_pkt (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  fmin_max_in_pkt_kind ## ty
+    :  FMinMaxInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
          <- context_pkt_expr;
@@ -309,10 +309,10 @@ Section Fpu.
             "arg1" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
             "arg2" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
             "max"  ::= max
-          } : fmin_max_in_pkt_kind @# ty).
+          } : FMinMaxInputType @# ty).
 
   Definition fsgn_in_pkt (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  fsgn_in_pkt_kind ## ty
+    :  FSgnInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;
        RetE
@@ -325,9 +325,9 @@ Section Fpu.
                                                     (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))))
                   };
             "arg1"     ::= (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))
-          } : fsgn_in_pkt_kind @# ty).
+          } : FSgnInputType @# ty).
 
-  Definition float_int_in_pkt (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition Float_Int_Input (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          <- context_pkt_expr;
@@ -343,7 +343,7 @@ Section Fpu.
       (cond0 : cmp_cond_kind @# ty)
       (cond1 : cmp_cond_kind @# ty)
       (context_pkt_expr : ExecContextPkt ## ty)
-    :  cmp_in_pkt_kind ## ty
+    :  FCmpInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;
        RetE
@@ -354,16 +354,16 @@ Section Fpu.
             "cond1"  ::= cond1;
             "arg1"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
             "arg2"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))
-          } : cmp_in_pkt_kind @# ty).
+          } : FCmpInputType @# ty).
 
-  Definition fclass_in_pkt (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FClassInput (context_pkt_expr : ExecContextPkt ## ty)
     :  FN expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          <- context_pkt_expr;
        RetE
          (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
 
-  Definition fdiv_sqrt_in_pkt (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FDivSqrtInput (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  inpK expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          :  ExecContextPkt
@@ -377,10 +377,10 @@ Section Fpu.
             "tiny"   ::= $$true
           } : inpK expWidthMinus2 sigWidthMinus2 @# ty).
 
-  Definition muladd_out_pkt (sem_out_pkt_expr : sem_out_pkt_kind ## ty)
+  Definition MacOutput (sem_out_pkt_expr : MacOutputType ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
-         :  sem_out_pkt_kind
+         :  MacOutputType
          <- sem_out_pkt_expr;
        RetE
          (STRUCT {
@@ -404,7 +404,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition float_int_out (sem_out_pkt_expr : NFToINOutput ## ty)
+  Definition Float_Int_Output (sem_out_pkt_expr : NFToINOutput ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
          :  NFToINOutput
@@ -431,7 +431,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition int_float_out (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
+  Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
          :  OpOutput expWidthMinus2 sigWidthMinus2
@@ -462,7 +462,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition fclass_out_pkt (sem_out_pkt_expr : Bit Xlen ## ty)
+  Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE res
          :  Bit Xlen
@@ -485,7 +485,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition fdiv_sqrt_out_pkt (sem_out_pkt_expr : outK expWidthMinus2 sigWidthMinus2 ## ty)
+  Definition FDivSqrtOutput (sem_out_pkt_expr : outK expWidthMinus2 sigWidthMinus2 ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
          :  outK expWidthMinus2 sigWidthMinus2
@@ -515,10 +515,10 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition mac_fn (sem_in_pkt_expr : sem_in_pkt_kind ## ty)
-    :  sem_out_pkt_kind ## ty
+  Definition MacFn (sem_in_pkt_expr : MacInputType ## ty)
+    :  MacOutputType ## ty
     := LETE sem_in_pkt
-         :  sem_in_pkt_kind
+         :  MacInputType
          <- sem_in_pkt_expr;
        LETE muladd_out
          :  MulAdd_Output expWidthMinus2 sigWidthMinus2
@@ -527,12 +527,12 @@ Section Fpu.
          (STRUCT {
             "fcsr"       ::= #sem_in_pkt @% "fcsr";
             "muladd_out" ::= #muladd_out
-          } : sem_out_pkt_kind @# ty).
+          } : MacOutputType @# ty).
 
-  Definition fmin_max_fn (sem_in_pkt_expr : fmin_max_in_pkt_kind ## ty)
+  Definition FMinMaxFn (sem_in_pkt_expr : FMinMaxInputType ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_in_pkt
-         :  fmin_max_in_pkt_kind
+         :  FMinMaxInputType
          <- sem_in_pkt_expr;
        LETE cmp_out_pkt
          :  Compare_Output
@@ -542,7 +542,7 @@ Section Fpu.
          <- ((#sem_in_pkt @% "fcsr" : CsrValue @# ty) |
              (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
        LETC result
-         :  fmin_max_out_pkt_kind
+         :  FMinMaxOutputType
          <- STRUCT {
               "fcsr"
                 ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
@@ -575,7 +575,7 @@ Section Fpu.
                                  (ITE ((#cmp_out_pkt @% "gt") ^^ (#sem_in_pkt @% "max"))
                                     (NFToBit (#sem_in_pkt @% "arg2"))
                                     (NFToBit (#sem_in_pkt @% "arg1"))))))
-         } : fmin_max_out_pkt_kind @# ty;
+         } : FMinMaxOutputType @# ty;
        RetE
          (STRUCT {
             "fst"
@@ -600,10 +600,10 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition fsgn_fn (sem_in_pkt_expr : fsgn_in_pkt_kind ## ty)
+  Definition FSgnFn (sem_in_pkt_expr : FSgnInputType ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_in_pkt
-         :  fsgn_in_pkt_kind
+         :  FSgnInputType
          <- sem_in_pkt_expr;
        RetE
          (STRUCT {
@@ -628,7 +628,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt@# ty).
 
-  Definition fmv_fn (sem_in_pkt : Pair Bool (Bit Rlen) ## ty)
+  Definition FMvFn (sem_in_pkt : Pair Bool (Bit Rlen) ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE inp <- sem_in_pkt;
        LETC isInt <- #inp @% "fst";
@@ -663,7 +663,7 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition float_int_fn (sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty)
+  Definition Float_Int_Fn (sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty)
     := LETE sem_in_pkt
          :  NFToINInput expWidthMinus2 sigWidthMinus2
          <- sem_in_pkt_expr;
@@ -676,7 +676,7 @@ Section Fpu.
          ty
          (#sem_in_pkt).
 
-  Definition int_float_fn (sem_in_pkt_expr : INToNFInput ## ty)
+  Definition Int_Float_Fn (sem_in_pkt_expr : INToNFInput ## ty)
     := LETE sem_in_pkt
          :  INToNFInput
          <- sem_in_pkt_expr;
@@ -685,10 +685,10 @@ Section Fpu.
         sigWidthMinus2
         (#sem_in_pkt).
 
-  Definition cmp_fn (sem_in_pkt_expr : cmp_in_pkt_kind ## ty)
+  Definition CmpFn (sem_in_pkt_expr : FCmpInputType ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_in_pkt
-         :  cmp_in_pkt_kind
+         :  FCmpInputType
          <- sem_in_pkt_expr;
        LETE cmp_result
          :  Compare_Output
@@ -698,7 +698,7 @@ Section Fpu.
          <- ((#sem_in_pkt @% "fcsr") |
              (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
        LETC result
-         :  cmp_out_pkt_kind
+         :  FCmpOutputType
          <- STRUCT {
               "fcsr"
                 ::= ITE
@@ -720,7 +720,7 @@ Section Fpu.
                       (cmp_cond_get (#sem_in_pkt @% "cond0") #cmp_result ||
                        cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
                       $1 $0)
-         } : cmp_out_pkt_kind @# ty;
+         } : FCmpOutputType @# ty;
        RetE
          (STRUCT {
             "fst"
@@ -746,14 +746,14 @@ Section Fpu.
             "snd" ::= @Invalid ty _
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition fclass_fn (x_expr : FN expWidthMinus2 sigWidthMinus2 ## ty)
+  Definition FClassFn (x_expr : FN expWidthMinus2 sigWidthMinus2 ## ty)
     :  Bit Xlen ## ty
     := LETE x
          :  FN expWidthMinus2 sigWidthMinus2
          <- x_expr;
        RetE (ZeroExtendTruncLsb Xlen (classify_spec (#x) (Xlen - 10))).
 
-  Definition div_sqrt_fn (sem_in_pkt_expr : inpK expWidthMinus2 sigWidthMinus2 ## ty)
+  Definition FDivSqrtFn (sem_in_pkt_expr : inpK expWidthMinus2 sigWidthMinus2 ## ty)
     :  outK expWidthMinus2 sigWidthMinus2 ## ty
     := LETE sem_in_pkt
          :  inpK expWidthMinus2 sigWidthMinus2
@@ -764,7 +764,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "mac";
-         fuFunc := @mac_fn;
+         fuFunc := @MacFn;
          fuInsts
            := [
                 {|
@@ -775,10 +775,10 @@ Section Fpu.
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10000")
                        ];
-                  inputXform  := muladd_in_pkt $0;
-                  outputXform := muladd_out_pkt;
+                  inputXform  := MacInput $0;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fmsub";
@@ -788,10 +788,10 @@ Section Fpu.
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10001")
                        ];
-                  inputXform  := muladd_in_pkt $1;
-                  outputXform := muladd_out_pkt;
+                  inputXform  := MacInput $1;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fnmsub";
@@ -801,10 +801,10 @@ Section Fpu.
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10010")
                        ];
-                  inputXform  := muladd_in_pkt $2;
-                  outputXform := muladd_out_pkt;
+                  inputXform  := MacInput $2;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fnmadd";
@@ -814,10 +814,10 @@ Section Fpu.
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10011")
                        ];
-                  inputXform  := muladd_in_pkt $3;
-                  outputXform := muladd_out_pkt;
+                  inputXform  := MacInput $3;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrs3 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fadd";
@@ -829,9 +829,9 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00000")
                        ];
                   inputXform  := add_in_pkt $0;
-                  outputXform := muladd_out_pkt;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fsub";
@@ -843,9 +843,9 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00001")
                        ];
                   inputXform  := add_in_pkt $1;
-                  outputXform := muladd_out_pkt;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fmul";
@@ -857,9 +857,9 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00010")
                        ];
                   inputXform  := mul_in_pkt $0;
-                  outputXform := muladd_out_pkt;
+                  outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |}
               ]
       |}.
@@ -868,7 +868,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "fmin_max";
-         fuFunc := @fmin_max_fn;
+         fuFunc := @FMinMaxFn;
          fuInsts
            := [
                 {|
@@ -884,7 +884,7 @@ Section Fpu.
                   inputXform  := fmin_max_in_pkt ($$false);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fmax";
@@ -899,7 +899,7 @@ Section Fpu.
                   inputXform  := fmin_max_in_pkt ($$true);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |}
               ]
        |}.
@@ -908,7 +908,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "fsgn";
-         fuFunc := @fsgn_fn;
+         fuFunc := @FSgnFn;
          fuInsts
            := [
                 {|
@@ -924,7 +924,7 @@ Section Fpu.
                   inputXform  := fsgn_in_pkt $0;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fsgnjn";
@@ -939,7 +939,7 @@ Section Fpu.
                   inputXform  := fsgn_in_pkt $1;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fsgnjx";
@@ -954,7 +954,7 @@ Section Fpu.
                   inputXform  := fsgn_in_pkt $2;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
                 |}
               ]
        |}.
@@ -963,7 +963,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "fmv";
-         fuFunc := fmv_fn;
+         fuFunc := FMvFn;
          fuInsts
            := [
                {|
@@ -989,7 +989,7 @@ Section Fpu.
                            RetE #ret;
                  outputXform := id;
                  optMemXform := None;
-                 instHints := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                 instHints := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                |};
                {|
                  instName   := add_int_infix "fmv" ".x";
@@ -1014,7 +1014,7 @@ Section Fpu.
                                 RetE #ret;
                  outputXform := id;
                  optMemXform := None;
-                 instHints := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+                 instHints := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
                |}
            ]
       |}.
@@ -1023,7 +1023,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "float_int";
-         fuFunc := @float_int_fn;
+         fuFunc := @Float_Int_Fn;
          fuInsts
            := [
                 {|
@@ -1036,10 +1036,10 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt ($$true);
-                  outputXform := float_int_out;
+                  inputXform  := Float_Int_Input ($$true);
+                  outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fcvt.wu";
@@ -1051,10 +1051,10 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00001");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt ($$false);
-                  outputXform := float_int_out;
+                  inputXform  := Float_Int_Input ($$false);
+                  outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fcvt.l";
@@ -1066,10 +1066,10 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt ($$true);
-                  outputXform := float_int_out;
+                  inputXform  := Float_Int_Input ($$true);
+                  outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                 |};
                 {|
                   instName   := add_suffix "fcvt.lu";
@@ -1081,10 +1081,10 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00001");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := float_int_in_pkt ($$false);
-                  outputXform := float_int_out;
+                  inputXform  := Float_Int_Input ($$false);
+                  outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                 |}
               ]
       |}.
@@ -1093,7 +1093,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
         fuName := add_suffix "int_float";
-        fuFunc := @int_float_fn;
+        fuFunc := @Int_Float_Fn;
         fuInsts
           := [
                {|
@@ -1117,9 +1117,9 @@ Section Fpu.
                               "afterRounding" ::= $$true;
                               "roundingMode" ::= rounding_mode (#context_pkt)
                             } : INToNFInput @# ty);
-                 outputXform := int_float_out;
+                 outputXform := Int_float_Output;
                  optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+                 instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
                |};
                {|
                  instName   := add_infix "fcvt" ".wu";
@@ -1142,9 +1142,9 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := int_float_out;
+                 outputXform := Int_float_Output;
                  optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+                 instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
                |};
                {|
                  instName   := add_infix "fcvt" ".l";
@@ -1167,9 +1167,9 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := int_float_out;
+                 outputXform := Int_float_Output;
                  optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+                 instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
                |};
                {|
                  instName   := add_infix "fcvt" ".lu";
@@ -1192,9 +1192,9 @@ Section Fpu.
                                 "afterRounding" ::= $$true;
                                 "roundingMode" ::= rounding_mode (#context_pkt)
                               } : INToNFInput @# ty);
-                 outputXform := int_float_out;
+                 outputXform := Int_float_Output;
                  optMemXform := None;
-                 instHints   := falseHints[[hasRs1 := true]][[hasFrd := true]] 
+                 instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
                |}
             ]
       |}.
@@ -1203,7 +1203,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
           fuName := add_suffix "fcmp";
-          fuFunc := cmp_fn;
+          fuFunc := CmpFn;
           fuInsts
             := [
                  {|
@@ -1219,7 +1219,7 @@ Section Fpu.
                    inputXform  := cmp_in_pkt ($$false) cmp_cond_eq cmp_cond_not_used;
                    outputXform := id;
                    optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+                   instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
                  |};
                  {|
                    instName   := add_suffix "flt";
@@ -1234,7 +1234,7 @@ Section Fpu.
                    inputXform  := cmp_in_pkt ($$true) cmp_cond_lt cmp_cond_not_used;
                    outputXform := id;
                    optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+                   instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
                  |};
                  {|
                    instName   := add_suffix "fle";
@@ -1249,7 +1249,7 @@ Section Fpu.
                    inputXform  := cmp_in_pkt ($$true) cmp_cond_lt cmp_cond_eq;
                    outputXform := id;
                    optMemXform := None;
-                   instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasRd := true]] 
+                   instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
                  |}
                ]
        |}.
@@ -1258,7 +1258,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "fclass";
-         fuFunc := fclass_fn;
+         fuFunc := FClassFn;
          fuInsts
            := [
                 {|
@@ -1272,10 +1272,10 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11100")
                        ];
-                  inputXform  := fclass_in_pkt;
-                  outputXform := fclass_out_pkt;
+                  inputXform  := FClassInput;
+                  outputXform := FClassOutput;
                   optMemXform := None;
-                  instHints   := falseHints[[hasFrs1 := true]][[hasRd := true]] 
+                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
                 |}
              ]
        |}.
@@ -1284,7 +1284,7 @@ Section Fpu.
     :  @FUEntry ty
     := {|
          fuName := add_suffix "fdivsqrt";
-         fuFunc := div_sqrt_fn;
+         fuFunc := FDivSqrtFn;
          fuInsts
          := [
               {|
@@ -1296,10 +1296,10 @@ Section Fpu.
                        fieldVal opcodeField   ('b"10100");
                        fieldVal rs3Field      ('b"00011")
                      ];
-                inputXform  := fdiv_sqrt_in_pkt ($$false);
-                outputXform := fdiv_sqrt_out_pkt;
+                inputXform  := FDivSqrtInput ($$false);
+                outputXform := FDivSqrtOutput;
                 optMemXform := None;
-                instHints   := falseHints[[hasFrs1 := true]][[hasFrs2 := true]][[hasFrd := true]]
+                instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}}
               |};
               {|
                 instName   := add_suffix "fsqrt";
@@ -1311,10 +1311,10 @@ Section Fpu.
                        fieldVal rs2Field      ('b"00000");
                        fieldVal rs3Field      ('b"01011")
                      ];
-                inputXform  := fdiv_sqrt_in_pkt ($$true);
-                outputXform := fdiv_sqrt_out_pkt;
+                inputXform  := FDivSqrtInput ($$true);
+                outputXform := FDivSqrtOutput;
                 optMemXform := None;
-                instHints   := falseHints[[hasFrs1 := true]][[hasFrd := true]]
+                instHints   := falseHints{{hasFrs1 := true}}{{hasFrd := true}}
               |}
             ]
        |}.
