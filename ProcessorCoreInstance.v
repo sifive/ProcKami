@@ -37,7 +37,7 @@ Section Parametrize.
               "RV64A"    ::= $$(false);
               "RV32F"    ::= $$(true);
               "RV64F"    ::= $$(false);
-              "RV32D"    ::= $$(true); (* will change RLEN to 64 bits *)
+              "RV32D"    ::= $$(false); (* will change RLEN to 64 bits *)
               "RV64D"    ::= $$(false);
               "RV32C"    ::= $$(true);
               "RV64C"    ::= $$(false)
