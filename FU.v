@@ -305,14 +305,19 @@ Section Params.
   End Fields.
 
   Definition fetch (pc: VAddr @# ty)
-    := (Call instException : PktWithException Inst <- ^"fetch"(pc: _);
-          LET retVal : PktWithException FetchPkt <- STRUCT {
-                                          "fst" ::= (STRUCT {
-                                                         "pc" ::= pc ;
-                                                         "inst" ::= #instException @% "fst"
-                                                       } : FetchPkt @# ty);
-                                          "snd" ::= #instException @% "snd"
-                                        } : PktWithException FetchPkt @# ty;
+    := (Call instException
+          :  PktWithException Inst
+          <- ^"fetch"(pc: _);
+        LET retVal
+          :  PktWithException FetchPkt
+          <- STRUCT {
+               "fst"
+                 ::= (STRUCT {
+                       "pc" ::= pc ;
+                       "inst" ::= #instException @% "fst"
+                     } : FetchPkt @# ty);
+               "snd" ::= #instException @% "snd"
+             } : PktWithException FetchPkt @# ty;
           Ret #retVal)%kami_action.
 
   Section Decompressor.
