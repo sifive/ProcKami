@@ -462,7 +462,7 @@ Section Fpu.
                              "tag" ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                              "data"
                                ::= (ZeroExtendTruncLsb Rlen
-                                      (pack (#sem_out_pkt @% "outNf"))
+                                      (pack (NFToBit (#sem_out_pkt @% "outNf")))
                                     : Bit Rlen @# ty)
                            });
                      "val2"
