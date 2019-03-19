@@ -28,6 +28,9 @@ Definition fcsr_frmField := (7, 5).
 Definition RegIdWidth := 5.
 Definition RegId := Bit RegIdWidth.
 
+Definition CsrIdWidth := 12.
+Definition CsrId := Bit CsrIdWidth.
+
 Definition Extensions := STRUCT {
                              "RV32I"    :: Bool ;
                              "RV64I"    :: Bool ;
@@ -211,8 +214,8 @@ Section Params.
                                "data" :: Bit Flen }.
 
   Definition CsrWrite := STRUCT {
-                             "index" :: Bit 12 ;
-                             "data" :: Data }.
+                             "index" :: CsrId ;
+                             "data" :: CsrValue }.
 
   Definition MemRead := STRUCT {
                             "data" :: Data ;
@@ -309,6 +312,128 @@ Section Params.
       := fcsr $[fst fcsr_frmField: snd fcsr_frmField].
 
   End Fields.
+
+  Section CSR.
+    (*
+      This section defines the interface between the processor core and
+      the CSR registers.
+
+      A number of CSR registers are pseudo registers that read and
+      write subfields within other registers. This module performs the
+      transformations needed to handle this behavior.
+    *)
+
+    Definition csr_fflags_index : CsrId @# ty := $1.
+    Definition csr_frm_index    : CsrId @# ty := $2.
+    Definition csr_fcsr_index   : CsrId @# ty := $3.
+
+    Record CsrEntry
+      := {
+           csr_given_id        : CsrId @# ty;
+           csr_id              : CsrId @# ty;
+           csr_read_transform  : CsrValue @# ty -> CsrValue @# ty;
+           csr_write_transform : CsrValue @# ty -> CsrValue @# ty -> CsrValue @# ty
+         }.
+
+    Local Definition CsrEntries
+      :  list CsrEntry
+      := {|
+           csr_given_id := csr_fflags_index;
+           csr_id       := csr_fcsr_index;
+           csr_read_transform
+             := fun csr_value
+                  => (csr_value & ($31));
+           csr_write_transform
+             := fun curr_csr_value new_csr_value
+                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFFE0"))) | (new_csr_value & $31))
+         |}::
+         {|
+           csr_given_id := csr_frm_index;
+           csr_id       := csr_fcsr_index;
+           csr_read_transform
+             := fun csr_value
+                  => ((csr_value >> $$(natToWord 3 5)) & ($7));
+           csr_write_transform
+             := fun curr_csr_value new_csr_value
+                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF1F"))) | ((new_csr_value & $7) << $$(natToWord 3 5)))
+         |}::
+         nil.
+
+    Local Definition csr_entry_match
+      (csrId : CsrId @# ty)
+      (entry : CsrEntry)
+      :  Bool ## ty
+      := RetE (csrId == csr_given_id entry).
+ 
+    Open Scope kami_action.
+
+    Definition csr_read_raw (csrId : CsrId @# ty)
+      :  ActionT ty CsrValue
+      := LETA csr_id
+           :  CsrId
+           <- convertLetExprSyntax_ActionT
+                (utila_expr_lookup_table_default
+                  CsrEntries
+                  (csr_entry_match csrId)
+                  (fun entry => RetE (csr_id entry))
+                  csrId);
+         Call result
+           :  CsrValue
+           <- ^"read_csr" (#csr_id : CsrId);
+         Ret #result.
+
+    (* TODO: create utila_lookup_table_default function for Kami expressions. *)
+    Definition csrRead (csrId : CsrId @# ty)
+      :  ActionT ty CsrValue
+      := LETA read_result
+           :  CsrValue
+           <- csr_read_raw csrId;
+         LETA result
+           :  CsrValue
+           <- convertLetExprSyntax_ActionT
+                (utila_expr_lookup_table_default
+                  CsrEntries
+                  (csr_entry_match csrId)
+                  (fun entry => RetE (csr_read_transform entry (#read_result)))
+                  (#read_result));
+         Ret #result.
+
+    Definition csrWrite (csrId : CsrId @# ty) (raw_data : Data @# ty)
+      :  ActionT ty Void
+      := LET data
+           :  CsrValue
+           <- ZeroExtendTruncLsb CsrValueWidth raw_data;
+         LETA curr_csr_value
+           :  CsrValue
+           <- csr_read_raw csrId;
+         LETA new_csr_value
+           :  CsrValue
+           <- convertLetExprSyntax_ActionT
+                (utila_expr_lookup_table_default
+                  CsrEntries
+                  (csr_entry_match csrId)
+                  (fun entry => RetE (csr_write_transform entry (#curr_csr_value) (#data)))
+                  (#data));
+        LET csr_write_pkt
+          :  CsrWrite
+          <- STRUCT {
+               "index" ::= csrId;
+               "data"  ::= #new_csr_value
+             };
+        Call ^"csrWrite" (#csr_write_pkt : _);
+        System (
+          DispString _ " Reg Write Wrote " ::
+          DispBit (#new_csr_value) (32, Decimal) ::
+          DispString _ " to CSR " ::
+          DispBit (csrId) (32, Decimal) ::
+          DispString _ "\n" ::
+          nil
+        );
+        Retv.
+
+    Close Scope kami_action.
+
+  End CSR.
 
   Definition fetch (pc: VAddr @# ty)
     := (Call instException
@@ -1041,15 +1166,8 @@ Section Params.
          LET val1_data : Data <- (#val1 @% "data") @% "data" ;
          LET val2_data : Data <- (#val2 @% "data") @% "data" ;
          LET reg_index : RegId <- rd inst;
-      
-(*
-         LET write1Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
-                                            "data" ::= #val1_data };
-         LET write2Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
-                                            "data" ::= #val2_data };
-*)
          LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
-                                           "data" ::= #val1_data };
+                                           "data" ::= ZeroExtendTruncLsb CsrValueWidth #val1_data };
          (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
          If (!(cxt @% "snd" @% "valid"))
          then (
@@ -1062,19 +1180,11 @@ Section Params.
                 else (If (#val1_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val1_data)
                       else (If (#val1_pos == $CsrTag)
-                            then Call ^"csrWrite"(#writeCsr: _);
-                                 System [
-                                   DispString _ " Reg Write Wrote ";
-                                   DispBit (#writeCsr @% "data") (32, Decimal);
-                                   DispString _ " to CSR ";
-                                   DispBit (#writeCsr @% "index") (32, Decimal);
-                                   DispString _ "\n"
-                                 ]%list;
-                                 Retv
+                            then csrWrite (imm inst) (#val1_data)
                             else (If (#val1_pos == $FflagsTag)
-                                  then Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data; Retv
+                                  then csrWrite csr_fflags_index (#val1_data)
                                   else (If (#val1_pos == $FloatCsrTag)
-                                        then (Call ^"fcsrWrite" (#val1_data : _); Retv);
+                                        then csrWrite csr_fcsr_index (#val1_data);
                                         Retv);
                                   Retv);
                             Retv);
@@ -1089,32 +1199,11 @@ Section Params.
                 else (If (#val2_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val2_data)
                       else (If (#val2_pos == $CsrTag)
-                            then Call ^"csrWrite"(#writeCsr: _);
-                                 System [
-                                   DispString _ " Reg Write Wrote ";
-                                   DispBit (#writeCsr @% "data") (32, Decimal);
-                                   DispString _ " to CSR ";
-                                   DispBit (#writeCsr @% "index") (32, Decimal);
-                                   DispString _ "\n"
-                                 ]%list;
-                                 Retv
+                            then csrWrite (imm inst) (#val2_data)
                             else (If (#val2_pos == $FflagsTag)
-                                  then Write ^"fflags" : Bit 5 <- ZeroExtendTruncLsb 5 #val2_data;
-                                       System [
-                                         DispString _ " Reg Write Wrote ";
-                                         DispBit (#val2_data) (32, Decimal);
-                                         DispString _ " to FFlags\n"
-                                       ]%list;
-                                       Retv
+                                  then csrWrite csr_fflags_index (#val2_data)
                                   else (If (#val2_pos == $FloatCsrTag)
-                                        then
-                                          (Call ^"fcsrWrite" (#val2_data : _);
-                                           System [
-                                             DispString _ " Reg Write Wrote ";
-                                             DispBit (#val2_data) (32, Decimal);
-                                             DispString _ " to FCSR\n"
-                                           ]%list;
-                                           Retv);
+                                        then csrWrite csr_fcsr_index (#val2_data);
                                         Retv);
                                   Retv);
                             Retv);

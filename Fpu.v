@@ -67,65 +67,6 @@ Section Fpu.
     :  Bit len @# ty
     := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
 
-  Definition MacInputType
-    :  Kind
-    := STRUCT {
-           "fcsr"      :: CsrValue;
-           "muladd_in" :: MulAdd_Input expWidthMinus2 sigWidthMinus2
-         }.
-
-  Definition MacOutputType
-    :  Kind
-    := STRUCT {
-           "fcsr"       :: CsrValue;
-           "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
-         }.
-
-  Definition FMinMaxInputType
-    :  Kind
-    := STRUCT {
-           "fcsr" :: CsrValue;
-           "arg1" :: NF expWidthMinus2 sigWidthMinus2;
-           "arg2" :: NF expWidthMinus2 sigWidthMinus2;
-           "max"  :: Bool
-         }.
-
-  Definition FMinMaxOutputType
-    :  Kind
-    := STRUCT {
-           "fcsr"   :: Maybe CsrValue;
-           "result" :: Bit len
-         }.
-
-  Definition cmp_cond_width := 2.
-
-  Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
-
-  Definition FCmpInputType
-    :  Kind
-    := STRUCT {
-           "fcsr"   :: CsrValue;
-           "signal" :: Bool;
-           "cond0"  :: cmp_cond_kind;
-           "cond1"  :: cmp_cond_kind;
-           "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
-           "arg2"   :: NF expWidthMinus2 sigWidthMinus2
-         }.
-
-  Definition FCmpOutputType
-    :  Kind
-    := STRUCT {
-           "fcsr"   :: Maybe CsrValue;
-           "result" :: Bit len
-         }.
-
-  Definition FSgnInputType
-    :  Kind
-    := STRUCT {
-           "sign_bit" :: Bit 1;
-           "arg1"     :: Bit len
-         }.
-
   Local Notation "x {{ proj  :=  v }}"
     := (set proj (constructor v) x)
          (at level 14, left associativity).
@@ -204,6 +145,20 @@ Section Fpu.
                      (result @% "lt")
                      (result @% "gt"))). 
 
+  Definition MacInputType
+    :  Kind
+    := STRUCT {
+           "fcsr"      :: CsrValue;
+           "muladd_in" :: MulAdd_Input expWidthMinus2 sigWidthMinus2
+         }.
+
+  Definition MacOutputType
+    :  Kind
+    := STRUCT {
+           "fcsr"       :: CsrValue;
+           "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
+         }.
+
   Definition MacInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
     :  MacInputType ## ty
     := LETE context_pkt
@@ -261,85 +216,6 @@ Section Fpu.
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
           } : MacInputType @# ty).
 
-  Definition FMinMaxInput (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  FMinMaxInputType ## ty
-    := LETE context_pkt
-         :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fcsr" ::= #context_pkt @% "fcsr";
-            "arg1" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "arg2" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
-            "max"  ::= max
-          } : FMinMaxInputType @# ty).
-
-  Definition FSgnInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  FSgnInputType ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "sign_bit"
-              ::= Switch op Retn (Bit 1) With {
-                    (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
-                    (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2")));
-                    (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))) ^
-                                                    (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))))
-                  };
-            "arg1"     ::= (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))
-          } : FSgnInputType @# ty).
-
-  Definition Float_Int_Input (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "inNF"         ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "roundingMode" ::= rounding_mode (#context_pkt);
-            "signedOut"    ::= signed
-          } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
-
-  Definition FCmpInput
-      (signal : Bool @# ty)
-      (cond0 : cmp_cond_kind @# ty)
-      (cond1 : cmp_cond_kind @# ty)
-      (context_pkt_expr : ExecContextPkt ## ty)
-    :  FCmpInputType ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fcsr"   ::= #context_pkt @% "fcsr";
-            "signal" ::= signal;
-            "cond0"  ::= cond0;
-            "cond1"  ::= cond1;
-            "arg1"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "arg2"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))
-          } : FCmpInputType @# ty).
-
-  Definition FClassInput (context_pkt_expr : ExecContextPkt ## ty)
-    :  FN expWidthMinus2 sigWidthMinus2 ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
-
-  Definition FDivSqrtInput (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
-    :  inpK expWidthMinus2 sigWidthMinus2 ## ty
-    := LETE context_pkt
-         :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "isSqrt" ::= sqrt;
-            "nfA"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "nfB"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
-            "round"  ::= rounding_mode (#context_pkt);
-            "tiny"   ::= $$true
-          } : inpK expWidthMinus2 sigWidthMinus2 @# ty).
-
   Definition MacOutput (sem_out_pkt_expr : MacOutputType ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
@@ -358,117 +234,6 @@ Section Fpu.
                        ::= Valid (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
                              "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Rlen @# ty)
-                           });
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
-            "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
-
-  Definition Float_Int_Output (sem_out_pkt_expr : NFToINOutput ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
-    := LETE sem_out_pkt
-         :  NFToINOutput
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= ZeroExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
-                           });
-                     "val2"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                             "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
-                           });
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
-            "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
-
-  Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
-    := LETE sem_out_pkt
-         :  OpOutput expWidthMinus2 sigWidthMinus2
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                             "data"
-                               ::= ZeroExtendTruncLsb Rlen
-                                     (NFToBit
-                                        ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
-                                      : Bit len @# ty)
-                                 });
-                     "val2"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                             "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
-                           });
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
-            "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
-
-  Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
-    := LETE res
-         :  Bit Xlen
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= ZeroExtendTruncLsb Rlen #res
-                           } : RoutedReg @# ty);
-                     "val2" ::= @Invalid ty _;
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
-            "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
-
-  Definition FDivSqrtOutput (sem_out_pkt_expr : outK expWidthMinus2 sigWidthMinus2 ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
-    := LETE sem_out_pkt
-         :  outK expWidthMinus2 sigWidthMinus2
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
-                             "tag" ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                             "data"
-                               ::= (ZeroExtendTruncLsb Rlen
-                                      (pack (NFToBit (#sem_out_pkt @% "outNf")))
-                                    : Bit Rlen @# ty)
-                           });
-                     "val2"
-                       ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
-                             "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                            });
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                      "taken?" ::= $$false;
@@ -601,6 +366,35 @@ Section Fpu.
               ]
       |}.
 
+  Definition FMinMaxInputType
+    :  Kind
+    := STRUCT {
+           "fcsr" :: CsrValue;
+           "arg1" :: NF expWidthMinus2 sigWidthMinus2;
+           "arg2" :: NF expWidthMinus2 sigWidthMinus2;
+           "max"  :: Bool
+         }.
+
+  Definition FMinMaxOutputType
+    :  Kind
+    := STRUCT {
+           "fcsr"   :: Maybe CsrValue;
+           "result" :: Bit len
+         }.
+
+  Definition FMinMaxInput (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+    :  FMinMaxInputType ## ty
+    := LETE context_pkt
+         :  ExecContextPkt
+         <- context_pkt_expr;
+       RetE
+         (STRUCT {
+            "fcsr" ::= #context_pkt @% "fcsr";
+            "arg1" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
+            "arg2" ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
+            "max"  ::= max
+          } : FMinMaxInputType @# ty).
+
   Definition FMinMax
     :  @FUEntry ty
     := {|
@@ -711,6 +505,29 @@ Section Fpu.
                 |}
               ]
        |}.
+
+  Definition FSgnInputType
+    :  Kind
+    := STRUCT {
+           "sign_bit" :: Bit 1;
+           "arg1"     :: Bit len
+         }.
+
+  Definition FSgnInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+    :  FSgnInputType ## ty
+    := LETE context_pkt
+         <- context_pkt_expr;
+       RetE
+         (STRUCT {
+            "sign_bit"
+              ::= Switch op Retn (Bit 1) With {
+                    (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
+                    (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2")));
+                    (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))) ^
+                                                    (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))))
+                  };
+            "arg1"     ::= (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))
+          } : FSgnInputType @# ty).
 
   Definition FSgn
     :  @FUEntry ty
@@ -891,6 +708,44 @@ Section Fpu.
            ]
       |}.
 
+  Definition Float_Int_Input (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+    :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
+    := LETE context_pkt
+         <- context_pkt_expr;
+       RetE
+         (STRUCT {
+            "inNF"         ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
+            "roundingMode" ::= rounding_mode (#context_pkt);
+            "signedOut"    ::= signed
+          } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
+
+  Definition Float_Int_Output (sem_out_pkt_expr : NFToINOutput ## ty)
+    :  PktWithException ExecContextUpdPkt ## ty
+    := LETE sem_out_pkt
+         :  NFToINOutput
+         <- sem_out_pkt_expr;
+       RetE
+         (STRUCT {
+            "fst"
+              ::= (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                             "data" ::= ZeroExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
+                           });
+                     "val2"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
+                             "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
+                           });
+                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false
+                   } : ExecContextUpdPkt @# ty);
+            "snd" ::= Invalid
+          } : PktWithException ExecContextUpdPkt @# ty).
+
   Definition Float_int
     :  @FUEntry ty
     := {|
@@ -976,6 +831,37 @@ Section Fpu.
                 |}
               ]
       |}.
+
+  Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
+    :  PktWithException ExecContextUpdPkt ## ty
+    := LETE sem_out_pkt
+         :  OpOutput expWidthMinus2 sigWidthMinus2
+         <- sem_out_pkt_expr;
+       RetE
+         (STRUCT {
+            "fst"
+              ::= (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                             "data"
+                               ::= ZeroExtendTruncLsb Rlen
+                                     (NFToBit
+                                        ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
+                                      : Bit len @# ty)
+                                 });
+                     "val2"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
+                             "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
+                           });
+                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false
+                   } : ExecContextUpdPkt @# ty);
+            "snd" ::= Invalid
+          } : PktWithException ExecContextUpdPkt @# ty).
 
   Definition Int_float
     :  @FUEntry ty
@@ -1099,6 +985,46 @@ Section Fpu.
              ]
       |}.
 
+  Definition cmp_cond_width := 2.
+
+  Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
+
+  Definition FCmpInputType
+    :  Kind
+    := STRUCT {
+           "fcsr"   :: CsrValue;
+           "signal" :: Bool;
+           "cond0"  :: cmp_cond_kind;
+           "cond1"  :: cmp_cond_kind;
+           "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
+           "arg2"   :: NF expWidthMinus2 sigWidthMinus2
+         }.
+
+  Definition FCmpOutputType
+    :  Kind
+    := STRUCT {
+           "fcsr"   :: Maybe CsrValue;
+           "result" :: Bit len
+         }.
+
+  Definition FCmpInput
+      (signal : Bool @# ty)
+      (cond0 : cmp_cond_kind @# ty)
+      (cond1 : cmp_cond_kind @# ty)
+      (context_pkt_expr : ExecContextPkt ## ty)
+    :  FCmpInputType ## ty
+    := LETE context_pkt
+         <- context_pkt_expr;
+       RetE
+         (STRUCT {
+            "fcsr"   ::= #context_pkt @% "fcsr";
+            "signal" ::= signal;
+            "cond0"  ::= cond0;
+            "cond1"  ::= cond1;
+            "arg1"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
+            "arg2"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))
+          } : FCmpInputType @# ty).
+
   Definition FCmp
     :  @FUEntry ty
     := {|
@@ -1216,6 +1142,36 @@ Section Fpu.
               ]
        |}.
 
+  Definition FClassInput (context_pkt_expr : ExecContextPkt ## ty)
+    :  FN expWidthMinus2 sigWidthMinus2 ## ty
+    := LETE context_pkt
+         <- context_pkt_expr;
+       RetE
+         (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
+
+  Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
+    :  PktWithException ExecContextUpdPkt ## ty
+    := LETE res
+         :  Bit Xlen
+         <- sem_out_pkt_expr;
+       RetE
+         (STRUCT {
+            "fst"
+              ::= (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                             "data" ::= ZeroExtendTruncLsb Rlen #res
+                           } : RoutedReg @# ty);
+                     "val2" ::= @Invalid ty _;
+                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false
+                   } : ExecContextUpdPkt @# ty);
+            "snd" ::= Invalid
+          } : PktWithException ExecContextUpdPkt @# ty).
+
   Definition FClass
     :  @FUEntry ty
     := {|
@@ -1247,6 +1203,50 @@ Section Fpu.
                 |}
              ]
        |}.
+
+  Definition FDivSqrtInput (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+    :  inpK expWidthMinus2 sigWidthMinus2 ## ty
+    := LETE context_pkt
+         :  ExecContextPkt
+         <- context_pkt_expr;
+       RetE
+         (STRUCT {
+            "isSqrt" ::= sqrt;
+            "nfA"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
+            "nfB"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
+            "round"  ::= rounding_mode (#context_pkt);
+            "tiny"   ::= $$true
+          } : inpK expWidthMinus2 sigWidthMinus2 @# ty).
+
+  Definition FDivSqrtOutput (sem_out_pkt_expr : outK expWidthMinus2 sigWidthMinus2 ## ty)
+    :  PktWithException ExecContextUpdPkt ## ty
+    := LETE sem_out_pkt
+         :  outK expWidthMinus2 sigWidthMinus2
+         <- sem_out_pkt_expr;
+       RetE
+         (STRUCT {
+            "fst"
+              ::= (STRUCT {
+                     "val1"
+                       ::= Valid (STRUCT {
+                             "tag" ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                             "data"
+                               ::= (ZeroExtendTruncLsb Rlen
+                                      (pack (NFToBit (#sem_out_pkt @% "outNf")))
+                                    : Bit Rlen @# ty)
+                           });
+                     "val2"
+                       ::= Valid (STRUCT {
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
+                             "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
+                           });
+                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                     "taken?" ::= $$false;
+                     "aq" ::= $$false;
+                     "rl" ::= $$false
+                   } : ExecContextUpdPkt @# ty);
+            "snd" ::= Invalid
+          } : PktWithException ExecContextUpdPkt @# ty).
 
   Definition FDivSqrt
     :  @FUEntry ty
