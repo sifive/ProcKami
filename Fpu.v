@@ -131,25 +131,13 @@ Section Fpu.
          (fcsr_frm (context_pkt @% "fcsr"))
          rounding_mode.
 
-  Definition cmp_cond_not_used : cmp_cond_kind @# ty := $0.
-  Definition cmp_cond_eq : cmp_cond_kind @# ty := $1.
-  Definition cmp_cond_lt : cmp_cond_kind @# ty := $2.
-  Definition cmp_cond_gt : cmp_cond_kind @# ty := $3.
-
-  Definition cmp_cond_get (cond : cmp_cond_kind @# ty) (result : Compare_Output @# ty)
-    := ITE (cond == cmp_cond_not_used)
-           ($$false)
-           (ITE (cond == cmp_cond_eq)
-                (result @% "eq")
-                (ITE (cond == cmp_cond_lt)
-                     (result @% "lt")
-                     (result @% "gt"))). 
+  Close Scope kami_expr.
 
   Definition MacInputType
     :  Kind
     := STRUCT {
            "fcsr"      :: CsrValue;
-           "muladd_in" :: MulAdd_Input expWidthMinus2 sigWidthMinus2
+           "muladd_in" :: (MulAdd_Input expWidthMinus2 sigWidthMinus2)
          }.
 
   Definition MacOutputType
@@ -158,6 +146,8 @@ Section Fpu.
            "fcsr"       :: CsrValue;
            "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
          }.
+
+  Open Scope kami_expr.
 
   Definition MacInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
     :  MacInputType ## ty
@@ -366,6 +356,8 @@ Section Fpu.
               ]
       |}.
 
+  Close Scope kami_expr.
+
   Definition FMinMaxInputType
     :  Kind
     := STRUCT {
@@ -381,6 +373,8 @@ Section Fpu.
            "fcsr"   :: Maybe CsrValue;
            "result" :: Bit len
          }.
+
+  Open Scope kami_expr.
 
   Definition FMinMaxInput (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  FMinMaxInputType ## ty
@@ -506,12 +500,16 @@ Section Fpu.
               ]
        |}.
 
+  Close Scope kami_expr.
+
   Definition FSgnInputType
     :  Kind
     := STRUCT {
            "sign_bit" :: Bit 1;
            "arg1"     :: Bit len
          }.
+
+  Open Scope kami_expr.
 
   Definition FSgnInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  FSgnInputType ## ty
@@ -989,6 +987,22 @@ Section Fpu.
 
   Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
 
+  Definition cmp_cond_not_used : cmp_cond_kind @# ty := $0.
+  Definition cmp_cond_eq : cmp_cond_kind @# ty := $1.
+  Definition cmp_cond_lt : cmp_cond_kind @# ty := $2.
+  Definition cmp_cond_gt : cmp_cond_kind @# ty := $3.
+
+  Definition cmp_cond_get (cond : cmp_cond_kind @# ty) (result : Compare_Output @# ty)
+    := ITE (cond == cmp_cond_not_used)
+           ($$false)
+           (ITE (cond == cmp_cond_eq)
+                (result @% "eq")
+                (ITE (cond == cmp_cond_lt)
+                     (result @% "lt")
+                     (result @% "gt"))). 
+
+  Close Scope kami_expr.
+
   Definition FCmpInputType
     :  Kind
     := STRUCT {
@@ -1006,6 +1020,8 @@ Section Fpu.
            "fcsr"   :: Maybe CsrValue;
            "result" :: Bit len
          }.
+
+  Open Scope kami_expr.
 
   Definition FCmpInput
       (signal : Bool @# ty)

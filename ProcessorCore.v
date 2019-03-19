@@ -343,10 +343,24 @@ Section Params.
            (Bit Flen)
            (RFNonFile None).
     
+    Definition numCsrRegs : nat := Nat.pow 2 12.
+
+    Definition csrRegFile
+      :  RegFileBase
+      := @Build_RegFileBase 
+           false
+           Xlen_over_8
+           (^"csr_data_reg")
+           (Async [(^"read_csr")])
+           (^"csrWrite")
+           numCsrRegs
+           (Bit Xlen)
+           (RFNonFile None).
+
     Definition model
       := getRtl
            ([],
-             ([intRegFile; floatRegFile],
+             ([intRegFile; floatRegFile; csrRegFile],
               processorCore)).
 
     Local Close Scope list.
