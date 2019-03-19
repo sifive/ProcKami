@@ -16,16 +16,18 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
 
-  Section pipeline.
+  Section model.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
@@ -66,7 +68,7 @@ Section Params.
       ].
 
     Local Open Scope list.
-    Definition pipeline 
+    Definition processorCore 
       :  BaseModule
       := 
          MODULE {
@@ -132,7 +134,7 @@ Section Params.
                      ];
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
-                     <- readerWithException name
+                     <- readerWithException name Flen_over_8
                           (ITE
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
@@ -285,6 +287,7 @@ Section Params.
                      :  Void
                      <- commit
                           name
+                          Flen_over_8
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt)
@@ -312,10 +315,44 @@ Section Params.
                    Retv
          }.
 
+    Definition numIntRegs : nat := 32.
+
+    Definition intRegFile
+      :  RegFileBase
+      := @Build_RegFileBase
+           false
+           Xlen_over_8
+           (^"int_data_reg")
+           (Async [(^"read_reg_1"); (^"read_reg_2")])
+           (^"regWrite")
+           numIntRegs
+           (Bit Xlen)
+           (RFNonFile None).
+
+    Definition numFloatRegs : nat := 32.
+
+    Definition floatRegFile
+      :  RegFileBase
+      := @Build_RegFileBase 
+           false
+           Flen_over_8
+           (^"float_data_reg")
+           (Async [(^"read_freg_1"); (^"read_freg_2"); (^"read_freg_3")])
+           (^"fregWrite")
+           numFloatRegs
+           (Bit Flen)
+           (RFNonFile None).
+    
+    Definition model
+      := getRtl
+           ([],
+             ([intRegFile; floatRegFile],
+              processorCore)).
+
     Local Close Scope list.
 
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
 
-  End pipeline.
+  End model.
 End Params.

@@ -132,8 +132,7 @@ Section Parametrize.
          ].
 
   Definition rtlMod
-    := getRtl
-         ([], ([], (@pipeline "proc_core" Xlen_over_8 Rlen_over_8 fu_params_single func_units mode exts))).
+    := model "proc_core" Flen_over_8 fu_params_single func_units mode exts.
 
   (* Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins. *)
 

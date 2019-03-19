@@ -65,7 +65,8 @@ Definition LoadPageFault      := 13.
 Definition SAmoPageFault      := 15.
 
 (* TODO: Verify *)
-Definition CsrValueWidth : nat := 32.
+Definition Clen_over_8 : nat := 4.
+Definition CsrValueWidth : nat := Clen_over_8 * 8.
 Definition CsrValue : Kind := Bit CsrValueWidth.
 
 Definition RoutingTagSz := 4.
@@ -122,14 +123,15 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
-
   Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation VAddr := (Bit Xlen).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
@@ -200,9 +202,13 @@ Section Params.
                                  "tag" :: RoutingTag ;
                                  "reg_data" :: Maybe Data }.
 
-  Definition RegWrite := STRUCT {
+  Definition IntRegWrite := STRUCT {
                              "index" :: RegId ;
-                             "data" :: Data }.
+                             "data" :: Bit Xlen }.
+
+  Definition FloatRegWrite := STRUCT {
+                               "index" :: RegId ;
+                               "data" :: Bit Flen }.
 
   Definition CsrWrite := STRUCT {
                              "index" :: Bit 12 ;
@@ -826,14 +832,18 @@ Section Params.
     Definition reg_reader_read_reg n
                (reg_id : RegId @# ty)
       :  ActionT ty Data
-      := Call reg_val : Data <- (^"read_reg_" ++ natToHexStr n)(reg_id : RegId);
-           Ret (#reg_val).
+      := Call reg_val
+           :  Bit Xlen
+           <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
+           Ret (ZeroExtendTruncLsb Rlen (#reg_val)).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
       :  ActionT ty Data
-      := Call freg_val : Data <- (^"read_freg_" ++ natToHexStr n)(freg_id : RegId);
-           Ret (#freg_val).
+      := Call freg_val
+           :  Bit Flen
+           <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
+           Ret (ZeroExtendTruncLsb Rlen (#freg_val)).
 
     Definition reg_reader_read_fcsr
       :  ActionT ty CsrValue
@@ -981,6 +991,46 @@ Section Params.
       Local Open Scope kami_expr.
       Import ListNotations.
 
+      Local Definition reg_writer_write_reg
+        (reg_id : RegId @# ty)
+        (data : Data @# ty)
+        :  ActionT ty Void
+        := LET pkt
+             :  IntRegWrite
+             <- STRUCT {
+                  "index" ::= reg_id;
+                  "data"  ::= ZeroExtendTruncLsb Xlen data
+                };
+           Call ^"regWrite" (#pkt : IntRegWrite);
+           System [
+             DispString _ " Reg Write Wrote ";
+             DispBit data (32, Decimal);
+             DispString _ " to register ";
+             DispBit reg_id (32, Decimal);
+             DispString _ "\n"
+           ]%list;
+           Retv.
+
+      Local Definition reg_writer_write_freg
+        (reg_id : RegId @# ty)
+        (data : Data @# ty)
+        :  ActionT ty Void
+        := LET pkt
+             :  FloatRegWrite
+             <- STRUCT {
+                  "index" ::= reg_id;
+                  "data"  ::= ZeroExtendTruncLsb Flen data
+                };
+           Call (^"fregWrite") (#pkt : FloatRegWrite);
+           System [
+             DispString _ " Reg Write Wrote ";
+             DispBit data (32, Decimal);
+             DispString _ " to floating point register ";
+             DispBit reg_id (32, Decimal);
+             DispString _ "\n"
+           ]%list;
+           Retv.
+
       Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
         : ActionT ty Void :=
@@ -990,10 +1040,14 @@ Section Params.
          LET val2_pos : RoutingTag <- (#val2 @% "data") @% "tag" ;
          LET val1_data : Data <- (#val1 @% "data") @% "data" ;
          LET val2_data : Data <- (#val2 @% "data") @% "data" ;
+         LET reg_index : RegId <- rd inst;
+      
+(*
          LET write1Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
                                             "data" ::= #val1_data };
          LET write2Pkt: RegWrite <- STRUCT {"index" ::= rd inst ;
                                             "data" ::= #val2_data };
+*)
          LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
                                            "data" ::= #val1_data };
          (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
@@ -1002,27 +1056,11 @@ Section Params.
            If (#val1 @% "valid")
            then 
                (If (#val1_pos == $IntRegTag)
-                then (If (#write1Pkt @% "index" != $0)
-                      then (Call ^"regWrite"(#write1Pkt: _);
-                            System [
-                              DispString _ " Reg Write Wrote ";
-                              DispBit (#write1Pkt @% "data") (32, Decimal);
-                              DispString _ " to register ";
-                              DispBit (#write1Pkt @% "index") (32, Decimal);
-                              DispString _ "\n"
-                            ]%list;
-                            Retv);
+                then (If (#reg_index != $0)
+                      then reg_writer_write_reg (#reg_index) (#val1_data);
                       Retv)
                 else (If (#val1_pos == $FloatRegTag)
-                      then (Call ^"fregWrite"(#write1Pkt: _);
-                            System [
-                              DispString _ " Reg Write Wrote ";
-                              DispBit (#write1Pkt @% "data") (32, Decimal);
-                              DispString _ " to  floating point register ";
-                              DispBit (#write1Pkt @% "index") (32, Decimal);
-                              DispString _ "\n"
-                            ]%list;
-                            Retv)
+                      then reg_writer_write_freg (#reg_index) (#val1_data)
                       else (If (#val1_pos == $CsrTag)
                             then Call ^"csrWrite"(#writeCsr: _);
                                  System [
@@ -1045,27 +1083,11 @@ Section Params.
            If (#val2 @% "valid")
            then
                (If (#val2_pos == $IntRegTag)
-                then (If (#write2Pkt @% "index" != $0)
-                      then (Call ^"regWrite"(#write2Pkt: _);
-                            System [
-                              DispString _ " Reg Write Wrote ";
-                              DispBit (#write2Pkt @% "data") (32, Decimal);
-                              DispString _ " to register ";
-                              DispBit (#write2Pkt @% "index") (32, Decimal);
-                              DispString _ "\n"
-                            ]%list;
-                            Retv);
+                then (If (#reg_index != $0)
+                      then reg_writer_write_reg (#reg_index) (#val2_data);
                       Retv)
                 else (If (#val2_pos == $FloatRegTag)
-                      then (Call ^"fregWrite"(#write2Pkt: _);
-                            System [
-                              DispString _ " Reg Write Wrote ";
-                              DispBit (#write2Pkt @% "data") (32, Decimal);
-                              DispString _ " to floating point register ";
-                              DispBit (#write2Pkt @% "index") (32, Decimal);
-                              DispString _ "\n"
-                            ]%list;
-                            Retv)
+                      then reg_writer_write_freg (#reg_index) (#val2_data)
                       else (If (#val2_pos == $CsrTag)
                             then Call ^"csrWrite"(#writeCsr: _);
                                  System [
