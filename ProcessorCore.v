@@ -359,7 +359,7 @@ Section Params.
 
     Definition model
       := getRtl
-           ([],
+           ([^"read_reg_1"; ^"read_reg_2"; ^"read_freg_1"; ^"regWrite"; ^"read_freg_2"; ^"read_freg_3"; ^"fregWrite"; ^"read_csr"; ^"csrWrite"],
              ([intRegFile; floatRegFile; csrRegFile],
               processorCore)).
 
