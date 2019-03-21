@@ -94,7 +94,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 (#pc);
                    System
                      [
                        DispString _ "Fetched\n";
@@ -336,7 +336,7 @@ Section Params.
       := @Build_RegFileBase 
            false
            Flen_over_8
-           (^"float_data_reg")
+           (^"float_reg_file")
            (Async [(^"read_freg_1"); (^"read_freg_2"); (^"read_freg_3")])
            (^"fregWrite")
            numFloatRegs
@@ -350,19 +350,61 @@ Section Params.
       := @Build_RegFileBase 
            false
            Xlen_over_8
-           (^"csr_data_reg")
-           (Async [(^"read_csr")])
-           (^"csrWrite")
+           (^"csr_reg_file")
+           (Async [(^"read_csr_1"); (^"read_csr_2"); (^"read_csr_3")])
+           (^"write_csr")
            numCsrRegs
            (Bit Xlen)
            (RFNonFile None).
 
+    Definition numMemRegs : nat := Nat.pow 2 20.
+
+    (* TODO: should each memory location be XLEN or RLEN wide? *)
+    Definition memRegFile
+      :  RegFileBase
+      := @Build_RegFileBase
+           false
+           Xlen_over_8
+           (^"mem_reg_file")
+           (Async [^"memRead"])
+           (^"memWrite")
+           numMemRegs
+           (Bit Xlen)
+           (RFFile (Bit Xlen) true "MemoryInit.hex").
+
     Definition model
       := getRtl
-           ([^"read_reg_1"; ^"read_reg_2"; ^"read_freg_1"; ^"regWrite"; ^"read_freg_2"; ^"read_freg_3"; ^"fregWrite"; ^"read_csr"; ^"csrWrite"],
-             ([intRegFile; floatRegFile; csrRegFile],
-              processorCore)).
+           ([
+              ^"read_reg_1"; 
+              ^"read_reg_2"; 
+              ^"read_freg_1"; 
+              ^"regWrite"; 
+              ^"read_freg_2"; 
+              ^"read_freg_3"; 
+              ^"fregWrite"; 
+              ^"read_csr_1";
+              ^"read_csr_2";
+              ^"read_csr_3";
+              ^"write_csr";
+              ^"readMem_1";
+              ^"readMem_2";
+              ^"memWrite"
+            ],
+            ([
+               intRegFile; 
+               floatRegFile; 
+               csrRegFile;
+               memRegFile
+             ],
+             processorCore)).
 
+(*
+    Definition model
+      := getRtl
+           ([],
+             ([],
+              processorCore)).
+*)
     Local Close Scope list.
 
     Local Close Scope kami_expr.

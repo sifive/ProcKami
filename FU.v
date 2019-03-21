@@ -313,7 +313,7 @@ Section Params.
 
   End Fields.
 
-  Section CSR.
+  Section CSRInterface.
     (*
       This section defines the interface between the processor core and
       the CSR registers.
@@ -386,11 +386,14 @@ Section Params.
            csr_id
            csrId.
 
-    Definition csr_read_raw (csrId : CsrId @# ty)
+    (*
+      Note: each call to [csr_read_raw] must have a different index number.
+    *)
+    Definition csr_read_raw (index : nat) (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
       := Call result
            :  CsrValue
-           <- ^"read_csr" (csr_getId csrId : CsrId);
+           <- (^"read_csr_" ++ (natToHexStr index)) (csr_getId csrId : CsrId);
          System (
            DispString _ " CSR Read Raw" ::
            DispBit (#result) (CsrValueWidth, Decimal) ::
@@ -405,11 +408,11 @@ Section Params.
          );
          Ret #result.
 
-    Definition csrRead (csrId : CsrId @# ty)
+    Definition csrRead (index : nat) (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
       := LETA read_result
            :  CsrValue
-           <- csr_read_raw csrId;
+           <- csr_read_raw index csrId;
          Ret
            (utila_lookup_table_default
               CsrEntries
@@ -417,14 +420,14 @@ Section Params.
               (fun entry => csr_read_transform entry (#read_result))
               (#read_result)).
 
-    Definition csrWrite (csrId : CsrId @# ty) (raw_data : Data @# ty)
+    Definition csrWrite (index : nat) (csrId : CsrId @# ty) (raw_data : Data @# ty)
       :  ActionT ty Void
       := LET data
            :  CsrValue
            <- ZeroExtendTruncLsb CsrValueWidth raw_data;
          LETA curr_csr_value
            :  CsrValue
-           <- csr_read_raw csrId;
+           <- csr_read_raw index csrId;
          LET csr_write_pkt
            :  CsrWrite
            <- STRUCT {
@@ -437,7 +440,7 @@ Section Params.
                         (fun entry => csr_write_transform entry (#curr_csr_value) (#data))
                         (#data)
               };
-         Call ^"csrWrite" (#csr_write_pkt : _);
+         Call (^"write_csr") (#csr_write_pkt : _);
          System (
            DispString _ " Reg Write Wrote " ::
            DispBit (#csr_write_pkt @% "data") (CsrValueWidth, Decimal) ::
@@ -457,19 +460,64 @@ Section Params.
 
     Close Scope kami_action.
 
-  End CSR.
+  End CSRInterface.
+
+  Section MemInterface.
+    (*
+      This section defines the interface between the processor core and
+      the RAM.
+    *)
+
+    Open Scope kami_action.
+
+    Definition readMem (index : nat) (addr : VAddr @# ty)
+      :  ActionT ty (PktWithException Data)
+      := Call result
+           :  Data
+           <- (^"readMem" ++ (natToHexStr index)) (addr : VAddr);
+         Ret
+           (STRUCT {
+              "fst" ::= #result;
+              "snd" ::= Invalid
+            } : PktWithException Data @# ty).
+
+    Definition memRead (index : nat) (addr : VAddr @# ty)
+      :  ActionT ty (PktWithException MemRead)
+      := LETA result
+           :  PktWithException Data 
+           <- readMem index addr;
+         Ret 
+           (mkPktWithException
+             (#result)
+             (STRUCT {
+                "fst"
+                  ::= (STRUCT {
+                         "data" ::= #result @% "fst";
+                         "reservation" ::= ($2 : Bit 2 @# ty)
+                       } : MemRead @# ty);
+                "snd" ::= Invalid
+              } : PktWithException MemRead @# ty)).
+
+    Definition writeMem (pkt : MemWrite @# ty)
+      :  ActionT ty (Maybe FullException)
+      := Call ^"memWrite" (pkt : MemWrite);
+         Ret Invalid.
+
+    Close Scope kami_action.
+
+  End MemInterface.
 
   Definition fetch (pc: VAddr @# ty)
-    := (Call instException
-          :  PktWithException Inst
-          <- ^"fetch"(pc: _);
+    := (LETA instException
+          :  PktWithException Data
+          <- readMem 1 pc;
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
                        "pc" ::= pc ;
-                       "inst" ::= #instException @% "fst"
+                       "inst" ::= ZeroExtendTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
              } : PktWithException FetchPkt @# ty;
@@ -1017,7 +1065,7 @@ Section Params.
       *)
       := LETA csr_value
            :  CsrValue
-           <- csrRead (imm raw_instr);
+           <- csrRead 1 (imm raw_instr);
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
@@ -1220,11 +1268,11 @@ Section Params.
                 else (If (#val1_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val1_data)
                       else (If (#val1_pos == $CsrTag)
-                            then csrWrite (imm inst) (#val1_data)
+                            then csrWrite 2 (imm inst) (#val1_data)
                             else (If (#val1_pos == $FflagsTag)
-                                  then csrWrite csr_fflags_index (#val1_data)
+                                  then csrWrite 2 csr_fflags_index (#val1_data)
                                   else (If (#val1_pos == $FloatCsrTag)
-                                        then csrWrite csr_fcsr_index (#val1_data);
+                                        then csrWrite 2 csr_fcsr_index (#val1_data);
                                         Retv);
                                   Retv);
                             Retv);
@@ -1239,11 +1287,11 @@ Section Params.
                 else (If (#val2_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val2_data)
                       else (If (#val2_pos == $CsrTag)
-                            then csrWrite (imm inst) (#val2_data)
+                            then csrWrite 3 (imm inst) (#val2_data)
                             else (If (#val2_pos == $FflagsTag)
-                                  then csrWrite csr_fflags_index (#val2_data)
+                                  then csrWrite 3 csr_fflags_index (#val2_data)
                                   else (If (#val2_pos == $FloatCsrTag)
-                                        then csrWrite csr_fcsr_index (#val2_data);
+                                        then csrWrite 3 csr_fcsr_index (#val2_data);
                                         Retv);
                                   Retv);
                             Retv);
@@ -1318,7 +1366,10 @@ Section Params.
           match getMemEntry fu tag with
           | Some fn =>
             (* TODO: is the proc_core_memRead input getting a PktWithException? *)
-            Call memRead: PktWithException MemRead <- ^"memRead"(addr: _);
+            (* Call memRead: PktWithException MemRead <- ^"memRead"(addr: _); *)
+            LETA memRead
+              :  PktWithException MemRead
+              <- memRead 2 addr;
             System
               (DispString _ "MemRead Result valid: " ::
                DispBool (#memRead @% "snd" @% "valid") (1, Binary) ::
@@ -1356,8 +1407,14 @@ Section Params.
                          };
                     If (#memoryOutput @% "mem" @% "valid")
                   then
+                    (LETA writeEx
+                       :  Maybe FullException
+                       <- writeMem #memWrite;
+                     Ret #writeEx)
+(*
                     (Call writeEx: Maybe FullException <- ^"memWrite"(#memWrite: _);
                        Ret #writeEx)
+*)
                   else
                     Ret (@Invalid _ FullException)
                    as writeEx;
@@ -1398,11 +1455,11 @@ Section Params.
       Local Open Scope kami_action.
 
       (*
-      TODO: connect exceptions from the memory unit.
-      TODO: replace with record updates.
-      TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
-      TODO: accept an exception packet and return an exception packet.
-       *)
+        TODO: connect exceptions from the memory unit.
+        TODO: replace with record updates.
+        TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
+        TODO: accept an exception packet and return an exception packet.
+      *)
       Definition MemUnit
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
