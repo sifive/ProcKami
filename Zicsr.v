@@ -6,7 +6,6 @@
  *)
 Require Import Kami.All.
 Require Import FU.
-Require Import CSRMasks.
 Require Import List.
 Import ListNotations.
 Require Import RecordUpdate.RecordSet.
@@ -95,17 +94,13 @@ Section zicsr.
                      => LETE exec_context_pkt
                           :  ExecContextPkt
                           <- exec_context_pkt_expr;
-                        LETE mask
-                          :  CsrValue
-                          <- csr_mask (imm (#exec_context_pkt @% "inst"));
                         RetE
                           (STRUCT {
                              "orig_csr_value" ::= #exec_context_pkt @% "csr";
                              "new_csr_value" 
                                ::= Valid
-                                     ((ZeroExtendTruncLsb CsrValueWidth
-                                        (#exec_context_pkt @% "reg1")) &
-                                      #mask)
+                                     (ZeroExtendTruncLsb CsrValueWidth
+                                        (#exec_context_pkt @% "reg1"))
                              } : ZicsrInput @# ty);
               outputXform := fun pkt => pkt;
               optMemXform := None;
@@ -125,9 +120,6 @@ Section zicsr.
                        => LETE exec_context_pkt
                             :  ExecContextPkt
                             <- exec_context_pkt_expr;
-                          LETE mask
-                            :  CsrValue
-                            <- csr_mask (imm (#exec_context_pkt @% "inst"));
                           RetE
                             (STRUCT {
                                "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -138,8 +130,7 @@ Section zicsr.
                                        (Valid
                                           ((ZeroExtendTruncLsb CsrValueWidth
                                               (#exec_context_pkt @% "reg1")) ^
-                                           ((#exec_context_pkt @% "csr" @% "data") &
-                                            #mask)))
+                                           (#exec_context_pkt @% "csr" @% "data")))
                                } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -159,9 +150,6 @@ Section zicsr.
                        => LETE exec_context_pkt
                             :  ExecContextPkt
                             <- exec_context_pkt_expr;
-                          LETE mask
-                            :  CsrValue
-                            <- csr_mask (imm (#exec_context_pkt @% "inst"));
                           RetE
                             (STRUCT {
                                "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -173,8 +161,7 @@ Section zicsr.
                                           (((ZeroExtendTruncLsb CsrValueWidth
                                                (#exec_context_pkt @% "reg1")) ^
                                             (~ $(0))) &
-                                           ((#exec_context_pkt @% "csr" @% "data") &
-                                            #mask)))
+                                           (#exec_context_pkt @% "csr" @% "data")))
                                } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -194,17 +181,13 @@ Section zicsr.
                        => LETE exec_context_pkt
                             :  ExecContextPkt
                             <- exec_context_pkt_expr;
-                          LETE mask
-                            :  CsrValue
-                            <- csr_mask (imm (#exec_context_pkt @% "inst"));
                           RetE
                             (STRUCT {
                                "orig_csr_value" ::= #exec_context_pkt @% "csr";
                                "new_csr_value" 
                                  ::= Valid
-                                       ((ZeroExtendTruncLsb CsrValueWidth
-                                          (rs1 (#exec_context_pkt @% "inst"))) &
-                                        #mask)
+                                       (ZeroExtendTruncLsb CsrValueWidth
+                                          (rs1 (#exec_context_pkt @% "inst")))
                              } : ZicsrInput @# ty);
                           outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -224,9 +207,6 @@ Section zicsr.
                        => LETE exec_context_pkt
                             :  ExecContextPkt
                             <- exec_context_pkt_expr;
-                          LETE mask
-                            :  CsrValue
-                            <- csr_mask (imm (#exec_context_pkt @% "inst"));
                           RetE
                             (STRUCT {
                                "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -237,8 +217,7 @@ Section zicsr.
                                        (Valid
                                           ((ZeroExtendTruncLsb CsrValueWidth
                                               (rs1 (#exec_context_pkt @% "inst"))) ^
-                                           ((#exec_context_pkt @% "csr" @% "data") &
-                                            #mask)))
+                                           (#exec_context_pkt @% "csr" @% "data")))
                              } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -258,9 +237,6 @@ Section zicsr.
                      => LETE exec_context_pkt
                           :  ExecContextPkt
                           <- exec_context_pkt_expr;
-                        LETE mask
-                          :  CsrValue
-                          <- csr_mask (imm (#exec_context_pkt @% "inst"));
                         RetE
                           (STRUCT {
                              "orig_csr_value" ::= #exec_context_pkt @% "csr";
@@ -272,8 +248,7 @@ Section zicsr.
                                         (((ZeroExtendTruncLsb CsrValueWidth
                                              (rs1 (#exec_context_pkt @% "inst"))) ^
                                           (~ $(0))) &
-                                         ((#exec_context_pkt @% "csr" @% "data") &
-                                          #mask)))
+                                         (#exec_context_pkt @% "csr" @% "data")))
                              } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;

@@ -345,8 +345,9 @@ Section Params.
                   => (csr_value & ($31));
            csr_write_transform
              := fun curr_csr_value new_csr_value
-                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFFE0"))) | (new_csr_value & $31))
-         |}::
+                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFFE0"))) |
+                      (new_csr_value & $31))
+         |} ::
          {|
            csr_given_id := csr_frm_index;
            csr_id       := csr_fcsr_index;
@@ -355,48 +356,66 @@ Section Params.
                   => ((csr_value >> $$(natToWord 3 5)) & ($7));
            csr_write_transform
              := fun curr_csr_value new_csr_value
-                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF1F"))) | ((new_csr_value & $7) << $$(natToWord 3 5)))
-         |}::
+                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF1F"))) |
+                      ((new_csr_value & $7) << $$(natToWord 3 5)))
+         |} ::
+         {|
+           csr_given_id       := csr_fcsr_index;
+           csr_id             := csr_fcsr_index;
+           csr_read_transform := id;
+           csr_write_transform
+             := fun curr_csr_value new_csr_value
+                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF00"))) |
+                      (new_csr_value & ($255)))
+         |} ::
          nil.
 
     Local Definition csr_entry_match
       (csrId : CsrId @# ty)
       (entry : CsrEntry)
-      :  Bool ## ty
-      := RetE (csrId == csr_given_id entry).
+      :  Bool @# ty
+      := csrId == csr_given_id entry.
  
     Open Scope kami_action.
 
+    Definition csr_getId (csrId : CsrId @# ty)
+      :  CsrId @# ty
+      := utila_lookup_table_default
+           CsrEntries
+           (csr_entry_match csrId)
+           csr_id
+           csrId.
+
     Definition csr_read_raw (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
-      := LETA csr_id
-           :  CsrId
-           <- convertLetExprSyntax_ActionT
-                (utila_expr_lookup_table_default
-                  CsrEntries
-                  (csr_entry_match csrId)
-                  (fun entry => RetE (csr_id entry))
-                  csrId);
-         Call result
+      := Call result
            :  CsrValue
-           <- ^"read_csr" (#csr_id : CsrId);
+           <- ^"read_csr" (csr_getId csrId : CsrId);
+         System (
+           DispString _ " CSR Read Raw" ::
+           DispBit (#result) (CsrValueWidth, Decimal) ::
+           DispString _ "\n" ::
+           DispString _ " from CSR " ::
+           DispBit (csr_getId csrId) (CsrIdWidth, Decimal) ::
+           DispString _ "\n" ::
+           DispString _ " from psuedo CSR " ::
+           DispBit csrId (CsrIdWidth, Decimal) ::
+           DispString _ "\n" ::
+           nil
+         );
          Ret #result.
 
-    (* TODO: create utila_lookup_table_default function for Kami expressions. *)
     Definition csrRead (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
       := LETA read_result
            :  CsrValue
            <- csr_read_raw csrId;
-         LETA result
-           :  CsrValue
-           <- convertLetExprSyntax_ActionT
-                (utila_expr_lookup_table_default
-                  CsrEntries
-                  (csr_entry_match csrId)
-                  (fun entry => RetE (csr_read_transform entry (#read_result)))
-                  (#read_result));
-         Ret #result.
+         Ret
+           (utila_lookup_table_default
+              CsrEntries
+              (csr_entry_match csrId)
+              (fun entry => csr_read_transform entry (#read_result))
+              (#read_result)).
 
     Definition csrWrite (csrId : CsrId @# ty) (raw_data : Data @# ty)
       :  ActionT ty Void
@@ -406,30 +425,35 @@ Section Params.
          LETA curr_csr_value
            :  CsrValue
            <- csr_read_raw csrId;
-         LETA new_csr_value
-           :  CsrValue
-           <- convertLetExprSyntax_ActionT
-                (utila_expr_lookup_table_default
-                  CsrEntries
-                  (csr_entry_match csrId)
-                  (fun entry => RetE (csr_write_transform entry (#curr_csr_value) (#data)))
-                  (#data));
-        LET csr_write_pkt
-          :  CsrWrite
-          <- STRUCT {
-               "index" ::= csrId;
-               "data"  ::= #new_csr_value
-             };
-        Call ^"csrWrite" (#csr_write_pkt : _);
-        System (
-          DispString _ " Reg Write Wrote " ::
-          DispBit (#new_csr_value) (32, Decimal) ::
-          DispString _ " to CSR " ::
-          DispBit (csrId) (32, Decimal) ::
-          DispString _ "\n" ::
-          nil
-        );
-        Retv.
+         LET csr_write_pkt
+           :  CsrWrite
+           <- STRUCT {
+                "index"
+                  ::= csr_getId csrId;
+                "data" 
+                  ::= utila_lookup_table_default
+                        CsrEntries
+                        (csr_entry_match csrId)
+                        (fun entry => csr_write_transform entry (#curr_csr_value) (#data))
+                        (#data)
+              };
+         Call ^"csrWrite" (#csr_write_pkt : _);
+         System (
+           DispString _ " Reg Write Wrote " ::
+           DispBit (#csr_write_pkt @% "data") (CsrValueWidth, Decimal) ::
+           DispString _ "\n" ::
+           DispString _ " to CSR " ::
+           DispBit (csr_getId csrId) (CsrIdWidth, Decimal) ::
+           DispString _ "\n" ::
+           DispString _ " Original value was " ::
+           DispBit (#curr_csr_value) (CsrValueWidth, Decimal) ::
+           DispString _ "\n" ::
+           DispString _ " Raw Write Data value was " ::
+           DispBit (#data) (CsrValueWidth, Decimal) ::
+           DispString _ "\n" ::
+           nil
+         );
+         Retv.
 
     Close Scope kami_action.
 
@@ -976,6 +1000,7 @@ Section Params.
            Ret (#fcsr_val).
     
     Import ListNotations.
+
     Definition reg_reader_read_csr
       (raw_instr : Inst @# ty)
       :  ActionT ty (Maybe CsrValue)
@@ -990,6 +1015,20 @@ Section Params.
         when the instruction is CSRRW or CSRRWI and the destination
         register is x0 or the instruction is not CSRR*.
       *)
+      := LETA csr_value
+           :  CsrValue
+           <- csrRead (imm raw_instr);
+         System [
+           DispString _ "Read CSR Register\n";
+           DispString _ "  CSR ID: ";
+           DispBit (imm raw_instr) (32, Decimal);
+           DispString _ "\n";
+           DispString _ "  CSR Value: ";
+           DispBit (#csr_value) (32, Decimal);
+           DispString _ "\n"
+         ];
+         Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
+(*
       := Call csr_value
            :  CsrValue
            <- ^"read_csr" (imm raw_instr : Bit 12);
@@ -1003,6 +1042,7 @@ Section Params.
            DispString _ "\n"
          ];
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
+*)
 
     Definition reg_reader
                (decoder_pkt : DecoderPkt @# ty)
