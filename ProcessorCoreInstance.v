@@ -14,7 +14,6 @@ Require Import Fpu.
 Require Import Zicsr.
 
 Section Parametrize.
-  Variable initFileName: string.
   Let Xlen_over_8 := 4.
   Let Flen_over_8 := 4.
   Let Rlen_over_8 := max Xlen_over_8 Flen_over_8.
@@ -132,8 +131,8 @@ Section Parametrize.
            Zicsr     Xlen_over_8 Rlen_over_8 _
          ].
 
-  Definition rtlModParam
-    := model initFileName "proc_core" Flen_over_8 fu_params_single func_units mode exts.
+  Definition rtlMod
+    := model "proc_core" Flen_over_8 fu_params_single func_units mode exts.
 
   (* Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins. *)
 

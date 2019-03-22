@@ -12,7 +12,7 @@ Require Import List.
 Import ListNotations.
 
 Section Params.
-  Variable initFileName name: string.
+  Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
@@ -362,7 +362,7 @@ Section Params.
            (^"memWrite")
            (pow2 20)
            (Bit 8)
-           (RFFile _ true initFileName).
+           (RFFile _ true true "testfile").
 
     Definition model
       := getRtl
