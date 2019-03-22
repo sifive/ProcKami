@@ -1044,7 +1044,7 @@ Section Params.
 
     Definition reg_reader_read_fcsr
       :  ActionT ty CsrValue
-      := Call fcsr_val : CsrValue <- ^"read_fcsr" ();
+      := Call fcsr_val : CsrValue <- ^"read_csr_0" (csr_fcsr_index : _);
            Ret (#fcsr_val).
     
     Import ListNotations.

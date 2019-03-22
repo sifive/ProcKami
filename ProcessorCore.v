@@ -315,86 +315,81 @@ Section Params.
                    Retv
          }.
 
-    Definition numIntRegs : nat := 32.
-
     Definition intRegFile
       :  RegFileBase
       := @Build_RegFileBase
            false
-           Xlen_over_8
+           1
            (^"int_data_reg")
            (Async [(^"read_reg_1"); (^"read_reg_2")])
            (^"regWrite")
-           numIntRegs
+           32
            (Bit Xlen)
            (RFNonFile None).
-
-    Definition numFloatRegs : nat := 32.
 
     Definition floatRegFile
       :  RegFileBase
       := @Build_RegFileBase 
            false
-           Flen_over_8
+           1
            (^"float_reg_file")
            (Async [(^"read_freg_1"); (^"read_freg_2"); (^"read_freg_3")])
            (^"fregWrite")
-           numFloatRegs
+           32
            (Bit Flen)
            (RFNonFile None).
     
-    Definition numCsrRegs : nat := Nat.pow 2 12.
-
     Definition csrRegFile
       :  RegFileBase
       := @Build_RegFileBase 
            false
-           Xlen_over_8
+           1
            (^"csr_reg_file")
            (Async [(^"read_csr_1"); (^"read_csr_2"); (^"read_csr_3")])
            (^"write_csr")
-           numCsrRegs
+           (pow2 12)
            (Bit Xlen)
            (RFNonFile None).
-
-    Definition numMemRegs : nat := Nat.pow 2 20.
 
     (* TODO: should each memory location be XLEN or RLEN wide? *)
     Definition memRegFile
       :  RegFileBase
       := @Build_RegFileBase
            false
-           Xlen_over_8
+           Rlen_over_8
            (^"mem_reg_file")
            (Async [^"memRead"])
            (^"memWrite")
-           numMemRegs
-           (Bit Xlen)
-           (RFFile (Bit Xlen) true "MemoryInit.hex").
+           (pow2 20)
+           (Bit 8)
+           (RFFile _ true "MemoryInit.hex").
 
     Definition model
       := getRtl
            ([
               ^"read_reg_1"; 
               ^"read_reg_2"; 
-              ^"read_freg_1"; 
               ^"regWrite"; 
+              ^"read_freg_1"; 
               ^"read_freg_2"; 
               ^"read_freg_3"; 
-              ^"fregWrite"; 
+              ^"fregWrite";
+              ^"read_csr_0";
               ^"read_csr_1";
               ^"read_csr_2";
               ^"read_csr_3";
-              ^"write_csr";
-              ^"readMem_1";
-              ^"readMem_2";
-              ^"memWrite"
+              ^"write_csr"
+              (* ; *)
+              (* ^"readMem_1"; *)
+              (* ^"readMem_2"; *)
+              (* ^"memWrite" *)
             ],
             ([
                intRegFile; 
                floatRegFile; 
-               csrRegFile;
-               memRegFile
+               csrRegFile
+               (* ; *)
+               (* memRegFile *)
              ],
              processorCore)).
 

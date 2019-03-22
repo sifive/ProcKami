@@ -117,15 +117,15 @@ Section Parametrize.
            FClass    Xlen_over_8 Rlen_over_8 fu_params_single _;
            FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_single _;
 
-           Mac       Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FMinMax   Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FSgn      Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FMv       Xlen_over_8 Rlen_over_8 fu_params_double _;
-           Float_int Xlen_over_8 Rlen_over_8 fu_params_double _;
-           Int_float Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FCmp      Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FClass    Xlen_over_8 Rlen_over_8 fu_params_double _;
-           FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_double _;
+           (* Mac       Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FMinMax   Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FSgn      Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FMv       Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* Float_int Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* Int_float Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FCmp      Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FClass    Xlen_over_8 Rlen_over_8 fu_params_double _; *)
+           (* FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_double _; *)
 
            (* RV Zicsr instructions. *)
            Zicsr     Xlen_over_8 Rlen_over_8 _
