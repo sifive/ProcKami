@@ -12,7 +12,7 @@ Require Import List.
 Import ListNotations.
 
 Section Params.
-  Variable name: string.
+  Variable initFileName name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   
   Variable Xlen_over_8: nat.
@@ -358,11 +358,11 @@ Section Params.
            false
            Rlen_over_8
            (^"mem_reg_file")
-           (Async [^"memRead"])
+           (Async [^"readMem1"; ^"readMem2"])
            (^"memWrite")
            (pow2 20)
            (Bit 8)
-           (RFFile _ true "MemoryInit.hex").
+           (RFFile _ true initFileName).
 
     Definition model
       := getRtl
@@ -379,17 +379,17 @@ Section Params.
               ^"read_csr_2";
               ^"read_csr_3";
               ^"write_csr"
-              (* ; *)
-              (* ^"readMem_1"; *)
-              (* ^"readMem_2"; *)
-              (* ^"memWrite" *)
+              ;
+              ^"readMem1";
+              ^"readMem2";
+              ^"memWrite"
             ],
             ([
                intRegFile; 
                floatRegFile; 
                csrRegFile
-               (* ; *)
-               (* memRegFile *)
+               ;
+               memRegFile
              ],
              processorCore)).
 
