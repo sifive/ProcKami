@@ -325,7 +325,7 @@ Section Params.
            (^"regWrite")
            32
            (Bit Xlen)
-           (RFNonFile None).
+           (RFNonFile _ None).
 
     Definition floatRegFile
       :  RegFileBase
@@ -337,7 +337,7 @@ Section Params.
            (^"fregWrite")
            32
            (Bit Flen)
-           (RFNonFile None).
+           (RFNonFile _ None).
     
     Definition csrRegFile
       :  RegFileBase
@@ -349,7 +349,7 @@ Section Params.
            (^"write_csr")
            (pow2 12)
            (Bit Xlen)
-           (RFNonFile None).
+           (RFNonFile _ None).
 
     (* TODO: should each memory location be XLEN or RLEN wide? *)
     Definition memRegFile
@@ -362,7 +362,7 @@ Section Params.
            (^"memWrite")
            (pow2 20)
            (Bit 8)
-           (RFFile _ true true "testfile").
+           (RFFile true true "testfile" (fun _ => wzero _)).
 
     Definition model
       := getRtl

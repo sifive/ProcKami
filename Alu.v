@@ -41,7 +41,7 @@ Section Alu.
              ::= noUpdPkt@%["val1"
                    <- (Valid (STRUCT {
                          "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                         "data" ::= ZeroExtendTruncLsb Rlen val
+                         "data" ::= SignExtendTruncLsb Rlen val
                        }))] ;
            "snd" ::= Invalid
          }.
