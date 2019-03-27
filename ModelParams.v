@@ -17,7 +17,11 @@ Require Import shift.
 Require Import jump.
 Require Import mult.
 Require Import divrem.
-Require Import Mem.
+Require Import mem.
+Require Import amo32.
+Require Import amo64.
+Require Import lrsc32.
+Require Import lrsc64.
 Require Import mac.
 Require Import fminmax.
 Require Import fsgn.

@@ -377,8 +377,7 @@ Section Params.
               ^"read_csr_1";
               ^"read_csr_2";
               ^"read_csr_3";
-              ^"write_csr"
-              ;
+              ^"write_csr";
               ^"readMem1";
               ^"readMem2";
               ^"memWrite"
@@ -386,8 +385,7 @@ Section Params.
             ([
                intRegFile; 
                floatRegFile; 
-               csrRegFile
-               ;
+               csrRegFile;
                memRegFile
              ],
              processorCore)).
