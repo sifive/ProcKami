@@ -10,7 +10,6 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import Alu.
 Require Import add.
 Require Import logical.
 Require Import branch.

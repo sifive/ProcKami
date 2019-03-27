@@ -4,16 +4,9 @@
   in generating the model's Verilog.
 *)
 Require Import Kami.All.
-Require Import FU.
 Require Import ProcessorCore.
-Require Import Vector.
-Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import Alu.
-Require Import Mem.
-Require Import Fpu.
-Require Import Zicsr.
 Require Import ModelParams.
 
 Definition rtlMod

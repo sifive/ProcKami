@@ -12,7 +12,6 @@ Require Import FpuKami.NFToIN.
 Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
-Require Import Alu.
 Require Import FU.
 Require Import List.
 Import ListNotations.
