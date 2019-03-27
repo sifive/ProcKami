@@ -393,13 +393,6 @@ Section Params.
              ],
              processorCore)).
 
-(*
-    Definition model
-      := getRtl
-           ([],
-             ([],
-              processorCore)).
-*)
     Local Close Scope list.
 
     Local Close Scope kami_expr.
