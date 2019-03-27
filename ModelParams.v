@@ -11,6 +11,13 @@ Import VectorNotations.
 Require Import List.
 Import ListNotations.
 Require Import Alu.
+Require Import add.
+Require Import logical.
+Require Import branch.
+Require Import shift.
+Require Import jump.
+Require Import mult.
+Require Import divrem.
 Require Import Mem.
 Require Import Fpu.
 Require Import Zicsr.
@@ -70,9 +77,9 @@ Definition fu_params_single
        fu_params_suffix         := ".s";
        fu_params_int_suffix     := ".w";
        fu_params_format_field   := 'b"00";
-       fu_params_exts           := ["RV32F"; "RV64F"];
-       fu_params_exts_32        := ["RV32F"];
-       fu_params_exts_64        := ["RV64F"]
+       fu_params_exts           := ["F"];
+       fu_params_exts_32        := ["F"];
+       fu_params_exts_64        := ["F"]
      |}.
 
 Definition fu_params_double
@@ -84,9 +91,9 @@ Definition fu_params_double
        fu_params_suffix         := ".d";
        fu_params_int_suffix     := ".d";
        fu_params_format_field   := 'b"01";
-       fu_params_exts           := ["RV32D"; "RV64D"];
-       fu_params_exts_32        := ["RV32D"];
-       fu_params_exts_64        := ["RV64D"]
+       fu_params_exts           := ["D"];
+       fu_params_exts_32        := ["D"];
+       fu_params_exts_64        := ["D"]
      |}.
 
 (* III. Processor extension table entries. *)
@@ -276,16 +283,11 @@ Local Definition param_entries
            param_ext_set "RV64I";
            param_ext_set "Zifencei";
            param_ext_set "Zicsr";
-           param_ext_set "RV32M";
-           param_ext_set "RV64M";
-           param_ext_set "RV32A";
-           param_ext_set "RV64A";
-           param_ext_set "RV32F";
-           param_ext_set "RV64F";
-           param_ext_set "RV32D";
-           param_ext_set "RV64D";
-           param_ext_set "RV32C";
-           param_ext_set "RV64C"
+           param_ext_set "M";
+           param_ext_set "A";
+           param_ext_set "F";
+           param_ext_set "D";
+           param_ext_set "C"
          }.
 
     (*

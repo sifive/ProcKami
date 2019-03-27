@@ -36,16 +36,11 @@ Definition Extensions := STRUCT {
                              "RV64I"    :: Bool ;
                              "Zifencei" :: Bool ;
                              "Zicsr"    :: Bool ;
-                             "RV32M"    :: Bool ;
-                             "RV64M"    :: Bool ;
-                             "RV32A"    :: Bool ;
-                             "RV64A"    :: Bool ;
-                             "RV32F"    :: Bool ;
-                             "RV64F"    :: Bool ;
-                             "RV32D"    :: Bool ;
-                             "RV64D"    :: Bool ;
-                             "RV32C"    :: Bool ;
-                             "RV64C"    :: Bool }.
+                             "M"    :: Bool ;
+                             "A"    :: Bool ;
+                             "F"    :: Bool ;
+                             "D"    :: Bool ;
+                             "C"    :: Bool }.
 
 Definition PrivMode := (Bit 2).
 

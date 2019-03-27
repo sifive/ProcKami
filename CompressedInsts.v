@@ -60,7 +60,7 @@ Section database.
     :  Bit 5 @# ty
     := (ZeroExtendTruncLsb 5 comp_inst_reg) + (uncomp_inst_reg 8).
 
-  Let extensions_all := [["RV32C"]; ["RV64C"]].
+  Let extensions_all := [["C"]].
 
   (*
   pg 106 for compressed instructions (122)
@@ -96,8 +96,8 @@ Section database.
           )); 
           (* C.FLD => FLD checked *)
           Build_CompInstEntry
-            [["RV32D"; "RV32C"];
-             ["RV64D"; "RV64C"]]
+            [["RV32I"; "C"];
+             ["RV64I"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"001")
@@ -131,7 +131,7 @@ Section database.
             ));
           (* C.FLW => FLW checked *)
           Build_CompInstEntry
-            [["RV32F"; "RV32C"]]
+            [["RV32I"; "F"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -148,7 +148,7 @@ Section database.
             ));
           (* C.LD => LD checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -166,8 +166,8 @@ Section database.
           (* C.FSD => FSD checked *)
           Build_CompInstEntry
             [
-              ["RV32D"; "RV32C"];
-              ["RV64D"; "RV64C"]
+              ["RV32I"; "D"; "C"];
+              ["RV64I"; "D"; "C"]
             ]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
@@ -208,7 +208,7 @@ Section database.
             ));
           (* C.FSW => FSW checked *)
           Build_CompInstEntry
-            [["RV32F"; "RV32C"]]
+            [["RV32I"; "F"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -228,7 +228,7 @@ Section database.
             ));
           (* C.SD => SD checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -270,7 +270,7 @@ Section database.
             ));
           (* C.JAL => JAL checked *)
           Build_CompInstEntry
-            [["RV32C"]]
+            [["RV32I"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"001")
@@ -302,7 +302,7 @@ Section database.
             ));
           (* C.ADDIW => ADDIW checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"001")
@@ -377,7 +377,7 @@ Section database.
             ));
           (* C.SRLI => SRLI checked *)
           Build_CompInstEntry
-            extensions_all
+            [["RV32I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -399,7 +399,7 @@ Section database.
             ));
           (* C.SRAI => SRAI checked *)
           Build_CompInstEntry
-            extensions_all
+            [["RV32I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -538,7 +538,7 @@ Section database.
             ));
           (* C.SUBW => SUB checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -562,7 +562,7 @@ Section database.
             ));
           (* C.ADDW => ADDW checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -684,7 +684,7 @@ Section database.
             ));
           (* C.SLLI => SLLI checked *)
           Build_CompInstEntry
-            extensions_all
+            [["RV32I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"000")
@@ -704,8 +704,8 @@ Section database.
             ));
           (* C.FLDSP => FLD checked *)
           Build_CompInstEntry
-            [["RV32D"; "RV32C"];
-               ["RV64D"; "RV64C"]]
+            [["RV32I"; "F"; "C"];
+               ["RV64I"; "F"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"001")
@@ -739,7 +739,7 @@ Section database.
             ));
           (* C.FLWSP => FLW checked *)
           Build_CompInstEntry
-            [["RV32F"; "RV32C"]]
+            [["RV32I"; "F"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -756,7 +756,7 @@ Section database.
             ));
           (* C.LDSP => LD checked*)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"011")
@@ -846,8 +846,8 @@ Section database.
             ));
           (* C.FSDSP => FSD checked *)
           Build_CompInstEntry
-            [["RV32D"; "RV32C"];
-             ["RV64D"; "RV64C"]]
+            [["RV32I"; "F"; "C"];
+             ["RV64I"; "F"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"101")
@@ -891,7 +891,7 @@ Section database.
             ));
           (* C.FSWSP => FSW checked *)
           Build_CompInstEntry
-            [["RV32F"; "RV32C"]]
+            [["RV32I"; "F"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -910,7 +910,7 @@ Section database.
             ));
           (* C.SDSP => SD checked *)
           Build_CompInstEntry
-            [["RV64C"]]
+            [["RV64I"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"111")

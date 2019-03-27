@@ -462,7 +462,7 @@ Section Mem.
               instHints    := falseHints[hasRs1 := true][hasRs2 := true]
            |} ::
            {| instName     := "flw";
-              extensions   := "RV32F" :: nil;
+              extensions   := "F" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -472,7 +472,7 @@ Section Mem.
               instHints    := falseHints[hasRs1 := true][hasFrd := true]
            |} ::
            {| instName     := "fsw";
-              extensions   := "RV32F" :: nil;
+              extensions   := "F" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -482,7 +482,7 @@ Section Mem.
               instHints    := falseHints[hasRs1 := true][hasFrs2 := true]
            |} ::
            {| instName     := "fld";
-              extensions   := "RV32D" :: nil;
+              extensions   := "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"011") :: nil;
@@ -492,7 +492,7 @@ Section Mem.
               instHints    := falseHints[hasRs1 := true][hasFrd := true]
            |} ::
            {| instName     := "fsw";
-              extensions   := "RV32F" :: nil;
+              extensions   := "F" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"011") :: nil;
