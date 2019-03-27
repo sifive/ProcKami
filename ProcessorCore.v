@@ -7,7 +7,6 @@ Require Import Kami.All FU CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
-Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
@@ -35,7 +34,7 @@ Section Params.
     Variable func_units: forall ty, list (FUEntry ty).
     Variable mode : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
-
+(*
     Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
     Local Notation sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params).
     Local Notation len            := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
@@ -66,7 +65,7 @@ Section Params.
         DispBit (x @% "sig") (len, Binary);
         DispString ty "\n"
       ].
-
+*)
     Local Open Scope list.
     Definition processorCore 
       :  BaseModule
@@ -158,7 +157,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value:\n"
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg1")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg1")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  reg2:\n";
@@ -167,7 +166,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value:\n"
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg2")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg2")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  reg3:\n";
@@ -176,7 +175,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg3")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg3")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";
@@ -217,7 +216,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  val2 valid: ";
@@ -232,7 +231,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  taken: ";
@@ -262,7 +261,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  val2:\n";
@@ -274,7 +273,7 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "    floating point value: "
                      ] ++ 
-                     (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++
+                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++ *)
                      [
                        DispString _ "\n";
                        DispString _ "  Exception: ";

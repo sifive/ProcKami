@@ -18,7 +18,14 @@ Require Import jump.
 Require Import mult.
 Require Import divrem.
 Require Import Mem.
-Require Import Fpu.
+Require Import mac.
+Require Import fminmax.
+Require Import fsgn.
+Require Import fmv.
+Require Import fcvt.
+Require Import fcmp.
+Require Import fclass.
+Require Import fdivsqrt.
 Require Import Zicsr.
 
 (* I. Auxiliary definitions *)
@@ -398,7 +405,6 @@ Local Definition param_entries
   Definition generate_model
     := model "proc_core"
          Flen_over_8
-         (fromOption param_fu_params fu_params_single)
          (fun ty => param_func_units ty Xlen_over_8 Rlen_over_8)
          (fun ty => Const ty $0)
          param_exts.
