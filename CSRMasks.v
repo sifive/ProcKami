@@ -12,7 +12,6 @@ Require Import Kami.All.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Import RecordNotations.
 
 Section CsrMasks.
 

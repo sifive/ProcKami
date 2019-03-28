@@ -8,8 +8,6 @@ Require Import Kami.All.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section zicsr.
   Variable Xlen_over_8 : nat.

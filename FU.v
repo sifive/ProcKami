@@ -99,13 +99,12 @@ Record InstHints :=
     isSystem    : bool ;
     isCsr       : bool }.
 
-Import ApplicativeNotations.
 Global Instance etaX : Settable _ :=
-  mkSettable
-    (constructor Build_InstHints
-                 <*> hasRs1 <*> hasRs2 <*> hasRd <*> hasFrs1 <*> hasFrs2 <*> hasFrs3 <*> hasFrd
-                 <*> isBranch <*> isJumpImm <*> isJumpReg <*> isSystem <*> isCsr)%set.
-
+  settable!
+    Build_InstHints
+  < hasRs1 ; hasRs2 ; hasRd ; hasFrs1 ; hasFrs2 ; hasFrs3 ; hasFrd
+  ; isBranch ; isJumpImm ; isJumpReg ; isSystem ; isCsr >.
+                                                          
 Definition falseHints :=
   {| hasRs1      := false ;
      hasRs2      := false ;
@@ -1498,10 +1497,3 @@ Section Params.
     End Memory.
   End func_units.
 End Params.
-
-Module RecordNotations.
-  Notation "x [ proj  :=  v ]" := (set proj (constructor v) x)
-                                    (at level 14, left associativity).
-  Notation "x [ proj  ::=  f ]" := (set proj f x)
-                                     (at level 14, f at next level, left associativity).
-End RecordNotations.
