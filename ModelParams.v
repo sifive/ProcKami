@@ -10,26 +10,26 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import add.
-Require Import logical.
-Require Import branch.
-Require Import shift.
-Require Import jump.
-Require Import mult.
-Require Import divrem.
-Require Import mem.
-Require Import amo32.
-Require Import amo64.
-Require Import lrsc32.
-Require Import lrsc64.
-Require Import mac.
-Require Import fminmax.
-Require Import fsgn.
-Require Import fmv.
-Require Import fcvt.
-Require Import fcmp.
-Require Import fclass.
-Require Import fdivsqrt.
+Require Import Add.
+Require Import Logical.
+Require Import Branch.
+Require Import Shift.
+Require Import Jump.
+Require Import Mult.
+Require Import DivRem.
+Require Import Mem.
+Require Import Amo32.
+Require Import Amo64.
+Require Import LrSc32.
+Require Import LrSc64.
+Require Import Mac.
+Require Import FMinMax.
+Require Import FSgn.
+Require Import FMv.
+Require Import FCvt.
+Require Import FCmp.
+Require Import FClass.
+Require Import FDivSqrt.
 Require Import Zicsr.
 
 (* I. Auxiliary definitions *)
