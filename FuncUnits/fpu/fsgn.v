@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -65,14 +63,6 @@ Section Fpu.
   Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
     :  Bit len @# ty
     := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Definition FSgnInputType
     :  Kind
@@ -186,7 +176,7 @@ Section Fpu.
                   inputXform  := FSgnInput $0;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fsgnjn" suffix;
@@ -202,7 +192,7 @@ Section Fpu.
                   inputXform  := FSgnInput $1;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fsgnjx" suffix;
@@ -218,7 +208,7 @@ Section Fpu.
                   inputXform  := FSgnInput $2;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |}
               ]
        |}.

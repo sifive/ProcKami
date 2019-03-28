@@ -1,4 +1,4 @@
-Require Import Kami.All RecordUpdate.RecordSet.
+Require Import Kami.All.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).

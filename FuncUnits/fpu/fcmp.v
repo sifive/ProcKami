@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -57,14 +55,6 @@ Section Fpu.
   Definition bitToNF (x : Bit len @# ty)
     :  NF expWidthMinus2 sigWidthMinus2 @# ty
     := getNF_from_FN (bitToFN x).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Open Scope kami_expr.
 
@@ -212,7 +202,7 @@ Section Fpu.
                   inputXform  := FCmpInput ($$false) cmp_cond_eq cmp_cond_not_used;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append "flt" suffix;
@@ -228,7 +218,7 @@ Section Fpu.
                   inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_not_used;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append "fle" suffix;
@@ -244,7 +234,7 @@ Section Fpu.
                   inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_eq;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasRd := true*} 
                 |}
               ]
        |}.

@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -49,14 +47,6 @@ Section Fpu.
   Local Notation exts_64        := (fu_params_exts_64 fu_params).
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Open Scope kami_expr.
 
@@ -124,7 +114,7 @@ Section Fpu.
                             RetE #ret;
                   outputXform := id;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append (append "fmv" int_suffix) ".x";
@@ -150,7 +140,7 @@ Section Fpu.
                                  RetE #ret;
                   outputXform := id;
                   optMemXform := None;
-                  instHints := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
                 |}
            ]
       |}.

@@ -1,6 +1,5 @@
-Require Import Kami.All RecordUpdate.RecordSet FU.
+Require Import Kami.All FU.
 Require Import List.
-Import RecordNotations.
 
 Section Mem.
   Variable Xlen_over_8: nat.
@@ -360,7 +359,7 @@ Section Mem.
               inputXform   := lrInput 2;
               outputXform  := lrTag ;
               optMemXform  := lrXform true ;
-              instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
            |} ::
            {| instName     := "sc.w" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
@@ -373,7 +372,7 @@ Section Mem.
               inputXform   := scInput 2;
               outputXform  := scTag ;
               optMemXform  := scXform true ;
-              instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
            |} ::
            nil |}.
     Local Close Scope kami_expr.

@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -61,14 +59,6 @@ Section Fpu.
   Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
     :  Bit len @# ty
     := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Open Scope kami_expr.
 
@@ -159,7 +149,7 @@ Section Fpu.
                   inputXform  := FDivSqrtInput ($$false);
                   outputXform := FDivSqrtOutput;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}}
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*}
                 |};
                 {|
                   instName   := append "fsqrt" suffix;
@@ -175,7 +165,7 @@ Section Fpu.
                   inputXform  := FDivSqrtInput ($$true);
                   outputXform := FDivSqrtOutput;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrd := true}}
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrd := true*}
                 |}
               ]
        |}.

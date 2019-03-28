@@ -1,6 +1,5 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Div.
+Require Import Kami.All FU Div.
 Require Import List.
-Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
@@ -79,7 +78,7 @@ Section Alu.
                            <- res_expr;
                          RetE (intRegTag (ZeroExtendTruncLsb Xlen (#res)));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "mulh";
@@ -106,7 +105,7 @@ Section Alu.
                            <- res_expr;
                          RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "mulhsu";
@@ -133,7 +132,7 @@ Section Alu.
                            <- res_expr;
                          RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "mulhu";
@@ -160,7 +159,7 @@ Section Alu.
                            <- res_expr;
                          RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "mulw";
@@ -187,7 +186,7 @@ Section Alu.
                            <- res_expr;
                          RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#res))));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              nil
       |}.

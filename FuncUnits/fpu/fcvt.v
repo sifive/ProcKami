@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -61,14 +59,6 @@ Section Fpu.
   Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
     :  Bit len @# ty
     := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Open Scope kami_expr.
 
@@ -161,7 +151,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$true);
                   outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append "fcvt.wu" suffix;
@@ -177,7 +167,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$false);
                   outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append "fcvt.l" suffix;
@@ -193,7 +183,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$true);
                   outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
                 {|
                   instName   := append "fcvt.lu" suffix;
@@ -209,7 +199,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$false);
                   outputXform := Float_Int_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasRd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |}
               ]
       |}.
@@ -284,7 +274,7 @@ Section Fpu.
                              } : INToNFInput @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".wu";
@@ -310,7 +300,7 @@ Section Fpu.
                                } : INToNFInput @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".l";
@@ -336,7 +326,7 @@ Section Fpu.
                                } : INToNFInput @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".lu";
@@ -362,7 +352,7 @@ Section Fpu.
                                } : INToNFInput @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{{hasRs1 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
                 |}
              ]
       |}.

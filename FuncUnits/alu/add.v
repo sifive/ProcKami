@@ -1,6 +1,5 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Div.
+Require Import Kami.All FU Div.
 Require Import List.
-Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
@@ -60,7 +59,7 @@ Section Alu.
                                                             LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res;
                                                             RetE (intRegTag #result)) ;
                        optMemXform  := None ;
-                       instHints    := falseHints[hasRs1 := true][hasRd := true]
+                       instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                     |} ::
                        {| instName     := "slti" ;
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -76,7 +75,7 @@ Section Alu.
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sltiu" ;
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -92,7 +91,7 @@ Section Alu.
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "add" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -108,7 +107,7 @@ Section Alu.
                                                                LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sub" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -124,7 +123,7 @@ Section Alu.
                                                                LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res ;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "slt" ;
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -140,7 +139,7 @@ Section Alu.
                                                                LETC resultMsb : Bit 1 <- UniBit (TruncMsb _ 1) #res ;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sltu" ;
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -156,7 +155,7 @@ Section Alu.
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "addiw" ; 
                           extensions   := "RV64I" :: nil ;
@@ -189,7 +188,7 @@ Section Alu.
                                            (SignExtendTruncLsb (Xlen/2) #res);
                                     RetE (intRegTag #resultExt);
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "addw" ; 
                           extensions   := "RV64I" :: nil ;
@@ -207,7 +206,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #res) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "subw" ; 
                           extensions   := "RV64I" :: nil ;
@@ -226,7 +225,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #res) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "lui" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -260,7 +259,7 @@ Section Alu.
                                       <- UniBit (TruncLsb _ 1) #res ;
                                     RetE (intRegTag #result);
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRd := true]
+                          instHints    := falseHints{*hasRd := true*}
                        |} ::
                        {| instName     := "auipc" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -288,7 +287,7 @@ Section Alu.
                                     LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res ;
                                     RetE (intRegTag #result);
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRd := true]
+                          instHints    := falseHints{*hasRd := true*}
                        |} ::
                        nil
                        

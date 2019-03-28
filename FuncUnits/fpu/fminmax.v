@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -65,14 +63,6 @@ Section Fpu.
   Definition add_format_field
     :  UniqId -> UniqId
     := cons (fieldVal fmtField format_field).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Definition FMinMaxInputType
     :  Kind
@@ -235,7 +225,7 @@ Section Fpu.
                   inputXform  := FMinMaxInput ($$false);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fmax" suffix;
@@ -251,7 +241,7 @@ Section Fpu.
                   inputXform  := FMinMaxInput ($$true);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |}
               ]
        |}.

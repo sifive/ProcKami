@@ -1,6 +1,5 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Div.
+Require Import Kami.All FU Div.
 Require Import List.
-Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
@@ -69,7 +68,7 @@ Section Alu.
                        outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                             RetE (intRegTag #result)) ;
                        optMemXform  := None ;
-                       instHints    := falseHints[hasRs1 := true][hasRd := true]
+                       instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                     |} ::
                        {| instName     := "srli" ; 
                           extensions   := "RV32I" :: nil;
@@ -88,7 +87,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srai" ; 
                           extensions   := "RV32I" :: nil;
@@ -107,7 +106,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sll" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -126,7 +125,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srl" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -145,7 +144,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sra" ;  
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -164,7 +163,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "slli" ; 
                           extensions   := "RV64I" :: nil;
@@ -183,7 +182,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srli" ; 
                           extensions   := "RV64I" :: nil;
@@ -202,7 +201,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srai" ; 
                           extensions   := "RV64I" :: nil;
@@ -221,7 +220,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "slliw" ; 
                           extensions   := "RV64I" :: nil;
@@ -243,7 +242,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srliw" ; 
                           extensions   := "RV64I" :: nil;
@@ -265,7 +264,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sraiw" ; 
                           extensions   := "RV64I" :: nil;
@@ -288,7 +287,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sllw" ; 
                           extensions   := "RV64I" :: nil;
@@ -310,7 +309,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "srlw" ; 
                           extensions   := "RV64I" :: nil;
@@ -332,7 +331,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        {| instName     := "sraw" ; 
                           extensions   := "RV64I" :: nil;
@@ -354,7 +353,7 @@ Section Alu.
                                                                     (SignExtendTruncLsb (Xlen/2) #result) ;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
                        |} ::
                        nil
       |}.

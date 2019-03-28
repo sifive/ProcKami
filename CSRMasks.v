@@ -9,11 +9,9 @@
   returns the bitmask associated with the referenced CSR.
 *)
 Require Import Kami.All.
-Require Import Kami.utila.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
 Import RecordNotations.
 
 Section CsrMasks.

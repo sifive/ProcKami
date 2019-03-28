@@ -1,6 +1,5 @@
-Require Import Kami.All RecordUpdate.RecordSet FU Div.
+Require Import Kami.All FU Div.
 Require Import List.
-Import RecordNotations.
 
 Section Alu.
   Variable Xlen_over_8: nat.
@@ -117,7 +116,7 @@ Section Alu.
                       => LETE res <- res_expr;
                          RetE (intRegTag (#res @% "div"));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "divu";
@@ -139,7 +138,7 @@ Section Alu.
                    => LETE res <- res_expr;
                         RetE (intRegTag (#res @% "div")));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "divw";
@@ -162,7 +161,7 @@ Section Alu.
                   => LETE res <- res_expr;
                        RetE (intRegTag (trunc_sign_extend (#res @% "div"))));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "divuw";
@@ -185,7 +184,7 @@ Section Alu.
                   => LETE res <- res_expr;
                        RetE (intRegTag (trunc_sign_extend (#res @% "div"))));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "rem";
@@ -207,7 +206,7 @@ Section Alu.
                      => LETE res <- res_expr;
                           RetE (intRegTag (#res @% "rem")));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "remu";
@@ -229,7 +228,7 @@ Section Alu.
                      => LETE res <- res_expr;
                           RetE (intRegTag (#res @% "rem")));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "remw";
@@ -251,7 +250,7 @@ Section Alu.
                      => LETE res <- res_expr;
                           RetE (intRegTag (trunc_sign_extend (#res @% "rem"))));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              {|
                instName   := "remuw";
@@ -273,7 +272,7 @@ Section Alu.
                      => LETE res <- res_expr;
                           RetE (intRegTag (trunc_sign_extend (#res @% "rem"))));
                optMemXform := None;
-               instHints   := falseHints[hasRs1 := true][hasRs2 := true][hasRd := true]
+               instHints   := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
              |} ::
              nil
         |}.

@@ -15,8 +15,6 @@ Require Import FpuKami.ModDivSqrt.
 Require Import FU.
 Require Import List.
 Import ListNotations.
-Require Import RecordUpdate.RecordSet.
-Import RecordNotations.
 
 Section Fpu.
 
@@ -65,14 +63,6 @@ Section Fpu.
   Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
     :  Bit len @# ty
     := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-  Local Notation "x {{ proj  :=  v }}"
-    := (set proj (constructor v) x)
-         (at level 14, left associativity).
-
-  Local Notation "x {{ proj  ::=  f }}"
-    := (set proj f x)
-         (at level 14, f at next level, left associativity).
 
   Definition MacInputType
     :  Kind
@@ -234,7 +224,7 @@ Section Fpu.
                   inputXform  := MacInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fmsub" suffix;
@@ -248,7 +238,7 @@ Section Fpu.
                   inputXform  := MacInput $1;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fnmsub" suffix;
@@ -262,7 +252,7 @@ Section Fpu.
                   inputXform  := MacInput $2;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fnmadd" suffix;
@@ -276,7 +266,7 @@ Section Fpu.
                   inputXform  := MacInput $3;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrs3 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fadd" suffix;
@@ -291,7 +281,7 @@ Section Fpu.
                   inputXform  := AddInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fsub" suffix;
@@ -306,7 +296,7 @@ Section Fpu.
                   inputXform  := AddInput $1;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |};
                 {|
                   instName   := append "fmul" suffix;
@@ -321,7 +311,7 @@ Section Fpu.
                   inputXform  := MulInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{{hasFrs1 := true}}{{hasFrs2 := true}}{{hasFrd := true}} 
+                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
                 |}
               ]
       |}.
