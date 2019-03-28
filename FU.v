@@ -43,6 +43,10 @@ Definition Extensions := STRUCT {
                              "C"    :: Bool }.
 
 Definition PrivMode := (Bit 2).
+Definition MachineMode    := 0.
+Definition HypervisorMode := 1.
+Definition SupervisorMode := 2.
+Definition UserMode       := 3.
 
 Definition Exception := (Bit 4).
 

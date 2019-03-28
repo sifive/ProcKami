@@ -59,22 +59,9 @@ Local Definition emptyb (A : Type) (xs : list A)
        | _   => false
        end.
 
-Local Definition mvalue (default : nat)
-  :  list (option nat) -> option nat
-  := fold_right
-       (fun mx macc
-          => match mx with
-               | Some x
-                 => match macc with
-                      | Some acc
-                        => if Nat.eqb x acc
-                             then Some acc
-                             else None
-                      | _ => mx
-                      end
-               | _ => macc
-               end)
-       (Some default).
+Local Definition list_max
+  :  nat -> list (option nat) -> nat
+  := fold_right (fun x acc => fromOption (option_map (Nat.max acc) x) acc).
 
 (* II. FPU configuration parameters. *)
 
@@ -111,11 +98,9 @@ Definition fu_params_double
 Record param_entry
   := {
        param_entry_name   : string;
-       param_entry_deps   : list string;
        param_entry_confls : list string;
        param_entry_xlen   : option nat;
-       param_entry_flen   : option nat;
-       param_entry_params : option fu_params_type
+       param_entry_flen   : option nat
      }.
 
 (*
@@ -127,143 +112,89 @@ Local Definition param_entries
   := [
        {|
          param_entry_name   := "RV32I";
-         param_entry_deps   := [];
          param_entry_confls := ["RV64I"];
-         param_entry_xlen   := Some 32;
+         param_entry_xlen   := Some 4;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "RV64I";
-         param_entry_deps   := [];
          param_entry_confls := ["RV32I"];
-         param_entry_xlen   := Some 64;
+         param_entry_xlen   := Some 8;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "Zifencei";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "Zicsr";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "M";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "A";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
-         param_entry_params := None
        |};
        {|
          param_entry_name   := "F";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
-         param_entry_flen   := Some 32;
-         param_entry_params := Some fu_params_single
+         param_entry_flen   := Some 4;
        |};
        {|
          param_entry_name   := "D";
-         param_entry_deps   := [];
-         param_entry_confls := ["F"];
+         param_entry_confls := [];
          param_entry_xlen   := None;
-         param_entry_flen   := Some 64;
-         param_entry_params := Some fu_params_double
+         param_entry_flen   := Some 8;
        |};
        {|
          param_entry_name   := "C";
-         param_entry_deps   := [];
          param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
-         param_entry_params := None
        |}
      ].
 
- Section exts.
+Section exts.
 
-   (* The names of the enabled extensions. *)
-   Variable exts : list string.
+  (* The names of the enabled extensions. *)
+  Variable exts : list string.
 
-   (* The enabled extension entries. *)
-   Local Definition entries
-     :  list param_entry
-     := list_rec _ []
-          (fun ext _ F
-             => match
-                  find
-                    (fun entry => String.eqb ext (param_entry_name entry))
-                    param_entries with
-                  | Some entry
-                    => entry :: F
-                  | _
-                    => []
-                  end)
-           exts.
+  (* The enabled extension entries. *)
+  Local Definition entries
+    :  list param_entry
+    := filter
+         (fun entry => strings_in exts (param_entry_name entry))
+         param_entries.
 
-   (*
-     Accepts a list of enabled extensions and an extension entry
-     and returns true iff the entry's extension can be enabled.
-   *)
-   Local Definition param_entry_valid (entry : param_entry)
-     :  bool
-     := (strings_all_in exts (param_entry_deps entry)) &&
-        (negb (strings_any_in exts (param_entry_confls entry))).
+  (*
+    Accepts a list of enabled extensions and an extension entry
+    and returns true iff the entry's extension can be enabled.
+  *)
+  Local Definition param_entry_valid (entry : param_entry)
+    :  bool
+    := negb (strings_any_in exts (param_entry_confls entry)).
 
-   (*
-     Accepts a list of the enabled extensions and an extension
-     and returns true iff the extension is valid, its dependencies
-     are also enabled, and none of the enabled extensions conflict
-     with it.
-   *)
-   Local Definition param_ext_valid (ext : string)
-     :  bool
-     := match 
-          find
-            (fun entry => String.eqb ext (param_entry_name entry))
-            entries with
-          | Some entry
-            => param_entry_valid entry
-          | _
-            => false
-          end.
+  (*
+    Accepts a list of extensions and returns the smallest compatible
+    value for Xlen or None if there is a conflict.
+  *)
+  Local Definition param_xlen :  nat := list_max 4 (map param_entry_xlen entries).
 
-   (*
-     Accepts a list of enabled extensions and returns true iff they
-     are all valid.
-   *)
-   Local Definition param_exts_valid : bool := forallb param_ext_valid exts.
+  Local Definition param_flen : nat := list_max 4 (map param_entry_flen entries).
 
-   (*
-     Accepts a list of extensions and returns the smallest compatible
-     value for Xlen or None if there is a conflict.
-   *)
-   Local Definition param_xlen
-     :  option nat
-     := mvalue 4 (map param_entry_xlen entries).
-
-   Local Definition param_flen
-     :  option nat
-     := mvalue 4 (map param_entry_flen entries).
+  Local Definition param_rlen : nat := Nat.max param_xlen param_flen.
 
   Section ty.
 
@@ -280,7 +211,7 @@ Local Definition param_entries
       := existT
            (fun a : Attribute Kind => Expr ty (SyntaxKind (snd a)))
            (ext, Bool)
-           $$(andb param_exts_valid (strings_in exts ext)).
+           $$(strings_in exts ext).
 
     (*
       Accepts a list of extensions and returns a struct listing the
@@ -299,22 +230,6 @@ Local Definition param_entries
            param_ext_set "D";
            param_ext_set "C"
          }.
-
-    (*
-      Returns the FPU configuration parameter used by the first
-      enabled extension that selects one.
-    *)
-    Local Definition param_fu_params
-      : option fu_params_type
-      := list_rec
-           (fun _ => option fu_params_type)
-           None
-           (fun entry _ F
-              => match param_entry_params entry with
-                   | Some params => Some params
-                   | _           => F
-                   end)
-           entries.
 
     (* IV. Select and tailor function units. *)
     Section func_units.
@@ -400,17 +315,13 @@ Local Definition param_entries
 
   End ty.
 
-  Let Xlen_over_8 := fromOption param_xlen 4.
-  Let Flen_over_8 := fromOption param_flen 4.
-  Let Rlen_over_8 := max Xlen_over_8 Flen_over_8.
-
   (* V. the model generator. *)
 
   Definition generate_model
     := model "proc_core"
-         Flen_over_8
-         (fun ty => param_func_units ty Xlen_over_8 Rlen_over_8)
-         (fun ty => Const ty $0)
+         param_flen
+         (fun ty => param_func_units ty param_xlen param_rlen)
+         (fun ty => Const ty $MachineMode)
          param_exts.
 
   Close Scope kami_expr.
