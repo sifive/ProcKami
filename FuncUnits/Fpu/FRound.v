@@ -108,7 +108,7 @@ Section Fpu.
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
-                                  "in" ::= bitToNF single_expWidthMinus2 single_sigWidthMinus2 (ZeroExtendTruncLsb 32 (#context_pkt @% "reg1"));
+                                  "in" ::= bitToNF single_expWidthMinus2 single_sigWidthMinus2 (ZeroExtendTruncLsb (single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1)) (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput single_expWidthMinus2 single_sigWidthMinus2 @# ty));
@@ -169,7 +169,7 @@ Section Fpu.
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
-                                  "in" ::= bitToNF double_expWidthMinus2 double_sigWidthMinus2 (ZeroExtendTruncLsb 64 (#context_pkt @% "reg1"));
+                                  "in" ::= bitToNF double_expWidthMinus2 double_sigWidthMinus2 (ZeroExtendTruncLsb (double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1)) (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput double_expWidthMinus2 double_sigWidthMinus2 @# ty));

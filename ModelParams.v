@@ -230,8 +230,9 @@ Section exts.
              LrSc64    Xlen_over_8 Rlen_over_8 _;
 
              (* RVF instructions. *)
-             Float_double Xlen_over_8 Rlen_over_8 _;
-             Double_float Xlen_over_8 Rlen_over_8 _;
+
+             Float_double Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
+             Double_float Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
 
              Mac       Xlen_over_8 Rlen_over_8 fu_params_single _;
              FMinMax   Xlen_over_8 Rlen_over_8 fu_params_single _;
