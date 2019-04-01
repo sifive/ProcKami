@@ -4,6 +4,8 @@
 
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
+Require Import Vector.
+Import VectorNotations.
 Require Import Kami.All.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
@@ -99,6 +101,20 @@ Section Fpu.
     := LETE sem_out_pkt
          :  outK expWidthMinus2 sigWidthMinus2
          <- sem_out_pkt_expr;
+       SystemE [
+         DispString ty "fdivsqrt outK: ";
+         DispStruct #sem_out_pkt
+           (Vector.nth [
+              (1, Binary);   (* isSqrt *)
+              (100, Binary); (* inNf *)
+              (100, Binary); (* outNf *)
+              (10, Binary);  (* outNFException *)
+              (10, Binary);  (* exception *)
+              (1, Binary);   (* invalidExc *)
+              (1, Binary)    (* infiniteExc *)
+            ]%vector);
+         DispString ty "\n"
+       ];
        RetE
          (STRUCT {
             "fst"
