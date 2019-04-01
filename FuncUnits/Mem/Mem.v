@@ -3,10 +3,12 @@ Require Import List.
 
 Section Mem.
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
 
   Local Notation Rlen := (8 * Rlen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -102,23 +104,23 @@ Section Mem.
                          else Invalid)} ;
          RetE #retval.
 
-    Local Definition loadXform (tag: RoutingTag @# ty) (size: nat) (ext: forall (ty : Kind -> Type) (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
+    Local Definition loadXform (tag: RoutingTag @# ty) (size: nat)
+      (ext: forall (ty : Kind -> Type) (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
       Some (fun memRegIn: MemoryInput ## ty =>
               LETE memReg : MemoryInput <- memRegIn ;
               LETC mem : Data <- #memReg @% "mem" ;
-              LETC memByte: Bit size <-
-                                ext ty Rlen size #mem ;
-              LETC memOut: Maybe Data <-
-                                 Valid (ext ty size Rlen #memByte);
-              LETC outMemReg : MemoryOutput
-                                 <-
-                                 STRUCT {
-                                   "aq" ::= $$ false ;
-                                   "rl" ::= $$ false ;
-                                   "reservation" ::= $ 0 ;
-                                   "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
-                                   "tag" ::= tag ;
-                                   "reg_data" ::= #memOut };
+              LETC memByte: Bit size <- ext ty Rlen size #mem ;
+              LETC memOut: Maybe Data <- Valid (ext ty size Rlen #memByte);
+              LETC outMemReg
+                : MemoryOutput
+                <- STRUCT {
+                     "aq" ::= $$ false ;
+                     "rl" ::= $$ false ;
+                     "reservation" ::= $ 0 ;
+                     "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
+                     "tag" ::= tag ;
+                     "reg_data" ::= #memOut
+                   };
               RetE #outMemReg).
 
     Local Definition storeInput (size: nat) (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
@@ -196,139 +198,6 @@ Section Mem.
                                   "tag" ::= $IntRegTag ;
                                   "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
-
-    Local Definition amoInput sz (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt <- gcpin ;
-      LETC ret: MemInputAddrType <-
-                                 STRUCT {
-                                   "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                   "offset" ::= $0 ;
-                                   "numZeros" ::= $sz ;
-                                   "data" ::= STRUCT {
-                                                "data" ::= (#gcp @% "reg2" : Data @# ty);
-                                                "mask"
-                                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
-                                                       : Array Rlen_over_8 Bool @# ty)
-                                              };
-                                   "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
-                                   "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
-                                   "memMisalignedException?" ::= $$ true ;
-                                   "accessException?" ::= #gcp @% "accessException?"
-                                 } ;
-      RetE #ret.
-
-    Local Definition amoTag := storeTag.
-
-    Local Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
-      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memVal: Data <- #memReg @% "mem" ;
-             LETC memMask: Array Rlen_over_8 Bool <- $$ (ConstArray (if dohalf
-                                                                     then fun i: Fin.t Rlen_over_8 =>
-                                                                            if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
-                                                                            then true else false
-                                                                     else fun i => true));
-             LETC dataVal: Data <- fn #reg #memVal;
-             LETC memOut: MaskedMem <-
-                                    (STRUCT {
-                                         "data" ::= #dataVal;
-                                         "mask" ::= #memMask});
-             LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
-             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "reservation" ::= $ 0 ;
-                                  "mem" ::= #validMemOut ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= #finalLoadVal };
-             RetE #outMemReg).
-
-    Local Definition lrInput := amoInput.
-
-    Local Definition lrTag := storeTag.
-
-    Local Definition lrXform (half: bool) :=
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC memVal: Data <- #memReg @% "mem" ;
-             LETC loadVal <- SignExtendTruncLsb (if half then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "reservation" ::= if half then $1 else $2 ;
-                                  "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= #finalLoadVal };
-             RetE #outMemReg).
-
-    Local Definition scInput := amoInput.
-
-    Local Definition scTag := storeTag.
-
-    Local Definition scXform (half: bool)
-      := let dohalf
-           := andb half (getBool (Nat.eq_dec Rlen 64)) in
-         Some
-           (fun memRegIn
-              => LETE memReg
-                   :  MemoryInput
-                   <- memRegIn;
-                 LETC reg
-                   :  Data
-                   <- #memReg @% "reg_data";
-                 LETC memMask
-                   :  Array Rlen_over_8 Bool
-                   <- $$(ConstArray
-                           (if dohalf
-                              then
-                                fun i : Fin.t Rlen_over_8
-                                  => if Compare_dec.lt_dec
-                                          (proj1_sig (Fin.to_nat i))
-                                          (Rlen_over_8/2)
-                                       then true
-                                       else false
-                              else
-                                fun _ => true));
-                 LETC memOut
-                   :  MaskedMem
-                   <- (STRUCT {
-                         "data" ::= (#reg : Data @# ty);
-                         "mask" ::= (#memMask : Array Rlen_over_8 Bool @# ty)
-                       } : MaskedMem @# ty);
-                 LETC isStore
-                   :  Bool
-                   <- #memReg @% "reservation" >= (if dohalf then $1 else $2);
-                 LETC validMemOut
-                   :  Maybe MaskedMem
-                   <- (STRUCT {
-                         "valid" ::= #isStore;
-                         "data" ::= #memOut
-                       });
-                 LETC loadVal
-                   :  Data
-                   <- IF #isStore then $0 else $1;
-                 LETC outMemReg
-                   :  MemoryOutput
-                   <- STRUCT {
-                        "aq" ::= #memReg @% "aq";
-                        "rl" ::= #memReg @% "rl";
-                        "reservation" ::= $ 0;
-                        "mem" ::= #validMemOut;
-                        "tag" ::= $IntRegTag;
-                        "reg_data" ::= Valid #loadVal
-                      };
-                 RetE #outMemReg).
 
     Definition Mem: @FUEntry ty :=
       {| fuName := "mem" ;
@@ -461,17 +330,20 @@ Section Mem.
               instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
            |} ::
            {| instName     := "flw";
-              extensions   := "F" :: nil;
+              extensions   := "F" :: "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"010") :: nil;
               inputXform   := loadInput 2 ;
               outputXform  := loadTag ;
-              optMemXform  := loadXform $FloatRegTag 32 SignExtendTruncLsb ;
+              optMemXform
+                := loadXform $FloatRegTag Rlen
+                     (fun ty ilen olen (data : Bit ilen @# ty)
+                        => OneExtendTruncLsb olen (ZeroExtendTruncLsb 32 data));
               instHints    := falseHints{*hasRs1 := true*}{*hasFrd := true*}
            |} ::
            {| instName     := "fsw";
-              extensions   := "F" :: nil;
+              extensions   := "F" :: "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -490,8 +362,8 @@ Section Mem.
               optMemXform  := loadXform $FloatRegTag 64 SignExtendTruncLsb ;
               instHints    := falseHints{*hasRs1 := true*}{*hasFrd := true*}
            |} ::
-           {| instName     := "fsw";
-              extensions   := "F" :: nil;
+           {| instName     := "fsd";
+              extensions   := "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"011") :: nil;

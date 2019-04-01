@@ -30,40 +30,10 @@ Require Import FCvt.
 Require Import FCmp.
 Require Import FClass.
 Require Import FDivSqrt.
+Require Import FRound.
 Require Import Zicsr.
 
-(* I. Auxiliary definitions *)
-
-Local Definition fromOption (A : Type) (mx : option A) (default : A) : A
-  := match mx with
-       | Some x => x
-       | _      => default
-       end.
-
-Local Definition strings_in (xs : list string) (x : string)
-  :  bool
-  := existsb (String.eqb x) xs.
-
-Local Definition strings_any_in (xs : list string)
-  :  list string -> bool
-  := existsb (strings_in xs).
-
-Local Definition strings_all_in (xs : list string)
-  :  list string -> bool
-  := forallb (strings_in xs).
-
-Local Definition emptyb (A : Type) (xs : list A)
-  :  bool
-  := match xs with
-       | nil => true
-       | _   => false
-       end.
-
-Local Definition list_max
-  :  nat -> list (option nat) -> nat
-  := fold_right (fun x acc => fromOption (option_map (Nat.max acc) x) acc).
-
-(* II. FPU configuration parameters. *)
+(* I. FPU configuration parameters. *)
 
 Definition fu_params_single
   := {|
@@ -93,7 +63,7 @@ Definition fu_params_double
        fu_params_exts_64        := ["D"]
      |}.
 
-(* III. Processor extension table entries. *)
+(* II. Processor extension table entries. *)
 
 Record param_entry
   := {
@@ -190,11 +160,11 @@ Section exts.
     Accepts a list of extensions and returns the smallest compatible
     value for Xlen or None if there is a conflict.
   *)
-  Local Definition param_xlen :  nat := list_max 4 (map param_entry_xlen entries).
+  Local Definition Xlen_over_8 :  nat := list_max 4 (map param_entry_xlen entries).
 
-  Local Definition param_flen : nat := list_max 4 (map param_entry_flen entries).
+  Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
-  Local Definition param_rlen : nat := Nat.max param_xlen param_flen.
+  Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 Flen_over_8.
 
   Section ty.
 
@@ -231,7 +201,7 @@ Section exts.
            param_ext_set "C"
          }.
 
-    (* IV. Select and tailor function units. *)
+    (* III. Select and tailor function units. *)
     Section func_units.
 
       Variable Xlen_over_8 : nat.
@@ -252,6 +222,7 @@ Section exts.
              DivRem    Xlen_over_8 Rlen_over_8 _;
 
              (* RVI memory instructions. *)
+             (* Mem       Xlen_over_8 Flen_over_8 Rlen_over_8 _; *)
              Mem       Xlen_over_8 Rlen_over_8 _;
              Amo32     Xlen_over_8 Rlen_over_8 _;
              Amo64     Xlen_over_8 Rlen_over_8 _;
@@ -259,6 +230,9 @@ Section exts.
              LrSc64    Xlen_over_8 Rlen_over_8 _;
 
              (* RVF instructions. *)
+             Float_double Xlen_over_8 Rlen_over_8 _;
+             Double_float Xlen_over_8 Rlen_over_8 _;
+
              Mac       Xlen_over_8 Rlen_over_8 fu_params_single _;
              FMinMax   Xlen_over_8 Rlen_over_8 fu_params_single _;
              FSgn      Xlen_over_8 Rlen_over_8 fu_params_single _;
@@ -315,12 +289,12 @@ Section exts.
 
   End ty.
 
-  (* V. the model generator. *)
+  (* IV. the model generator. *)
 
   Definition generate_model
     := model "proc_core"
-         param_flen
-         (fun ty => param_func_units ty param_xlen param_rlen)
+         Flen_over_8
+         (fun ty => param_func_units ty Xlen_over_8 Rlen_over_8)
          (fun ty => Const ty $MachineMode)
          param_exts.
 

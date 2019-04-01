@@ -17,6 +17,7 @@ Definition rtlMod
          "M";
          "A";
          "F";
+         "D";
          "C"
        ].
 

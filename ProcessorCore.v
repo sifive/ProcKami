@@ -7,6 +7,8 @@ Require Import Kami.All FU CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
+Require Import Vector.
+Import VectorNotations.
 Require Import List.
 Import ListNotations.
 
@@ -30,42 +32,59 @@ Section Params.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Variable fu_params : fu_params_type.
-    Variable func_units: forall ty, list (FUEntry ty).
-    Variable mode : forall ty, PrivMode @# ty.
+    Variable func_units : forall ty, list (FUEntry ty).
+    Variable mode       : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
-(*
-    Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
-    Local Notation sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params).
-    Local Notation len            := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
-    Local Notation bitToNF := (bitToNF fu_params).
+    Section display.
+      Variable ty : Kind -> Type.
 
-    Definition dispNF ty (x : NF expWidthMinus2 sigWidthMinus2 @# ty) := 
-      [
-        DispString ty "    isNaN: ";
-        DispBool ((x @% "isNaN") : Bool @# ty) (1, Binary);
-        DispString ty "\n";
-        DispString ty "    signals?: ";
-        DispBool ((isSigNaNRawFloat x) : Bool @# ty) (1, Binary);
-        DispString ty "\n";
-        DispString ty "    isInf: ";
-        DispBool (x @% "isInf") (1, Binary);
-        DispString ty "\n";
-        DispString ty "    isZero: ";
-        DispBool (x @% "isZero") (1, Binary);
-        DispString ty "\n";
-        DispString ty "    sign: ";
-        DispBool (x @% "sign") (1, Binary);
-        DispString ty "\n";
-        DispString ty "    signed exponent: ";
-        DispBit (x @% "sExp") (len, Binary);
-        DispString ty "\n";
-        DispString ty "    significand: 1.";
-        DispBit (x @% "sig") (len, Binary);
-        DispString ty "\n"
-      ].
-*)
+      Local Definition expWidthMinus2
+        :  nat
+        := if Nat.eqb Flen_over_8 8
+             then 9
+             else 6.
+
+      Local Definition sigWidthMinus2
+        :  nat
+        := if Nat.eqb Flen_over_8 8
+             then 51
+             else 22.
+
+      Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
+
+      Local Definition bitToFN (x : Bit len @# ty)
+        :  FN expWidthMinus2 sigWidthMinus2 @# ty
+        := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
+
+      Local Definition bitToNF (x : Bit len @# ty)
+        :  NF expWidthMinus2 sigWidthMinus2 @# ty
+        := getNF_from_FN (bitToFN x).
+
+      Definition dispNF (prefix : string) (xlen : nat) (x : Bit xlen @# ty)
+        := let y
+             :  NF expWidthMinus2 sigWidthMinus2 @# ty
+             := bitToNF (ZeroExtendTruncLsb len x) in
+           [
+             DispString _ prefix;
+             DispStruct y
+               (Vector.nth [
+                  (1, Binary);  (* isNaN *)
+                  (1, Binary);  (* isInf *)
+                  (1, Binary);  (* isZero *)
+                  (1, Binary);  (* sign *)
+                  (32, Binary); (* sExp *)
+                  (32, Binary)  (* sig *)
+                ]%vector);
+             DispString _ " exp: ";
+             DispBit (y @% "sExp") (32, Binary);
+             DispString _ " sig: ";
+             DispBit (y @% "sig") (32, Binary);
+             DispString _ "\n"
+           ].
+
+    End display.
+
     Local Open Scope list.
     Definition processorCore 
       :  BaseModule
@@ -152,30 +171,27 @@ Section Params.
                      ([
                        DispString _ "Reg Vals\n";
                        DispString _ "  reg1:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg1") (Xlen, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value:\n"
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_context_pkt @% "fst" @% "reg1") (Xlen, Hex);
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg1")))) ++ *)
+                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg1")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  reg2:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg2") (Xlen, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value:\n"
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_context_pkt @% "fst" @% "reg2") (Xlen, Hex);
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg2")))) ++ *)
+                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg2")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  reg3:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg3") (Xlen, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value: "
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_context_pkt @% "fst" @% "reg3") (Xlen, Hex);
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_context_pkt @% "fst" @% "reg3")))) ++ *)
+                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  csr: ";
@@ -211,12 +227,11 @@ Section Params.
                        DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  val1:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value: "
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Hex);
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++ *)
+                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2 valid: ";
@@ -226,12 +241,11 @@ Section Params.
                        DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
                        DispString _ "\n";
                        DispString _ "  val2:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value: "
+                       DispString _ "    integer value: ";
+                       DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Hex);
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++ *)
+                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  taken: ";
@@ -253,27 +267,25 @@ Section Params.
                      ([
                        DispString _ "New Reg Vals (after memory ops)\n";
                        DispString _ "  val1:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Decimal);
+                       DispString _ "    integer value: ";
+                       DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Hex);
                        DispString _ "\n";
                        DispString _ "  val1 tag: ";
                        DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value: "
+                       DispString _ "\n"
                      ] ++
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")))) ++ *)
+                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  val2:\n";
-                       DispString _ "    integer value:\n";
-                       DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Decimal);
+                       DispString _ "    integer value: ";
+                       DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Hex);
                        DispString _ "\n";
                        DispString _ "  val2 tag: ";
                        DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "    floating point value: "
+                       DispString _ "\n"
                      ] ++ 
-                     (* (dispNF (bitToNF (ZeroExtendTruncLsb len (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")))) ++ *)
+                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")) ++
                      [
                        DispString _ "\n";
                        DispString _ "  Exception: ";

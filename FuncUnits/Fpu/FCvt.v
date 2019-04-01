@@ -12,11 +12,14 @@ Require Import FpuKami.NFToIN.
 Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
+Require Import FpuKami.Round.
 Require Import FU.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
+
+  (* NF -> change size using round -> NF *)
 
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
@@ -34,6 +37,7 @@ Section Fpu.
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
+  Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
   Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
   Local Notation sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params).
