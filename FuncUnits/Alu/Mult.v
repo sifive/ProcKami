@@ -66,10 +66,12 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
+                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
+                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
+                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#reg2)
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -93,10 +95,12 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
+                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
+                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
+                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#reg2)
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -120,10 +124,12 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
+                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
+                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -147,10 +153,12 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
+                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
+                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg1);
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -174,10 +182,12 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
+                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
+                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg1");
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#context_pkt @% "reg2")
+                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg1);
+                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty

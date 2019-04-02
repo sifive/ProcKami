@@ -58,6 +58,8 @@ Section Alu.
     Local Definition branchInput (lt unsigned inv: Bool @# ty) (gcp: ExecContextPkt ## ty)
       :  BranchInputType ## ty
       := LETE x: ExecContextPkt <- gcp;
+         LETC reg1 <- ZeroExtendTruncLsb Xlen (#x @% "reg1");
+         LETC reg2 <- ZeroExtendTruncLsb Xlen (#x @% "reg2");
          LETE bOffset <- branchOffset (#x @% "inst");
          RetE
            ((STRUCT {
@@ -70,12 +72,12 @@ Section Alu.
                "misalignedException?" ::= #x @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned
-                       then ZeroExtendTruncLsb (Xlen + 1) (#x @% "reg1")
-                       else SignExtendTruncLsb (Xlen + 1) (#x @% "reg1");
+                       then ZeroExtendTruncLsb (Xlen + 1) (#reg1)
+                       else SignExtendTruncLsb (Xlen + 1) (#reg1);
                "reg2"
                  ::= IF unsigned
-                       then ZeroExtendTruncLsb (Xlen + 1) (#x @% "reg2")
-                       else SignExtendTruncLsb (Xlen + 1) (#x @% "reg2")
+                       then ZeroExtendTruncLsb (Xlen + 1) (#reg2)
+                       else SignExtendTruncLsb (Xlen + 1) (#reg2)
              }): BranchInputType @# ty).
 
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
