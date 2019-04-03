@@ -76,10 +76,10 @@ Section Params.
                   (32, Binary); (* sExp *)
                   (32, Binary)  (* sig *)
                 ]%vector);
-             DispString _ " exp: ";
-             DispBit (y @% "sExp") (32, Binary);
-             DispString _ " sig: ";
+             DispString _ "= 1.";
              DispBit (y @% "sig") (32, Binary);
+             DispString _ "b*2^";
+             DispBit (y @% "sExp") (32, Decimal);
              DispString _ "\n"
            ].
 
@@ -356,10 +356,10 @@ Section Params.
            false
            1
            (^"csr_reg_file")
-           (Async [(^"read_csr_1"); (^"read_csr_2"); (^"read_csr_3")])
+           (Async [(^"read_csr_0"); (^"read_csr_1"); (^"read_csr_2"); (^"read_csr_3")])
            (^"write_csr")
-           (pow2 12)
-           (Bit Xlen)
+           (pow2 CsrIdWidth)
+           CsrValue
            (RFNonFile _ None).
 
     (* TODO: should each memory location be XLEN or RLEN wide? *)

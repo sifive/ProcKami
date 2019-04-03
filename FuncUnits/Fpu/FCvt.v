@@ -19,8 +19,6 @@ Import ListNotations.
 
 Section Fpu.
 
-  (* NF -> change size using round -> NF *)
-
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
 
@@ -35,8 +33,10 @@ Section Fpu.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
+(*
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
+*)
   Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
   Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
@@ -95,10 +95,10 @@ Section Fpu.
             "signedOut"    ::= signed
           } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
 
-  Definition Float_Int_Output (sem_out_pkt_expr : NFToINOutput ## ty)
+  Definition Float_Int_Output (size : nat) (sem_out_pkt_expr : NFToINOutput size ## ty)
     :  PktWithException ExecContextUpdPkt ## ty
     := LETE sem_out_pkt
-         :  NFToINOutput
+         :  NFToINOutput size
          <- sem_out_pkt_expr;
        RetE
          (STRUCT {
@@ -107,7 +107,7 @@ Section Fpu.
                      "val1"
                        ::= Valid (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= ZeroExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
+                             "data" ::= SignExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
                            });
                      "val2"
                        ::= Valid (STRUCT {
@@ -122,17 +122,17 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition Float_int
+  Definition Float_word
     :  @FUEntry ty
     := {|
-         fuName := append "float_int" suffix;
+         fuName := append "float_word" suffix;
          fuFunc
            := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
                 => LETE sem_in_pkt
                      :  NFToINInput expWidthMinus2 sigWidthMinus2
                      <- sem_in_pkt_expr;
                    @NFToIN_expr
-                     (Xlen - 2)
+                     (32 - 2)
                      expWidthMinus2
                      sigWidthMinus2
                      exp_valid
@@ -153,7 +153,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11000")
                        ];
                   inputXform  := Float_Int_Input ($$true);
-                  outputXform := Float_Int_Output;
+                  outputXform := @Float_Int_Output (32 - 2);
                   optMemXform := None;
                   instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
@@ -169,10 +169,33 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11000")
                        ];
                   inputXform  := Float_Int_Input ($$false);
-                  outputXform := Float_Int_Output;
+                  outputXform := @Float_Int_Output (32 - 2);
                   optMemXform := None;
                   instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
-                |};
+                |}
+              ]
+      |}.
+    
+
+  Definition Float_long
+    :  @FUEntry ty
+    := {|
+         fuName := append "float_long" suffix;
+         fuFunc
+           := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
+                => LETE sem_in_pkt
+                     :  NFToINInput expWidthMinus2 sigWidthMinus2
+                     <- sem_in_pkt_expr;
+                   @NFToIN_expr
+                     (64 - 2)
+                     expWidthMinus2
+                     sigWidthMinus2
+                     exp_valid
+                     sig_valid
+                     ty
+                     (#sem_in_pkt);
+         fuInsts
+           := [
                 {|
                   instName   := append "fcvt.l" suffix;
                   extensions := exts;
@@ -181,11 +204,11 @@ Section Fpu.
                          fieldVal fmtField format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00000");
+                         fieldVal rs2Field      ('b"00010");
                          fieldVal rs3Field      ('b"11000")
                        ];
                   inputXform  := Float_Int_Input ($$true);
-                  outputXform := Float_Int_Output;
+                  outputXform := @Float_Int_Output (64 - 2);
                   optMemXform := None;
                   instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |};
@@ -197,11 +220,11 @@ Section Fpu.
                          fieldVal fmtField format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
-                         fieldVal rs2Field      ('b"00001");
+                         fieldVal rs2Field      ('b"00011");
                          fieldVal rs3Field      ('b"11000")
                        ];
                   inputXform  := Float_Int_Input ($$false);
-                  outputXform := Float_Int_Output;
+                  outputXform := @Float_Int_Output (64 - 2);
                   optMemXform := None;
                   instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
                 |}
@@ -221,7 +244,7 @@ Section Fpu.
                        ::= Valid (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                              "data"
-                               ::= ZeroExtendTruncLsb Rlen
+                               ::= OneExtendTruncLsb Rlen
                                      (NFToBit
                                         ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
                                       : Bit len @# ty)
@@ -239,14 +262,14 @@ Section Fpu.
             "snd" ::= Invalid
           } : PktWithException ExecContextUpdPkt @# ty).
 
-  Definition Int_float
+  Definition Word_float
     :  @FUEntry ty
     := {|
-         fuName := append "int_float" suffix;
+         fuName := append "word_float" suffix;
          fuFunc
-           := fun sem_in_pkt_expr : INToNFInput ## ty
+           := fun sem_in_pkt_expr : INToNFInput (32 - 2) ## ty
                 => LETE sem_in_pkt
-                     :  INToNFInput
+                     :  INToNFInput (32 - 2)
                      <- sem_in_pkt_expr;
                   INToNF_expr
                     expWidthMinus2
@@ -271,11 +294,11 @@ Section Fpu.
                             <- context_pkt_expr;
                           RetE
                             (STRUCT {
-                               "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
+                               "in"            ::= ZeroExtendTruncLsb ((32 - 2) + 1 + 1) (#context_pkt @% "reg1");
                                "signedIn"      ::= $$true;
                                "afterRounding" ::= $$true;
                                "roundingMode" ::= rounding_mode (#context_pkt)
-                             } : INToNFInput @# ty);
+                             } : INToNFInput (32 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
                   instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
@@ -297,15 +320,33 @@ Section Fpu.
                               <- context_pkt_expr;
                             RetE
                               (STRUCT {
-                                 "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
+                                 "in"            ::= ZeroExtendTruncLsb ((32 - 2) + 1 + 1) (#context_pkt @% "reg1");
                                  "signedIn"      ::= $$false;
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
-                               } : INToNFInput @# ty);
+                               } : INToNFInput (32 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
                   instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
-                |};
+                |}
+             ]
+      |}.
+
+  Definition Long_float
+    :  @FUEntry ty
+    := {|
+         fuName := append "long_float" suffix;
+         fuFunc
+           := fun sem_in_pkt_expr : INToNFInput (64 - 2) ## ty
+                => LETE sem_in_pkt
+                     :  INToNFInput (64 - 2)
+                     <- sem_in_pkt_expr;
+                  INToNF_expr
+                    expWidthMinus2
+                    sigWidthMinus2
+                    (#sem_in_pkt);
+         fuInsts
+           := [
                 {|
                   instName   := append (append "fcvt" suffix) ".l";
                   extensions := exts_64;
@@ -315,7 +356,7 @@ Section Fpu.
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00010");
-                         fieldVal rs3Field      ('b"1101000")
+                         fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
                     := fun context_pkt_expr : ExecContextPkt ## ty
@@ -323,11 +364,11 @@ Section Fpu.
                               <- context_pkt_expr;
                             RetE
                               (STRUCT {
-                                 "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
+                                 "in"            ::= ZeroExtendTruncLsb ((64 - 2) + 1 + 1) (#context_pkt @% "reg1");
                                  "signedIn"      ::= $$true;
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
-                               } : INToNFInput @# ty);
+                               } : INToNFInput (64 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
                   instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
@@ -349,11 +390,11 @@ Section Fpu.
                               <- context_pkt_expr;
                             RetE
                               (STRUCT {
-                                 "in"            ::= ZeroExtendTruncLsb ((Xlen - 2) + 1 + 1) (#context_pkt @% "reg1");
+                                 "in"            ::= ZeroExtendTruncLsb ((64 - 2) + 1 + 1) (#context_pkt @% "reg1");
                                  "signedIn"      ::= $$false;
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
-                               } : INToNFInput @# ty);
+                               } : INToNFInput (64 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
                   instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 

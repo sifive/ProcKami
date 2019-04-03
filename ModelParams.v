@@ -234,25 +234,29 @@ Section exts.
              Float_double Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
              Double_float Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
 
-             Mac       Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FMinMax   Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FSgn      Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FMv       Xlen_over_8 Rlen_over_8 fu_params_single _;
-             Float_int Xlen_over_8 Rlen_over_8 fu_params_single _;
-             Int_float Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FCmp      Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FClass    Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_single _;
+             Mac        Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FMinMax    Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FSgn       Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FMv        Xlen_over_8 Rlen_over_8 fu_params_single _;
+             Float_word Xlen_over_8 Rlen_over_8 fu_params_single _;
+             Float_long Xlen_over_8 Rlen_over_8 fu_params_single _;
+             Word_float Xlen_over_8 Rlen_over_8 fu_params_single _;
+             Long_float Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FCmp       Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FClass     Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FDivSqrt   Xlen_over_8 Rlen_over_8 fu_params_single _;
 
-             Mac       Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FMinMax   Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FSgn      Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FMv       Xlen_over_8 Rlen_over_8 fu_params_double _;
-             Float_int Xlen_over_8 Rlen_over_8 fu_params_double _;
-             Int_float Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FCmp      Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FClass    Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FDivSqrt  Xlen_over_8 Rlen_over_8 fu_params_double _;
+             Mac        Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FMinMax    Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FSgn       Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FMv        Xlen_over_8 Rlen_over_8 fu_params_double _;
+             Float_word Xlen_over_8 Rlen_over_8 fu_params_double _;
+             Float_long Xlen_over_8 Rlen_over_8 fu_params_double _;
+             Word_float Xlen_over_8 Rlen_over_8 fu_params_double _;
+             Long_float Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FCmp       Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FClass     Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FDivSqrt   Xlen_over_8 Rlen_over_8 fu_params_double _;
 
              (* RV Zicsr instructions. *)
              Zicsr     Xlen_over_8 Rlen_over_8 _

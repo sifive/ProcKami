@@ -217,7 +217,7 @@ Section Params.
                                "data" :: Bit Flen }.
 
   Definition CsrWrite := STRUCT {
-                             "index" :: CsrId ;
+                             "addr" :: CsrId ;
                              "data" :: CsrValue }.
 
   Definition MemRead := STRUCT {
@@ -434,7 +434,7 @@ Section Params.
          LET csr_write_pkt
            :  CsrWrite
            <- STRUCT {
-                "index"
+                "addr"
                   ::= csr_getId csrId;
                 "data" 
                   ::= utila_lookup_table_default
@@ -1242,7 +1242,7 @@ Section Params.
          LET val1_data : Data <- (#val1 @% "data") @% "data" ;
          LET val2_data : Data <- (#val2 @% "data") @% "data" ;
          LET reg_index : RegId <- rd inst;
-         LET writeCsr: CsrWrite <- STRUCT {"index" ::= imm inst ;
+         LET writeCsr: CsrWrite <- STRUCT {"addr" ::= imm inst ;
                                            "data" ::= ZeroExtendTruncLsb CsrValueWidth #val1_data };
          (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
          If (!(cxt @% "snd" @% "valid"))
