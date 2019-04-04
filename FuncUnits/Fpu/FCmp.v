@@ -13,18 +13,21 @@ Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FU.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
 
   Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
+  Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
   Variable fu_params : fu_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
@@ -48,13 +51,9 @@ Section Fpu.
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
-  Definition bitToFN (x : Bit len @# ty)
-    :  FN expWidthMinus2 sigWidthMinus2 @# ty
-    := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
-
-  Definition bitToNF (x : Bit len @# ty)
-    :  NF expWidthMinus2 sigWidthMinus2 @# ty
-    := getNF_from_FN (bitToFN x).
+  Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
+  Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
+  Local Notation floatGetFloat := (@floatGetFloat ty expWidthMinus2 sigWidthMinus2 Flen).
 
   Open Scope kami_expr.
 
@@ -112,14 +111,20 @@ Section Fpu.
     :  FCmpInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;
+       LETC reg1
+         :  Bit len
+         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+       LETC reg2
+         :  Bit len
+         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
        RetE
          (STRUCT {
             "fcsr"   ::= #context_pkt @% "fcsr";
             "signal" ::= signal;
             "cond0"  ::= cond0;
             "cond1"  ::= cond1;
-            "arg1"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "arg2"   ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))
+            "arg1"   ::= bitToNF #reg1;
+            "arg2"   ::= bitToNF #reg2
           } : FCmpInputType @# ty).
 
   Definition FCmp

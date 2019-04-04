@@ -160,7 +160,7 @@ Section exts.
     Accepts a list of extensions and returns the smallest compatible
     value for Xlen or None if there is a conflict.
   *)
-  Local Definition Xlen_over_8 :  nat := list_max 4 (map param_entry_xlen entries).
+  Local Definition Xlen_over_8 : nat := list_max 4 (map param_entry_xlen entries).
 
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
@@ -204,8 +204,6 @@ Section exts.
     (* III. Select and tailor function units. *)
     Section func_units.
 
-      Variable Xlen_over_8 : nat.
-      Variable Rlen_over_8 : nat.
       Local Notation FUEntry   := (FUEntry Xlen_over_8 Rlen_over_8).
       Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8).
 
@@ -236,25 +234,25 @@ Section exts.
 
              Mac        Xlen_over_8 Rlen_over_8 fu_params_single _;
              FMinMax    Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FSgn       Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
              FMv        Xlen_over_8 Rlen_over_8 fu_params_single _;
              Float_word Xlen_over_8 Rlen_over_8 fu_params_single _;
              Float_long Xlen_over_8 Rlen_over_8 fu_params_single _;
              Word_float Xlen_over_8 Rlen_over_8 fu_params_single _;
              Long_float Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FCmp       Xlen_over_8 Rlen_over_8 fu_params_single _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
              FClass     Xlen_over_8 Rlen_over_8 fu_params_single _;
              FDivSqrt   Xlen_over_8 Rlen_over_8 fu_params_single _;
 
              Mac        Xlen_over_8 Rlen_over_8 fu_params_double _;
              FMinMax    Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FSgn       Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
              FMv        Xlen_over_8 Rlen_over_8 fu_params_double _;
              Float_word Xlen_over_8 Rlen_over_8 fu_params_double _;
              Float_long Xlen_over_8 Rlen_over_8 fu_params_double _;
              Word_float Xlen_over_8 Rlen_over_8 fu_params_double _;
              Long_float Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FCmp       Xlen_over_8 Rlen_over_8 fu_params_double _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
              FClass     Xlen_over_8 Rlen_over_8 fu_params_double _;
              FDivSqrt   Xlen_over_8 Rlen_over_8 fu_params_double _;
 
@@ -299,7 +297,7 @@ Section exts.
   Definition generate_model
     := model "proc_core"
          Flen_over_8
-         (fun ty => param_func_units ty Xlen_over_8 Rlen_over_8)
+         param_func_units
          (fun ty => Const ty $MachineMode)
          param_exts.
 

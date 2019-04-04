@@ -13,18 +13,21 @@ Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FU.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
 
   Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
+  Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
   Variable fu_params : fu_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
@@ -48,21 +51,15 @@ Section Fpu.
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
+  Local Notation bitToFN := (bitToFN ty expWidthMinus2 sigWidthMinus2).
+  Local Notation bitToNF := (bitToNF ty expWidthMinus2 sigWidthMinus2).
+  Local Notation NFToBit := (NFToBit ty expWidthMinus2 sigWidthMinus2).
+  Local Notation FN_canonical_nan := (FN_canonical_nan ty expWidthMinus2 sigWidthMinus2).
+  Local Notation floatGetFloat := (@floatGetFloat ty expWidthMinus2 sigWidthMinus2 Flen).
+
   Definition add_format_field
     :  UniqId -> UniqId
     := cons (fieldVal fmtField format_field).
-
-  Definition bitToFN (x : Bit len @# ty)
-    :  FN expWidthMinus2 sigWidthMinus2 @# ty
-    := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
-
-  Definition bitToNF (x : Bit len @# ty)
-    :  NF expWidthMinus2 sigWidthMinus2 @# ty
-    := getNF_from_FN (bitToFN x).
-
-  Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
-    :  Bit len @# ty
-    := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
 
   Definition FSgnInputType
     :  Kind
@@ -73,60 +70,26 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition fflags_width : nat := 5.
-
-  Definition FFlagsType : Kind := Bit fflags_width.
-
-  Definition FN_canonical_nan
-    :  Bit len @# ty
-    := ZeroExtendTruncLsb len
-         (pack
-           (STRUCT {
-              "sign" ::= $$false;
-              "exp"  ::= $$(wones (expWidthMinus2 + 1 + 1));
-              "frac"
-                ::= ZeroExtendTruncLsb
-                      (sigWidthMinus2 + 1)
-                      ({<
-                        $$WO~1,
-                        $$(wzero sigWidthMinus2)
-                      >})
-            } : FN expWidthMinus2 sigWidthMinus2 @# ty)).
-
-  Definition csr_invalid_mask : FFlagsType @# ty := Const ty ('b("10000")).
-
-  Definition csr (flags : ExceptionFlags @# ty)
-    :  Bit Rlen @# ty
-    := ZeroExtendTruncLsb Rlen (pack flags).
-
-  Definition rounding_mode_kind : Kind := Bit 3.
-
-  Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
-
-  Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
-    :  rounding_mode_kind @# ty
-    := let rounding_mode
-         :  rounding_mode_kind @# ty
-         := rm (context_pkt @% "inst") in
-       ITE
-         (rounding_mode == rounding_mode_dynamic)
-         (fcsr_frm (context_pkt @% "fcsr"))
-         rounding_mode.
-
   Definition FSgnInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  FSgnInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;
+       LETC reg1
+         :  Bit len
+         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+       LETC reg2
+         :  Bit len
+         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
        RetE
          (STRUCT {
             "sign_bit"
               ::= Switch op Retn (Bit 1) With {
-                    (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
-                    (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2")));
-                    (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))) ^
-                                                    (ZeroExtendTruncMsb 1 (ZeroExtendTruncLsb len (#context_pkt @% "reg2"))))
+                    (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 #reg2;
+                    (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 #reg2);
+                    (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 #reg1) ^
+                                                    (ZeroExtendTruncMsb 1 #reg2))
                   };
-            "arg1"     ::= (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))
+            "arg1" ::= #reg1
           } : FSgnInputType @# ty).
 
   Definition FSgn
@@ -146,7 +109,7 @@ Section Fpu.
                                    ::= Valid (STRUCT {
                                          "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
                                          "data"
-                                           ::= ZeroExtendTruncLsb Rlen
+                                           ::= OneExtendTruncLsb Rlen
                                                  ({<
                                                    (#sem_in_pkt @% "sign_bit"),
                                                    (ZeroExtendTruncLsb (len - 1) (#sem_in_pkt @% "arg1"))

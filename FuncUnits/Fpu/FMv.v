@@ -76,16 +76,6 @@ Section Fpu.
                                                      (ZeroExtendTruncLsb
                                                        len
                                                        ((#inp @% "snd") : Bit Rlen @# ty))
-(*
-                                               ::= IF #isInt
-                                                     then SignExtendTruncLsb Rlen (#inp @% "snd")
-                                                     else
-                                                       SignExtendTruncLsb
-                                                         Rlen
-                                                         (ZeroExtendTruncLsb
-                                                           len
-                                                           ((#inp @% "snd") : Bit Rlen @# ty))
-*)
                                            }: RoutedReg @# ty));
                                  "val2" ::= @Invalid ty _;
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
