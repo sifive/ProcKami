@@ -13,18 +13,21 @@ Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FU.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
 
   Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
+  Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
   Variable fu_params : fu_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
@@ -48,13 +51,9 @@ Section Fpu.
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
-  Definition bitToFN (x : Bit len @# ty)
-    :  FN expWidthMinus2 sigWidthMinus2 @# ty
-    := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
-
-  Definition bitToNF (x : Bit len @# ty)
-    :  NF expWidthMinus2 sigWidthMinus2 @# ty
-    := getNF_from_FN (bitToFN x).
+  Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
+  Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
+  Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
 
   Open Scope kami_expr.
 
@@ -63,7 +62,7 @@ Section Fpu.
     := LETE context_pkt
          <- context_pkt_expr;
        RetE
-         (bitToFN (ZeroExtendTruncLsb len (#context_pkt @% "reg1"))).
+         (bitToFN (fp_get_float (#context_pkt @% "reg1"))).
 
   Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
     :  PktWithException ExecContextUpdPkt ## ty

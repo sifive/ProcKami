@@ -55,7 +55,7 @@ Section Fpu.
   Local Notation bitToNF := (bitToNF ty expWidthMinus2 sigWidthMinus2).
   Local Notation NFToBit := (NFToBit ty expWidthMinus2 sigWidthMinus2).
   Local Notation FN_canonical_nan := (FN_canonical_nan ty expWidthMinus2 sigWidthMinus2).
-  Local Notation floatGetFloat := (@floatGetFloat ty expWidthMinus2 sigWidthMinus2 Flen).
+  Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -76,10 +76,10 @@ Section Fpu.
          <- context_pkt_expr;
        LETC reg1
          :  Bit len
-         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
+         <- fp_get_float (#context_pkt @% "reg1");
        LETC reg2
          :  Bit len
-         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
+         <- fp_get_float (#context_pkt @% "reg2");
        RetE
          (STRUCT {
             "sign_bit"

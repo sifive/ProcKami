@@ -14,12 +14,14 @@ Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FpuKami.Round.
 Require Import FU.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
 
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
 
   Variable fu_params_single : fu_params_type.
@@ -27,6 +29,7 @@ Section Fpu.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
@@ -40,46 +43,17 @@ Section Fpu.
   Local Notation double_expWidthMinus2 := (fu_params_expWidthMinus2 fu_params_double).
   Local Notation double_sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params_double).
 
+  Local Notation bitToFN := (@bitToFN ty).
+  Local Notation bitToNF := (@bitToNF ty).
+  Local Notation NFToBit := (@NFToBit ty).
+  Local Notation fp_get_float  := (@fp_get_float ty).
+  Local Notation csr           := (@csr ty Rlen_over_8).
+  Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
+
+  Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
+  Local Definition double_Flen := double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1).
+
   Open Scope kami_expr.
-
-  Definition csr (flags : ExceptionFlags @# ty)
-    :  Bit Rlen @# ty
-    := ZeroExtendTruncLsb Rlen (pack flags).
-
-  Definition rounding_mode_kind : Kind := Bit 3.
-
-  Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
-
-  Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
-    :  rounding_mode_kind @# ty
-    := let rounding_mode
-         :  rounding_mode_kind @# ty
-         := rm (context_pkt @% "inst") in
-       ITE
-         (rounding_mode == rounding_mode_dynamic)
-         (fcsr_frm (context_pkt @% "fcsr"))
-         rounding_mode.
-
-  Section conv_fns.
-
-    Variable expWidthMinus2 : nat.
-    Variable sigWidthMinus2 : nat.
-
-    Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-
-    Definition bitToFN (x : Bit len @# ty)
-      :  FN expWidthMinus2 sigWidthMinus2 @# ty
-      := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
-
-    Definition bitToNF (x : Bit len @# ty)
-      :  NF expWidthMinus2 sigWidthMinus2 @# ty
-      := getNF_from_FN (bitToFN x).
-
-    Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
-      :  Bit len @# ty
-      := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
-
-  End conv_fns.
 
   Definition Float_double
     :  @FUEntry ty
@@ -108,7 +82,13 @@ Section Fpu.
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
-                                  "in" ::= bitToNF single_expWidthMinus2 single_sigWidthMinus2 (ZeroExtendTruncLsb (single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1)) (#context_pkt @% "reg1"));
+                                  "in" 
+                                    ::= bitToNF single_expWidthMinus2 single_sigWidthMinus2
+                                          (fp_get_float
+                                             single_expWidthMinus2
+                                             single_sigWidthMinus2
+                                             Rlen
+                                             (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput single_expWidthMinus2 single_sigWidthMinus2 @# ty));
@@ -169,7 +149,13 @@ Section Fpu.
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
-                                  "in" ::= bitToNF double_expWidthMinus2 double_sigWidthMinus2 (ZeroExtendTruncLsb (double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1)) (#context_pkt @% "reg1"));
+                                  "in"
+                                    ::= bitToNF double_expWidthMinus2 double_sigWidthMinus2
+                                          (fp_get_float
+                                             double_expWidthMinus2
+                                             double_sigWidthMinus2
+                                             Rlen
+                                             (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput double_expWidthMinus2 double_sigWidthMinus2 @# ty));

@@ -51,14 +51,38 @@ Section ty.
               } : FN expWidthMinus2 sigWidthMinus2 @# ty)).
 
     (*
-      Accepts a floating point value and returns a smaller floating
-      point value from within it. According to the spec, these must
-      be NaN-boxed.
+      Accepts a bus value that contains a floating point value and
+      returns the floating point value without checking that the
+      value is properly NaN-boxed.
     *)
-    Definition floatGetFloat (Flen : nat) (x : Bit Flen @# ty)
+    Definition fp_extract_float (Rlen Flen : nat) (x : Bit Rlen @# ty)
       :  Bit len @# ty
-      := IF 
-           ($$(wones (Flen - len)%nat) == (ZeroExtendTruncMsb (Flen - len) x))
+      := OneExtendTruncLsb len x.
+
+    (*
+      Accepts a bus value that contains a floating point value
+      and returns true iff the floating point value is properly
+      NaN-boxed.
+    *)
+    Definition fp_is_nan_boxed (Rlen Flen : nat) (x : Bit Rlen @# ty)
+      :  Bool @# ty
+      := $$(wones (Flen - len)%nat) ==
+         (ZeroExtendTruncMsb (Flen - len)
+           (ZeroExtendTruncLsb Flen x)).
+
+    (*
+      Accepts a bus value that contains a floating point value and
+      returns the floating point value.
+
+      Note: the spec requires most floating point instructions to
+      verify that their arguments are properly NaN-boxed. The spec
+      requires them to treat non NaN-boxed values as canonical
+      NaNs. This function performs the necessary checks and
+      substitutions.
+    *)
+    Definition fp_get_float (Rlen Flen : nat) (x : Bit Rlen @# ty)
+      :  Bit len @# ty
+      := IF (fp_is_nan_boxed Flen x)
            then OneExtendTruncLsb len x
            else FN_canonical_nan.
 

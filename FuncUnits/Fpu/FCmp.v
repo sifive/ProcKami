@@ -53,7 +53,7 @@ Section Fpu.
 
   Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
   Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
-  Local Notation floatGetFloat := (@floatGetFloat ty expWidthMinus2 sigWidthMinus2 Flen).
+  Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
 
   Open Scope kami_expr.
 
@@ -111,20 +111,14 @@ Section Fpu.
     :  FCmpInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;
-       LETC reg1
-         :  Bit len
-         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg1"));
-       LETC reg2
-         :  Bit len
-         <- floatGetFloat (ZeroExtendTruncLsb Flen (#context_pkt @% "reg2"));
        RetE
          (STRUCT {
             "fcsr"   ::= #context_pkt @% "fcsr";
             "signal" ::= signal;
             "cond0"  ::= cond0;
             "cond1"  ::= cond1;
-            "arg1"   ::= bitToNF #reg1;
-            "arg2"   ::= bitToNF #reg2
+            "arg1"   ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
+            "arg2"   ::= bitToNF (fp_get_float (#context_pkt @% "reg2"))
           } : FCmpInputType @# ty).
 
   Definition FCmp

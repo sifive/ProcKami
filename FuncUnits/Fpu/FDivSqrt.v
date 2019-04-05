@@ -15,18 +15,21 @@ Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FU.
+Require Import Fpu.
 Require Import List.
 Import ListNotations.
 
 Section Fpu.
 
   Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
+  Variable Flen_over_8: nat.
+  Variable Rlen_over_8: nat.
 
   Variable fu_params : fu_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (8 * Rlen_over_8).
+  Local Notation Flen := (8 * Flen_over_8).
   Local Notation Xlen := (8 * Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
@@ -50,37 +53,14 @@ Section Fpu.
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
-  Definition bitToFN (x : Bit len @# ty)
-    :  FN expWidthMinus2 sigWidthMinus2 @# ty
-    := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
-
-  Definition bitToNF (x : Bit len @# ty)
-    :  NF expWidthMinus2 sigWidthMinus2 @# ty
-    := getNF_from_FN (bitToFN x).
-
-  Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
-    :  Bit len @# ty
-    := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
+  Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
+  Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
+  Local Notation NFToBit := (@NFToBit ty expWidthMinus2 sigWidthMinus2).
+  Local Notation fp_get_float  := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
+  Local Notation csr           := (@csr ty Rlen_over_8).
+  Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
 
   Open Scope kami_expr.
-
-  Definition csr (flags : ExceptionFlags @# ty)
-    :  Bit Rlen @# ty
-    := ZeroExtendTruncLsb Rlen (pack flags).
-
-  Definition rounding_mode_kind : Kind := Bit 3.
-
-  Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
-
-  Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
-    :  rounding_mode_kind @# ty
-    := let rounding_mode
-         :  rounding_mode_kind @# ty
-         := rm (context_pkt @% "inst") in
-       ITE
-         (rounding_mode == rounding_mode_dynamic)
-         (fcsr_frm (context_pkt @% "fcsr"))
-         rounding_mode.
 
   Definition FDivSqrtInput (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
     :  inpK expWidthMinus2 sigWidthMinus2 ## ty
@@ -90,8 +70,8 @@ Section Fpu.
        RetE
          (STRUCT {
             "isSqrt" ::= sqrt;
-            "nfA"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg1"));
-            "nfB"    ::= bitToNF (ZeroExtendTruncLsb len (#context_pkt @% "reg2"));
+            "nfA"    ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
+            "nfB"    ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
             "round"  ::= rounding_mode (#context_pkt);
             "tiny"   ::= $$true
           } : inpK expWidthMinus2 sigWidthMinus2 @# ty).
