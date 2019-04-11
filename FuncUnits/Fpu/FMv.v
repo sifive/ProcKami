@@ -71,11 +71,17 @@ Section Fpu.
                                                       else $FloatRegTag: Bit RoutingTagSz @# ty);
                                              (* TODO: revise this. values taken from smaller integer registers and moved into larger floating registers must be NaN-boxed. *)
                                              "data"
-                                               ::= SignExtendTruncLsb
-                                                     Rlen
-                                                     (ZeroExtendTruncLsb
-                                                       len
-                                                       ((#inp @% "snd") : Bit Rlen @# ty))
+                                               ::= (IF #isInt
+                                                      then SignExtendTruncLsb
+                                                             Rlen
+                                                             (ZeroExtendTruncLsb
+                                                               len
+                                                               ((#inp @% "snd") : Bit Rlen @# ty))
+                                                      else OneExtendTruncLsb
+                                                             Rlen
+                                                             (ZeroExtendTruncLsb
+                                                               len
+                                                               ((#inp @% "snd") : Bit Rlen @# ty)))
                                            }: RoutedReg @# ty));
                                  "val2" ::= @Invalid ty _;
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
