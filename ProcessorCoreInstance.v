@@ -30,4 +30,4 @@ Definition model64
   :  RtlModule
   := generate_model ("RV64I" :: coreExts).
 
-Separate Extraction model32 model64 size wordToNat getFins log2_up WriteRqMask WriteRq.
+Separate Extraction model32 model64 size wordToNat getFins.
