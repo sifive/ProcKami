@@ -145,7 +145,7 @@ Section Fpu.
                   inputXform  := FDivSqrtInput ($$false);
                   outputXform := FDivSqrtOutput;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*}
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|>
                 |};
                 {|
                   instName   := append "fsqrt" suffix;
@@ -161,7 +161,7 @@ Section Fpu.
                   inputXform  := FDivSqrtInput ($$true);
                   outputXform := FDivSqrtOutput;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrd := true*}
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrd := true|>
                 |}
               ]
        |}.

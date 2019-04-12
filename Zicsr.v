@@ -97,7 +97,7 @@ Section zicsr.
                    } : ZicsrInput @# ty);
               outputXform := fun pkt => pkt;
               optMemXform := None;
-              instHints   := falseHints{*hasRs1 := true*}{*hasRd := true*}{*isCsr := true*}
+              instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
             |};
               {|
                 instName   := "csrrs";
@@ -127,7 +127,7 @@ Section zicsr.
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints{*hasRs1 := true*}{*hasRd := true*}{*isCsr := true*}
+                instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
               {|
                 instName   := "csrrc";
@@ -158,7 +158,7 @@ Section zicsr.
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints{*hasRs1 := true*}{*hasRd := true*}{*isCsr := true*}
+                instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
               {|
                 instName   := "csrrwi";
@@ -184,7 +184,7 @@ Section zicsr.
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints{*hasRd := true*}{*isCsr := true*}
+                instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
               {|
                 instName   := "csrrsi";
@@ -214,7 +214,7 @@ Section zicsr.
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints{*hasRd := true*}{*isCsr := true*}
+                instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
               {|
                 instName   := "csrrci";
@@ -245,7 +245,7 @@ Section zicsr.
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
-                instHints   := falseHints{*hasRd := true*}{*isCsr := true*}
+                instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |}
           ]
       |}.

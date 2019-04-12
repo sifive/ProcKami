@@ -160,7 +160,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoadd.d" ;
               extensions   := "RV64I" :: nil;
@@ -171,7 +171,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg + mem) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoxor.d" ;
               extensions   := "RV64I" :: nil;
@@ -182,7 +182,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg ^ mem) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoand.d" ;
               extensions   := "RV64I" :: nil;
@@ -193,7 +193,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => (reg & mem)%kami_expr) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoor.d" ;
               extensions   := "RV64I" :: nil;
@@ -204,7 +204,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => (reg | mem)%kami_expr) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomin.d" ;
               extensions   := "RV64I" :: nil;
@@ -215,7 +215,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (SignExtendTruncLsb ((Xlen-1) + 1) reg) >s (SignExtendTruncLsb _ mem) then mem else reg) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomax.d" ;
               extensions   := "RV64I" :: nil;
@@ -226,7 +226,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (SignExtendTruncLsb ((Xlen-1) + 1) reg) >s (SignExtendTruncLsb _ mem) then reg else mem) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amominu.d" ;
               extensions   := "RV64I" :: nil;
@@ -237,7 +237,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF reg > mem then mem else reg) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomaxu.d" ;
               extensions   := "RV64I" :: nil;
@@ -248,7 +248,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF reg > mem then reg else mem) ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            nil |}.
 

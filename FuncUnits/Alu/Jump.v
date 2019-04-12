@@ -126,7 +126,7 @@ Section Alu.
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
                   optMemXform  := None ;
-                  instHints    := falseHints{*hasRd := true*}
+                  instHints    := falseHints<|hasRd := true|>
                 |} ::
                 {| instName     := "jalr" ; 
                    extensions   := "RV32I" :: "RV64I" :: nil;
@@ -157,7 +157,7 @@ Section Alu.
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                      => jumpTag (transPC sem_output_expr);
                    optMemXform  := None ;
-                   instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
+                   instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                 |} ::
                 nil
          |}.

@@ -138,7 +138,7 @@ Section Alu.
                        inputXform   := branchInput ($$false) ($$false) ($$false);
                        outputXform  := branchTag ;
                        optMemXform  := None ;
-                       instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                       instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                     |} ::
                        {| instName     := "bne" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -148,7 +148,7 @@ Section Alu.
                           inputXform   := branchInput ($$false) ($$false) ($$true) ;
                           outputXform  := branchTag ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "blt" ;  
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -158,7 +158,7 @@ Section Alu.
                           inputXform   := branchInput ($$true) ($$false) ($$false) ;
                           outputXform  := branchTag ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bge" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -168,7 +168,7 @@ Section Alu.
                           inputXform   := branchInput ($$true) ($$false) ($$true) ;
                           outputXform  := branchTag ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bltu" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -178,7 +178,7 @@ Section Alu.
                           inputXform   := branchInput ($$true) ($$true) ($$false) ;
                           outputXform  := branchTag ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bgeu" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil;
@@ -188,7 +188,7 @@ Section Alu.
                           inputXform   := branchInput ($$true) ($$true) ($$true) ;
                           outputXform  := branchTag ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        nil |}.
     Local Close Scope kami_expr.

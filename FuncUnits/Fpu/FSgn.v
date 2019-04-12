@@ -138,7 +138,7 @@ Section Fpu.
                   inputXform  := FSgnInput $0;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fsgnjn" suffix;
@@ -154,7 +154,7 @@ Section Fpu.
                   inputXform  := FSgnInput $1;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fsgnjx" suffix;
@@ -170,7 +170,7 @@ Section Fpu.
                   inputXform  := FSgnInput $2;
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]
        |}.

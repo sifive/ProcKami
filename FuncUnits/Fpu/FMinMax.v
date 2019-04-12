@@ -185,7 +185,7 @@ Section Fpu.
                   inputXform  := FMinMaxInput ($$false);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fmax" suffix;
@@ -201,7 +201,7 @@ Section Fpu.
                   inputXform  := FMinMaxInput ($$true);
                   outputXform := id;
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]
        |}.

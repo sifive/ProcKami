@@ -64,7 +64,7 @@ Section Alu.
                        outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                             RetE (intRegTag #result)) ;
                        optMemXform  := None ;
-                       instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
+                       instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "ori" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -79,7 +79,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "andi" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -94,7 +94,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRd := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "xor" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -110,7 +110,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "or" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -128,7 +128,7 @@ Section Alu.
                                                 (* RetE (intRegTag $999)) ; *) (* worked *)
                                                 RetE (intRegTag #result)); 
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "and" ; 
                           extensions   := "RV32I" :: "RV64I" :: nil ;
@@ -144,7 +144,7 @@ Section Alu.
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
                           optMemXform  := None ;
-                          instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+                          instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        nil |}.
     Local Close Scope kami_expr.

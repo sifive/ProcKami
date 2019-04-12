@@ -209,7 +209,7 @@ Section Mem.
               inputXform   := lrInput 3;
               outputXform  := lrTag ;
               optMemXform  := lrXform false ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "sc.d" ;
               extensions   := "RV64I" :: nil;
@@ -222,7 +222,7 @@ Section Mem.
               inputXform   := scInput 3;
               outputXform  := scTag ;
               optMemXform  := scXform false ;
-              instHints    := falseHints{*hasRs1 := true*}{*hasRs2 := true*}{*hasRd := true*}
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            nil |}.
   End Ty.

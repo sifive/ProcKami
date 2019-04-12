@@ -131,7 +131,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$true);
                   outputXform := @Float_Int_Output (32 - 2);
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
                   instName   := append "fcvt.wu" suffix;
@@ -147,7 +147,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$false);
                   outputXform := @Float_Int_Output (32 - 2);
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}
               ]
       |}.
@@ -185,7 +185,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$true);
                   outputXform := @Float_Int_Output (64 - 2);
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
                   instName   := append "fcvt.lu" suffix;
@@ -201,7 +201,7 @@ Section Fpu.
                   inputXform  := Float_Int_Input ($$false);
                   outputXform := @Float_Int_Output (64 - 2);
                   optMemXform := None;
-                  instHints   := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
+                  instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}
               ]
       |}.
@@ -276,7 +276,7 @@ Section Fpu.
                              } : INToNFInput (32 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".wu";
@@ -302,7 +302,7 @@ Section Fpu.
                                } : INToNFInput (32 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
              ]
       |}.
@@ -346,7 +346,7 @@ Section Fpu.
                                } : INToNFInput (64 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".lu";
@@ -372,7 +372,7 @@ Section Fpu.
                                } : INToNFInput (64 - 2) @# ty);
                   outputXform := Int_float_Output;
                   optMemXform := None;
-                  instHints   := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
+                  instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
              ]
       |}.

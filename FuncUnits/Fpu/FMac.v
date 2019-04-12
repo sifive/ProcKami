@@ -203,7 +203,7 @@ Section Fpu.
                   inputXform  := MacInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fmsub" suffix;
@@ -217,7 +217,7 @@ Section Fpu.
                   inputXform  := MacInput $1;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fnmsub" suffix;
@@ -231,7 +231,7 @@ Section Fpu.
                   inputXform  := MacInput $2;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fnmadd" suffix;
@@ -245,7 +245,7 @@ Section Fpu.
                   inputXform  := MacInput $3;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrs3 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fadd" suffix;
@@ -260,7 +260,7 @@ Section Fpu.
                   inputXform  := AddInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fsub" suffix;
@@ -275,7 +275,7 @@ Section Fpu.
                   inputXform  := AddInput $1;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
                   instName   := append "fmul" suffix;
@@ -290,7 +290,7 @@ Section Fpu.
                   inputXform  := MulInput $0;
                   outputXform := MacOutput;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasFrs2 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]
       |}.

@@ -117,7 +117,7 @@ Section Fpu.
                             RetE #ret;
                   outputXform := id;
                   optMemXform := None;
-                  instHints := falseHints{*hasFrs1 := true*}{*hasRd := true*} 
+                  instHints := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
                   instName   := append (append "fmv" int_suffix) ".x";
@@ -143,7 +143,7 @@ Section Fpu.
                                  RetE #ret;
                   outputXform := id;
                   optMemXform := None;
-                  instHints := falseHints{*hasRs1 := true*}{*hasFrd := true*} 
+                  instHints := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
            ]
       |}.
