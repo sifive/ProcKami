@@ -8,17 +8,26 @@ Require Import ProcessorCore.
 Require Import List.
 Import ListNotations.
 Require Import ModelParams.
+Require Import PeanoNat.
+Import Nat.
 
-Definition rtlMod
-  := generate_model
-       [
-         "RV32I";
-         "Zicsr";
-         "M";
-         "A";
-         "F";
-         "D";
-         "C"
-       ].
+Definition coreExts
+  :  list string
+  := [
+       "Zicsr";
+       "M";
+       "A";
+       "F";
+       "D";
+       "C"
+     ].
 
-(* Extraction "Target.hs" rtlMod size RtlModule WriteRegFile Nat.testbit wordToNat getFins. *)
+Definition model32
+  :  RtlModule
+  := generate_model ("RV32I" :: coreExts).
+
+Definition model64
+  :  RtlModule
+  := generate_model ("RV64I" :: coreExts).
+
+Separate Extraction model32 model64 size wordToNat getFins log2_up WriteRqMask WriteRq.
