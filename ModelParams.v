@@ -10,28 +10,28 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import Add.
-Require Import Logical.
-Require Import Branch.
-Require Import Shift.
-Require Import Jump.
-Require Import Mult.
-Require Import DivRem.
-Require Import Mem.
-Require Import Amo32.
-Require Import Amo64.
-Require Import LrSc32.
-Require Import LrSc64.
-Require Import FMac.
-Require Import FMinMax.
-Require Import FSgn.
-Require Import FMv.
-Require Import FCvt.
-Require Import FCmp.
-Require Import FClass.
-Require Import FDivSqrt.
-Require Import FRound.
-Require Import Zicsr.
+Require Import FuncUnits.Alu.Add.
+Require Import FuncUnits.Alu.Logical.
+Require Import FuncUnits.Alu.Branch.
+Require Import FuncUnits.Alu.Shift.
+Require Import FuncUnits.Alu.Jump.
+Require Import FuncUnits.Alu.Mult.
+Require Import FuncUnits.Alu.DivRem.
+Require Import FuncUnits.Mem.Mem.
+Require Import FuncUnits.Mem.Amo32.
+Require Import FuncUnits.Mem.Amo64.
+Require Import FuncUnits.Mem.LrSc32.
+Require Import FuncUnits.Mem.LrSc64.
+Require Import FuncUnits.Fpu.FMac.
+Require Import FuncUnits.Fpu.FMinMax.
+Require Import FuncUnits.Fpu.FSgn.
+Require Import FuncUnits.Fpu.FMv.
+Require Import FuncUnits.Fpu.FCvt.
+Require Import FuncUnits.Fpu.FCmp.
+Require Import FuncUnits.Fpu.FClass.
+Require Import FuncUnits.Fpu.FDivSqrt.
+Require Import FuncUnits.Fpu.FRound.
+Require Import FuncUnits.Zicsr.
 
 (* I. FPU configuration parameters. *)
 
