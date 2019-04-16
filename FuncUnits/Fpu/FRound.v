@@ -28,9 +28,9 @@ Section Fpu.
   Variable fu_params_double : fu_params_type.
   Variable ty : Kind -> Type.
 
-  Local Notation Rlen := (8 * Rlen_over_8).
-  Local Notation Flen := (8 * Flen_over_8).
-  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Flen := (Flen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).

@@ -13,8 +13,8 @@ Section zicsr.
   Variable Xlen_over_8 : nat.
   Variable Rlen_over_8: nat.
 
-  Local Notation Rlen := (8 * Rlen_over_8).
-  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).

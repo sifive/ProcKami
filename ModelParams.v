@@ -296,6 +296,7 @@ Section exts.
 
   Definition generate_model
     := model "proc_core"
+         20
          Flen_over_8
          param_func_units
          (fun ty => Const ty $MachineMode)

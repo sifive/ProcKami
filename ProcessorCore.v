@@ -15,13 +15,14 @@ Import ListNotations.
 Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  
+
+  Variable lgMemSz: nat.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Local Notation Rlen := (8 * Rlen_over_8).
-  Local Notation Xlen := (8 * Xlen_over_8).
-  Local Notation Flen := (8 * Flen_over_8).
+  Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation Flen := (Flen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -112,7 +113,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 (#pc);
+                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 (#pc);
                    System
                      [
                        DispString _ "Fetched\n";
@@ -258,7 +259,7 @@ Section Params.
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    System [DispString _ "Mem\n"];
                    LETA mem_update_pkt
-                     <- MemUnit name
+                     <- MemUnit name lgMemSz
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
@@ -362,45 +363,73 @@ Section Params.
            CsrValue
            (RFNonFile _ None).
 
-    (* TODO: should each memory location be XLEN or RLEN wide? *)
     Definition memRegFile
       :  RegFileBase
       := @Build_RegFileBase
-           false
+           true
            Rlen_over_8
            (^"mem_reg_file")
            (Async [^"readMem1"; ^"readMem2"])
-           (^"memWrite")
+           (^"writeMem")
            (pow2 20)
            (Bit 8)
            (RFFile true true "testfile" (fun _ => wzero _)).
 
+    Definition memReservationRegFile
+      :  RegFileBase
+      := @Build_RegFileBase
+           true
+           Rlen_over_8
+           (^"memReservation_reg_file")
+           (Async [^"readMemReservation1"; ^"readMemReservation2"])
+           (^"writeMemReservation")
+           (pow2 20)
+           Bool
+           (RFNonFile _ (Some (ConstBool false))).
+
+    Definition processor
+      :  Mod 
+      := createHideMod
+           (fold_right
+             ConcatMod
+             processorCore
+             (map
+               (fun m => Base (BaseRegFile m)) 
+               [   
+                 intRegFile; 
+                 floatRegFile; 
+                 csrRegFile;
+                 memRegFile;
+                 memReservationRegFile
+               ])) 
+           [   
+             ^"read_reg_1"; 
+             ^"read_reg_2"; 
+             ^"regWrite"; 
+             ^"read_freg_1"; 
+             ^"read_freg_2"; 
+             ^"read_freg_3"; 
+             ^"fregWrite";
+             ^"read_csr_0";
+             ^"read_csr_1";
+             ^"read_csr_2";
+             ^"read_csr_3";
+             ^"write_csr";
+             ^"readMem1";
+             ^"readMem2";
+              ^"readMemReservation1";
+              ^"readMemReservation2";
+              ^"writeMem";
+              ^"writeMemReservation"
+           ].  
+
+    Definition getRtlSafe
+      (module : Mod)
+      :  RtlModule
+      := getRtl (separateModRemove module).
+
     Definition model
-      := getRtl
-           ([
-              ^"read_reg_1"; 
-              ^"read_reg_2"; 
-              ^"regWrite"; 
-              ^"read_freg_1"; 
-              ^"read_freg_2"; 
-              ^"read_freg_3"; 
-              ^"fregWrite";
-              ^"read_csr_0";
-              ^"read_csr_1";
-              ^"read_csr_2";
-              ^"read_csr_3";
-              ^"write_csr";
-              ^"readMem1";
-              ^"readMem2";
-              ^"memWrite"
-            ],
-            ([
-               intRegFile; 
-               floatRegFile; 
-               csrRegFile;
-               memRegFile
-             ],
-             processorCore)).
+      := getRtlSafe processor.
 
     Local Close Scope list.
 

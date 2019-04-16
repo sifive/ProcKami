@@ -95,7 +95,7 @@ Section ty.
     Variable Xlen_over_8 : nat.
     Variable Rlen_over_8 : nat.
 
-    Local Notation Rlen := (8 * Rlen_over_8).
+    Local Notation Rlen := (Rlen_over_8 * 8).
     Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
 
     Open Scope kami_expr.

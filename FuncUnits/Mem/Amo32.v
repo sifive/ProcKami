@@ -1,12 +1,14 @@
 Require Import Kami.All FU.
-Require Import List.
+Require Import List MemCommon.
 
 Section Mem.
   Variable Xlen_over_8: nat.
+  Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
 
-  Local Notation Rlen := (8 * Rlen_over_8).
-  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation Flen := (Flen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -24,115 +26,44 @@ Section Mem.
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
-    Definition MemInputAddrType := STRUCT {
-                                       "base" :: VAddr ;
-                                       "offset" :: VAddr ;
-                                       "numZeros" :: Bit 3 ;
-                                       "data" :: MaskedMem ;
-                                       "aq" :: Bool ;
-                                       "rl" :: Bool ;
-                                       "memMisalignedException?" :: Bool ;
-                                       "accessException?" :: Bool }.
+    Local Notation MemInputAddrType := (@MemInputAddrType Xlen_over_8 Rlen_over_8).
 
-    Definition MemOutputAddrType := STRUCT {
-                                        "addr" :: VAddr ;
-                                        "data" :: MaskedMem ;
-                                        "aq" :: Bool ;
-                                        "rl" :: Bool ;
-                                        "misalignedException?" :: Bool ;
-                                        "accessException?" :: Bool }.
+    Local Notation MemOutputAddrType := (@MemOutputAddrType Xlen_over_8 Rlen_over_8).
 
     Local Open Scope kami_expr.
 
-    Local Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+    Local Notation isAligned := (@isAligned Xlen_over_8 ty).
 
-    Local Definition storeTag (valin: MemOutputAddrType ## ty)
-      :  PktWithException ExecContextUpdPkt ## ty
-      := LETE val: MemOutputAddrType <- valin;
-         LETC addr: VAddr <- #val @% "addr" ;
-         LETC data: MaskedMem <- #val @% "data" ;
-         LETC valret
-           :  ExecContextUpdPkt
-             <- (noUpdPkt
-                   @%["val1"
-                        <- (Valid (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen #addr
-                            }))]
-                   @%["val2"
-                        <- (Valid (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen (#data @% "data")
-                            }))]
-                   @%["memBitMask" <- #data @% "mask"]) ;
-         LETC retval:
-           (PktWithException ExecContextUpdPkt)
-             <-
-             STRUCT { "fst" ::= #valret ;
-                      "snd" ::= (IF #val @% "misalignedException?"
-                                 then Valid (STRUCT {
-                                                 "exception" ::=
-                                                   ((IF #val @% "accessException?"
-                                                     then $LoadAccessFault
-                                                     else $LoadAddrMisaligned): Exception @# ty) ;
-                                                 "value" ::= #addr })
-                                 else Invalid) } ;
-         RetE #retval.
+    Local Notation loadInput := (@loadInput Xlen_over_8 Rlen_over_8 ty).
 
-    Local Definition amoInput sz (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt <- gcpin ;
-      LETC ret: MemInputAddrType <-
-                                 STRUCT {
-                                   "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                   "offset" ::= $0 ;
-                                   "numZeros" ::= $sz ;
-                                   "data" ::= STRUCT {
-                                                "data" ::= (#gcp @% "reg2" : Data @# ty);
-                                                "mask"
-                                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
-                                                       : Array Rlen_over_8 Bool @# ty)
-                                              };
-                                   "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
-                                   "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
-                                   "memMisalignedException?" ::= $$ true ;
-                                   "accessException?" ::= #gcp @% "accessException?"
-                                 } ;
-      RetE #ret.
+    Local Notation loadTag := (@loadTag Xlen_over_8 Rlen_over_8 ty).
 
-    Local Definition amoTag := storeTag.
+    Local Notation loadXform := (@loadXform Rlen_over_8 ty).
 
-    Local Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
-      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memVal: Data <- #memReg @% "mem" ;
-             LETC memMask: Array Rlen_over_8 Bool <- $$ (ConstArray (if dohalf
-                                                                     then fun i: Fin.t Rlen_over_8 =>
-                                                                            if Compare_dec.lt_dec (proj1_sig (Fin.to_nat i)) (Xlen_over_8/2)
-                                                                            then true else false
-                                                                     else fun i => true));
-             LETC dataVal: Data <- fn #reg #memVal;
-             LETC memOut: MaskedMem <-
-                                    (STRUCT {
-                                         "data" ::= #dataVal;
-                                         "mask" ::= #memMask});
-             LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
-             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "reservation" ::= $ 0 ;
-                                  "mem" ::= #validMemOut ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= #finalLoadVal };
-             RetE #outMemReg).
+    Local Notation storeInput := (@storeInput Xlen_over_8 Rlen_over_8 ty).
 
+    Local Notation storeTag := (@storeTag Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation storeXform := (@storeXform Rlen_over_8 ty).
+
+    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation amoTag := (@amoTag Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation amoXform := (@amoXform Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation lrInput := (@lrInput Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation lrTag := (@lrTag Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation lrXform := (@lrXform Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation scInput := (@scInput Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
+
+    Local Notation scXform := (@scXform Xlen_over_8 Rlen_over_8 ty).
+  
     Definition Amo32: @FUEntry ty :=
       {| fuName := "amo32" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;

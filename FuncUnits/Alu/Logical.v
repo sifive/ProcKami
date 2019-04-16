@@ -5,8 +5,8 @@ Section Alu.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
 
-  Local Notation Rlen := (8 * Rlen_over_8).
-  Local Notation Xlen := (8 * Xlen_over_8).
+  Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Rlen_over_8).

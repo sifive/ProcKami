@@ -13,3 +13,4 @@ Makefile.coq.all.conf
 *.vcd
 *.hex
 *.sv
+*~
