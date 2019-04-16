@@ -234,12 +234,6 @@ Section Mem.
                                                      (if dohalf
                                                       then Xlen_over_8/2
                                                       else Rlen_over_8)))) ;
-                                 (* $$ (ConstArray (if dohalf *)
-                                 (*                 then fun i: Fin.t Rlen_over_8 => *)
-                                 (*                        getBool (Compare_dec.lt_dec *)
-                                 (*                                   (proj1_sig (Fin.to_nat i)) *)
-                                 (*                                   (Xlen_over_8/2)) *)
-                                 (*                 else fun i => true)); *)
              LETC dataVal: Data <- fn #reg #memVal;
              LETC memOut: MaskedMem <-
                                     (STRUCT {
@@ -290,15 +284,6 @@ Section Mem.
     Definition scInput := amoInput.
 
     Definition scTag := storeTag.
-
-    Fixpoint getFinsBound m n: list (Fin.t n) :=
-      match m return (list (Fin.t n)) with
-      | 0 => nil
-      | S k => match n with
-               | 0 => nil
-               | S n' => Fin.F1 :: map Fin.FS (getFinsBound k n')
-               end
-      end.
 
     Definition scXform (half: bool)
       := let dohalf

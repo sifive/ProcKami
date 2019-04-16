@@ -423,11 +423,6 @@ Section Params.
               ^"writeMemReservation"
            ].  
 
-    Definition getRtlSafe
-      (module : Mod)
-      :  RtlModule
-      := getRtl (separateModRemove module).
-
     Definition model
       := getRtlSafe processor.
 
