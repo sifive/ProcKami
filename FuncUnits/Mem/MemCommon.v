@@ -102,7 +102,9 @@ Section Mem.
                          else Invalid)} ;
          RetE #retval.
 
-    Definition loadXform (tag: RoutingTag @# ty) (size: nat) (ext: forall (ty : Kind -> Type) (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
+    Definition loadXform (tag: RoutingTag @# ty) (size: nat)
+               (ext: forall (ty : Kind -> Type)
+                            (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
       Some (fun memRegIn: MemoryInput ## ty =>
               LETE memReg : MemoryInput <- memRegIn ;
               LETC mem : Data <- #memReg @% "mem" ;
@@ -219,10 +221,28 @@ Section Mem.
 
     Definition amoTag := storeTag.
 
+    Import ListNotations.
+
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       Some
         (fun memRegIn =>
+             SystemE
+                     [
+                       DispString _ "BAD Start\n";
+                       DispString _ "BAD XLEN_over_8: ";
+                       DispBit (Const _ (natToWord 32 Xlen_over_8)) (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "BAD XLEN: ";
+                       DispBit (Const _ (natToWord 32 Xlen)) (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "BAD RLEN_over_8: ";
+                       DispBit (Const _ (natToWord 32 Rlen_over_8)) (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "BAD RLEN: ";
+                       DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);
+                       DispString _ "\n"
+                     ];
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memVal: Data <- #memReg @% "mem" ;
@@ -233,14 +253,45 @@ Section Mem.
                                                      (proj1_sig (Fin.to_nat i))
                                                      (if dohalf
                                                       then Xlen_over_8/2
-                                                      else Rlen_over_8)))) ;
+                                                      else Xlen_over_8)))) ;
+             SystemE
+               (DispString
+                  _ "CRAP_MASK\n" ::
+                  (concat (map (fun i: Fin.t Rlen_over_8 =>
+                                  (DispBit ($$ (natToWord 32 (proj1_sig (Fin.to_nat i)))) (2, Decimal)
+                                           :: (DispBool ($$ (getBool (Compare_dec.lt_dec (proj1_sig (Fin.to_nat i))
+                                                                                      (if dohalf
+                                                                                       then Xlen_over_8/2
+                                                                                       else Xlen_over_8)))) (1, Binary))
+                                           :: (DispString _ "\n")
+                                           :: nil))
+                               (getFins Rlen_over_8))) ++
+                  DispString _ "\nEND_CRAP_MASK\n"
+                  :: nil) ;
+         
+             SystemE
+               (DispString
+                  _ "CRAP_MASK2\n" ::
+                  (concat (map (fun i: Fin.t Rlen_over_8 =>
+                                  DispBit ($$ (natToWord 32 (proj1_sig (Fin.to_nat i)))) (2, Decimal)
+                                  :: DispBool (ReadArrayConst #memMask i) (1, Binary) :: nil) (getFins Rlen_over_8))) ++
+                  DispString _ "\nEND_CRAP_MASK2\n"
+                  :: nil) ;
+         
+             SystemE
+               [ DispString _ "MEM_MASK\n";
+                   DispBool (#memMask @[$0]) (1, Binary);
+                   DispArray #memMask (1, Binary);
+                   DispBit (pack #memMask) (2, Hex);
+                   DispBit (pack #memMask) (8, Binary) ];
              LETC dataVal: Data <- fn #reg #memVal;
              LETC memOut: MaskedMem <-
                                     (STRUCT {
                                          "data" ::= #dataVal;
                                          "mask" ::= #memMask});
              LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
-             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
+             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
+                               (if dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-

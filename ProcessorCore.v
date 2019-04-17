@@ -96,8 +96,14 @@ Section Params.
                 := System
                      [
                        DispString _ "Start\n";
+                       DispString _ "XLEN_over_8: ";
+                       DispBit (Const _ (natToWord 32 Xlen_over_8)) (32, Decimal);
+                       DispString _ "\n";
                        DispString _ "XLEN: ";
                        DispBit (Const _ (natToWord 32 Xlen)) (32, Decimal);
+                       DispString _ "\n";
+                       DispString _ "RLEN_over_8: ";
+                       DispBit (Const _ (natToWord 32 Rlen_over_8)) (32, Decimal);
                        DispString _ "\n";
                        DispString _ "RLEN: ";
                        DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);

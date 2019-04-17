@@ -489,6 +489,17 @@ Section Params.
                             (STRUCT {"data" ::= pack #resultData;
                                      "reservation" ::= #resultLock});
                                   
+           System (
+               DispString _ "MemRead:\n" ::
+                          DispBit addr (8, Hex) ::
+                          DispString _ " " ::
+                          DispBit (pack #resultData) (16, Hex) ::
+                          DispString _ " " ::
+                          DispBit (pack #resultLock) (2, Hex) ::
+                          DispString _ "\n" ::
+                          nil
+             );
+           
            Ret
            (STRUCT {
                 "fst" ::= #result;
@@ -502,6 +513,25 @@ Section Params.
                               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                               "mask" ::= pkt @% "mask"
                             }: WriteRqMask lgMemSz Rlen_over_8 (Bit 8));
+           System (
+               DispString _ "MemWrote:\n" ::
+                          DispBit (pkt @% "addr") (8, Hex) ::
+                          DispString _ " " ::
+                          DispBit (pkt @% "data") (16, Hex) ::
+                          DispString _ " " ::
+                          DispBit (pack (pkt @% "mask")) (2, Hex) ::
+                          DispString _ " " ::
+                          DispBit (pack (pkt @% "reservation")) (2, Hex) ::
+                          DispString _ "\n" ::
+                          nil
+             );
+           System
+             (DispString _ "GOOD MEM_MASK\n" ::
+                 DispArray (pkt @% "mask") (1, Binary) ::
+                 DispBit (pack (pkt @% "mask")) (2, Hex) ::
+                 DispBit (pack (pkt @% "mask")) (8, Binary) ::
+                 nil);
+
            Call ^"writeMemReservation"(STRUCT {
                                            "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
                                            "data" ::= pkt @% "reservation" ;
@@ -980,60 +1010,8 @@ Section Params.
                                                       == (decoder_pkt @% "funcUnitTag"))))
               (tag func_units)).
 
-    Definition inst_has_rs1
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
-      :  bool
-      := hasRs1 (instHints inst).
-
-    Definition inst_has_rs2
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
-      :  bool
-      := hasRs2 (instHints inst).
-
-    Definition inst_has_frs1
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
-      :  bool
-      := hasFrs1 (instHints inst).
-
-    Definition inst_has_frs2
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
-      :  bool
-      := hasFrs2 (instHints inst).
-
-    Definition inst_has_frs3
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
-      :  bool
-      := hasFrs3 (instHints inst).
-
-    Definition reg_reader_has_rs1
-      :  DecoderPkt @# ty ->
-         Bool @# ty
-      := reg_reader_match inst_has_rs1.
-
-    Definition reg_reader_has_rs2
-      :  DecoderPkt @# ty ->
-         Bool @# ty
-      := reg_reader_match inst_has_rs2.
-
-    Definition reg_reader_has_frs1
-      :  DecoderPkt @# ty ->
-         Bool @# ty
-      := reg_reader_match inst_has_frs1.
-
-    Definition reg_reader_has_frs2
-      :  DecoderPkt @# ty ->
-         Bool @# ty
-      := reg_reader_match inst_has_frs2.
-
-    Definition reg_reader_has_frs3
-      :  DecoderPkt @# ty ->
-         Bool @# ty
-      := reg_reader_match inst_has_frs3.
+    Local Definition reg_reader_has (which: InstHints -> bool) pkt :=
+      (reg_reader_match (fun ik ok pkt => which (instHints pkt))) pkt.
 
     Local Open Scope kami_action.
     Definition reg_reader_read_reg n
@@ -1115,19 +1093,19 @@ Section Params.
              DispBit (imm raw_inst) (12, Decimal);
              DispString _ "\n";
              DispString _ "has RS1: ";
-             DispBool (reg_reader_has_rs1 decoder_pkt) (1, Binary);
+             DispBool (reg_reader_has hasRs1 decoder_pkt) (1, Binary);
              DispString _ "\n";
              DispString _ "has FRS1: ";
-             DispBool (reg_reader_has_frs1 decoder_pkt) (1, Binary);
+             DispBool (reg_reader_has hasFrs1 decoder_pkt) (1, Binary);
              DispString _ "\n";
              DispString _ "has RS2: ";
-             DispBool (reg_reader_has_rs2 decoder_pkt) (1, Binary);
+             DispBool (reg_reader_has hasRs2 decoder_pkt) (1, Binary);
              DispString _ "\n";
              DispString _ "has FRS2: ";
-             DispBool (reg_reader_has_frs2 decoder_pkt) (1, Binary);
+             DispBool (reg_reader_has hasFrs2 decoder_pkt) (1, Binary);
              DispString _ "\n";
              DispString _ "has FRS3: ";
-             DispBool (reg_reader_has_frs3 decoder_pkt) (1, Binary);
+             DispBool (reg_reader_has hasFrs3 decoder_pkt) (1, Binary);
              DispString _ "\n";
              DispString _ "Floating Point Control Status Register: ";
              DispBit (#fcsr_val) (32, Binary);
@@ -1136,11 +1114,11 @@ Section Params.
          Ret
            (STRUCT {
                 "pc"   ::= decoder_pkt @% "pc";
-                "reg1" ::= ((ITE (reg_reader_has_rs1 decoder_pkt) (#reg1_val) $0) |
-                            (ITE (reg_reader_has_frs1 decoder_pkt) (#freg1_val) $0));
-                "reg2" ::= ((ITE (reg_reader_has_rs2 decoder_pkt) (#reg2_val) $0) |
-                            (ITE (reg_reader_has_frs2 decoder_pkt) (#freg2_val) $0));
-                "reg3" ::= ITE (reg_reader_has_frs3 decoder_pkt) (#freg3_val) $0;
+                "reg1" ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
+                            (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
+                "reg2" ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
+                            (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
+                "reg3" ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
                 "csr"  ::= #csr_val;
                 "fcsr" ::= #fcsr_val;
                 "inst" ::= raw_inst;
@@ -1390,10 +1368,6 @@ Section Params.
                                DispBit (#memoryOutput @% "reg_data" @% "data") (Rlen, Hex) ::
                                DispString _ "\n" ::
                                nil);
-                            LETA writeVal
-                              :  Data
-                              <- convertLetExprSyntax_ActionT
-                                   (applyMask (#memReadVal @% "fst" @% "data") (#memoryOutput @% "mem" ));
                             LET memWriteVal
                               :  MemWrite
                               <- STRUCT {
@@ -1459,12 +1433,6 @@ Section Params.
 
       Local Open Scope kami_action.
 
-      (*
-        TODO: connect exceptions from the memory unit.
-        TODO: replace with record updates.
-        TODO: edit parameters so that this function on accepts a exec_update_pkt and a decoder_pkt.
-        TODO: accept an exception packet and return an exception packet.
-      *)
       Definition MemUnit
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
