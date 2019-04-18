@@ -247,7 +247,9 @@ Section Params.
            false
            1
            (^"csr_reg_file")
-           (Async [(^"read_csr_0"); (^"read_csr_1"); (^"read_csr_2"); (^"read_csr_3")])
+           (Async [
+              (^"fflags"); (^"frm"); (^"fcsr")
+            ])
            (^"write_csr")
            (pow2 CsrIdWidth)
            CsrValue
@@ -300,10 +302,9 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"read_csr_0";
-             ^"read_csr_1";
-             ^"read_csr_2";
-             ^"read_csr_3";
+             ^"fflags";
+             ^"frm";
+             ^"fcsr";
              ^"write_csr";
              ^"readMem1";
              ^"readMem2";
