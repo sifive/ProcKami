@@ -25,6 +25,10 @@ Section Alu.
       :  Bit Xlen @# ty
       := SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) x).
 
+    Definition trunc_zero_extend (x : Bit Xlen @# ty)
+      :  Bit Xlen @# ty
+      := ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) x).
+
     Definition DivRemInputType
       := STRUCT {
            "arg1"         :: Bit Xlen;
@@ -176,8 +180,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
+                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
                outputXform
                := 
                  (fun res_expr : DivRemOutputType ## ty
@@ -265,8 +269,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
+                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
