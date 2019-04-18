@@ -3,7 +3,13 @@
   of circuit components are combined to form the processor core,
   and include units such as the fetch, decode, and memory elements.
 *)
+Require Import Vector.
+Import VectorNotations.
 Require Import Kami.All.
+Require Import StdLibKami.RegStruct.
+Require Import StdLibKami.RegMapper.
+Require Import List.
+Import ListNotations.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).
@@ -314,7 +320,7 @@ Section Params.
 
   End Fields.
 
-  Section CSRInterface.
+  Section CsrInterface.
     (*
       This section defines the interface between the processor core and
       the CSR registers.
@@ -328,140 +334,169 @@ Section Params.
     Definition csr_frm_index    : CsrId @# ty := $2.
     Definition csr_fcsr_index   : CsrId @# ty := $3.
 
-    Record CsrEntry
-      := {
-           csr_given_id        : CsrId @# ty;
-           csr_id              : CsrId @# ty;
-           csr_read_transform  : CsrValue @# ty -> CsrValue @# ty;
-           csr_write_transform : CsrValue @# ty -> CsrValue @# ty -> CsrValue @# ty
-         }.
+    (*
+      The number of bits needed to referenced the bytes in a CSR.
 
-    Local Definition CsrEntries
-      :  list CsrEntry
-      := {|
-           csr_given_id := csr_fflags_index;
-           csr_id       := csr_fcsr_index;
-           csr_read_transform
-             := fun csr_value
-                  => (csr_value & ($31));
-           csr_write_transform
-             := fun curr_csr_value new_csr_value
-                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFFE0"))) |
-                      (new_csr_value & $31))
-         |} ::
-         {|
-           csr_given_id := csr_frm_index;
-           csr_id       := csr_fcsr_index;
-           csr_read_transform
-             := fun csr_value
-                  => ((csr_value >> $$(natToWord 3 5)) & ($7));
-           csr_write_transform
-             := fun curr_csr_value new_csr_value
-                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF1F"))) |
-                      ((new_csr_value & $7) << $$(natToWord 3 5)))
-         |} ::
-         {|
-           csr_given_id       := csr_fcsr_index;
-           csr_id             := csr_fcsr_index;
-           csr_read_transform := id;
-           csr_write_transform
-             := fun curr_csr_value new_csr_value
-                  => ((curr_csr_value & ($$(CsrValueWidth 'h"FFFFFF00"))) |
-                      (new_csr_value & ($255)))
-         |} ::
-         nil.
+      Note: we decided to make the CSRs word accessible rather than
+      byte accessible. Consequently, we set lgMaskSz to 0.
 
-    Local Definition csr_entry_match
-      (csrId : CsrId @# ty)
-      (entry : CsrEntry)
-      :  Bool @# ty
-      := csrId == csr_given_id entry.
- 
-    Open Scope kami_action.
-
-    Definition csr_getId (csrId : CsrId @# ty)
-      :  CsrId @# ty
-      := utila_lookup_table_default
-           CsrEntries
-           (csr_entry_match csrId)
-           csr_id
-           csrId.
+      Local Notation lgMaskSz := (Nat.log2_up Clen_over_8).
+      Local Notation maskSz   := (pow2 lgMaskSz).
+      Local Notation dataSz   := (maskSz * 8)%nat.
+    *)
+    Local Notation lgMaskSz := (0).
+    Local Notation dataSz   := (CsrValueWidth).
 
     (*
-      Note: each call to [csr_read_raw] must have a different index number.
+      addressNumBits - addressNumCSRBits
+      log2 (numCSRs * csrNumBytes) - addressNumCSRBits
+      log2 (numCSRs) + log2 (csrNumBytes) - addressNumCSRBits
+      log2 (numCSRs) + log2 (csrNumBytes) - log2 (csrNumBytes)
+      log2 (numCSRs)
+      realAddrSz : nat := CsrIdWidth.
     *)
-    Definition csr_read_raw (index : nat) (csrId : CsrId @# ty)
+
+    (*
+      Note: The number of bits needed to reference all of the bytes in
+      a CSR:
+
+      addrSz := addressNumBits
+      addrSz := realAddrSz + lgMaskSz
+      addrSz := CsrIdWidth + lgMaskSz
+    *)
+    Local Notation addrSz := (CsrIdWidth + lgMaskSz)%nat.
+
+    Notation mayGroupReg := (Build_MayGroupReg CsrIdWidth lgMaskSz).
+    Notation RegMapT     := (RegMapT lgMaskSz CsrIdWidth lgMaskSz).
+    Notation FullRegMapT := (FullRegMapT lgMaskSz CsrIdWidth lgMaskSz).
+    Notation MayStructInputT := (MayStructInputT CsrIdWidth lgMaskSz).
+
+    (* Represents CSR entry fields. *)
+    Local Definition csrField (k : Kind) (value : option (ConstT k))
+      :  {k : Kind & option (ConstT k)}
+      := existT (fun k => option (ConstT k)) k value.
+
+    (* Converts CSR index values into byte-level memory addresses. *)
+    Definition csrAddress (index : nat) : word addrSz
+      := natToWord addrSz (index * (pow2 lgMaskSz))%nat.
+
+    Definition CSREntries
+      :  list (MayGroupReg CsrIdWidth lgMaskSz)
+      := [
+           mayGroupReg (csrAddress 1)
+             {|
+               vals  := Vector.nth [
+                          @csrField (Bit 27) (Some (ConstBit (natToWord 27 0)));
+                          @csrField (Bit 5) None
+                        ]%vector;
+               names := Vector.nth [
+                          ^"fflags_reserved";
+                          ^"fflags"
+                        ]%vector;
+             |}
+             ^"fflags";
+           mayGroupReg (csrAddress 2)
+             {|
+               vals  := Vector.nth [
+                          @csrField (Bit 29) (Some (ConstBit (natToWord 29 0)));
+                          @csrField (Bit 3) None
+                        ]%vector;
+               names := Vector.nth [
+                          ^"frm_reserved";
+                          ^"frm"
+                        ]%vector
+             |}
+             ^"frm";
+           mayGroupReg (csrAddress 3)
+             {|
+               vals
+                 := Vector.nth [
+                      @csrField (Bit 24) (Some (ConstBit (natToWord 24 0)));
+                      @csrField (Bit 3) None;
+                      @csrField (Bit 5) None
+                    ]%vector;
+               names
+                 := Vector.nth [
+                      ^"fcsr_reserved";
+                      ^"frm";
+                      ^"fflags"
+                    ]%vector;
+             |}
+             ^"fcsr"
+         ].
+
+    Open Scope kami_expr.
+    Open Scope kami_action.
+
+    Definition readWriteCSR (k : Kind) (request : MayStructInputT k @# ty)
+      :  ActionT ty (Maybe k)
+      := mayGroupReadWrite request CSREntries.
+
+    Definition readCSR (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
-      := Call result
-           :  CsrValue
-           <- (^"read_csr_" ++ (natToHexStr index)) (csr_getId csrId : CsrId);
+      := System (
+           DispString _ " [readCSR]\n " ::
+           nil
+         );
+         LET addr
+           :  Bit addrSz
+           <- (ZeroExtendTruncLsb addrSz csrId) << (Const ty (natToWord addrSz lgMaskSz));
+         LETA result
+           :  Maybe (Bit dataSz)
+           <- readWriteCSR
+                (STRUCT {
+                   "isRd" ::= ($$true : Bool @# ty);
+                   "addr" ::= (#addr : Bit addrSz @# ty);
+                   "data" ::= ($$(wzero dataSz) : Bit dataSz @# ty);
+                   "mask" ::= ($$(wones dataSz) : Bit dataSz @# ty)
+                 } : MayStructInputT (Bit dataSz) @# ty);
          System (
-           DispString _ " CSR Read Raw" ::
-           dispDecimal #result ::             
+           DispString _ " Reg Reader Read " ::
+           dispDecimal (#result @% "data") ::
            DispString _ "\n" ::
            DispString _ " from CSR " ::
-           dispDecimal (csr_getId csrId) ::
-           DispString _ "\n" ::
-           DispString _ " from psuedo CSR " ::
-           dispDecimal csrId ::
+           dispDecimal (csrId) ::
            DispString _ "\n" ::
            nil
          );
-         Ret #result.
-
-    Definition csrRead (index : nat) (csrId : CsrId @# ty)
-      :  ActionT ty CsrValue
-      := LETA read_result
-           :  CsrValue
-           <- csr_read_raw index csrId;
-         Ret
-           (utila_lookup_table_default
-              CsrEntries
-              (csr_entry_match csrId)
-              (fun entry => csr_read_transform entry (#read_result))
-              (#read_result)).
-
-    Definition csrWrite (index : nat) (csrId : CsrId @# ty) (raw_data : Data @# ty)
+         Ret (#result @% "data").
+      
+    Definition writeCSR (csrId : CsrId @# ty) (raw_data : Data @# ty)
       :  ActionT ty Void
-      := LET data
-           :  CsrValue
-           <- ZeroExtendTruncLsb CsrValueWidth raw_data;
-         LETA curr_csr_value
-           :  CsrValue
-           <- csr_read_raw index csrId;
-         LET csr_write_pkt
-           :  CsrWrite
-           <- STRUCT {
-                "addr"
-                  ::= csr_getId csrId;
-                "data" 
-                  ::= utila_lookup_table_default
-                        CsrEntries
-                        (csr_entry_match csrId)
-                        (fun entry => csr_write_transform entry (#curr_csr_value) (#data))
-                        (#data)
-              };
-         Call (^"write_csr") (#csr_write_pkt : _);
+      := System (
+           DispString _ " [writeCSR]\n " ::
+           nil
+         );
+         LET addr
+           :  Bit addrSz
+           <- (ZeroExtendTruncLsb addrSz csrId) << (Const ty (natToWord addrSz lgMaskSz));
+         LET data
+           :  Bit dataSz
+           <- ZeroExtendTruncLsb dataSz raw_data;
+         LETA result
+           <- readWriteCSR
+                (STRUCT {
+                   "isRd" ::= $$false;
+                   "addr" ::= #addr;
+                   "data" ::= #data;
+                   "mask" ::= $$(wones dataSz)
+                 } : MayStructInputT (Bit dataSz) @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
-           dispHex (#csr_write_pkt) ::
+           dispDecimal (#data) ::
            DispString _ "\n" ::
            DispString _ " to CSR " ::
-           dispDecimal (csr_getId csrId) ::
-           DispString _ "\n" ::
-           DispString _ " Original value was " ::
-           dispDecimal #curr_csr_value ::
-           DispString _ "\n" ::
-           DispString _ " Raw Write Data value was " ::
-           dispDecimal #data ::
+           dispDecimal (csrId) ::
            DispString _ "\n" ::
            nil
          );
          Retv.
 
+    Close Scope kami_expr.
+
     Close Scope kami_action.
 
-  End CSRInterface.
+  End CsrInterface.
 
   Section MemInterface.
     (*
@@ -999,8 +1034,7 @@ Section Params.
 
     Definition reg_reader_read_fcsr
       :  ActionT ty CsrValue
-      := Call fcsr_val : CsrValue <- ^"read_csr_0" (csr_fcsr_index : _);
-           Ret (#fcsr_val).
+      := readCSR csr_fcsr_index.
     
     Import ListNotations.
 
@@ -1020,7 +1054,7 @@ Section Params.
       *)
       := LETA csr_value
            :  CsrValue
-           <- csrRead 1 (imm raw_instr);
+           <- readCSR (imm raw_instr);
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
@@ -1208,11 +1242,11 @@ Section Params.
                 else (If (#val1_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val1_data)
                       else (If (#val1_pos == $CsrTag)
-                            then csrWrite 2 (imm inst) (#val1_data)
+                            then writeCSR (imm inst) (#val1_data)
                             else (If (#val1_pos == $FflagsTag)
-                                  then csrWrite 2 csr_fflags_index (#val1_data)
+                                  then writeCSR csr_fflags_index (#val1_data)
                                   else (If (#val1_pos == $FloatCsrTag)
-                                        then csrWrite 2 csr_fcsr_index (#val1_data);
+                                        then writeCSR csr_fcsr_index (#val1_data);
                                         Retv);
                                   Retv);
                             Retv);
@@ -1227,11 +1261,11 @@ Section Params.
                 else (If (#val2_pos == $FloatRegTag)
                       then reg_writer_write_freg (#reg_index) (#val2_data)
                       else (If (#val2_pos == $CsrTag)
-                            then csrWrite 3 (imm inst) (#val2_data)
+                            then writeCSR (imm inst) (#val2_data)
                             else (If (#val2_pos == $FflagsTag)
-                                  then csrWrite 3 csr_fflags_index (#val2_data)
+                                  then writeCSR csr_fflags_index (#val2_data)
                                   else (If (#val2_pos == $FloatCsrTag)
-                                        then csrWrite 3 csr_fcsr_index (#val2_data);
+                                        then writeCSR csr_fcsr_index (#val2_data);
                                         Retv);
                                   Retv);
                             Retv);
