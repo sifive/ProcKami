@@ -80,6 +80,8 @@ Section Params.
       := 
          MODULE {
               Register ^"pc" : VAddr <- ConstBit (_ 'h "00000000") with
+              Register ^"fflags" : Bit 5 <- ConstBit (_ 'h "00000000") with
+              Register ^"frm" : Bit 3 <- ConstBit (_ 'h "00000000") with
               Rule ^"pipeline"
                 := System
                      [
@@ -241,20 +243,6 @@ Section Params.
            (Bit Flen)
            (RFNonFile _ None).
     
-    Definition csrRegFile
-      :  RegFileBase
-      := @Build_RegFileBase 
-           false
-           1
-           (^"csr_reg_file")
-           (Async [
-              (^"fflags"); (^"frm"); (^"fcsr")
-            ])
-           (^"write_csr")
-           (pow2 CsrIdWidth)
-           CsrValue
-           (RFNonFile _ None).
-
     Definition memRegFile
       :  RegFileBase
       := @Build_RegFileBase
@@ -290,7 +278,6 @@ Section Params.
                [   
                  intRegFile; 
                  floatRegFile; 
-                 csrRegFile;
                  memRegFile;
                  memReservationRegFile
                ])) 
