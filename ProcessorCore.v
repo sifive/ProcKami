@@ -387,7 +387,7 @@ Section Params.
            true
            Rlen_over_8
            (^"memReservation_reg_file")
-           (Async [^"readMemReservation1"; ^"readMemReservation2"])
+           (Async [^"readMemReservation"])
            (^"writeMemReservation")
            (pow2 20)
            Bool
@@ -423,10 +423,9 @@ Section Params.
              ^"write_csr";
              ^"readMem1";
              ^"readMem2";
-              ^"readMemReservation1";
-              ^"readMemReservation2";
-              ^"writeMem";
-              ^"writeMemReservation"
+             ^"readMemReservation";
+             ^"writeMem";
+             ^"writeMemReservation"
            ].  
 
     Definition model

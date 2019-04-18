@@ -12,13 +12,14 @@ Section Mem.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
-  Local Notation MaskedMem := (MaskedMem Rlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
 
-  Notation Data := (Bit Rlen).
-  Notation VAddr := (Bit Xlen).
-  Notation DataMask := (Bit Rlen_over_8).
+  Local Notation Data := (Bit Rlen).
+  Local Notation VAddr := (Bit Xlen).
 
+  Definition MaskedMem := STRUCT { "data" :: Data ;
+                                   "mask" :: Array Rlen_over_8 Bool }.
+  
   Section Ty.
     Variable ty: Kind -> Type.
 
@@ -117,8 +118,11 @@ Section Mem.
                                  STRUCT {
                                    "aq" ::= $$ false ;
                                    "rl" ::= $$ false ;
+                                   "isWr" ::= $$ false ;
+                                   "mask" ::= $$ (ConstArray (fun _ : Fin.t Rlen_over_8 => false)) ;
+                                   "data" ::= $$ (getDefaultConst Data) ;
+                                   "isLrSc" ::= $$ false ;
                                    "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
-                                   "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
                                    "tag" ::= tag ;
                                    "reg_data" ::= #memOut };
               RetE #outMemReg).
@@ -183,22 +187,20 @@ Section Mem.
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memMask: _ <- unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
-             LETC memOut: MaskedMem <-
-                                    (STRUCT {
-                                         "data" ::= #reg ;
-                                         "mask" ::= #memMask});
-             LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
              LETC outMemReg : MemoryOutput
                                 <-
                                 STRUCT {
                                   "aq" ::= $$ false ;
                                   "rl" ::= $$ false ;
+                                  "isWr" ::= $$ true ;
+                                  "mask" ::= #memMask ;
+                                  "data" ::= #reg ;
+                                  "isLrSc" ::= $$ false ;
                                   "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
-                                  "mem" ::= #validMemOut ;
                                   "tag" ::= $IntRegTag ;
                                   "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
-
+    
     Definition amoInput sz (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret: MemInputAddrType <-
@@ -227,22 +229,6 @@ Section Mem.
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       Some
         (fun memRegIn =>
-             SystemE
-                     [
-                       DispString _ "BAD Start\n";
-                       DispString _ "BAD XLEN_over_8: ";
-                       DispBit (Const _ (natToWord 32 Xlen_over_8)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "BAD XLEN: ";
-                       DispBit (Const _ (natToWord 32 Xlen)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "BAD RLEN_over_8: ";
-                       DispBit (Const _ (natToWord 32 Rlen_over_8)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "BAD RLEN: ";
-                       DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);
-                       DispString _ "\n"
-                     ];
            LETE memReg : MemoryInput <- memRegIn ;
              LETC reg : Data <- #memReg @% "reg_data" ;
              LETC memVal: Data <- #memReg @% "mem" ;
@@ -254,42 +240,7 @@ Section Mem.
                                                      (if dohalf
                                                       then Xlen_over_8/2
                                                       else Xlen_over_8)))) ;
-             SystemE
-               (DispString
-                  _ "CRAP_MASK\n" ::
-                  (concat (map (fun i: Fin.t Rlen_over_8 =>
-                                  (DispBit ($$ (natToWord 32 (proj1_sig (Fin.to_nat i)))) (2, Decimal)
-                                           :: (DispBool ($$ (getBool (Compare_dec.lt_dec (proj1_sig (Fin.to_nat i))
-                                                                                      (if dohalf
-                                                                                       then Xlen_over_8/2
-                                                                                       else Xlen_over_8)))) (1, Binary))
-                                           :: (DispString _ "\n")
-                                           :: nil))
-                               (getFins Rlen_over_8))) ++
-                  DispString _ "\nEND_CRAP_MASK\n"
-                  :: nil) ;
-         
-             SystemE
-               (DispString
-                  _ "CRAP_MASK2\n" ::
-                  (concat (map (fun i: Fin.t Rlen_over_8 =>
-                                  DispBit ($$ (natToWord 32 (proj1_sig (Fin.to_nat i)))) (2, Decimal)
-                                  :: DispBool (ReadArrayConst #memMask i) (1, Binary) :: nil) (getFins Rlen_over_8))) ++
-                  DispString _ "\nEND_CRAP_MASK2\n"
-                  :: nil) ;
-         
-             SystemE
-               [ DispString _ "MEM_MASK\n";
-                   DispBool (#memMask @[$0]) (1, Binary);
-                   DispArray #memMask (1, Binary);
-                   DispBit (pack #memMask) (2, Hex);
-                   DispBit (pack #memMask) (8, Binary) ];
              LETC dataVal: Data <- fn #reg #memVal;
-             LETC memOut: MaskedMem <-
-                                    (STRUCT {
-                                         "data" ::= #dataVal;
-                                         "mask" ::= #memMask});
-             LETC validMemOut: Maybe MaskedMem <- Valid #memOut ;
              LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
                                (if dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
@@ -298,8 +249,11 @@ Section Mem.
                                 STRUCT {
                                   "aq" ::= #memReg @% "aq" ;
                                   "rl" ::= #memReg @% "rl" ;
+                                  "isWr" ::= $$ true ;
+                                  "mask" ::= #memMask ;
+                                  "data" ::= #dataVal ;
+                                  "isLrSc" ::= $$ false ;
                                   "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false))  ;
-                                  "mem" ::= #validMemOut ;
                                   "tag" ::= $IntRegTag ;
                                   "reg_data" ::= #finalLoadVal };
              RetE #outMemReg).
@@ -309,25 +263,38 @@ Section Mem.
     Definition lrTag := storeTag.
 
     Definition lrXform (half: bool) :=
+      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC memVal: Data <- #memReg @% "mem" ;
-             LETC loadVal <- SignExtendTruncLsb (if half then (Xlen/2) else Xlen) #memVal;
+             LETC loadVal <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
+             LETC memMask: Array Rlen_over_8 Bool <-
+                                 $$ (ConstArray
+                                       (fun i: Fin.t Rlen_over_8 =>
+                                          getBool (Compare_dec.lt_dec
+                                                     (proj1_sig (Fin.to_nat i))
+                                                     (if dohalf
+                                                      then Xlen_over_8/2
+                                                      else Xlen_over_8)))) ;
              LETC outMemReg : MemoryOutput
                                 <-
                                 STRUCT {
                                   "aq" ::= #memReg @% "aq" ;
                                   "rl" ::= #memReg @% "rl" ;
+                                  "isWr" ::= $$ false ;
+                                  "mask" ::= #memMask ;
+                                  "data" ::= $$ (getDefaultConst Data) ;
+                                  "isLrSc" ::= $$ true ;
                                   "reservation" ::=
                                     $$ (ConstArray
                                           (fun i: Fin.t Rlen_over_8 =>
-                                             getBool
-                                               (Compare_dec.lt_dec
-                                                  (proj1_sig (Fin.to_nat i))
-                                                  (if half then Xlen_over_8/2 else Xlen_over_8)))) ;
-                                  "mem" ::= (Invalid: (Maybe (MaskedMem) @# ty)) ;
+                                             getBool (Compare_dec.lt_dec
+                                                        (proj1_sig (Fin.to_nat i))
+                                                        (if dohalf
+                                                         then Xlen_over_8/2
+                                                         else Xlen_over_8)))) ;
                                   "tag" ::= $IntRegTag ;
                                   "reg_data" ::= #finalLoadVal };
              RetE #outMemReg).
@@ -355,23 +322,11 @@ Section Mem.
                                  (Compare_dec.lt_dec
                                     (proj1_sig (Fin.to_nat i))
                                     (if half then Xlen_over_8/2 else Xlen_over_8)))) ;
-                 LETC memOut
-                   :  MaskedMem
-                   <- (STRUCT {
-                         "data" ::= (#reg : Data @# ty);
-                         "mask" ::= (#memMask : Array Rlen_over_8 Bool @# ty)
-                       } : MaskedMem @# ty);
                  LETC isStore
                    :  Bool
                         <- CABool And (map (fun i => ReadArrayConst (#memReg @% "reservation") i)
                                            (getFinsBound (if half then Xlen_over_8/2 else Xlen_over_8)
                                                          Rlen_over_8)) ;
-                 LETC validMemOut
-                   :  Maybe MaskedMem
-                   <- (STRUCT {
-                         "valid" ::= #isStore;
-                         "data" ::= #memOut
-                       });
                  LETC loadVal
                    :  Data
                    <- IF #isStore then $0 else $1;
@@ -380,8 +335,11 @@ Section Mem.
                    <- STRUCT {
                         "aq" ::= #memReg @% "aq";
                         "rl" ::= #memReg @% "rl";
+                        "isWr" ::= #isStore ;
+                        "mask" ::= #memMask ;
+                        "data" ::= #reg ;
+                        "isLrSc" ::= $$ true ;
                         "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
-                        "mem" ::= #validMemOut;
                         "tag" ::= $IntRegTag;
                         "reg_data" ::= Valid #loadVal
                       };

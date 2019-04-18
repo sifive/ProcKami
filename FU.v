@@ -198,15 +198,14 @@ Section Params.
                                 "mem" :: Data ;
                                 "reg_data" :: Data }.
 
-  Definition MaskedMem := STRUCT {
-                              "data" :: Data ;
-                              "mask" :: Array Rlen_over_8 Bool }.
-  
   Definition MemoryOutput := STRUCT {
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
+                                 "isWr" :: Bool ;
+                                 "mask" :: Array Rlen_over_8 Bool ;
+                                 "data" :: Data ;
+                                 "isLrSc" :: Bool ;
                                  "reservation" :: Array Rlen_over_8 Bool ;
-                                 "mem" :: Maybe MaskedMem ;
                                  "tag" :: RoutingTag ;
                                  "reg_data" :: Maybe Data }.
 
@@ -222,15 +221,10 @@ Section Params.
                              "addr" :: CsrId ;
                              "data" :: CsrValue }.
 
-  Definition MemRead := STRUCT {
-                            "data" :: Data ;
-                            "reservation" :: Array Rlen_over_8 Bool }.
-
   Definition MemWrite := STRUCT {
                              "addr" :: VAddr ;
                              "data" :: Data ;
-                             "mask" :: Array Rlen_over_8 Bool ;
-                             "reservation" :: Array Rlen_over_8 Bool }.
+                             "mask" :: Array Rlen_over_8 Bool }.
   
   Definition MemRet := STRUCT {
                            "writeReg?" :: Bool ;
@@ -477,80 +471,45 @@ Section Params.
 
     Open Scope kami_action.
 
-    Definition memRead (index : nat) (addr : VAddr @# ty)
-      :  ActionT ty (PktWithException MemRead)
-      := Call resultData
-         : Array Rlen_over_8 (Bit 8)
-                 <- (^"readMem" ++ (natToHexStr index)) (addr : VAddr);
-           Call resultLock
-           : Array Rlen_over_8 Bool
-                   <- (^"readMemReservation" ++ (natToHexStr index)) (ZeroExtendTruncLsb lgMemSz addr: _);
-           LET result: MemRead <-
-                            (STRUCT {"data" ::= pack #resultData;
-                                     "reservation" ::= #resultLock});
-                                  
-           System (
-               DispString _ "MemRead:\n" ::
-                          DispBit addr (8, Hex) ::
-                          DispString _ " " ::
-                          DispBit (pack #resultData) (16, Hex) ::
-                          DispString _ " " ::
-                          DispBit (pack #resultLock) (2, Hex) ::
-                          DispString _ "\n" ::
-                          nil
-             );
-           
-           Ret
-           (STRUCT {
-                "fst" ::= #result;
-                "snd" ::= Invalid
-            } : PktWithException MemRead @# ty).
+    Definition memRead (index: nat) (addr: VAddr @# ty)
+      : ActionT ty (PktWithException Data)
+      := Call result: Array Rlen_over_8 (Bit 8)
+                            <- (^"readMem" ++ (natToHexStr index)) (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+           Ret (STRUCT {
+                    "fst" ::= pack #result ;
+                    "snd" ::= Invalid } : PktWithException Data @# ty).
+
+    Definition memReadReservation (addr: VAddr @# ty)
+      : ActionT ty (Array Rlen_over_8 Bool)
+      := Call result: Array Rlen_over_8 Bool
+                            <- ^"readMemReservation" (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+           Ret #result.
 
     Definition memWrite (pkt : MemWrite @# ty)
-      :  ActionT ty (Maybe FullException)
+      : ActionT ty (Maybe FullException)
       := Call ^"writeMem"(STRUCT {
                               "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
                               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                               "mask" ::= pkt @% "mask"
                             }: WriteRqMask lgMemSz Rlen_over_8 (Bit 8));
-           System (
-               DispString _ "MemWrote:\n" ::
-                          DispBit (pkt @% "addr") (8, Hex) ::
-                          DispString _ " " ::
-                          DispBit (pkt @% "data") (16, Hex) ::
-                          DispString _ " " ::
-                          DispBit (pack (pkt @% "mask")) (2, Hex) ::
-                          DispString _ " " ::
-                          DispBit (pack (pkt @% "reservation")) (2, Hex) ::
-                          DispString _ "\n" ::
-                          nil
-             );
-           System
-             (DispString _ "GOOD MEM_MASK\n" ::
-                 DispArray (pkt @% "mask") (1, Binary) ::
-                 DispBit (pack (pkt @% "mask")) (2, Hex) ::
-                 DispBit (pack (pkt @% "mask")) (8, Binary) ::
-                 nil);
+           Ret Invalid.
 
-           Call ^"writeMemReservation"(STRUCT {
-                                           "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
-                                           "data" ::= pkt @% "reservation" ;
-                                           "mask" ::= pkt @% "mask"
-                                         }: WriteRqMask lgMemSz Rlen_over_8 Bool);
-         Ret Invalid.
+    Definition memWriteReservation (addr: VAddr @# ty)
+               (mask rsv: Array Rlen_over_8 Bool @# ty)
+      : ActionT ty Void
+      := Call ^"writeMemReservation" (STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
+                                               "data" ::= rsv ;
+                                               "mask" ::= mask }: _);
+           Retv.
 
     Close Scope kami_action.
 
   End MemInterface.
 
   Definition fetch (pc: VAddr @# ty)
-    := (LETA instReservationException
-          :  PktWithException MemRead
+    := (LETA instException
+          :  PktWithException Data
           <- memRead 1 pc;
-        LET instException
-          : PktWithException Data
-          <- STRUCT { "fst" ::= #instReservationException @% "fst" @% "data" ;
-                      "snd" ::= #instReservationException @% "snd" } ;
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
@@ -1314,18 +1273,6 @@ Section Params.
             "reg_data" ::= i @% "reg_data"
           }.
 
-      Definition applyMask (read: Data @# ty) (write: Maybe MaskedMem @# ty): Data ## ty.
-        refine (
-            LETC mask <- write @% "data" @% "mask" ;
-            LETC data <- write @% "data" @% "data" ;
-            LETC dataByte <- unpack (Array Rlen_over_8 (Bit 8)) (castBits _ #data) ;
-            LETC readByte <- unpack (Array Rlen_over_8 (Bit 8)) (castBits _ read) ;
-            LETC writeByte <- BuildArray (fun i => (IF ReadArrayConst #mask i
-                                                    then ReadArrayConst #dataByte i
-                                                    else ReadArrayConst #readByte i)) ;
-            RetE (IF write @% "valid" then castBits _ (pack #writeByte) else read)); unfold size; try abstract lia.
-      Defined.
-
       Section MemAddr.
         Variable addr: VAddr @# ty.
         Variable fuTag: FuncUnitId @# ty.
@@ -1334,79 +1281,86 @@ Section Params.
 
         Local Open Scope kami_action.
 
-        Definition memAction fu (tag: nat)
+        Definition memAction (fu: FUEntry) (tag: nat)
           :  ActionT ty (PktWithException MemRet)
           := If instTag == $tag
              then 
                match getMemEntry fu tag with
                  | Some fn
-                   => LETA memReadVal
-                        :  PktWithException MemRead
+                   => (
+                      LETA memReadVal
+                        :  PktWithException Data
                         <- memRead 2 addr;
+                      LETA memReadReservationVal
+                        : Array Rlen_over_8 Bool
+                        <- memReadReservation addr;
                       System
-                        (DispString _ "MemRead Result invalid: " ::
+                        (DispString _ "MemRead Result exception: " ::
                          DispBool (#memReadVal @% "snd" @% "valid") (1, Binary) ::
                          DispString _ "\n" ::
                          DispString _ "MemRead Result data: " ::
-                         DispBit (#memReadVal @% "fst" @% "data") (Rlen, Hex) ::
+                         DispBit (#memReadVal @% "fst") (Rlen, Hex) ::
                          DispString _ "\n" ::
                          nil);
-                        (If #memReadVal @% "snd" @% "valid"
-                         then Ret defMemRet
-                         else
-                           (LETA memoryOutput
-                              :  MemoryOutput
-                              <- convertLetExprSyntax_ActionT
-                                   (fn (RetE (makeMemoryInput memUnitInput
-                                                              (#memReadVal @% "fst" @% "data")
-                                                              (#memReadVal @% "fst" @% "reservation"))));
+                      If (#memReadVal @% "snd" @% "valid")
+                      then
+                        Ret defMemRet
+                      else
+                        (LETA memoryOutput
+                         :  MemoryOutput
+                         <- convertLetExprSyntax_ActionT (fn (RetE (makeMemoryInput memUnitInput
+                                                                                    (#memReadVal @% "fst")
+                                                                                    #memReadReservationVal)));
+                         System
+                           (DispString _ "Mem Output Write to Register: " ::
+                                       DispBool (#memoryOutput @% "reg_data" @% "valid") (1, Binary) ::
+                                       DispString _ "\n" ::
+                                       DispString _ "Mem Output data: " ::
+                                       DispBit (#memoryOutput @% "reg_data" @% "data") (Rlen, Hex) ::
+                                       DispString _ "\n" ::
+                                       nil);
+                         If (#memoryOutput @% "isWr")
+                         then
+                           (LET memWriteVal
+                            :  MemWrite
+                            <- STRUCT {
+                              "addr" ::= addr;
+                              "data" ::= #memoryOutput @% "data" ;
+                              "mask" ::=
+                                (IF #memoryOutput @% "isWr"
+                                 then #memoryOutput @% "mask"
+                                 else $$ (ConstArray (fun (_: Fin.t Rlen_over_8) => false)))
+                                  (* "reservation" ::= #memoryOutput @% "reservation" *)
+                            };
+                            LETA writeEx
+                            :  Maybe FullException
+                            <- memWrite #memWriteVal;
                             System
-                              (DispString _ "Mem Output Write to Register: " ::
-                               DispBool (#memoryOutput @% "reg_data" @% "valid") (1, Binary) ::
-                               DispString _ "\n" ::
-                               DispString _ "Mem Output data: " ::
-                               DispBit (#memoryOutput @% "reg_data" @% "data") (Rlen, Hex) ::
-                               DispString _ "\n" ::
-                               nil);
-                            LET memWriteVal
-                              :  MemWrite
-                              <- STRUCT {
-                                "addr" ::= addr;
-                                "data" ::= #memoryOutput @% "mem" @% "data" @% "data" ;
-                                "mask" ::=
-                                  (IF #memoryOutput @% "mem" @% "valid"
-                                   then #memoryOutput @% "mem" @% "data" @% "mask"
-                                   else $$ (ConstArray (fun (_: Fin.t Rlen_over_8) => false))) ;
-                                "reservation" ::= #memoryOutput @% "reservation"
-                              };
-                            If (#memoryOutput @% "mem" @% "valid")
-                            then
-                              (LETA writeEx
-                                 :  Maybe FullException
-                                 <- memWrite #memWriteVal;
-                               System
-                                 (DispString _ "Mem Write address: " ::
-                                  DispBit (#memWriteVal @% "addr") (Rlen, Hex) ::
-                                  DispString _ "\n" ::
-                                  DispString _ "Mem Write data: " ::
-                                  DispBit (#memWriteVal @% "data") (Rlen, Hex) ::
-                                  DispString _ "\n" ::
-                                  nil);
-                               Ret #writeEx)
-                            else
-                              Ret (@Invalid _ FullException)
-                            as writeEx;
-                            LET memRet
-                            : PktWithException MemRet
-                                 <- STRUCT {
-                                   "fst" ::= STRUCT {
-                                               "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
-                                               "tag" ::= #memoryOutput @% "tag";
-                                               "data" ::= #memoryOutput @% "reg_data" @% "data" } ;
-                                   "snd" ::= #writeEx };
-                            Ret #memRet
-                           ) as ret;
-                         Ret #ret)
+                              (DispString _ "Mem Write address: " ::
+                                          DispBit (#memWriteVal @% "addr") (Rlen, Hex) ::
+                                          DispString _ "\n" ::
+                                          DispString _ "Mem Write data: " ::
+                                          DispBit (#memWriteVal @% "data") (Rlen, Hex) ::
+                                          DispString _ "\n" ::
+                                          nil);
+                            Ret #writeEx)
+                         else
+                            Ret (@Invalid _ FullException)
+                         as writeEx;
+                         If (#memoryOutput @% "isLrSc")
+                         then memWriteReservation addr (#memoryOutput @% "mask") (#memoryOutput @% "reservation");
+                         LET memRet
+                         : PktWithException MemRet
+                         <- STRUCT {
+                           "fst" ::= STRUCT {
+                                         "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
+                                         "tag" ::= #memoryOutput @% "tag";
+                                         "data" ::= #memoryOutput @% "reg_data" @% "data" } ;
+                           "snd" ::= #writeEx };
+                         Ret #memRet)
+                      as ret;
+                    Ret #ret
+                    )        
                  | None => Ret defMemRet
                  end
              else Ret defMemRet
