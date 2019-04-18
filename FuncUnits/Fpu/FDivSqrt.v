@@ -83,7 +83,7 @@ Section Fpu.
          <- sem_out_pkt_expr;
        SystemE [
          DispString ty "fdivsqrt outK: ";
-         dispBinary #sem_out_pkt;
+         DispBinary #sem_out_pkt;
          DispString ty "\n"
        ];
        RetE

@@ -378,7 +378,7 @@ Section Params.
                  } : MayStructInputT CsrValue @# ty);
          System (
            DispString _ " Reg Reader Read " ::
-           dispDecimal #result ::
+           DispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
@@ -400,7 +400,7 @@ Section Params.
                  } : MayStructInputT CsrValue @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
-           dispDecimal #result ::
+           DispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
@@ -425,7 +425,7 @@ Section Params.
       := Call result: Array Rlen_over_8 (Bit 8)
                             <- (^"readMem" ++ (natToHexStr index)) (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
            
-           System (DispString _ "READ MEM: " :: dispHex addr :: DispString _ " " :: dispHex #result ::
+           System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result ::
                               DispString _ "\n" :: nil);
            Ret (STRUCT {
                     "fst" ::= pack #result ;
@@ -435,7 +435,7 @@ Section Params.
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool
                             <- ^"readMemReservation" (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
-           System (DispString _ "READ RESERVATION: " :: dispHex addr :: DispString _ " " :: dispBinary #result ::
+           System (DispString _ "READ RESERVATION: " :: DispHex addr :: DispString _ " " :: DispBinary #result ::
                               DispString _ "\n" :: nil);
            Ret #result.
 
@@ -445,7 +445,7 @@ Section Params.
                                     "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
                                     "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                                     "mask" ::= pkt @% "mask" };
-           System (DispString _ "WRITE MEM: " :: dispHex #writeRq :: DispString _ "\n" :: nil);           
+           System (DispString _ "WRITE MEM: " :: DispHex #writeRq :: DispString _ "\n" :: nil);           
            Call ^"writeMem"(#writeRq: _);
            Ret Invalid.
 
@@ -455,7 +455,7 @@ Section Params.
       := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
                                                                        "data" ::= rsv ;
                                                                        "mask" ::= mask } ;
-           System (DispString _ "WRITE RESERVATION: " :: dispHex #writeRq :: DispString _ "\n" :: nil);
+           System (DispString _ "WRITE RESERVATION: " :: DispHex #writeRq :: DispString _ "\n" :: nil);
            Call ^"writeMemReservation" (#writeRq: _);
            Retv.
 
@@ -968,10 +968,10 @@ Section Params.
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
-           dispDecimal (imm raw_instr);  
+           DispDecimal (imm raw_instr);  
            DispString _ "\n";
            DispString _ "  CSR Value: ";
-           dispDecimal #csr_value;
+           DispDecimal #csr_value;
            DispString _ "\n"
          ];
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
@@ -995,31 +995,31 @@ Section Params.
            <- readCSR $3;
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
-             dispDecimal (rs1 raw_inst);
+             DispDecimal (rs1 raw_inst);
              DispString _ "\n";
              DispString _ "Reg 2 selector: ";
-             dispDecimal (rs2 raw_inst);
+             DispDecimal (rs2 raw_inst);
              DispString _ "\n";
              DispString _ "CSR selector: ";
-             dispDecimal (imm raw_inst);
+             DispDecimal (imm raw_inst);
              DispString _ "\n";
              DispString _ "has RS1: ";
-             dispBinary (reg_reader_has hasRs1 decoder_pkt);
+             DispBinary (reg_reader_has hasRs1 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS1: ";
-             dispBinary (reg_reader_has hasFrs1 decoder_pkt);
+             DispBinary (reg_reader_has hasFrs1 decoder_pkt);
              DispString _ "\n";
              DispString _ "has RS2: ";
-             dispBinary (reg_reader_has hasRs2 decoder_pkt);
+             DispBinary (reg_reader_has hasRs2 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS2: ";
-             dispBinary (reg_reader_has hasFrs2 decoder_pkt);
+             DispBinary (reg_reader_has hasFrs2 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS3: ";
-             dispBinary (reg_reader_has hasFrs3 decoder_pkt);
+             DispBinary (reg_reader_has hasFrs3 decoder_pkt);
              DispString _ "\n";
              DispString _ "Floating Point Control Status Register: ";
-             dispBinary (#fcsr_val);
+             DispBinary (#fcsr_val);
              DispString _ "\n"
            ] Retv;
          Ret
@@ -1101,9 +1101,9 @@ Section Params.
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
              DispString _ " Reg Write Wrote ";
-             dispDecimal data;    
+             DispDecimal data;    
              DispString _ " to register ";
-             dispDecimal reg_id;
+             DispDecimal reg_id;
              DispString _ "\n"
            ]%list;
            Retv.
@@ -1121,9 +1121,9 @@ Section Params.
            Call (^"fregWrite") (#pkt : FloatRegWrite);
            System [
              DispString _ " Reg Write Wrote ";
-             dispDecimal data;
+             DispDecimal data;
              DispString _ " to floating point register ";
-             dispDecimal reg_id;
+             DispDecimal reg_id;
              DispString _ "\n"
            ]%list;
            Retv.
@@ -1228,7 +1228,7 @@ Section Params.
                         <- memReadReservation addr;
                       System
                         (DispString _ "Mem Read: " ::
-                         dispHex #memReadVal ::
+                         DispHex #memReadVal ::
                          DispString _ "\n" ::
                          nil);
                       If (#memReadVal @% "snd" @% "valid")
@@ -1242,7 +1242,7 @@ Section Params.
                                                                                     #memReadReservationVal)));
                          System
                            (DispString _ "Mem Output Write to Register: " ::
-                                       dispBinary #memoryOutput ::
+                                       DispBinary #memoryOutput ::
                                        DispString _ "\n" ::
                                        nil);
                          If (#memoryOutput @% "isWr")
@@ -1262,7 +1262,7 @@ Section Params.
                             <- memWrite #memWriteVal;
                             System
                               (DispString _ "Mem Write: " ::
-                               dispHex #memWriteVal ::
+                               DispHex #memWriteVal ::
                                DispString _ "\n" ::
                                nil);
                             Ret #writeEx)

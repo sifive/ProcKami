@@ -37,7 +37,7 @@ Section Params.
     Variable mode       : forall ty, PrivMode @# ty.
     Variable extensions : forall ty, Extensions @# ty.
 
-    Section display.
+    Section Display.
       Variable ty : Kind -> Type.
 
       Local Definition expWidthMinus2
@@ -62,17 +62,17 @@ Section Params.
         :  NF expWidthMinus2 sigWidthMinus2 @# ty
         := getNF_from_FN (bitToFN x).
 
-      Definition dispNF (prefix : string) (xlen : nat) (x : Bit xlen @# ty)
+      Definition DispNF (prefix : string) (xlen : nat) (x : Bit xlen @# ty)
         := let y
              :  NF expWidthMinus2 sigWidthMinus2 @# ty
              := bitToNF (ZeroExtendTruncLsb len x) in
            [
              DispString _ prefix;
-             dispBinary y;
+             DispBinary y;
              DispString _ "\n"
            ].
 
-    End display.
+    End Display.
 
     Local Open Scope list.
     Definition processorCore 
@@ -87,10 +87,10 @@ Section Params.
                      [
                        DispString _ "Start\n";
                        DispString _ "XLEN_over_8: ";
-                       dispDecimal (Const _ (natToWord 32 Xlen_over_8));
+                       DispDecimal (Const _ (natToWord 32 Xlen_over_8));
                        DispString _ "\n";
                        DispString _ "RLEN_over_8: ";
-                       dispDecimal (Const _ (natToWord 32 Rlen_over_8));
+                       DispDecimal (Const _ (natToWord 32 Rlen_over_8));
                        DispString _ "\n"
                      ];
                    Read pc : VAddr <- ^"pc";
@@ -98,7 +98,7 @@ Section Params.
                      [
                        DispString _ "Fetch\n";
                        DispString _ "  Fetched: ";
-                       dispHex #pc;
+                       DispHex #pc;
                        DispString _ "\n"
                      ];
                    LETA fetch_pkt
@@ -108,9 +108,9 @@ Section Params.
                      [
                        DispString _ "Fetched\n";
                        DispString _ "  Inst: ";
-                       dispHex #fetch_pkt;
+                       DispHex #fetch_pkt;
                        DispString _ "\n        ";
-                       dispBinary #fetch_pkt;
+                       DispBinary #fetch_pkt;
                        DispString _ "\n"
                      ];
                    System [DispString _ "Decoder\n"];
@@ -121,7 +121,7 @@ Section Params.
                    System
                      [
                        DispString _ "Decode Pkt\n";
-                       dispHex #decoder_pkt;
+                       DispHex #decoder_pkt;
                        DispString _ "\n"
                      ];
                    System [DispString _ "Reg Read\n"];
@@ -144,12 +144,12 @@ Section Params.
                    System
                      ([
                        DispString _ "Reg Vals\n";
-                       dispHex #exec_context_pkt;    
+                       DispHex #exec_context_pkt;    
                        DispString _ "\n"
                      ] ++
-                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg1")) ++
-                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg2")) ++
-                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3"))
+                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg1")) ++
+                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg2")) ++
+                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3"))
                      );
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
@@ -164,11 +164,11 @@ Section Params.
                    System
                      ([
                        DispString _ "New Reg Vals\n";
-                       dispHex #exec_update_pkt;    
+                       DispHex #exec_update_pkt;    
                        DispString _ "\n"
                      ] ++
-                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
+                     (DispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
+                     (DispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    System [DispString _ "Mem\n"];
                    LETA mem_update_pkt
@@ -180,11 +180,11 @@ Section Params.
                    System
                      ([
                        DispString _ "New Reg Vals (after memory ops)\n";
-                       dispHex #mem_update_pkt;    
+                       DispHex #mem_update_pkt;    
                        DispString _ "\n"
                      ] ++
-                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
+                     (DispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
+                     (DispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
                    (* TODO: the call to commit currently ignores any exceptions propogated through mem_update_pkt. *)
                    System [DispString _ "Reg Write\n"];
                    LETA commit_pkt
