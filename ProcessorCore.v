@@ -80,8 +80,8 @@ Section Params.
       := 
          MODULE {
               Register ^"pc" : VAddr <- ConstBit (_ 'h "00000000") with
-              Register ^"fflags" : Bit 5 <- ConstBit (_ 'h "00000000") with
-              Register ^"frm" : Bit 3 <- ConstBit (_ 'h "00000000") with
+              Register ^"fflags" : Bit 5 <- ConstBit (natToWord 5 0) with
+              Register ^"frm"    : Bit 3 <- ConstBit (natToWord 3 0) with
               Rule ^"pipeline"
                 := System
                      [
@@ -289,9 +289,6 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"fflags";
-             ^"frm";
-             ^"fcsr";
              ^"write_csr";
              ^"readMem1";
              ^"readMem2";
