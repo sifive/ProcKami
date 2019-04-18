@@ -93,8 +93,7 @@ Definition FloatRegTag := 2.
 Definition CsrTag := 3.
 Definition MemDataTag := 4.
 Definition MemAddrTag := 5.
-Definition FflagsTag := 6.
-Definition FloatCsrTag := 7.
+Definition FloatCsrTag := 6.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -330,100 +329,30 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Definition csr_fflags_index : CsrId @# ty := $1.
-    Definition csr_frm_index    : CsrId @# ty := $2.
-    Definition csr_fcsr_index   : CsrId @# ty := $3.
+    Local Notation Build_MayGroupReg := (Build_MayGroupReg CsrIdWidth 0).
+    Local Notation MayStructInputT := (MayStructInputT CsrIdWidth 0).
 
-    (*
-      The number of bits needed to referenced the bytes in a CSR.
-
-      Note: we decided to make the CSRs word accessible rather than
-      byte accessible. Consequently, we set lgMaskSz to 0.
-
-      Local Notation lgMaskSz := (Nat.log2_up Clen_over_8).
-      Local Notation maskSz   := (pow2 lgMaskSz).
-      Local Notation dataSz   := (maskSz * 8)%nat.
-    *)
-    Local Notation lgMaskSz := (0).
-    Local Notation dataSz   := (CsrValueWidth).
-
-    (*
-      addressNumBits - addressNumCSRBits
-      log2 (numCSRs * csrNumBytes) - addressNumCSRBits
-      log2 (numCSRs) + log2 (csrNumBytes) - addressNumCSRBits
-      log2 (numCSRs) + log2 (csrNumBytes) - log2 (csrNumBytes)
-      log2 (numCSRs)
-      realAddrSz : nat := CsrIdWidth.
-    *)
-
-    (*
-      Note: The number of bits needed to reference all of the bytes in
-      a CSR:
-
-      addrSz := addressNumBits
-      addrSz := realAddrSz + lgMaskSz
-      addrSz := CsrIdWidth + lgMaskSz
-    *)
-    Local Notation addrSz := (CsrIdWidth + lgMaskSz)%nat.
-
-    Notation mayGroupReg := (Build_MayGroupReg CsrIdWidth lgMaskSz).
-    Notation RegMapT     := (RegMapT lgMaskSz CsrIdWidth lgMaskSz).
-    Notation FullRegMapT := (FullRegMapT lgMaskSz CsrIdWidth lgMaskSz).
-    Notation MayStructInputT := (MayStructInputT CsrIdWidth lgMaskSz).
-
+    
     (* Represents CSR entry fields. *)
     Local Definition csrField (k : Kind) (value : option (ConstT k))
       :  {k : Kind & option (ConstT k)}
       := existT (fun k => option (ConstT k)) k value.
 
-    (* Converts CSR index values into byte-level memory addresses. *)
-    Definition csrAddress (index : nat) : word addrSz
-      := natToWord addrSz (index * (pow2 lgMaskSz))%nat.
-
     Definition CSREntries
-      :  list (MayGroupReg CsrIdWidth lgMaskSz)
-      := [
-           mayGroupReg (csrAddress 1)
-             {|
-               vals  := Vector.nth [
-                          @csrField (Bit 27) (Some (ConstBit (natToWord 27 0)));
-                          @csrField (Bit 5) None
-                        ]%vector;
-               names := Vector.nth [
-                          ^"fflags_reserved";
-                          ^"fflags"
-                        ]%vector;
-             |}
-             ^"fflags";
-           mayGroupReg (csrAddress 2)
-             {|
-               vals  := Vector.nth [
-                          @csrField (Bit 29) (Some (ConstBit (natToWord 29 0)));
-                          @csrField (Bit 3) None
-                        ]%vector;
-               names := Vector.nth [
-                          ^"frm_reserved";
-                          ^"frm"
-                        ]%vector
-             |}
-             ^"frm";
-           mayGroupReg (csrAddress 3)
-             {|
-               vals
-                 := Vector.nth [
-                      @csrField (Bit 24) (Some (ConstBit (natToWord 24 0)));
-                      @csrField (Bit 3) None;
-                      @csrField (Bit 5) None
-                    ]%vector;
-               names
-                 := Vector.nth [
-                      ^"fcsr_reserved";
-                      ^"frm";
-                      ^"fflags"
-                    ]%vector;
-             |}
-             ^"fcsr"
-         ].
+      :  list (MayGroupReg CsrIdWidth 0)
+      := [ Build_MayGroupReg $1
+                             (MAYSTRUCT {
+                                  "reserved" ::# Bit 27 #:: (ConstBit ($0)%word) ;
+                                  ^"fflags" :: Bit 5 }) ^"fflagsG" ;
+             Build_MayGroupReg $2
+                               (MAYSTRUCT {
+                                    "reserved" ::# Bit 29 #:: (ConstBit ($0)%word) ;
+                                    ^"frm" :: Bit 3 }) ^"frmG" ;
+             Build_MayGroupReg $3
+                               (MAYSTRUCT {
+                                    "reserved" ::# Bit 24 #:: (ConstBit ($0)%word) ;
+                                    ^"frm" :: Bit 3 ;
+                                    ^"fflags" :: Bit 5 }) ^"fcsr" ].
 
     Open Scope kami_expr.
     Open Scope kami_action.
@@ -438,24 +367,18 @@ Section Params.
            DispString _ " [readCSR]\n " ::
            nil
          );
-         LET addr
-           :  Bit addrSz
-           <- (ZeroExtendTruncLsb addrSz csrId) << (Const ty (natToWord addrSz lgMaskSz));
          LETA result
-           :  Maybe (Bit dataSz)
+           :  Maybe CsrValue
            <- readWriteCSR
                 (STRUCT {
                    "isRd" ::= ($$true : Bool @# ty);
-                   "addr" ::= (#addr : Bit addrSz @# ty);
-                   "data" ::= ($$(wzero dataSz) : Bit dataSz @# ty);
-                   "mask" ::= ($$(wones dataSz) : Bit dataSz @# ty)
-                 } : MayStructInputT (Bit dataSz) @# ty);
+                   "addr" ::= (csrId : CsrId @# ty);
+                   "data" ::= ($0 : CsrValue @# ty);
+                   "mask" ::= ($0 : CsrValue @# ty)
+                 } : MayStructInputT CsrValue @# ty);
          System (
            DispString _ " Reg Reader Read " ::
-           dispDecimal (#result @% "data") ::
-           DispString _ "\n" ::
-           DispString _ " from CSR " ::
-           dispDecimal (csrId) ::
+           dispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
@@ -467,26 +390,17 @@ Section Params.
            DispString _ " [writeCSR]\n " ::
            nil
          );
-         LET addr
-           :  Bit addrSz
-           <- (ZeroExtendTruncLsb addrSz csrId) << (Const ty (natToWord addrSz lgMaskSz));
-         LET data
-           :  Bit dataSz
-           <- ZeroExtendTruncLsb dataSz raw_data;
          LETA result
            <- readWriteCSR
                 (STRUCT {
                    "isRd" ::= $$false;
-                   "addr" ::= #addr;
-                   "data" ::= #data;
-                   "mask" ::= $$(wones dataSz)
-                 } : MayStructInputT (Bit dataSz) @# ty);
+                   "addr" ::= csrId;
+                   "data" ::= ZeroExtendTruncLsb CsrValueWidth raw_data;
+                   "mask" ::= $$(wones CsrValueWidth)
+                 } : MayStructInputT CsrValue @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
-           dispDecimal (#data) ::
-           DispString _ "\n" ::
-           DispString _ " to CSR " ::
-           dispDecimal (csrId) ::
+           dispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
@@ -1031,10 +945,6 @@ Section Params.
            :  Bit Flen
            <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
            Ret (ZeroExtendTruncLsb Rlen (#freg_val)).
-
-    Definition reg_reader_read_fcsr
-      :  ActionT ty CsrValue
-      := readCSR csr_fcsr_index.
     
     Import ListNotations.
 
@@ -1082,7 +992,7 @@ Section Params.
            <- reg_reader_read_csr raw_inst;
          LETA fcsr_val
            :  CsrValue
-           <- reg_reader_read_fcsr;
+           <- readCSR $3;
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
              dispDecimal (rs1 raw_inst);
@@ -1218,60 +1128,40 @@ Section Params.
            ]%list;
            Retv.
 
+      Definition commitWriters (val: Maybe RoutedReg @# ty) (reg_index: RegId @# ty) (csr_index: CsrId @# ty) : ActionT ty Void :=
+        (LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
+           LET val_data : Data <- (val @% "data") @% "data" ;
+           If (val @% "valid")
+         then 
+           (If (#val_pos == $IntRegTag)
+            then (If (reg_index != $0)
+                  then reg_writer_write_reg (reg_index) (#val_data);
+                         Retv)
+            else (If (#val_pos == $FloatRegTag)
+                  then reg_writer_write_freg (reg_index) (#val_data)
+                  else (If (#val_pos == $CsrTag)
+                        then writeCSR csr_index (#val_data)
+                        else (If (#val_pos == $FloatCsrTag)
+                              then writeCSR $3 (#val_data);
+                                     Retv);
+                          Retv);
+                    Retv);
+              Retv);
+           Retv).
+        
+
       Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
         : ActionT ty Void :=
         (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
          LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
-         LET val1_pos : RoutingTag <- (#val1 @% "data") @% "tag" ;
-         LET val2_pos : RoutingTag <- (#val2 @% "data") @% "tag" ;
-         LET val1_data : Data <- (#val1 @% "data") @% "data" ;
-         LET val2_data : Data <- (#val2 @% "data") @% "data" ;
          LET reg_index : RegId <- rd inst;
-         LET writeCsr: CsrWrite <- STRUCT {"addr" ::= imm inst ;
-                                           "data" ::= ZeroExtendTruncLsb CsrValueWidth #val1_data };
+         LET csr_index : CsrId <- imm inst;
          (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
          If (!(cxt @% "snd" @% "valid"))
          then (
-           If (#val1 @% "valid")
-           then 
-               (If (#val1_pos == $IntRegTag)
-                then (If (#reg_index != $0)
-                      then reg_writer_write_reg (#reg_index) (#val1_data);
-                      Retv)
-                else (If (#val1_pos == $FloatRegTag)
-                      then reg_writer_write_freg (#reg_index) (#val1_data)
-                      else (If (#val1_pos == $CsrTag)
-                            then writeCSR (imm inst) (#val1_data)
-                            else (If (#val1_pos == $FflagsTag)
-                                  then writeCSR csr_fflags_index (#val1_data)
-                                  else (If (#val1_pos == $FloatCsrTag)
-                                        then writeCSR csr_fcsr_index (#val1_data);
-                                        Retv);
-                                  Retv);
-                            Retv);
-                      Retv);
-                Retv);
-           If (#val2 @% "valid")
-           then
-               (If (#val2_pos == $IntRegTag)
-                then (If (#reg_index != $0)
-                      then reg_writer_write_reg (#reg_index) (#val2_data);
-                      Retv)
-                else (If (#val2_pos == $FloatRegTag)
-                      then reg_writer_write_freg (#reg_index) (#val2_data)
-                      else (If (#val2_pos == $CsrTag)
-                            then writeCSR (imm inst) (#val2_data)
-                            else (If (#val2_pos == $FflagsTag)
-                                  then writeCSR csr_fflags_index (#val2_data)
-                                  else (If (#val2_pos == $FloatCsrTag)
-                                        then writeCSR csr_fcsr_index (#val2_data);
-                                        Retv);
-                                  Retv);
-                            Retv);
-                      Retv);
-                Retv);
-           Retv);
+             LETA _ <- commitWriters #val1 #reg_index #csr_index;
+               commitWriters #val2 #reg_index #csr_index);
          Retv
         ).
 

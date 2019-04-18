@@ -289,7 +289,6 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"write_csr";
              ^"readMem1";
              ^"readMem2";
              ^"readMemReservation";
