@@ -145,7 +145,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"10000") :: nil ;
               inputXform   := amoInput 2;
               outputXform  := amoTag ;
-              optMemXform  := amoXform true (fun reg mem => IF (SignExtendTruncLsb ((Xlen-1) + 1) reg) >s (SignExtendTruncLsb _ mem) then mem else reg) ;
+              optMemXform  := amoXform true (fun reg mem => IF (SignExtendTruncLsb 32 reg) >s (SignExtendTruncLsb (31+1) mem) then mem else reg) ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomax.w" ;
@@ -156,7 +156,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"10100") :: nil ;
               inputXform   := amoInput 2;
               outputXform  := amoTag ;
-              optMemXform  := amoXform true (fun reg mem => IF (SignExtendTruncLsb ((Xlen-1) + 1) reg) >s (SignExtendTruncLsb _ mem) then reg else mem) ;
+              optMemXform  := amoXform true (fun reg mem => IF (SignExtendTruncLsb 32 reg) >s (SignExtendTruncLsb (31+1) mem) then reg else mem) ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amominu.w" ;
@@ -167,7 +167,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"11000") :: nil ;
               inputXform   := amoInput 2;
               outputXform  := amoTag ;
-              optMemXform  := amoXform true (fun reg mem => IF reg > mem then mem else reg) ;
+              optMemXform  := amoXform true (fun reg mem => IF (ZeroExtendTruncLsb 32 reg) > (ZeroExtendTruncLsb 32 mem) then mem else reg) ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomaxu.w" ;
