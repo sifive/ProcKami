@@ -338,7 +338,7 @@ Section Mem.
                         "isWr" ::= #isStore ;
                         "mask" ::= #memMask ;
                         "data" ::= #reg ;
-                        "isLrSc" ::= $$ true ;
+                        "isLrSc" ::= #isStore ;
                         "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
                         "tag" ::= $IntRegTag;
                         "reg_data" ::= Valid #loadVal

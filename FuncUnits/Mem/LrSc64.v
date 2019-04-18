@@ -101,7 +101,6 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"00011") ::
-                                       fieldVal rs2Field ('b"00000") ::
                                        nil ;
               inputXform   := scInput 3;
               outputXform  := scTag ;

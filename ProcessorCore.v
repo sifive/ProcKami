@@ -68,19 +68,7 @@ Section Params.
              := bitToNF (ZeroExtendTruncLsb len x) in
            [
              DispString _ prefix;
-             DispStruct y
-               (Vector.nth [
-                  (1, Binary);  (* isNaN *)
-                  (1, Binary);  (* isInf *)
-                  (1, Binary);  (* isZero *)
-                  (1, Binary);  (* sign *)
-                  (32, Binary); (* sExp *)
-                  (32, Binary)  (* sig *)
-                ]%vector);
-             DispString _ "= 1.";
-             DispBit (y @% "sig") (32, Binary);
-             DispString _ "b*2^";
-             DispBit (y @% "sExp") (32, Decimal);
+             dispBinary y;
              DispString _ "\n"
            ].
 
@@ -97,16 +85,10 @@ Section Params.
                      [
                        DispString _ "Start\n";
                        DispString _ "XLEN_over_8: ";
-                       DispBit (Const _ (natToWord 32 Xlen_over_8)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "XLEN: ";
-                       DispBit (Const _ (natToWord 32 Xlen)) (32, Decimal);
+                       dispDecimal (Const _ (natToWord 32 Xlen_over_8));
                        DispString _ "\n";
                        DispString _ "RLEN_over_8: ";
-                       DispBit (Const _ (natToWord 32 Rlen_over_8)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "RLEN: ";
-                       DispBit (Const _ (natToWord 32 Rlen)) (32, Decimal);
+                       dispDecimal (Const _ (natToWord 32 Rlen_over_8));
                        DispString _ "\n"
                      ];
                    Read pc : VAddr <- ^"pc";
@@ -114,7 +96,7 @@ Section Params.
                      [
                        DispString _ "Fetch\n";
                        DispString _ "  Fetched: ";
-                       DispBit (#pc) (32, Hex);
+                       dispHex #pc;
                        DispString _ "\n"
                      ];
                    LETA fetch_pkt
@@ -124,13 +106,9 @@ Section Params.
                      [
                        DispString _ "Fetched\n";
                        DispString _ "  Inst: ";
-                       DispBit (#fetch_pkt @% "fst" @% "inst") (32, Binary);
-                       DispString _ "\n";
-                       DispString _ "  InstHex: ";
-                       DispBit (#fetch_pkt @% "fst" @% "inst") (32, Hex);
-                       DispString _ "\n";
-                       DispString _ "  Exception: ";
-                       DispBool (#fetch_pkt @% "snd" @% "valid") (1, Binary);
+                       dispHex #fetch_pkt;
+                       DispString _ "\n        ";
+                       dispBinary #fetch_pkt;
                        DispString _ "\n"
                      ];
                    System [DispString _ "Decoder\n"];
@@ -141,20 +119,7 @@ Section Params.
                    System
                      [
                        DispString _ "Decode Pkt\n";
-                       DispString _ "  func unit id: ";
-                       DispBit (#decoder_pkt @% "fst" @% "funcUnitTag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  inst id: ";
-                       DispBit (#decoder_pkt @% "fst" @% "instTag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  inst: ";
-                       DispBit (#decoder_pkt @% "fst" @% "inst") (32, Binary);
-                       DispString _ "\n";
-                       DispString _ "  compressed: ";
-                       DispBool (#decoder_pkt @% "fst" @% "compressed?") (1, Binary);
-                       DispString _ "\n";
-                       DispString _ "  Exception: ";
-                       DispBool (#decoder_pkt @% "snd" @% "valid") (1, Binary);
+                       dispHex #decoder_pkt;
                        DispString _ "\n"
                      ];
                    System [DispString _ "Reg Read\n"];
@@ -177,40 +142,13 @@ Section Params.
                    System
                      ([
                        DispString _ "Reg Vals\n";
-                       DispString _ "  reg1:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg1") (Xlen, Hex);
+                       dispHex #exec_context_pkt;    
                        DispString _ "\n"
                      ] ++
                      (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg1")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  reg2:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg2") (Xlen, Hex);
-                       DispString _ "\n"
-                     ] ++
                      (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg2")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  reg3:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#exec_context_pkt @% "fst" @% "reg3") (Xlen, Hex);
-                       DispString _ "\n"
-                     ] ++
-                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  csr: ";
-                       DispBit (#exec_context_pkt @% "fst" @% "csr" @% "data") (32, Decimal); 
-                       DispString _ "\n";
-                       DispString _ "  csr valid?: ";
-                       DispBool (#exec_context_pkt @% "fst" @% "csr" @% "valid") (1, Binary); 
-                       DispString _ "\n";
-                       DispString _ "  Exception: ";
-                       DispBool (#exec_context_pkt @% "snd" @% "valid") (32, Binary);
-                       DispString _ "\n"
-                     ]);
+                     (dispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3"))
+                     );
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
@@ -224,44 +162,11 @@ Section Params.
                    System
                      ([
                        DispString _ "New Reg Vals\n";
-                       DispString _ "  PC tag: ";
-                       DispBit (Const _ (natToWord 32 PcTag)) (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  val1 valid: ";
-                       DispBool (#exec_update_pkt @% "fst" @% "val1" @% "valid") (1, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  val1 tag: ";
-                       DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  val1:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Hex);
+                       dispHex #exec_update_pkt;    
                        DispString _ "\n"
                      ] ++
                      (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  val2 valid: ";
-                       DispBool (#exec_update_pkt @% "fst" @% "val2" @% "valid") (1, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  val2 tag: ";
-                       DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  val2:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Hex);
-                       DispString _ "\n"
-                     ] ++
-                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  taken: ";
-                       DispBool (#exec_update_pkt @% "fst" @% "taken?") (1, Decimal);
-                       DispString _ "\n";
-                       DispString _ "  Exception: ";
-                       DispBool (#exec_update_pkt @% "snd" @% "valid") (32, Binary);
-                       DispString _ "\n"
-                     ]);
+                     (dispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
                    (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
                    System [DispString _ "Mem\n"];
                    LETA mem_update_pkt
@@ -273,32 +178,11 @@ Section Params.
                    System
                      ([
                        DispString _ "New Reg Vals (after memory ops)\n";
-                       DispString _ "  val1:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data") (Xlen, Hex);
-                       DispString _ "\n";
-                       DispString _ "  val1 tag: ";
-                       DispBit (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "tag") (32, Decimal);
+                       dispHex #mem_update_pkt;    
                        DispString _ "\n"
                      ] ++
                      (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  val2:\n";
-                       DispString _ "    integer value: ";
-                       DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data") (Xlen, Hex);
-                       DispString _ "\n";
-                       DispString _ "  val2 tag: ";
-                       DispBit (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "tag") (32, Decimal);
-                       DispString _ "\n"
-                     ] ++ 
-                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")) ++
-                     [
-                       DispString _ "\n";
-                       DispString _ "  Exception: ";
-                       DispBool (#mem_update_pkt @% "snd" @% "valid") (32, Binary);
-                       DispString _ "\n"
-                     ]);
+                     (dispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
                    (* TODO: the call to commit currently ignores any exceptions propogated through mem_update_pkt. *)
                    System [DispString _ "Reg Write\n"];
                    LETA commit_pkt

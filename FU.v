@@ -397,13 +397,13 @@ Section Params.
            <- (^"read_csr_" ++ (natToHexStr index)) (csr_getId csrId : CsrId);
          System (
            DispString _ " CSR Read Raw" ::
-           DispBit (#result) (CsrValueWidth, Decimal) ::
+           dispDecimal #result ::             
            DispString _ "\n" ::
            DispString _ " from CSR " ::
-           DispBit (csr_getId csrId) (CsrIdWidth, Decimal) ::
+           dispDecimal (csr_getId csrId) ::
            DispString _ "\n" ::
            DispString _ " from psuedo CSR " ::
-           DispBit csrId (CsrIdWidth, Decimal) ::
+           dispDecimal csrId ::
            DispString _ "\n" ::
            nil
          );
@@ -444,16 +444,16 @@ Section Params.
          Call (^"write_csr") (#csr_write_pkt : _);
          System (
            DispString _ " Reg Write Wrote " ::
-           DispBit (#csr_write_pkt @% "data") (CsrValueWidth, Decimal) ::
+           dispHex (#csr_write_pkt) ::
            DispString _ "\n" ::
            DispString _ " to CSR " ::
-           DispBit (csr_getId csrId) (CsrIdWidth, Decimal) ::
+           dispDecimal (csr_getId csrId) ::
            DispString _ "\n" ::
            DispString _ " Original value was " ::
-           DispBit (#curr_csr_value) (CsrValueWidth, Decimal) ::
+           dispDecimal #curr_csr_value ::
            DispString _ "\n" ::
            DispString _ " Raw Write Data value was " ::
-           DispBit (#data) (CsrValueWidth, Decimal) ::
+           dispDecimal #data ::
            DispString _ "\n" ::
            nil
          );
@@ -475,6 +475,9 @@ Section Params.
       : ActionT ty (PktWithException Data)
       := Call result: Array Rlen_over_8 (Bit 8)
                             <- (^"readMem" ++ (natToHexStr index)) (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+           
+           System (DispString _ "READ MEM: " :: dispHex addr :: DispString _ " " :: dispHex #result ::
+                              DispString _ "\n" :: nil);
            Ret (STRUCT {
                     "fst" ::= pack #result ;
                     "snd" ::= Invalid } : PktWithException Data @# ty).
@@ -483,23 +486,28 @@ Section Params.
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool
                             <- ^"readMemReservation" (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+           System (DispString _ "READ RESERVATION: " :: dispHex addr :: DispString _ " " :: dispBinary #result ::
+                              DispString _ "\n" :: nil);
            Ret #result.
 
     Definition memWrite (pkt : MemWrite @# ty)
       : ActionT ty (Maybe FullException)
-      := Call ^"writeMem"(STRUCT {
-                              "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
-                              "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
-                              "mask" ::= pkt @% "mask"
-                            }: WriteRqMask lgMemSz Rlen_over_8 (Bit 8));
+      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 (Bit 8) <- STRUCT {
+                                    "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
+                                    "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
+                                    "mask" ::= pkt @% "mask" };
+           System (DispString _ "WRITE MEM: " :: dispHex #writeRq :: DispString _ "\n" :: nil);           
+           Call ^"writeMem"(#writeRq: _);
            Ret Invalid.
 
     Definition memWriteReservation (addr: VAddr @# ty)
                (mask rsv: Array Rlen_over_8 Bool @# ty)
       : ActionT ty Void
-      := Call ^"writeMemReservation" (STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
-                                               "data" ::= rsv ;
-                                               "mask" ::= mask }: _);
+      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
+                                                                       "data" ::= rsv ;
+                                                                       "mask" ::= mask } ;
+           System (DispString _ "WRITE RESERVATION: " :: dispHex #writeRq :: DispString _ "\n" :: nil);
+           Call ^"writeMemReservation" (#writeRq: _);
            Retv.
 
     Close Scope kami_action.
@@ -1016,10 +1024,10 @@ Section Params.
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
-           DispBit (imm raw_instr) (32, Decimal);
+           dispDecimal (imm raw_instr);  
            DispString _ "\n";
            DispString _ "  CSR Value: ";
-           DispBit (#csr_value) (32, Decimal);
+           dispDecimal #csr_value;
            DispString _ "\n"
          ];
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
@@ -1043,31 +1051,31 @@ Section Params.
            <- reg_reader_read_fcsr;
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
-             DispBit (rs1 raw_inst) (32, Decimal);
+             dispDecimal (rs1 raw_inst);
              DispString _ "\n";
              DispString _ "Reg 2 selector: ";
-             DispBit (rs2 raw_inst) (32, Decimal);
+             dispDecimal (rs2 raw_inst);
              DispString _ "\n";
              DispString _ "CSR selector: ";
-             DispBit (imm raw_inst) (12, Decimal);
+             dispDecimal (imm raw_inst);
              DispString _ "\n";
              DispString _ "has RS1: ";
-             DispBool (reg_reader_has hasRs1 decoder_pkt) (1, Binary);
+             dispBinary (reg_reader_has hasRs1 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS1: ";
-             DispBool (reg_reader_has hasFrs1 decoder_pkt) (1, Binary);
+             dispBinary (reg_reader_has hasFrs1 decoder_pkt);
              DispString _ "\n";
              DispString _ "has RS2: ";
-             DispBool (reg_reader_has hasRs2 decoder_pkt) (1, Binary);
+             dispBinary (reg_reader_has hasRs2 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS2: ";
-             DispBool (reg_reader_has hasFrs2 decoder_pkt) (1, Binary);
+             dispBinary (reg_reader_has hasFrs2 decoder_pkt);
              DispString _ "\n";
              DispString _ "has FRS3: ";
-             DispBool (reg_reader_has hasFrs3 decoder_pkt) (1, Binary);
+             dispBinary (reg_reader_has hasFrs3 decoder_pkt);
              DispString _ "\n";
              DispString _ "Floating Point Control Status Register: ";
-             DispBit (#fcsr_val) (32, Binary);
+             dispBinary (#fcsr_val);
              DispString _ "\n"
            ] Retv;
          Ret
@@ -1149,9 +1157,9 @@ Section Params.
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
              DispString _ " Reg Write Wrote ";
-             DispBit data (32, Decimal);
+             dispDecimal data;    
              DispString _ " to register ";
-             DispBit reg_id (32, Decimal);
+             dispDecimal reg_id;
              DispString _ "\n"
            ]%list;
            Retv.
@@ -1169,9 +1177,9 @@ Section Params.
            Call (^"fregWrite") (#pkt : FloatRegWrite);
            System [
              DispString _ " Reg Write Wrote ";
-             DispBit data (32, Decimal);
+             dispDecimal data;
              DispString _ " to floating point register ";
-             DispBit reg_id (32, Decimal);
+             dispDecimal reg_id;
              DispString _ "\n"
            ]%list;
            Retv.
@@ -1295,11 +1303,8 @@ Section Params.
                         : Array Rlen_over_8 Bool
                         <- memReadReservation addr;
                       System
-                        (DispString _ "MemRead Result exception: " ::
-                         DispBool (#memReadVal @% "snd" @% "valid") (1, Binary) ::
-                         DispString _ "\n" ::
-                         DispString _ "MemRead Result data: " ::
-                         DispBit (#memReadVal @% "fst") (Rlen, Hex) ::
+                        (DispString _ "Mem Read: " ::
+                         dispHex #memReadVal ::
                          DispString _ "\n" ::
                          nil);
                       If (#memReadVal @% "snd" @% "valid")
@@ -1313,10 +1318,7 @@ Section Params.
                                                                                     #memReadReservationVal)));
                          System
                            (DispString _ "Mem Output Write to Register: " ::
-                                       DispBool (#memoryOutput @% "reg_data" @% "valid") (1, Binary) ::
-                                       DispString _ "\n" ::
-                                       DispString _ "Mem Output data: " ::
-                                       DispBit (#memoryOutput @% "reg_data" @% "data") (Rlen, Hex) ::
+                                       dispBinary #memoryOutput ::
                                        DispString _ "\n" ::
                                        nil);
                          If (#memoryOutput @% "isWr")
@@ -1330,19 +1332,15 @@ Section Params.
                                 (IF #memoryOutput @% "isWr"
                                  then #memoryOutput @% "mask"
                                  else $$ (ConstArray (fun (_: Fin.t Rlen_over_8) => false)))
-                                  (* "reservation" ::= #memoryOutput @% "reservation" *)
                             };
                             LETA writeEx
                             :  Maybe FullException
                             <- memWrite #memWriteVal;
                             System
-                              (DispString _ "Mem Write address: " ::
-                                          DispBit (#memWriteVal @% "addr") (Rlen, Hex) ::
-                                          DispString _ "\n" ::
-                                          DispString _ "Mem Write data: " ::
-                                          DispBit (#memWriteVal @% "data") (Rlen, Hex) ::
-                                          DispString _ "\n" ::
-                                          nil);
+                              (DispString _ "Mem Write: " ::
+                               dispHex #memWriteVal ::
+                               DispString _ "\n" ::
+                               nil);
                             Ret #writeEx)
                          else
                             Ret (@Invalid _ FullException)

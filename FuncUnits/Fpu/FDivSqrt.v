@@ -83,16 +83,7 @@ Section Fpu.
          <- sem_out_pkt_expr;
        SystemE [
          DispString ty "fdivsqrt outK: ";
-         DispStruct #sem_out_pkt
-           (Vector.nth [
-              (1, Binary);   (* isSqrt *)
-              (100, Binary); (* inNf *)
-              (100, Binary); (* outNf *)
-              (10, Binary);  (* outNFException *)
-              (10, Binary);  (* exception *)
-              (1, Binary);   (* invalidExc *)
-              (1, Binary)    (* infiniteExc *)
-            ]%vector);
+         dispBinary #sem_out_pkt;
          DispString ty "\n"
        ];
        RetE
