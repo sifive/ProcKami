@@ -311,7 +311,7 @@ Section database.
              => let rd : Bit 5 @# ty := comp_inst $[11:7] in
                 RetE (
                     {<
-                     (ZeroExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
+                     (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
                      rd,
                      $$(('b"000") : word 3),
                      rd,
