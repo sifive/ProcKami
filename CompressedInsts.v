@@ -71,7 +71,7 @@ Section database.
   Definition CompInstDb
     :  list CompInstEntry
     := [
-        (* C.ADDI4SPN  => ADDI checked *)
+        (* C.ADDI4SPN  => ADDI *)
         Build_CompInstEntry
           extensions_all
           ([
@@ -94,10 +94,10 @@ Section database.
                   $$(('b"0010011") : word 7)
                 >}
           )); 
-          (* C.FLD => FLD checked *)
+          (* C.FLD => FLD *)
           Build_CompInstEntry
-            [["RV32I"; "C"];
-             ["RV64I"; "C"]]
+            [["RV32I"; "C"; "D"];
+             ["RV64I"; "C"; "D"]]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"001")
@@ -112,7 +112,7 @@ Section database.
                     $$(('b"0000111") : word 7)
                   >}
             ));
-          (* C.LW => LW checked *)
+          (* C.LW => LW *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -129,7 +129,7 @@ Section database.
                      $$(('b"0000011") : word 7)
                      >}
             ));
-          (* C.FLW => FLW checked *)
+          (* C.FLW => FLW *)
           Build_CompInstEntry
             [["RV32I"; "F"; "C"]]
             ([
@@ -146,7 +146,7 @@ Section database.
                      $$(('b"0000111") : word 7)
                      >}
             ));
-          (* C.LD => LD checked *)
+          (* C.LD => LD *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -163,7 +163,7 @@ Section database.
                      $$(('b"0000011") : word 7)
                      >}
             ));
-          (* C.FSD => FSD checked *)
+          (* C.FSD => FSD *)
           Build_CompInstEntry
             [
               ["RV32I"; "D"; "C"];
@@ -186,7 +186,7 @@ Section database.
                      $$(('b"0100111") : word 7)
                      >}
             ));
-          (* C.SW => SW checked *)
+          (* C.SW => SW *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -206,7 +206,7 @@ Section database.
                      $$(('b"0100011") : word 7)
                      >}
             ));
-          (* C.FSW => FSW checked *)
+          (* C.FSW => FSW *)
           Build_CompInstEntry
             [["RV32I"; "F"; "C"]]
             ([
@@ -226,7 +226,7 @@ Section database.
                      $$(('b"0100111") : word 7)
                      >}
             ));
-          (* C.SD => SD checked *)
+          (* C.SD => SD *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -247,8 +247,8 @@ Section database.
                      >}
             ));
           (* 
-            C.ADDI and C.NOP checked
-            C.ADDI => ADDI checked
+            C.ADDI and C.NOP
+            C.ADDI => ADDI
             C.NOP => NOP = ADDI
           *)
           Build_CompInstEntry
@@ -268,7 +268,7 @@ Section database.
                      $$(('b"0010011") : word 7)
                      >}
             ));
-          (* C.JAL => JAL checked *)
+          (* C.JAL => JAL *)
           Build_CompInstEntry
             [["RV32I"; "C"]]
             ([
@@ -300,7 +300,7 @@ Section database.
                      $$(('b"1101111") : word 7)
                      >}
             ));
-          (* C.ADDIW => ADDIW checked *)
+          (* C.ADDIW => ADDIW *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -318,7 +318,7 @@ Section database.
                      $$(('b"0011011") : word 7)
                      >}
             ));
-          (* C.LI => ADDI checked *)
+          (* C.LI => ADDI *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -336,9 +336,9 @@ Section database.
                      >}
             ));
           (*
-            C.ADDI16SP and C.LUI checked
-            C.ADDI16SP => ADDI checked
-            C.LUI => LUI checked
+            C.ADDI16SP and C.LUI
+            C.ADDI16SP => ADDI
+            C.LUI => LUI
           *)
           Build_CompInstEntry
             extensions_all
@@ -375,9 +375,9 @@ Section database.
                        $$(('b"0110111") : word 7)
                      >}))
             ));
-          (* C.SRLI => SRLI checked *)
+          (* C.SRLI => SRLI *)
           Build_CompInstEntry
-            [["RV32I"; "C"]]
+            extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -397,9 +397,9 @@ Section database.
                      $$(('b"0010011") : word 7)
                      >}
             ));
-          (* C.SRAI => SRAI checked *)
+          (* C.SRAI => SRAI *)
           Build_CompInstEntry
-            [["RV32I"; "C"]]
+            extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -419,7 +419,7 @@ Section database.
                      $$(('b"0010011") : word 7)
                      >}
             ));
-          (* C.ANDI => ANDI checked *)
+          (* C.ANDI => ANDI *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -440,7 +440,7 @@ Section database.
                      $$(('b"0010011") : word 7)
                      >}
             ));
-          (* C.SUB => SUB checked *)
+          (* C.SUB => SUB *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -464,7 +464,7 @@ Section database.
                      $$(('b"0110011") : word 7)
                      >}
             ));
-          (* C.XOR => XOR checked *)
+          (* C.XOR => XOR *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -488,7 +488,7 @@ Section database.
                      $$(('b"0110011") : word 7)
                      >}
             ));
-          (* C.OR => OR checked *)
+          (* C.OR => OR *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -512,7 +512,7 @@ Section database.
                      $$(('b"0110011") : word 7)
                      >}
             ));
-          (* C.AND => AND checked *)
+          (* C.AND => AND *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -536,7 +536,7 @@ Section database.
                      $$(('b"0110011") : word 7)
                      >}
             ));
-          (* C.SUBW => SUB checked *)
+          (* C.SUBW => SUB *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -560,7 +560,7 @@ Section database.
                      $$(('b"0111011") : word 7)
                      >}
             ));
-          (* C.ADDW => ADDW checked *)
+          (* C.ADDW => ADDW *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -584,7 +584,7 @@ Section database.
                      $$(('b"0111011") : word 7)
                      >}
             ));
-          (* C.J => JAL checked *)
+          (* C.J => JAL *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -616,7 +616,7 @@ Section database.
                      $$(('b"1101111") : word 7)
                      >}
             ));
-          (* C.BEQZ => BEQ checked *)
+          (* C.BEQZ => BEQ *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -682,9 +682,9 @@ Section database.
                      $$(('b"1100011") : word 7)
                      >}
             ));
-          (* C.SLLI => SLLI checked *)
+          (* C.SLLI => SLLI *)
           Build_CompInstEntry
-            [["RV32I"; "C"]]
+            extensions_all
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"000")
@@ -702,10 +702,10 @@ Section database.
                       $$(('b"0010011") : word 7)
                       >})
             ));
-          (* C.FLDSP => FLD checked *)
+          (* C.FLDSP => FLD *)
           Build_CompInstEntry
-            [["RV32I"; "F"; "C"];
-               ["RV64I"; "F"; "C"]]
+            [["RV32I"; "D"; "C"];
+               ["RV64I"; "D"; "C"]]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"001")
@@ -737,7 +737,7 @@ Section database.
                      $$(('b"0000011") : word 7)
                      >}
             ));
-          (* C.FLWSP => FLW checked *)
+          (* C.FLWSP => FLW *)
           Build_CompInstEntry
             [["RV32I"; "F"; "C"]]
             ([
@@ -754,7 +754,7 @@ Section database.
                      $$(('b"0000111") : word 7)
                      >}
             ));
-          (* C.LDSP => LD checked*)
+          (* C.LDSP => LD *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
@@ -772,7 +772,7 @@ Section database.
                      >}
             ));
           (*
-            C.JR and C.MV checked 
+            C.JR and C.MV 
             C.JR => JALR
           *)
           Build_CompInstEntry
@@ -785,7 +785,7 @@ Section database.
             (fun comp_inst
              => RetE (
                     ITE ((comp_inst $[6:2]) == $0)
-                        (* C.JR checked *)
+                        (* C.JR *)
                         ({<
                           $$(natToWord 12 0),
                           (comp_inst $[11:7]),
@@ -793,7 +793,7 @@ Section database.
                           uncomp_inst_reg 0,
                           $$(('b"1100111") : word 7)
                           >})
-                        (* C.MV checked *)
+                        (* C.MV *)
                         ({<
                           $$(('b"0000000") : word 7),
                           (comp_inst $[6:2]),
@@ -819,13 +819,13 @@ Section database.
              => RetE (
                     ITE ((comp_inst $[6:2]) == $0)
                         (ITE ((comp_inst $[11:7]) == $0)
-                             (* C.EBREAK checked *)
+                             (* C.EBREAK *)
                              ({<
                                $$(('b"000000000001") : word 12),
                                $$(natToWord 13 0),
                                $$(('b"1110011") : word 7)
                                >})
-                             (* C.JALR checked *)
+                             (* C.JALR *)
                              ({<
                                $$(natToWord 12 0),
                                (comp_inst $[11:7]),
@@ -833,7 +833,7 @@ Section database.
                                uncomp_inst_reg 1,
                                $$(('b"1100111") : word 7)
                                >}))
-                        (* C.ADD checked *)
+                        (* C.ADD *)
                         (let rd := comp_inst $[11:7] in
                          ({<
                            $$(natToWord 7 0),
@@ -844,10 +844,10 @@ Section database.
                            $$(('b"0110011") : word 7)
                            >}))
             ));
-          (* C.FSDSP => FSD checked *)
+          (* C.FSDSP => FSD *)
           Build_CompInstEntry
-            [["RV32I"; "F"; "C"];
-             ["RV64I"; "F"; "C"]]
+            [["RV32I"; "D"; "C"];
+             ["RV64I"; "D"; "C"]]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"101")
@@ -870,7 +870,7 @@ Section database.
                       $$(('b"0100111") : word 7)
                       >})
             ));
-          (* C.SWSP => SW checked *)
+          (* C.SWSP => SW *)
           Build_CompInstEntry
             extensions_all
             ([
@@ -889,7 +889,7 @@ Section database.
                       $$(('b"0100011") : word 7)
                       >})
             ));
-          (* C.FSWSP => FSW checked *)
+          (* C.FSWSP => FSW *)
           Build_CompInstEntry
             [["RV32I"; "F"; "C"]]
             ([
@@ -908,7 +908,7 @@ Section database.
                       $$(('b"0100111") : word 7)
                       >})
             ));
-          (* C.SDSP => SD checked *)
+          (* C.SDSP => SD *)
           Build_CompInstEntry
             [["RV64I"; "C"]]
             ([
