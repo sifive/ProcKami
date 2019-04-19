@@ -329,8 +329,8 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Local Notation Build_MayGroupReg := (Build_MayGroupReg CsrIdWidth 0).
-    Local Notation MayStructInputT := (MayStructInputT CsrIdWidth 0).
+    Local Notation Build_MayGroupReg := (Build_MayGroupReg 0 CsrIdWidth).
+    Local Notation MayStructInputT := (MayStructInputT 0 CsrIdWidth).
 
     
     (* Represents CSR entry fields. *)
@@ -339,7 +339,7 @@ Section Params.
       := existT (fun k => option (ConstT k)) k value.
 
     Definition CSREntries
-      :  list (MayGroupReg CsrIdWidth 0)
+      :  list (MayGroupReg 0 CsrIdWidth)
       := [ Build_MayGroupReg $1
                              (MAYSTRUCT {
                                   "reserved" ::# Bit 27 #:: (ConstBit ($0)%word) ;
