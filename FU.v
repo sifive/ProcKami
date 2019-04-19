@@ -725,6 +725,8 @@ Section Params.
            LETE opt_uncomp_inst
            :  Maybe Inst
                     <- decompress comp_inst_db exts_pkt prefix;
+             SystemE (DispString _ "Decompressed Inst: " ::
+                      DispHex #opt_uncomp_inst :: nil);
              (decode exts_pkt
                      (ITE ((#opt_uncomp_inst) @% "valid")
                           ((#opt_uncomp_inst) @% "data")
