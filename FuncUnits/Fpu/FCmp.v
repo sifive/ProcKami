@@ -57,11 +57,7 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition fflags_width : nat := 5.
-
-  Definition FFlagsType : Kind := Bit fflags_width.
-
-  Definition csr_invalid_mask : FFlagsType @# ty := Const ty ('b("10000")).
+  Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
 
   Definition cmp_cond_width := 2.
 
@@ -86,7 +82,8 @@ Section Fpu.
   Definition FCmpInputType
     :  Kind
     := STRUCT {
-           "fcsr"   :: CsrValue;
+           (* "fcsr"   :: CsrValue; *)
+           "fflags" :: FflagsValue;
            "signal" :: Bool;
            "cond0"  :: cmp_cond_kind;
            "cond1"  :: cmp_cond_kind;
@@ -97,7 +94,8 @@ Section Fpu.
   Definition FCmpOutputType
     :  Kind
     := STRUCT {
-           "fcsr"   :: Maybe CsrValue;
+           (* "fcsr"   :: Maybe CsrValue; *)
+           "fflags" :: Maybe FflagsValue;
            "result" :: Bit len
          }.
 
@@ -113,7 +111,8 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            "fcsr"   ::= #context_pkt @% "fcsr";
+            (* "fcsr"   ::= #context_pkt @% "fcsr"; *)
+            "fflags" ::= #context_pkt @% "fflags";
             "signal" ::= signal;
             "cond0"  ::= cond0;
             "cond1"  ::= cond1;
@@ -133,14 +132,20 @@ Section Fpu.
                    LETE cmp_result
                      :  Compare_Output
                      <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
+(*
                    LETC fcsr
                      :  CsrValue
                      <- ((#sem_in_pkt @% "fcsr") |
                          (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
+*)
+                   LETC fflags
+                     :  FflagsValue
+                     <- ((#sem_in_pkt @% "fflags") |
+                         (ZeroExtendTruncLsb FflagsWidth csr_invalid_mask));
                    LETC result
                      :  FCmpOutputType
                      <- STRUCT {
-                          "fcsr"
+                          "fflags"
                             ::= ITE
                                   ((* signaling comparisons *)
                                    ((#sem_in_pkt @% "signal") &&
@@ -150,8 +155,8 @@ Section Fpu.
                                    ((!(#sem_in_pkt @% "signal")) &&
                                     ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
                                      (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))))
-                                  (Valid #fcsr)
-                                  (@Invalid ty CsrValue);
+                                  (Valid #fflags)
+                                  (@Invalid ty FflagsValue);
                           "result"
                           ::= ITE ((#sem_in_pkt @% "arg1" @% "isNaN") ||
                                    (#sem_in_pkt @% "arg2" @% "isNaN"))
@@ -170,12 +175,22 @@ Section Fpu.
                                          "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
                                          "data" ::= ZeroExtendTruncLsb Rlen (#result @% "result")
                                        } : RoutedReg @# ty);
+(*
                                  "val2"
                                    ::= ITE
                                          (#result @% "fcsr" @% "valid")
                                          (Valid (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fcsr" @% "data")
+                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                                          } : RoutedReg @# ty))
+                                         (@Invalid ty _);
+*)
+                                 "val2"
+                                   ::= ITE
+                                         (#result @% "fflags" @% "valid")
+                                         (Valid (STRUCT {
+                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
                                           } : RoutedReg @# ty))
                                          (@Invalid ty _);
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));

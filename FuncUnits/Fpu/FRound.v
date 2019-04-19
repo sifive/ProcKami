@@ -106,7 +106,7 @@ Section Fpu.
                                                   }) : Maybe RoutedReg @# ty);
                                            "val2"
                                              ::= (Valid (STRUCT {
-                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FloatCsrTag) : RoutingTag @# ty);
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                   }) : Maybe RoutedReg @# ty);
                                            "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
@@ -173,7 +173,7 @@ Section Fpu.
                                                   }) : Maybe RoutedReg @# ty);
                                            "val2"
                                              ::= (Valid (STRUCT {
-                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FloatCsrTag) : RoutingTag @# ty);
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                   }) : Maybe RoutedReg @# ty);
                                            "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));

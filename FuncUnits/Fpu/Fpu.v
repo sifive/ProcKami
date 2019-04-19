@@ -100,28 +100,22 @@ Section ty.
 
     Open Scope kami_expr.
 
-    Definition fflags_width : nat := 5.
-
-    Definition FFlagsType : Kind := Bit fflags_width.
-
-    Definition csr_invalid_mask : FFlagsType @# ty := Const ty ('b("10000")).
+    Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
 
     Definition csr (flags : ExceptionFlags @# ty)
       :  Bit Rlen @# ty
       := ZeroExtendTruncLsb Rlen (pack flags).
 
-    Definition rounding_mode_kind : Kind := Bit 3.
-
-    Definition rounding_mode_dynamic : rounding_mode_kind @# ty := Const ty ('b"111").
+    Definition rounding_mode_dynamic : FrmValue @# ty := Const ty ('b"111").
 
     Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
-      :  rounding_mode_kind @# ty
+      :  FrmValue @# ty
       := let rounding_mode
-           :  rounding_mode_kind @# ty
+           :  FrmValue @# ty
            := rm (context_pkt @% "inst") in
          ITE
            (rounding_mode == rounding_mode_dynamic)
-           (fcsr_frm (context_pkt @% "fcsr"))
+           (context_pkt @% "frm")
            rounding_mode.
 
     Close Scope kami_expr.

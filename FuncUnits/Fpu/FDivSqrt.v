@@ -100,7 +100,7 @@ Section Fpu.
                            });
                      "val2"
                        ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                              "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                            });
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));

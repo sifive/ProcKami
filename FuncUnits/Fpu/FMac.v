@@ -64,14 +64,16 @@ Section Fpu.
   Definition MacInputType
     :  Kind
     := STRUCT {
-           "fcsr"      :: CsrValue;
+           (* "fcsr"      :: CsrValue; *)
+           "fflags"    :: FflagsValue;
            "muladd_in" :: (MulAdd_Input expWidthMinus2 sigWidthMinus2)
          }.
 
   Definition MacOutputType
     :  Kind
     := STRUCT {
-           "fcsr"       :: CsrValue;
+           (* "fcsr"       :: CsrValue; *)
+           "fflags"     :: FflagsValue;
            "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
          }.
 
@@ -95,7 +97,8 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            "fcsr" ::= #context_pkt @% "fcsr";
+            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
+            "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
                      "op" ::= op;
@@ -114,7 +117,8 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            "fcsr" ::= #context_pkt @% "fcsr";
+            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
+            "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
                      "op" ::= op;
@@ -133,7 +137,8 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            "fcsr" ::= #context_pkt @% "fcsr";
+            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
+            "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
                      "op" ::= op;
@@ -161,7 +166,7 @@ Section Fpu.
                            });
                      "val2"
                        ::= Valid (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatCsrTag);
+                             "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                              "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Rlen @# ty)
                            });
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
@@ -186,7 +191,8 @@ Section Fpu.
                      <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
                    RetE
                      (STRUCT {
-                        "fcsr"       ::= #sem_in_pkt @% "fcsr";
+                        (* "fcsr"       ::= #sem_in_pkt @% "fcsr"; *)
+                        "fflags"     ::= #sem_in_pkt @% "fflags";
                         "muladd_out" ::= #muladd_out
                       } : MacOutputType @# ty);
          fuInsts

@@ -80,8 +80,8 @@ Section Params.
       := 
          MODULE {
               Register ^"pc" : VAddr <- ConstBit (_ 'h "00000000") with
-              Register ^"fflags" : Bit 5 <- ConstBit (natToWord 5 0) with
-              Register ^"frm"    : Bit 3 <- ConstBit (natToWord 3 0) with
+              Register ^"fflags" : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
+              Register ^"frm"    : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
               Rule ^"pipeline"
                 := System
                      [

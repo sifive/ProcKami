@@ -82,6 +82,11 @@ Definition Clen_over_8 : nat := 4.
 Definition CsrValueWidth : nat := Clen_over_8 * 8.
 Definition CsrValue : Kind := Bit CsrValueWidth.
 
+Definition FrmWidth : nat := 3.
+Definition FrmValue : Kind := Bit FrmWidth.
+Definition FflagsWidth : nat := 5.
+Definition FflagsValue : Kind := Bit FflagsWidth.
+
 Definition RoutingTagSz := 4.
 Definition RoutingTag := Bit RoutingTagSz.
 
@@ -93,7 +98,8 @@ Definition FloatRegTag := 2.
 Definition CsrTag := 3.
 Definition MemDataTag := 4.
 Definition MemAddrTag := 5.
-Definition FloatCsrTag := 6.
+(* Definition FloatCsrTag := 6. *)
+Definition FflagsTag := 6.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -174,7 +180,9 @@ Section Params.
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
              "csr"                      :: Maybe CsrValue;
-             "fcsr"                     :: CsrValue;
+             (* "fcsr"                     :: CsrValue; *)
+             "fflags"                   :: FflagsValue;
+             "frm"                      :: FrmValue;
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
@@ -992,9 +1000,13 @@ Section Params.
          LETA csr_val
            :  Maybe CsrValue
            <- reg_reader_read_csr raw_inst;
+(*
          LETA fcsr_val
            :  CsrValue
            <- readCSR $3;
+*)
+         Read fflags_val : FflagsValue <- ^"fflags";
+         Read frm_val : FrmValue <- ^"frm";
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
              DispDecimal (rs1 raw_inst);
@@ -1020,21 +1032,26 @@ Section Params.
              DispString _ "has FRS3: ";
              DispBinary (reg_reader_has hasFrs3 decoder_pkt);
              DispString _ "\n";
-             DispString _ "Floating Point Control Status Register: ";
-             DispBinary (#fcsr_val);
+             DispString _ "Floating Point Control Status Register FFLAGS: ";
+             DispBinary (#fflags_val);
+             DispString _ "\n";
+             DispString _ "Floating Point Control Status Register FRM: ";
+             DispBinary (#frm_val);
              DispString _ "\n"
            ] Retv;
          Ret
            (STRUCT {
-                "pc"   ::= decoder_pkt @% "pc";
-                "reg1" ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
-                            (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
-                "reg2" ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
-                            (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
-                "reg3" ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
-                "csr"  ::= #csr_val;
-                "fcsr" ::= #fcsr_val;
-                "inst" ::= raw_inst;
+                "pc"     ::= decoder_pkt @% "pc";
+                "reg1"   ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
+                              (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
+                "reg2"   ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
+                              (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
+                "reg3"   ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
+                "csr"    ::= #csr_val;
+                (* "fcsr"   ::= #fcsr_val; *)
+                "fflags" ::= #fflags_val;
+                "frm"    ::= #frm_val;
+                "inst"   ::= raw_inst;
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;
                 "memMisalignedException?"  ::= memMisalignedException;
@@ -1132,24 +1149,33 @@ Section Params.
 
       Definition commitWriters (val: Maybe RoutedReg @# ty) (reg_index: RegId @# ty) (csr_index: CsrId @# ty) : ActionT ty Void :=
         (LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
-           LET val_data : Data <- (val @% "data") @% "data" ;
-           If (val @% "valid")
-         then 
-           (If (#val_pos == $IntRegTag)
-            then (If (reg_index != $0)
-                  then reg_writer_write_reg (reg_index) (#val_data);
-                         Retv)
-            else (If (#val_pos == $FloatRegTag)
-                  then reg_writer_write_freg (reg_index) (#val_data)
-                  else (If (#val_pos == $CsrTag)
-                        then writeCSR csr_index (#val_data)
-                        else (If (#val_pos == $FloatCsrTag)
-                              then writeCSR $3 (#val_data);
-                                     Retv);
-                          Retv);
-                    Retv);
+         LET val_data : Data <- (val @% "data") @% "data" ;
+         If (val @% "valid")
+           then 
+             (If (#val_pos == $IntRegTag)
+                then (If (reg_index != $0)
+                        then reg_writer_write_reg (reg_index) (#val_data);
+                      Retv)
+                else (If (#val_pos == $FloatRegTag)
+                        then reg_writer_write_freg (reg_index) (#val_data)
+                        else (If (#val_pos == $CsrTag)
+                                then writeCSR csr_index (#val_data)
+                                (* else (If (#val_pos == $FloatCsrTag) *)
+                                else (If (#val_pos == $FflagsTag)
+                                        (* then writeCSR $3 (#val_data); *)
+                                        then (Write ^"fflags" : FflagsValue
+                                                <- ZeroExtendTruncLsb FflagsWidth #val_data;
+                                              System [
+                                                DispString _ " Reg Write Wrote ";
+                                                DispDecimal #val_data;
+                                                DispString _ " to FFLAGS field in FCSR\n"
+                                              ];
+                                              Retv);
+                                      Retv);
+                              Retv);
+                      Retv);
               Retv);
-           Retv).
+         Retv).
         
 
       Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
