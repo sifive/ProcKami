@@ -1,4 +1,5 @@
 Require Import Kami.All FU Div.
+Require Import FuncUnits.Alu.Alu.
 Require Import List.
 
 Section Alu.
@@ -15,6 +16,7 @@ Section Alu.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation intRegTag := (intRegTag Xlen_over_8 Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -44,20 +46,6 @@ Section Alu.
          }.
 
     Local Open Scope kami_expr.
-
-    Definition neg (n : nat) (x : Bit n @# ty) := (~ x) + $1.
-
-    Local Definition intRegTag (val: Bit Xlen @# ty)
-      :  PktWithException ExecContextUpdPkt @# ty
-      := STRUCT {
-           "fst"
-             ::= noUpdPkt@%["val1"
-                   <- (Valid (STRUCT {
-                         "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                         "data" ::= SignExtendTruncLsb Rlen val
-                       }))] ;
-           "snd" ::= Invalid
-         }.
 
     Definition pos (n : nat) (x : Bit n @# ty)
       :  Bool @# ty

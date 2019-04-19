@@ -1,4 +1,5 @@
 Require Import Kami.All FU Div.
+Require Import FuncUnits.Alu.Alu.
 Require Import List.
 
 Section Alu.
@@ -45,10 +46,6 @@ Section Alu.
     Definition BgeuOp := 7.
 
     Local Open Scope kami_expr.
-
-    Definition neg (n : nat) (x : Bit n @# ty) := (~ x) + $1.
-
-    Definition ssub n (x y : Bit n @# ty) : Bit n @# ty := x + (neg y).
 
     Local Definition branchOffset (inst: Inst @# ty) :=
       LETC funct7v: Bit 7 <- funct7 inst;
