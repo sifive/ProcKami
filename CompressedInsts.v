@@ -174,15 +174,15 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
-             => let imm
-                    := (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})) in
+             => LETC imm
+                    <- (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >}));
                 RetE (
                     {<
-                     (imm $[11:5]),
+                     (#imm $[11:5]),
                      comp_inst_map_reg (comp_inst $[4:2]),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"011") : word 3),
-                     (imm $[4:0]),
+                     (#imm $[4:0]),
                      $$(('b"0100111") : word 7)
                      >}
             ));
@@ -194,15 +194,15 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
-             => let imm
-                    := (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})) in
+             => LETC imm
+                    <- (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >}));
                 RetE (
                     {<
-                     (imm $[11:5]),
+                     (#imm $[11:5]),
                      comp_inst_map_reg (comp_inst $[4:2]),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"010") : word 3),
-                     (imm $[4:0]),
+                     (#imm $[4:0]),
                      $$(('b"0100011") : word 7)
                      >}
             ));
@@ -214,15 +214,15 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm
-                    := (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >})) in
+             => LETC imm
+                    <- (ZeroExtend 5 ({< (comp_inst $[5:5]), (comp_inst $[12:10]), (comp_inst $[6:6]), $$(natToWord 2 0) >}));
                 RetE (
                     {<
-                     (imm $[11:5]),
+                     (#imm $[11:5]),
                      comp_inst_map_reg (comp_inst $[4:2]),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"010") : word 3),
-                     (imm $[4:0]),
+                     (#imm $[4:0]),
                      $$(('b"0100111") : word 7)
                      >}
             ));
@@ -234,15 +234,15 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm
-                    := (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >})) in
+             => LETC imm
+                    <- (ZeroExtend 4 ({< (comp_inst $[6:5]), (comp_inst $[12:10]), $$(natToWord 3 0) >}));
                 RetE (
                     {<
-                     (imm $[11:5]),
+                     (#imm $[11:5]),
                      comp_inst_map_reg (comp_inst $[4:2]),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"011") : word 3),
-                     (imm $[4:0]),
+                     (#imm $[4:0]),
                      $$(('b"0100011") : word 7)
                      >}
             ));
@@ -258,13 +258,13 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"000")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd : Bit 5 @# ty := comp_inst $[11:7] in
+             => LETC rd : Bit 5 <- comp_inst $[11:7];
                 RetE (
                     {<
                      (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-                     rd,
+                     #rd,
                      $$(('b"000") : word 3),
-                     rd,
+                     #rd,
                      $$(('b"0010011") : word 7)
                      >}
             ));
@@ -276,9 +276,9 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"001")
             ])
             (fun comp_inst
-             => let imm
-                    : Bit 20 @# ty
-                    := ZeroExtend 9 ({<
+             => LETC imm
+                    : Bit 20
+                    <- ZeroExtend 9 ({<
                                       (comp_inst $[12:12]),
                                       (comp_inst $[8:8]),
                                       (comp_inst $[10:9]),
@@ -287,14 +287,14 @@ Section database.
                                       (comp_inst $[2:2]),
                                       (comp_inst $[11:11]),
                                       (comp_inst $[5:3])
-                                      >}) in
+                                      >});
                 RetE (
                     {<
                      ({<
-                       (imm $[19:19]),
-                       (imm $[9:0]),
-                       (imm $[10:10]),
-                       (imm $[18:11])
+                       (#imm $[19:19]),
+                       (#imm $[9:0]),
+                       (#imm $[10:10]),
+                       (#imm $[18:11])
                        >}),
                      (uncomp_inst_reg 1),
                      $$(('b"1101111") : word 7)
@@ -308,13 +308,13 @@ Section database.
                   fieldVal comp_inst_funct3_field ('b"001")
             ])
             (fun comp_inst
-             => let rd : Bit 5 @# ty := comp_inst $[11:7] in
+             => LETC rd : Bit 5 <- comp_inst $[11:7];
                 RetE (
                     {<
                      (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-                     rd,
+                     #rd,
                      $$(('b"000") : word 3),
-                     rd,
+                     #rd,
                      $$(('b"0011011") : word 7)
                      >}
             ));
@@ -347,22 +347,19 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"011")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd := (comp_inst $[11:7]) in
+             => LETC rd <- (comp_inst $[11:7]);
                 RetE (
-                  (ITE (rd == $$(natToWord 5 2))
+                  (ITE (#rd == $$(natToWord 5 2))
                      (* C.ADDI16SP *)
-                     (let imm
-                        :  Bit 12 @# ty
-                        := SignExtend 2 ({<
-                                           (comp_inst $[12:12]),
-                                           (comp_inst $[4:3]),
-                                           (comp_inst $[5:5]),
-                                           (comp_inst $[2:2]),
-                                           (comp_inst $[6:6]),
-                                           $$(natToWord 4 0)
-                                         >}) in
-                     {<
-                       imm,
+                     ({<
+                       (SignExtend 2 ({<
+                           (comp_inst $[12:12]),
+                           (comp_inst $[4:3]),
+                           (comp_inst $[5:5]),
+                           (comp_inst $[2:2]),
+                           (comp_inst $[6:6]),
+                           $$(natToWord 4 0)
+                         >})),
                        uncomp_inst_reg 2,
                        $$(('b"000") : word 3),
                        uncomp_inst_reg 2,
@@ -371,7 +368,7 @@ Section database.
                      (* C.LUI *)
                      ({<
                        (SignExtend 14 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-                       rd,
+                       #rd,
                        $$(('b"0110111") : word 7)
                      >}))
             ));
@@ -384,16 +381,16 @@ Section database.
                   fieldVal (11, 10) ('b"00")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(natToWord 6 0),
                      ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
-                     rd,
+                     #rd,
                      $$(('b"101") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0010011") : word 7)
                      >}
             ));
@@ -406,16 +403,16 @@ Section database.
                   fieldVal (11, 10) ('b"01")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(('b"010000") : word 6),
                      ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
-                     rd,
+                     #rd,
                      $$(('b"101") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0010011") : word 7)
                      >}
             ));
@@ -428,15 +425,15 @@ Section database.
                fieldVal (11, 10) ('b"10")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      (SignExtend 6 ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >})),
-                     rd,
+                     #rd,
                      $$(('b"111") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0010011") : word 7)
                      >}
             ));
@@ -451,16 +448,16 @@ Section database.
                fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(('b"0100000") : word 7),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"000") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0110011") : word 7)
                      >}
             ));
@@ -475,16 +472,16 @@ Section database.
                   fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(natToWord 7 0),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"100") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0110011") : word 7)
                      >}
             ));
@@ -499,16 +496,16 @@ Section database.
                   fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(natToWord 7 0),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"110") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0110011") : word 7)
                      >}
             ));
@@ -523,16 +520,16 @@ Section database.
                   fieldVal (12, 12) ('b"0")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(natToWord 7 0),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"111") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0110011") : word 7)
                      >}
             ));
@@ -547,16 +544,16 @@ Section database.
                fieldVal (12, 12) ('b"1")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(('b"0100000") : word 7),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"000") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0111011") : word 7)
                      >}
             ));
@@ -571,16 +568,16 @@ Section database.
                   fieldVal (12, 12) ('b"1")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    :  Bit 5 @# ty
-                    := comp_inst_map_reg (comp_inst $[9:7]) in
+             => LETC rd
+                    :  Bit 5
+                    <- comp_inst_map_reg (comp_inst $[9:7]);
                 RetE (
                     {<
                      $$(natToWord 7 0),
                      comp_inst_map_reg (comp_inst $[4:2]),
-                     rd,
+                     #rd,
                      $$(('b"000") : word 3),
-                     rd, 
+                     #rd, 
                      $$(('b"0111011") : word 7)
                      >}
             ));
@@ -592,9 +589,9 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
-             => let imm
-                    : Bit 20 @# ty
-                    := SignExtend 9 ({<
+             => LETC imm
+                    : Bit 20
+                    <- SignExtend 9 ({<
                                       (comp_inst $[12:12]),
                                       (comp_inst $[8:8]),
                                       (comp_inst $[10:9]),
@@ -603,14 +600,14 @@ Section database.
                                       (comp_inst $[2:2]),
                                       (comp_inst $[11:11]),
                                       (comp_inst $[5:3])
-                                      >}) in
+                                      >});
                 RetE (
                     {<
                      ({<
-                       (imm $[19:19]),
-                       (imm $[9:0]),
-                       (imm $[10:10]),
-                       (imm $[18:11])
+                       (#imm $[19:19]),
+                       (#imm $[9:0]),
+                       (#imm $[10:10]),
+                       (#imm $[18:11])
                        >}),
                      (uncomp_inst_reg 0),
                      $$(('b"1101111") : word 7)
@@ -624,27 +621,27 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
-             => let imm
-                    : Bit 12 @# ty
-                    := ZeroExtend 4 ({<
+             => LETC imm
+                    : Bit 12
+                    <- ZeroExtend 4 ({<
                                       (comp_inst $[12:12]),
                                       (comp_inst $[6:5]),
                                       (comp_inst $[2:2]),
                                       (comp_inst $[11:10]),
                                       (comp_inst $[4:3])
-                                      >}) in
+                                      >});
                 RetE (
                     {<
                      ({<
-                       (imm $[11:11]),
-                       (imm $[9:4])
+                       (#imm $[11:11]),
+                       (#imm $[9:4])
                        >}),
                      (uncomp_inst_reg 0),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"000") : word 3),
                      ({<
-                       (imm $[3:0]),
-                       (imm $[10:10])
+                       (#imm $[3:0]),
+                       (#imm $[10:10])
                        >}),
                      $$(('b"1100011") : word 7)
                      >}
@@ -657,27 +654,27 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm
-                    : Bit 12 @# ty
-                    := ZeroExtend 4 ({<
+             => LETC imm
+                    : Bit 12
+                    <- ZeroExtend 4 ({<
                                       (comp_inst $[12:12]),
                                       (comp_inst $[6:5]),
                                       (comp_inst $[2:2]),
                                       (comp_inst $[11:10]),
                                       (comp_inst $[4:3])
-                                      >}) in
+                                      >});
                 RetE (
                     {<
                      ({<
-                       (imm $[11:11]),
-                       (imm $[9:4])
+                       (#imm $[11:11]),
+                       (#imm $[9:4])
                        >}),
                      (uncomp_inst_reg 0),
                      comp_inst_map_reg (comp_inst $[9:7]),
                      $$(('b"001") : word 3),
                      ({<
-                       (imm $[3:0]),
-                       (imm $[10:10])
+                       (#imm $[3:0]),
+                       (#imm $[10:10])
                        >}),
                      $$(('b"1100011") : word 7)
                      >}
@@ -690,15 +687,15 @@ Section database.
                   fieldVal comp_inst_funct3_field ('b"000")
             ])
             (fun comp_inst : CompInst @# ty
-             => let rd
-                    := comp_inst $[11:7] in
+             => LETC rd
+                    <- comp_inst $[11:7];
                 RetE (
                     ({<
                       $$(natToWord 6 0),
                       ({< (comp_inst $[12:12]), (comp_inst $[6:2]) >}),
-                      rd,
+                      #rd,
                       $$(('b"001") : word 3),
-                      rd, 
+                      #rd, 
                       $$(('b"0010011") : word 7)
                       >})
             ));
@@ -834,15 +831,14 @@ Section database.
                                $$(('b"1100111") : word 7)
                                >}))
                         (* C.ADD *)
-                        (let rd := comp_inst $[11:7] in
-                         ({<
-                           $$(natToWord 7 0),
-                           (comp_inst $[6:2]),
-                           rd,
-                           $$(('b"000") : word 3),
-                           rd,
-                           $$(('b"0110011") : word 7)
-                           >}))
+                        ({<
+                          $$(natToWord 7 0),
+                          (comp_inst $[6:2]),
+                          (comp_inst $[11:7]),
+                          $$(('b"000") : word 3),
+                          (comp_inst $[11:7]),
+                          $$(('b"0110011") : word 7)
+                          >})
             ));
           (* C.FSDSP => FSD *)
           Build_CompInstEntry
@@ -853,20 +849,20 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"101")
             ])
             (fun comp_inst
-             => let imm
-                  := ZeroExtend 3
+             => LETC imm
+                  <- ZeroExtend 3
                        ({<
                           (comp_inst $[9:7]),
                           (comp_inst $[12:10]),
                           $$(natToWord 3 0)
-                       >}) in
+                       >});
                 RetE (
                     ({<
-                      (imm $[11:5]),
+                      (#imm $[11:5]),
                       (comp_inst $[6:2]),
                       (uncomp_inst_reg 2),
                       $$(('b"011") : word 3),
-                      (imm $[4:0]),
+                      (#imm $[4:0]),
                       $$(('b"0100111") : word 7)
                       >})
             ));
@@ -878,14 +874,14 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"110")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >}) in
+             => LETC imm <- ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >});
                 RetE (
                     ({<
-                      (imm $[11:5]),
+                      (#imm $[11:5]),
                       (comp_inst $[6:2]),
                       (uncomp_inst_reg 2),
                       $$(('b"010") : word 3),
-                      (imm $[4:0]),
+                      (#imm $[4:0]),
                       $$(('b"0100011") : word 7)
                       >})
             ));
@@ -897,14 +893,14 @@ Section database.
                fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >}) in
+             => LETC imm <- ZeroExtend 4 ({< (comp_inst $[8:7]), (comp_inst $[12:9]), $$(natToWord 2 0) >});
                 RetE (
                     ({<
-                      (imm $[11:5]),
+                      (#imm $[11:5]),
                       (comp_inst $[6:2]),
                       (uncomp_inst_reg 2),
                       $$(('b"010") : word 3),
-                      (imm $[4:0]),
+                      (#imm $[4:0]),
                       $$(('b"0100111") : word 7)
                       >})
             ));
@@ -916,14 +912,14 @@ Section database.
                   fieldVal comp_inst_funct3_field ('b"111")
             ])
             (fun comp_inst
-             => let imm := ZeroExtend 3 ({< (comp_inst $[9:7]), (comp_inst $[12:10]), $$(natToWord 3 0) >}) in
+             => LETC imm <- ZeroExtend 3 ({< (comp_inst $[9:7]), (comp_inst $[12:10]), $$(natToWord 3 0) >});
                 RetE (
                     ({<
-                      (imm $[11:5]),
+                      (#imm $[11:5]),
                       (comp_inst $[6:2]),
                       (uncomp_inst_reg 2),
                       $$(('b"011") : word 3),
-                      (imm $[4:0]),
+                      (#imm $[4:0]),
                       $$(('b"0100011") : word 7)
                       >})
             ))

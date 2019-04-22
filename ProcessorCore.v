@@ -83,7 +83,13 @@ Section Params.
               Register ^"pc"         : VAddr       <- ConstBit (_ 'h "00000000") with
               Register ^"fflags"     : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
               Register ^"frm"        : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
-              Register ^"mxl"        : MxlValue    <- ConstBit (natToWord MxlWidth    1) with
+              Register ^"mxl"
+                :  MxlValue
+                <- ConstBit
+                     (natToWord MxlWidth
+                        (if Nat.eqb Xlen_over_8 4
+                           then 1
+                           else 2)) with
               Register ^"extensions" : Extensions  <- supportedExts with
               Rule ^"pipeline"
                 := Read mxl : MxlValue <- ^"mxl";
@@ -112,7 +118,11 @@ Section Params.
                        DispString _ "\n";
                        DispString _ "RLEN_over_8: ";
                        DispDecimal (Const _ (natToWord 32 Rlen_over_8));
-                       DispString _ "\n"
+                       DispString _ "\n";
+                       DispString _ "MXL:\n";
+                       DispDecimal #mxl;
+                       DispString _ "Extensions:\n";
+                       DispBinary #extensions
                      ];
                    Read pc : VAddr <- ^"pc";
                    System

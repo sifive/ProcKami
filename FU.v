@@ -472,26 +472,6 @@ Section Params.
 
   End MemInterface.
 
-  (*
-    The Xlen parameter specifies the width of the values stored
-    within the integer, and pc registers; the format of the CSR
-    regsiters; and the _.
-
-    The MaxXlen parameter specifies the size of the integer and pc
-    registers, and determines the size of those packets that store
-    memory addresses and integer values.
-
-    The Xlen parameter is dynamic. When changed, the processor needs
-    to truncate the values read from/and written to the integer and
-    pc registers. Additionally, the values read from/and written
-    to certain CSRs needs to be transformed as their value formats
-    depend on the current XLEN value.
-
-    The Xlen Transformer provides an interface that performs these
-    transformations. It truncates and zero extends values read from
-    integer and pc registers - pulling and storing XLEN values from
-    MaxXLEN registers. It also reformats certain CSR values.
-  *)
   Section XlenInterface.
 
     Definition xlen_trans_trunc (n m : nat) (exts_pkt : Extensions @# ty) (val : Bit n @# ty)

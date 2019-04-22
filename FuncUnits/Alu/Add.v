@@ -256,15 +256,14 @@ Section Alu.
                           inputXform
                             := fun gcpin
                                  => LETE gcp: ExecContextPkt <- gcpin;
-                                    let offset
-                                      :  Bit 32 @# ty
-                                      := {<
-                                           ZeroExtendTruncMsb 20 (#gcp @% "inst"), 
-                                           $$(natToWord 12 0)
-                                         >} in
                                     RetE
                                       (STRUCT {
-                                         "arg1" ::= SignExtendTruncLsb (Xlen + 1) offset;
+                                         "arg1"
+                                           ::= SignExtendTruncLsb (Xlen + 1)
+                                                 ({<
+                                                   ZeroExtendTruncMsb 20 (#gcp @% "inst"), 
+                                                   $$(natToWord 12 0)
+                                                 >});
                                          "arg2" ::= ZeroExtendTruncLsb (Xlen + 1) (#gcp @% "pc")
                                        }: AddInputType @# _);
                           outputXform
