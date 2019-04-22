@@ -17,7 +17,7 @@ Require Import FuncUnits.Alu.Shift.
 Require Import FuncUnits.Alu.Jump.
 Require Import FuncUnits.Alu.Mult.
 Require Import FuncUnits.Alu.DivRem.
-Require Import FuncUnits.Mem.Mem.
+Require Import FuncUnits.Mem.LdS.
 Require Import FuncUnits.Mem.Amo32.
 Require Import FuncUnits.Mem.Amo64.
 Require Import FuncUnits.Mem.LrSc32.
