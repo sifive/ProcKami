@@ -79,15 +79,15 @@ Section Alu.
                   => LETE sem_in_pkt
                        :  JumpInputType
                        <- sem_in_pkt_expr;
-                     let new_pc
-                       :  VAddr @# ty
-                       := #sem_in_pkt @% "new_pc" in
+                     LETC new_pc
+                       :  VAddr
+                       <- #sem_in_pkt @% "new_pc";
                      RetE
                        (STRUCT {
                           "misaligned?"
                             ::= (#sem_in_pkt @% "misalignedException?" &&
-                                ((ZeroExtendTruncLsb 2 new_pc)$[1:1] != $0));
-                          "newPc" ::= new_pc;
+                                ((ZeroExtendTruncLsb 2 #new_pc)$[1:1] != $0));
+                          "newPc" ::= #new_pc;
                           "retPc"
                             ::= ((#sem_in_pkt @% "pc") +
                                  (IF (#sem_in_pkt @% "compressed?")
@@ -105,9 +105,9 @@ Section Alu.
                     := fun exec_context_pkt_expr: ExecContextPkt ## ty
                          => LETE exec_context_pkt
                               <- exec_context_pkt_expr;
-                            let inst
-                              :  Inst @# ty
-                              := #exec_context_pkt @% "inst" in
+                            LETC inst
+                              :  Inst
+                              <- #exec_context_pkt @% "inst";
                             RetE
                               (STRUCT {
                                  "pc" ::= #exec_context_pkt @% "pc";
@@ -115,10 +115,10 @@ Section Alu.
                                    ::= ((#exec_context_pkt @% "pc") +
                                         (SignExtendTruncLsb Xlen 
                                            ({<
-                                             (inst $[31:31]),
-                                             (inst $[19:12]),
-                                             (inst $[20:20]),
-                                             (inst $[30:21]),
+                                             (#inst $[31:31]),
+                                             (#inst $[19:12]),
+                                             (#inst $[20:20]),
+                                             (#inst $[30:21]),
                                              $$ WO~0
                                            >})));
                                   "compressed?" ::= #exec_context_pkt @% "compressed?";
@@ -137,9 +137,9 @@ Section Alu.
                      := fun exec_context_pkt_expr: ExecContextPkt ## ty
                           => LETE exec_context_pkt
                                <- exec_context_pkt_expr;
-                             let inst
-                               :  Inst @# ty
-                               := #exec_context_pkt @% "inst" in
+                             LETC inst
+                               :  Inst
+                               <- #exec_context_pkt @% "inst";
                              RetE
                                (STRUCT {
                                   "pc" ::= #exec_context_pkt @% "pc";
@@ -148,7 +148,7 @@ Section Alu.
                                           ({<
                                             SignExtendTruncMsb (Xlen - 1)
                                               ((ZeroExtendTruncLsb Xlen (#exec_context_pkt @% "reg1")) +
-                                               (SignExtendTruncLsb Xlen (imm inst))),
+                                               (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
                                   "compressed?" ::= #exec_context_pkt @% "compressed?";
