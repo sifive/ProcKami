@@ -35,7 +35,8 @@ Section Params.
 
     Variable func_units : forall ty, list (FUEntry ty).
     Variable mode       : forall ty, PrivMode @# ty.
-    Variable extensions : forall ty, Extensions @# ty.
+    Variable supportedExts : ConstT (Extensions).
+    (* Variable extensions : forall ty, Extensions @# ty. *)
 
     Section Display.
       Variable ty : Kind -> Type.
@@ -79,11 +80,31 @@ Section Params.
       :  BaseModule
       := 
          MODULE {
-              Register ^"pc" : VAddr <- ConstBit (_ 'h "00000000") with
-              Register ^"fflags" : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
-              Register ^"frm"    : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
+              Register ^"pc"         : VAddr       <- ConstBit (_ 'h "00000000") with
+              Register ^"fflags"     : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
+              Register ^"frm"        : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
+              Register ^"mxl"        : MxlValue    <- ConstBit (natToWord MxlWidth    1) with
+              Register ^"extensions" : Extensions  <- supportedExts with
               Rule ^"pipeline"
-                := System
+                := Read mxl : MxlValue <- ^"mxl";
+                   Read init_extensions
+                     :  Extensions
+                     <- ^"extensions";
+                   LET extensions
+                     :  Extensions
+                     <- IF #mxl == $1
+                          then
+                            #init_extensions
+                              @%["RV32I" <- $$true]
+                              @%["RV64I" <- $$false]
+                          else
+                            #init_extensions
+                              @%["RV32I" <- $$false]
+                              @%["RV64I" <- $$true];
+                   Write ^"extensions"
+                     :  Extensions
+                     <- #extensions;
+                   System
                      [
                        DispString _ "Start\n";
                        DispString _ "XLEN_over_8: ";
@@ -116,7 +137,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) (extensions _) (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) #extensions (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [

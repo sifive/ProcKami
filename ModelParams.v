@@ -179,16 +179,16 @@ Section exts.
     *)
     Local Definition param_ext_set (ext : string)
       := existT
-           (fun a : Attribute Kind => Expr ty (SyntaxKind (snd a)))
+           (fun a : Attribute Kind => ConstT (snd a))
            (ext, Bool)
-           $$(strings_in exts ext).
+           (ConstBool (strings_in exts ext)).
 
     (*
       Accepts a list of extensions and returns a struct listing the
-      enabled extensions.
+      given extensions.
     *)
     Local Definition param_exts
-      :  Extensions @# ty
+      :  ConstT (Extensions)
       := STRUCT {
            param_ext_set "RV32I";
            param_ext_set "RV64I";
@@ -199,7 +199,7 @@ Section exts.
            param_ext_set "F";
            param_ext_set "D";
            param_ext_set "C"
-         }.
+         }%kami_init.
 
     (* III. Select and tailor function units. *)
     Section func_units.
@@ -220,7 +220,6 @@ Section exts.
              DivRem    Xlen_over_8 Rlen_over_8 _;
 
              (* RVI memory instructions. *)
-             (* Mem       Xlen_over_8 Flen_over_8 Rlen_over_8 _; *)
              Mem       Xlen_over_8 Rlen_over_8 _;
              Amo32     Xlen_over_8 Rlen_over_8 _;
              Amo64     Xlen_over_8 Rlen_over_8 _;

@@ -98,7 +98,6 @@ Definition FloatRegTag := 2.
 Definition CsrTag := 3.
 Definition MemDataTag := 4.
 Definition MemAddrTag := 5.
-(* Definition FloatCsrTag := 6. *)
 Definition FflagsTag := 6.
 
 Record InstHints :=
@@ -134,6 +133,9 @@ Definition falseHints :=
      isJumpReg   := false ;
      isSystem    := false ;
      isCsr       := false |}.
+
+Definition MxlWidth : nat := 2.
+Definition MxlValue : Kind := Bit MxlWidth.
 
 Section Params.
   Variable name: string.
