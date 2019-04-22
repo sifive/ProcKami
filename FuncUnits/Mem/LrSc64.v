@@ -1,5 +1,5 @@
 Require Import Kami.All FU.
-Require Import List MemCommon.
+Require Import List FuncUnits.Mem.Mem.
 
 Section Mem.
   Variable Xlen_over_8: nat.

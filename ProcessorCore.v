@@ -124,7 +124,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 (#pc);
+                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #extensions (#pc);
                    System
                      [
                        DispString _ "Fetched\n";
@@ -195,6 +195,7 @@ Section Params.
                    LETA mem_update_pkt
                      <- MemUnit name lgMemSz
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
+                          (#extensions)
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);
@@ -213,6 +214,7 @@ Section Params.
                      <- commit
                           name
                           Flen_over_8
+                          (#extensions)
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt)

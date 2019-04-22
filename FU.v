@@ -143,7 +143,7 @@ Section Params.
   
   Variable lgMemSz : nat.
   
-  Variable Xlen_over_8: nat.
+  Variable Max_Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable expWidthMinus2: nat.
@@ -151,9 +151,9 @@ Section Params.
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation MaxXlen := (Max_Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation VAddr := (Bit Xlen).
+  Local Notation VAddr := (Bit MaxXlen).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
@@ -164,7 +164,7 @@ Section Params.
   Local Notation Data := (Bit Rlen).
   Local Notation DataMask := (Array Rlen_over_8 Bool).
 
-  Definition ExceptionInfo := Bit Xlen.
+  Definition ExceptionInfo := Bit MaxXlen.
 
   Definition FullException := STRUCT {
                                   "exception" :: Exception ;
@@ -182,7 +182,6 @@ Section Params.
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
              "csr"                      :: Maybe CsrValue;
-             (* "fcsr"                     :: CsrValue; *)
              "fflags"                   :: FflagsValue;
              "frm"                      :: FrmValue;
              "inst"                     :: Inst ;
@@ -226,7 +225,7 @@ Section Params.
 
   Definition IntRegWrite := STRUCT {
                              "index" :: RegId ;
-                             "data" :: Bit Xlen }.
+                             "data" :: Bit MaxXlen }.
 
   Definition FloatRegWrite := STRUCT {
                                "index" :: RegId ;
@@ -473,16 +472,49 @@ Section Params.
 
   End MemInterface.
 
-  Definition fetch (pc: VAddr @# ty)
+  (*
+    The Xlen parameter specifies the width of the values stored
+    within the integer, and pc registers; the format of the CSR
+    regsiters; and the _.
+
+    The MaxXlen parameter specifies the size of the integer and pc
+    registers, and determines the size of those packets that store
+    memory addresses and integer values.
+
+    The Xlen parameter is dynamic. When changed, the processor needs
+    to truncate the values read from/and written to the integer and
+    pc registers. Additionally, the values read from/and written
+    to certain CSRs needs to be transformed as their value formats
+    depend on the current XLEN value.
+
+    The Xlen Transformer provides an interface that performs these
+    transformations. It truncates and zero extends values read from
+    integer and pc registers - pulling and storing XLEN values from
+    MaxXLEN registers. It also reformats certain CSR values.
+  *)
+  Section XlenInterface.
+
+    Definition xlen_trans_trunc (n m : nat) (exts_pkt : Extensions @# ty) (val : Bit n @# ty)
+      :  Bit m @# ty
+      := ZeroExtendTruncLsb m
+           (IF exts_pkt @% "RV32I" == $$true
+              then ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 val)
+              else ZeroExtendTruncLsb 64 val).
+
+  End XlenInterface.
+
+  Definition fetch
+    (exts_pkt : Extensions @# ty)
+    (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 pc;
+          <- memRead 1 (xlen_trans_trunc MaxXlen exts_pkt pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
-                       "pc" ::= pc ;
+                       "pc" ::= xlen_trans_trunc MaxXlen exts_pkt pc ;
                        "inst" ::= ZeroExtendTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
@@ -767,7 +799,7 @@ Section Params.
                  (STRUCT {
                       "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
-                      "pc"          ::= fetch_pkt @% "pc" ;
+                      "pc"          ::= xlen_trans_trunc MaxXlen exts_pkt (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
                       "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
@@ -946,7 +978,7 @@ Section Params.
                (reg_id : RegId @# ty)
       :  ActionT ty Data
       := Call reg_val
-           :  Bit Xlen
+           :  Data
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
            Ret (ZeroExtendTruncLsb Rlen (#reg_val)).
 
@@ -1110,6 +1142,7 @@ Section Params.
       Import ListNotations.
 
       Local Definition reg_writer_write_reg
+        (exts_pkt : Extensions @# ty)
         (reg_id : RegId @# ty)
         (data : Data @# ty)
         :  ActionT ty Void
@@ -1117,7 +1150,8 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= ZeroExtendTruncLsb Xlen data
+                  (* "data"  ::= ZeroExtendTruncLsb Xlen data *)
+                  "data" ::= xlen_trans_trunc MaxXlen exts_pkt data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1149,38 +1183,47 @@ Section Params.
            ]%list;
            Retv.
 
-      Definition commitWriters (val: Maybe RoutedReg @# ty) (reg_index: RegId @# ty) (csr_index: CsrId @# ty) : ActionT ty Void :=
-        (LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
-         LET val_data : Data <- (val @% "data") @% "data" ;
-         If (val @% "valid")
-           then 
-             (If (#val_pos == $IntRegTag)
-                then (If (reg_index != $0)
-                        then reg_writer_write_reg (reg_index) (#val_data);
-                      Retv)
-                else (If (#val_pos == $FloatRegTag)
-                        then reg_writer_write_freg (reg_index) (#val_data)
-                        else (If (#val_pos == $CsrTag)
-                                then writeCSR csr_index (#val_data)
-                                (* else (If (#val_pos == $FloatCsrTag) *)
-                                else (If (#val_pos == $FflagsTag)
-                                        (* then writeCSR $3 (#val_data); *)
-                                        then (Write ^"fflags" : FflagsValue
-                                                <- ZeroExtendTruncLsb FflagsWidth #val_data;
-                                              System [
-                                                DispString _ " Reg Write Wrote ";
-                                                DispDecimal #val_data;
-                                                DispString _ " to FFLAGS field in FCSR\n"
-                                              ];
-                                              Retv);
-                                      Retv);
-                              Retv);
-                      Retv);
-              Retv);
-         Retv).
+      Definition commitWriters
+        (exts_pkt : Extensions @# ty)
+        (val: Maybe RoutedReg @# ty)
+        (reg_index: RegId @# ty)
+        (csr_index: CsrId @# ty)
+        : ActionT ty Void
+        := LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
+           LET val_data : Data <- (val @% "data") @% "data" ;
+           If (val @% "valid")
+             then 
+               (If (#val_pos == $IntRegTag)
+                  then (If (reg_index != $0)
+                          then reg_writer_write_reg exts_pkt (reg_index) (#val_data);
+                        Retv)
+                  else (If (#val_pos == $FloatRegTag)
+                          then reg_writer_write_freg (reg_index) (#val_data)
+                          else (If (#val_pos == $CsrTag)
+                                  then writeCSR csr_index (#val_data)
+                                  (* else (If (#val_pos == $FloatCsrTag) *)
+                                  else (If (#val_pos == $FflagsTag)
+                                          (* then writeCSR $3 (#val_data); *)
+                                          then (Write ^"fflags" : FflagsValue
+                                                  <- ZeroExtendTruncLsb FflagsWidth #val_data;
+                                                System [
+                                                  DispString _ " Reg Write Wrote ";
+                                                  DispDecimal #val_data;
+                                                  DispString _ " to FFLAGS field in FCSR\n"
+                                                ];
+                                                Retv);
+                                        Retv);
+                                Retv);
+                        Retv);
+                Retv);
+           Retv.
         
 
-      Definition commit (pc: VAddr @# ty) (inst: Inst @# ty) (cxt: PktWithException ExecContextUpdPkt @# ty)
+      Definition commit
+        (exts_pkt : Extensions @# ty)
+        (pc: VAddr @# ty)
+        (inst: Inst @# ty)
+        (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
         : ActionT ty Void :=
         (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
@@ -1190,8 +1233,8 @@ Section Params.
          (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
          If (!(cxt @% "snd" @% "valid"))
          then (
-             LETA _ <- commitWriters #val1 #reg_index #csr_index;
-               commitWriters #val2 #reg_index #csr_index);
+             LETA _ <- commitWriters exts_pkt #val1 #reg_index #csr_index;
+               commitWriters exts_pkt #val2 #reg_index #csr_index);
          Retv
         ).
 
@@ -1340,6 +1383,7 @@ Section Params.
       Local Open Scope kami_action.
 
       Definition MemUnit
+                 (exts_pkt : Extensions @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
                  (opt_exec_update_pkt : PktWithException ExecContextUpdPkt @# ty)
@@ -1348,7 +1392,11 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
+(*
                   (ZeroExtendTruncLsb Xlen
+                    (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
+*)
+                  (xlen_trans_trunc MaxXlen exts_pkt
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")
