@@ -92,6 +92,8 @@ Section Params.
                      <- ^"extensions";
                    LET extensions
                      :  Extensions
+                     <- #init_extensions;
+(*
                      <- IF #mxl == $1
                           then
                             #init_extensions
@@ -104,6 +106,7 @@ Section Params.
                    Write ^"extensions"
                      :  Extensions
                      <- #extensions;
+*)
                    System
                      [
                        DispString _ "Start\n";
