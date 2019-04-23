@@ -83,31 +83,8 @@ Section Params.
               Register ^"pc"         : VAddr       <- ConstBit (_ 'h "00000000") with
               Register ^"fflags"     : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
               Register ^"frm"        : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
-              Register ^"mxl"        : MxlValue    <- ConstBit (natToWord MxlWidth    1) with
-              Register ^"extensions" : Extensions  <- supportedExts with
               Rule ^"pipeline"
-                := Read mxl : MxlValue <- ^"mxl";
-                   Read init_extensions
-                     :  Extensions
-                     <- ^"extensions";
-                   LET extensions
-                     :  Extensions
-                     <- #init_extensions;
-(*
-                     <- IF #mxl == $1
-                          then
-                            #init_extensions
-                              @%["RV32I" <- $$true]
-                              @%["RV64I" <- $$false]
-                          else
-                            #init_extensions
-                              @%["RV32I" <- $$false]
-                              @%["RV64I" <- $$true];
-                   Write ^"extensions"
-                     :  Extensions
-                     <- #extensions;
-*)
-                   System
+                := System
                      [
                        DispString _ "Start\n";
                        DispString _ "XLEN_over_8: ";
@@ -140,7 +117,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) #extensions (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) ($$ supportedExts) (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [
