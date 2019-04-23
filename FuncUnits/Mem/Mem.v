@@ -85,7 +85,7 @@ Section Mem.
                  @%["val1"
                       <- (Valid (STRUCT {
                             "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                            "data" ::= ZeroExtendTruncLsb Rlen #addr
+                            "data" ::= SignExtendTruncLsb Rlen #addr
                           }))]) ;
          LETC retval
            :  (PktWithException ExecContextUpdPkt)
@@ -159,12 +159,12 @@ Section Mem.
                    @%["val1"
                         <- (Valid (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen #addr
+                              "data" ::= SignExtendTruncLsb Rlen #addr
                             }))]
                    @%["val2"
                         <- (Valid (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen (#data @% "data")
+                              "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
                             }))]
                    @%["memBitMask" <- #data @% "mask"]) ;
          LETC retval:
@@ -226,7 +226,7 @@ Section Mem.
     Import ListNotations.
 
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
-      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
+      LETC dohalf <- andb half (getBool (Nat.eq_dec Xlen 64));
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
@@ -237,12 +237,12 @@ Section Mem.
                                        (fun i: Fin.t Rlen_over_8 =>
                                           getBool (Compare_dec.lt_dec
                                                      (proj1_sig (Fin.to_nat i))
-                                                     (if dohalf
+                                                     (if #dohalf
                                                       then Xlen_over_8/2
                                                       else Xlen_over_8)))) ;
              LETC dataVal: Data <- fn #reg #memVal;
-             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
-                               (if dohalf then (Xlen/2) else Xlen) #memVal;
+             LETC loadVal: Bit (if #dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
+                               (if #dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
              LETC outMemReg : MemoryOutput
                                 <-
@@ -263,19 +263,19 @@ Section Mem.
     Definition lrTag := storeTag.
 
     Definition lrXform (half: bool) :=
-      let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
+      LETC dohalf <- andb half (getBool (Nat.eq_dec Xlen 64));
       Some
         (fun memRegIn =>
            LETE memReg : MemoryInput <- memRegIn ;
              LETC memVal: Data <- #memReg @% "mem" ;
-             LETC loadVal <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
+             LETC loadVal <- SignExtendTruncLsb (if #dohalf then (Xlen/2) else Xlen) #memVal;
              LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
              LETC memMask: Array Rlen_over_8 Bool <-
                                  $$ (ConstArray
                                        (fun i: Fin.t Rlen_over_8 =>
                                           getBool (Compare_dec.lt_dec
                                                      (proj1_sig (Fin.to_nat i))
-                                                     (if dohalf
+                                                     (if #dohalf
                                                       then Xlen_over_8/2
                                                       else Xlen_over_8)))) ;
              LETC outMemReg : MemoryOutput
@@ -292,7 +292,7 @@ Section Mem.
                                           (fun i: Fin.t Rlen_over_8 =>
                                              getBool (Compare_dec.lt_dec
                                                         (proj1_sig (Fin.to_nat i))
-                                                        (if dohalf
+                                                        (if #dohalf
                                                          then Xlen_over_8/2
                                                          else Xlen_over_8)))) ;
                                   "tag" ::= $IntRegTag ;
@@ -304,8 +304,8 @@ Section Mem.
     Definition scTag := storeTag.
 
     Definition scXform (half: bool)
-      := let dohalf
-           := andb half (getBool (Nat.eq_dec Rlen 64)) in
+      := LETC dohalf
+           <- andb half (getBool (Nat.eq_dec Rlen 64));
          Some
            (fun memRegIn
               => LETE memReg

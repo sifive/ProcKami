@@ -110,13 +110,13 @@ Section ty.
 
     Definition rounding_mode (context_pkt : ExecContextPkt @# ty)
       :  FrmValue @# ty
-      := let rounding_mode
+      := LETC rounding_mode
            :  FrmValue @# ty
-           := rm (context_pkt @% "inst") in
+           <- rm (context_pkt @% "inst");
          ITE
-           (rounding_mode == rounding_mode_dynamic)
+           (#rounding_mode == rounding_mode_dynamic)
            (context_pkt @% "frm")
-           rounding_mode.
+           #rounding_mode.
 
     Close Scope kami_expr.
 
