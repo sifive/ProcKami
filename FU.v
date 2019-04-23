@@ -729,12 +729,12 @@ Section Params.
                  (exts_pkt : Extensions @# ty)
                  (bit_string : Inst @# ty)
         :  Maybe DecoderPktInternal ## ty
-        := let prefix
-               :  CompInst @# ty
-               := bit_string $[15:0] in
+        := LETC prefix
+               :  CompInst
+               <- bit_string $[15:0];
            LETE opt_uncomp_inst
            :  Maybe Inst
-                    <- decompress comp_inst_db exts_pkt prefix;
+                    <- decompress comp_inst_db exts_pkt #prefix;
              SystemE (DispString _ "Decompressed Inst: " ::
                       DispHex #opt_uncomp_inst :: nil);
              (decode exts_pkt
@@ -991,17 +991,17 @@ Section Params.
     Definition reg_reader
                (decoder_pkt : DecoderPkt @# ty)
       :  ActionT ty ExecContextPkt
-      := let raw_inst
-           :  Inst @# ty
-           := decoder_pkt @% "inst" in
-         LETA reg1_val  : Data <- reg_reader_read_reg  1 (rs1 raw_inst);
-         LETA reg2_val  : Data <- reg_reader_read_reg  2 (rs2 raw_inst);
-         LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 raw_inst);
-         LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 raw_inst);
-         LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 raw_inst);
+      := LET raw_inst
+           :  Inst
+           <- decoder_pkt @% "inst";
+         LETA reg1_val  : Data <- reg_reader_read_reg  1 (rs1 #raw_inst);
+         LETA reg2_val  : Data <- reg_reader_read_reg  2 (rs2 #raw_inst);
+         LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
+         LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
+         LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
          LETA csr_val
            :  Maybe CsrValue
-           <- reg_reader_read_csr raw_inst;
+           <- reg_reader_read_csr #raw_inst;
 (*
          LETA fcsr_val
            :  CsrValue
@@ -1011,13 +1011,13 @@ Section Params.
          Read frm_val : FrmValue <- ^"frm";
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
-             DispDecimal (rs1 raw_inst);
+             DispDecimal (rs1 #raw_inst);
              DispString _ "\n";
              DispString _ "Reg 2 selector: ";
-             DispDecimal (rs2 raw_inst);
+             DispDecimal (rs2 #raw_inst);
              DispString _ "\n";
              DispString _ "CSR selector: ";
-             DispDecimal (imm raw_inst);
+             DispDecimal (imm #raw_inst);
              DispString _ "\n";
              DispString _ "has RS1: ";
              DispBinary (reg_reader_has hasRs1 decoder_pkt);
@@ -1053,7 +1053,7 @@ Section Params.
                 (* "fcsr"   ::= #fcsr_val; *)
                 "fflags" ::= #fflags_val;
                 "frm"    ::= #frm_val;
-                "inst"   ::= raw_inst;
+                "inst"   ::= #raw_inst;
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;
                 "memMisalignedException?"  ::= memMisalignedException;
