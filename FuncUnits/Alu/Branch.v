@@ -86,7 +86,7 @@ Section Alu.
                  @%["val2"
                       <- (Valid (STRUCT {
                             "tag"  ::= Const ty (natToWord RoutingTagSz PcTag);
-                            "data" ::= ZeroExtendTruncLsb Rlen (#bOut @% "newPc")
+                            "data" ::= SignExtendTruncLsb Rlen (#bOut @% "newPc")
                           }))]
                  @%["taken?" <- #bOut @% "taken?"]);
          LETC retval

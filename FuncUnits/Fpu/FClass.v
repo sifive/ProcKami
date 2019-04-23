@@ -76,7 +76,7 @@ Section Fpu.
                      "val1"
                        ::= Valid (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= ZeroExtendTruncLsb Rlen #res
+                             "data" ::= SignExtendTruncLsb Rlen #res
                            } : RoutedReg @# ty);
                      "val2" ::= @Invalid ty _;
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));

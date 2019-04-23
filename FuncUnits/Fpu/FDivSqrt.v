@@ -94,7 +94,7 @@ Section Fpu.
                        ::= Valid (STRUCT {
                              "tag" ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                              "data"
-                               ::= (ZeroExtendTruncLsb Rlen
+                               ::= (OneExtendTruncLsb Rlen
                                       (pack (NFToBit (#sem_out_pkt @% "outNf")))
                                     : Bit Rlen @# ty)
                            });

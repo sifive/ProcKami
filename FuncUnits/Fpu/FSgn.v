@@ -112,7 +112,7 @@ Section Fpu.
                                            ::= OneExtendTruncLsb Rlen
                                                  ({<
                                                    (#sem_in_pkt @% "sign_bit"),
-                                                   (ZeroExtendTruncLsb (len - 1) (#sem_in_pkt @% "arg1"))
+                                                   (OneExtendTruncLsb (len - 1) (#sem_in_pkt @% "arg1"))
                                                  >})
                                        });
                                  "val2" ::= @Invalid ty _;

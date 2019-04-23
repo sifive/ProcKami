@@ -433,7 +433,7 @@ Section Params.
     Definition memRead (index: nat) (addr: VAddr @# ty)
       : ActionT ty (PktWithException Data)
       := Call result: Array Rlen_over_8 (Bit 8)
-                            <- (^"readMem" ++ (natToHexStr index)) (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+                            <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
            
            System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result ::
                               DispString _ "\n" :: nil);
@@ -444,7 +444,7 @@ Section Params.
     Definition memReadReservation (addr: VAddr @# ty)
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool
-                            <- ^"readMemReservation" (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+                            <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
            System (DispString _ "READ RESERVATION: " :: DispHex addr :: DispString _ " " :: DispBinary #result ::
                               DispString _ "\n" :: nil);
            Ret #result.
@@ -452,7 +452,7 @@ Section Params.
     Definition memWrite (pkt : MemWrite @# ty)
       : ActionT ty (Maybe FullException)
       := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 (Bit 8) <- STRUCT {
-                                    "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
+                                    "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr") ;
                                     "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                                     "mask" ::= pkt @% "mask" };
            System (DispString _ "WRITE MEM: " :: DispHex #writeRq :: DispString _ "\n" :: nil);           
@@ -462,7 +462,7 @@ Section Params.
     Definition memWriteReservation (addr: VAddr @# ty)
                (mask rsv: Array Rlen_over_8 Bool @# ty)
       : ActionT ty Void
-      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
+      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
                                                                        "data" ::= rsv ;
                                                                        "mask" ::= mask } ;
            System (DispString _ "WRITE RESERVATION: " :: DispHex #writeRq :: DispString _ "\n" :: nil);
@@ -948,7 +948,7 @@ Section Params.
       := Call reg_val
            :  Bit Xlen
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-           Ret (ZeroExtendTruncLsb Rlen (#reg_val)).
+           Ret (SignExtendTruncLsb Rlen (#reg_val)).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
@@ -956,7 +956,7 @@ Section Params.
       := Call freg_val
            :  Bit Flen
            <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
-           Ret (ZeroExtendTruncLsb Rlen (#freg_val)).
+           Ret (OneExtendTruncLsb Rlen (#freg_val)).
     
     Import ListNotations.
 
@@ -1117,7 +1117,7 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= ZeroExtendTruncLsb Xlen data
+                  "data"  ::= SignExtendTruncLsb Xlen data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1137,7 +1137,7 @@ Section Params.
              :  FloatRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= ZeroExtendTruncLsb Flen data
+                  "data"  ::= OneExtendTruncLsb Flen data
                 };
            Call (^"fregWrite") (#pkt : FloatRegWrite);
            System [
@@ -1348,7 +1348,7 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
-                  (ZeroExtendTruncLsb Xlen
+                  (SignExtendTruncLsb Xlen
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")
