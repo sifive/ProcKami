@@ -36,7 +36,6 @@ Section Params.
     Variable func_units : forall ty, list (FUEntry ty).
     Variable mode       : forall ty, PrivMode @# ty.
     Variable supportedExts : ConstT (Extensions).
-    (* Variable extensions : forall ty, Extensions @# ty. *)
 
     Section Display.
       Variable ty : Kind -> Type.
@@ -98,6 +97,9 @@ Section Params.
                      <- ^"extensions";
                    LET extensions
                      :  Extensions
+(*
+                     <- #init_extensions;
+*)
                      <- IF #mxl == $1
                           then
                             #init_extensions

@@ -476,10 +476,13 @@ Section Params.
 
     Definition xlen_trans_trunc (n m : nat) (exts_pkt : Extensions @# ty) (val : Bit n @# ty)
       :  Bit m @# ty
-      := ZeroExtendTruncLsb m
+(*
+      := ZeroExtendTruncLsb m val.
+*)
+      := SignExtendTruncLsb m
            (IF exts_pkt @% "RV32I" == $$true
-              then ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 val)
-              else ZeroExtendTruncLsb 64 val).
+              then SignExtendTruncLsb 64 (SignExtendTruncLsb 32 val)
+              else SignExtendTruncLsb 64 val).
 
   End XlenInterface.
 
@@ -1130,8 +1133,8 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  (* "data"  ::= ZeroExtendTruncLsb Xlen data *)
-                  "data" ::= xlen_trans_trunc MaxXlen exts_pkt data
+                  "data"  ::= ZeroExtendTruncLsb MaxXlen data
+                  (* "data" ::= xlen_trans_trunc MaxXlen exts_pkt data *)
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1373,9 +1376,10 @@ Section Params.
              :  PktWithException MemRet
              <- fullMemAction
 (*
-                  (ZeroExtendTruncLsb Xlen
+                  (ZeroExtendTruncLsb MaxXlen
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
 *)
+
                   (xlen_trans_trunc MaxXlen exts_pkt
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
