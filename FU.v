@@ -339,12 +339,9 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Local Notation Build_MayGroupReg := (Build_MayGroupReg 0 CsrIdWidth).
-    Local Notation MayStructInputT := (MayStructInputT 0 CsrIdWidth).
-
-    Local Notation MayGroupReg2 := (MayGroupReg2 ty CsrIdWidth 0 1 1).
-    Local Notation Build_MayGroupReg2 := (Build_MayGroupReg2 CsrIdWidth 0).
-    Local Notation MayStructInputT2 := (MayStructInputT2 CsrIdWidth 0 1).
+    Local Notation Location := (Location ty CsrIdWidth 0 1 1).
+    Local Notation Build_Location := (Build_Location CsrIdWidth 0).
+    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT CsrIdWidth 0 1).
 
     
     (* Represents CSR entry fields. *)
@@ -353,9 +350,9 @@ Section Params.
       := existT (fun k => option (ConstT k)) k value.
 
     Definition CSREntries
-      :  list MayGroupReg2 
+      :  list Location 
       := [
-           Build_MayGroupReg2 ^"fflagsG" $1
+           Build_Location ^"fflagsG" $1
              [
                {|
                  view_context := $1;
@@ -367,7 +364,7 @@ Section Params.
                       }
                |}
              ]%vector;
-           Build_MayGroupReg2 ^"frmG" $2
+           Build_Location ^"frmG" $2
              [
                {|
                  view_context := $1;
@@ -379,7 +376,7 @@ Section Params.
                       }
                |}
              ]%vector;
-           Build_MayGroupReg2 ^"frmG" $3
+           Build_Location ^"frmG" $3
              [
                {|
                  view_context := $1;
@@ -393,30 +390,13 @@ Section Params.
                |}
              ]%vector
          ].
-(*
-      :  list (MayGroupReg 0 CsrIdWidth)
-      := [ Build_MayGroupReg $1
-                             (MAYSTRUCT {
-                                  "reserved" ::# Bit 27 #:: (ConstBit ($0)%word) ;
-                                  ^"fflags" :: Bit 5 }) ^"fflagsG" ;
-             Build_MayGroupReg $2
-                               (MAYSTRUCT {
-                                    "reserved" ::# Bit 29 #:: (ConstBit ($0)%word) ;
-                                    ^"frm" :: Bit 3 }) ^"frmG" ;
-             Build_MayGroupReg $3
-                               (MAYSTRUCT {
-                                    "reserved" ::# Bit 24 #:: (ConstBit ($0)%word) ;
-                                    ^"frm" :: Bit 3 ;
-                                    ^"fflags" :: Bit 5 }) ^"fcsr" ].
-*)
+
     Open Scope kami_expr.
     Open Scope kami_action.
 
-    (* Definition readWriteCSR (k : Kind) (request : MayStructInputT k @# ty) *)
-    Definition readWriteCSR (k : Kind) (request : MayStructInputT2 k @# ty)
+    Definition readWriteCSR (k : Kind) (request : LocationReadWriteInputT k @# ty)
       :  ActionT ty (Maybe k)
-      (* := mayGroupReadWrite request CSREntries. *)
-      := mayGroupReadWrite2 request CSREntries.
+      := locationReadWrite request CSREntries.
 
     Definition readCSR (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
@@ -432,7 +412,7 @@ Section Params.
                    "addr"        ::= (csrId : CsrId @# ty);
                    "contextCode" ::= $1;
                    "data"        ::= ($0 : CsrValue @# ty)
-                 } : MayStructInputT2 CsrValue @# ty);
+                 } : LocationReadWriteInputT CsrValue @# ty);
          System (
            DispString _ " Reg Reader Read " ::
            DispDecimal #result ::
@@ -454,7 +434,7 @@ Section Params.
                    "addr"        ::= csrId;
                    "contextCode" ::= $1;
                    "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
-                 } : MayStructInputT2 CsrValue @# ty);
+                 } : LocationReadWriteInputT CsrValue @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
            DispDecimal #result ::
