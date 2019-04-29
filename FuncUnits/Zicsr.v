@@ -60,7 +60,7 @@ Section zicsr.
                                   (STRUCT {
                                        "tag" ::= $IntRegTag;
                                        "data"
-                                       ::= ZeroExtendTruncLsb Rlen
+                                       ::= SignExtendTruncLsb Rlen
                                                               (#sem_in_pkt @% "orig_csr_value" @% "data")
                                      } : RoutedReg @# ty))
                                (@Invalid ty RoutedReg);

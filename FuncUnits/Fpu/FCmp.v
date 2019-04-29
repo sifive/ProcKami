@@ -173,7 +173,7 @@ Section Fpu.
                                  "val1"
                                    ::= Valid (STRUCT {
                                          "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
-                                         "data" ::= ZeroExtendTruncLsb Rlen (#result @% "result")
+                                         "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
                                        } : RoutedReg @# ty);
 (*
                                  "val2"

@@ -97,9 +97,6 @@ Section Params.
                      <- ^"extensions";
                    LET extensions
                      :  Extensions
-(*
-                     <- #init_extensions;
-*)
                      <- IF #mxl == $1
                           then
                             #init_extensions
@@ -149,7 +146,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) #extensions (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) ($$ supportedExts) (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [
@@ -173,7 +170,8 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          (#decoder_pkt);
+                          #extensions
+                          #decoder_pkt;
                    System
                      ([
                        DispString _ "Reg Vals\n";
@@ -242,10 +240,10 @@ Section Params.
                           := #exec_update_pkt @% "fst" @% "val2" in
                         ITE
                           ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
-                          (ZeroExtendTruncLsb Xlen ((opt_val1 @% "data") @% "data"))
+                          (xlen_sign_extend #extensions Xlen ((opt_val1 @% "data") @% "data"))
                           (ITE
                             ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
-                            (ZeroExtendTruncLsb Xlen ((opt_val2 @% "data") @% "data"))
+                            (xlen_sign_extend #extensions Xlen ((opt_val2 @% "data") @% "data"))
                             (ITE
                               (#decoder_pkt @% "fst" @% "compressed?")
                               (#pc + $2)

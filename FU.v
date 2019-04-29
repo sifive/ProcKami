@@ -338,8 +338,9 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Local Notation Build_MayGroupReg := (Build_MayGroupReg 0 CsrIdWidth).
-    Local Notation MayStructInputT := (MayStructInputT 0 CsrIdWidth).
+    Local Notation Location := (Location ty CsrIdWidth 0 1 1).
+    Local Notation Build_Location := (Build_Location CsrIdWidth 0).
+    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT CsrIdWidth 0 1).
 
     
     (* Represents CSR entry fields. *)
@@ -348,27 +349,53 @@ Section Params.
       := existT (fun k => option (ConstT k)) k value.
 
     Definition CSREntries
-      :  list (MayGroupReg 0 CsrIdWidth)
-      := [ Build_MayGroupReg $1
-                             (MAYSTRUCT {
-                                  "reserved" ::# Bit 27 #:: (ConstBit ($0)%word) ;
-                                  ^"fflags" :: Bit 5 }) ^"fflagsG" ;
-             Build_MayGroupReg $2
-                               (MAYSTRUCT {
-                                    "reserved" ::# Bit 29 #:: (ConstBit ($0)%word) ;
-                                    ^"frm" :: Bit 3 }) ^"frmG" ;
-             Build_MayGroupReg $3
-                               (MAYSTRUCT {
-                                    "reserved" ::# Bit 24 #:: (ConstBit ($0)%word) ;
-                                    ^"frm" :: Bit 3 ;
-                                    ^"fflags" :: Bit 5 }) ^"fcsr" ].
+      :  list Location 
+      := [
+           Build_Location ^"fflagsG" $1
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved" ::# Bit 27 #:: (ConstBit (natToWord 27 0));
+                        ^"fflags" :: Bit 5
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"frmG" $2
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved" ::# Bit 29 #:: (ConstBit (natToWord 29 0));
+                        ^"frm" :: Bit 3
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"frmG" $3
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved" ::# Bit 24 #:: (ConstBit (natToWord 24 0));
+                        ^"frm" :: Bit 3;
+                        ^"fflags" :: Bit 5
+                      }
+               |}
+             ]%vector
+         ].
 
     Open Scope kami_expr.
     Open Scope kami_action.
 
-    Definition readWriteCSR (k : Kind) (request : MayStructInputT k @# ty)
+    Definition readWriteCSR (k : Kind) (request : LocationReadWriteInputT k @# ty)
       :  ActionT ty (Maybe k)
-      := mayGroupReadWrite request CSREntries.
+      := locationReadWrite request CSREntries.
 
     Definition readCSR (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
@@ -380,11 +407,11 @@ Section Params.
            :  Maybe CsrValue
            <- readWriteCSR
                 (STRUCT {
-                   "isRd" ::= ($$true : Bool @# ty);
-                   "addr" ::= (csrId : CsrId @# ty);
-                   "data" ::= ($0 : CsrValue @# ty);
-                   "mask" ::= ($0 : CsrValue @# ty)
-                 } : MayStructInputT CsrValue @# ty);
+                   "isRd"        ::= ($$true : Bool @# ty);
+                   "addr"        ::= (csrId : CsrId @# ty);
+                   "contextCode" ::= $1;
+                   "data"        ::= ($0 : CsrValue @# ty)
+                 } : LocationReadWriteInputT CsrValue @# ty);
          System (
            DispString _ " Reg Reader Read " ::
            DispDecimal #result ::
@@ -402,11 +429,11 @@ Section Params.
          LETA result
            <- readWriteCSR
                 (STRUCT {
-                   "isRd" ::= $$false;
-                   "addr" ::= csrId;
-                   "data" ::= ZeroExtendTruncLsb CsrValueWidth raw_data;
-                   "mask" ::= $$(wones CsrValueWidth)
-                 } : MayStructInputT CsrValue @# ty);
+                   "isRd"        ::= $$false;
+                   "addr"        ::= csrId;
+                   "contextCode" ::= $1;
+                   "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
+                 } : LocationReadWriteInputT CsrValue @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
            DispDecimal #result ::
@@ -432,7 +459,7 @@ Section Params.
     Definition memRead (index: nat) (addr: VAddr @# ty)
       : ActionT ty (PktWithException Data)
       := Call result: Array Rlen_over_8 (Bit 8)
-                            <- (^"readMem" ++ (natToHexStr index)) (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+                            <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
            
            System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result ::
                               DispString _ "\n" :: nil);
@@ -443,7 +470,7 @@ Section Params.
     Definition memReadReservation (addr: VAddr @# ty)
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool
-                            <- ^"readMemReservation" (ZeroExtendTruncLsb _ addr: Bit lgMemSz);
+                            <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
            System (DispString _ "READ RESERVATION: " :: DispHex addr :: DispString _ " " :: DispBinary #result ::
                               DispString _ "\n" :: nil);
            Ret #result.
@@ -451,7 +478,7 @@ Section Params.
     Definition memWrite (pkt : MemWrite @# ty)
       : ActionT ty (Maybe FullException)
       := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 (Bit 8) <- STRUCT {
-                                    "addr" ::= ZeroExtendTruncLsb lgMemSz (pkt @% "addr") ;
+                                    "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr") ;
                                     "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                                     "mask" ::= pkt @% "mask" };
            System (DispString _ "WRITE MEM: " :: DispHex #writeRq :: DispString _ "\n" :: nil);           
@@ -461,7 +488,7 @@ Section Params.
     Definition memWriteReservation (addr: VAddr @# ty)
                (mask rsv: Array Rlen_over_8 Bool @# ty)
       : ActionT ty Void
-      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= ZeroExtendTruncLsb lgMemSz addr ;
+      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
                                                                        "data" ::= rsv ;
                                                                        "mask" ::= mask } ;
            System (DispString _ "WRITE RESERVATION: " :: DispHex #writeRq :: DispString _ "\n" :: nil);
@@ -474,15 +501,21 @@ Section Params.
 
   Section XlenInterface.
 
-    Definition xlen_trans_trunc (n m : nat) (exts_pkt : Extensions @# ty) (val : Bit n @# ty)
+    Definition xlen_trunc
+      (f : forall ni no : nat, Bit ni @# ty -> Bit no @# ty)
+      (exts_pkt : Extensions @# ty)
+      (n m : nat)
+      (x : Bit n @# ty)
       :  Bit m @# ty
-(*
-      := ZeroExtendTruncLsb m val.
-*)
-      := SignExtendTruncLsb m
-           (IF exts_pkt @% "RV32I" == $$true
-              then SignExtendTruncLsb 64 (SignExtendTruncLsb 32 val)
-              else SignExtendTruncLsb 64 val).
+      := IF exts_pkt @% "RV32I" == $$true
+           then f 32 m (f n 32 x)
+           else f 64 m (f n 64 x).
+
+    Definition xlen_zero_extend := xlen_trunc (@ZeroExtendTruncLsb ty).
+
+    Definition xlen_sign_extend := xlen_trunc (@SignExtendTruncLsb ty).
+
+    Definition xlen_one_extend := xlen_trunc (@OneExtendTruncLsb ty).
 
   End XlenInterface.
 
@@ -491,13 +524,13 @@ Section Params.
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 (xlen_trans_trunc MaxXlen exts_pkt pc);
+          <- memRead 1 (xlen_sign_extend exts_pkt MaxXlen pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
-                       "pc" ::= xlen_trans_trunc MaxXlen exts_pkt pc ;
+                       "pc" ::= xlen_sign_extend exts_pkt MaxXlen pc ;
                        "inst" ::= ZeroExtendTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
@@ -744,12 +777,12 @@ Section Params.
                  (exts_pkt : Extensions @# ty)
                  (bit_string : Inst @# ty)
         :  Maybe DecoderPktInternal ## ty
-        := let prefix
-               :  CompInst @# ty
-               := bit_string $[15:0] in
+        := LETC prefix
+               :  CompInst
+               <- bit_string $[15:0];
            LETE opt_uncomp_inst
            :  Maybe Inst
-                    <- decompress comp_inst_db exts_pkt prefix;
+                    <- decompress comp_inst_db exts_pkt #prefix;
              SystemE (DispString _ "Decompressed Inst: " ::
                       DispHex #opt_uncomp_inst :: nil);
              (decode exts_pkt
@@ -782,7 +815,7 @@ Section Params.
                  (STRUCT {
                       "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
-                      "pc"          ::= xlen_trans_trunc MaxXlen exts_pkt (fetch_pkt @% "pc" : VAddr @# ty) ;
+                      "pc"          ::= xlen_sign_extend exts_pkt MaxXlen (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
                       "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
@@ -958,12 +991,13 @@ Section Params.
 
     Local Open Scope kami_action.
     Definition reg_reader_read_reg n
-               (reg_id : RegId @# ty)
+      (exts_pkt : Extensions @# ty)
+      (reg_id : RegId @# ty)
       :  ActionT ty Data
       := Call reg_val
            :  Data
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-           Ret (ZeroExtendTruncLsb Rlen (#reg_val)).
+           Ret (xlen_sign_extend exts_pkt Rlen #reg_val).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
@@ -971,7 +1005,7 @@ Section Params.
       := Call freg_val
            :  Bit Flen
            <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
-           Ret (ZeroExtendTruncLsb Rlen (#freg_val)).
+           Ret (OneExtendTruncLsb Rlen (#freg_val)).
     
     Import ListNotations.
 
@@ -1004,35 +1038,31 @@ Section Params.
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
 
     Definition reg_reader
-               (decoder_pkt : DecoderPkt @# ty)
+      (exts_pkt : Extensions @# ty)
+      (decoder_pkt : DecoderPkt @# ty)
       :  ActionT ty ExecContextPkt
-      := let raw_inst
-           :  Inst @# ty
-           := decoder_pkt @% "inst" in
-         LETA reg1_val  : Data <- reg_reader_read_reg  1 (rs1 raw_inst);
-         LETA reg2_val  : Data <- reg_reader_read_reg  2 (rs2 raw_inst);
-         LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 raw_inst);
-         LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 raw_inst);
-         LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 raw_inst);
+      := LET raw_inst
+           :  Inst
+           <- decoder_pkt @% "inst";
+         LETA reg1_val  : Data <- reg_reader_read_reg  1 exts_pkt (rs1 #raw_inst);
+         LETA reg2_val  : Data <- reg_reader_read_reg  2 exts_pkt (rs2 #raw_inst);
+         LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
+         LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
+         LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
          LETA csr_val
            :  Maybe CsrValue
-           <- reg_reader_read_csr raw_inst;
-(*
-         LETA fcsr_val
-           :  CsrValue
-           <- readCSR $3;
-*)
+           <- reg_reader_read_csr #raw_inst;
          Read fflags_val : FflagsValue <- ^"fflags";
          Read frm_val : FrmValue <- ^"frm";
          LETA msg <- Sys [
              DispString _ "Reg 1 selector: ";
-             DispDecimal (rs1 raw_inst);
+             DispDecimal (rs1 #raw_inst);
              DispString _ "\n";
              DispString _ "Reg 2 selector: ";
-             DispDecimal (rs2 raw_inst);
+             DispDecimal (rs2 #raw_inst);
              DispString _ "\n";
              DispString _ "CSR selector: ";
-             DispDecimal (imm raw_inst);
+             DispDecimal (imm #raw_inst);
              DispString _ "\n";
              DispString _ "has RS1: ";
              DispBinary (reg_reader_has hasRs1 decoder_pkt);
@@ -1065,10 +1095,9 @@ Section Params.
                               (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
                 "reg3"   ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
                 "csr"    ::= #csr_val;
-                (* "fcsr"   ::= #fcsr_val; *)
                 "fflags" ::= #fflags_val;
                 "frm"    ::= #frm_val;
-                "inst"   ::= raw_inst;
+                "inst"   ::= #raw_inst;
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;
                 "memMisalignedException?"  ::= memMisalignedException;
@@ -1078,10 +1107,12 @@ Section Params.
               } : ExecContextPkt @# ty).
 
     Definition readerWithException
+      (exts_pkt : Extensions @# ty)
       (decoder_pkt : PktWithException DecoderPkt @# ty)
       :  ActionT ty (PktWithException ExecContextPkt)
       := LETA exec_context_pkt
            <- reg_reader
+                exts_pkt
                 ((decoder_pkt @% "fst") : DecoderPkt @# ty);
          Ret
            (mkPktWithException
@@ -1133,8 +1164,7 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= ZeroExtendTruncLsb MaxXlen data
-                  (* "data" ::= xlen_trans_trunc MaxXlen exts_pkt data *)
+                  "data"  ::= xlen_sign_extend exts_pkt MaxXlen data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1154,7 +1184,7 @@ Section Params.
              :  FloatRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= ZeroExtendTruncLsb Flen data
+                  "data"  ::= OneExtendTruncLsb Flen data
                 };
            Call (^"fregWrite") (#pkt : FloatRegWrite);
            System [
@@ -1375,12 +1405,7 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
-(*
-                  (ZeroExtendTruncLsb MaxXlen
-                    (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
-*)
-
-                  (xlen_trans_trunc MaxXlen exts_pkt
+                  (xlen_sign_extend exts_pkt MaxXlen
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")

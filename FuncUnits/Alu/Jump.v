@@ -45,12 +45,12 @@ Section Alu.
                  @%["val1"
                       <- (Valid (STRUCT {
                             "tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                            "data" ::= ZeroExtendTruncLsb Rlen (#jOut @% "retPc")
+                            "data" ::= SignExtendTruncLsb Rlen (#jOut @% "retPc")
                           }))]
                  @%["val2"
                       <- (Valid (STRUCT {
                             "tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                            "data" ::= ZeroExtendTruncLsb Rlen (#jOut @% "newPc")
+                            "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
                           }))]
                  @%["taken?" <- $$ true]) ;
          LETC retval:
@@ -67,9 +67,9 @@ Section Alu.
       := LETE sem_output
            :  JumpOutputType
            <- sem_output_expr;
-         let newPc : VAddr @# ty
-           := ZeroExtendTruncMsb Xlen ({< ZeroExtendTruncMsb (Xlen -1) (#sem_output @% "newPc"), $$ WO~0 >}) in
-         RetE (#sem_output @%["newPc" <- newPc]).
+         LETC newPc : VAddr
+           <- ZeroExtendTruncMsb Xlen ({< ZeroExtendTruncMsb (Xlen -1) (#sem_output @% "newPc"), $$ WO~0 >});
+         RetE (#sem_output @%["newPc" <- #newPc]).
 
     Definition Jump: @FUEntry ty
       := {|

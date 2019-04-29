@@ -102,7 +102,7 @@ Section Fpu.
                                            "val1"
                                              ::= (Valid (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
-                                                    "data" ::= (ZeroExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
+                                                    "data" ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
                                                   }) : Maybe RoutedReg @# ty);
                                            "val2"
                                              ::= (Valid (STRUCT {

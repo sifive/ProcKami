@@ -85,7 +85,7 @@ Section Mem.
                  @%["val1"
                       <- (Valid (STRUCT {
                             "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                            "data" ::= ZeroExtendTruncLsb Rlen #addr
+                            "data" ::= SignExtendTruncLsb Rlen #addr
                           }))]) ;
          LETC retval
            :  (PktWithException ExecContextUpdPkt)
@@ -159,12 +159,12 @@ Section Mem.
                    @%["val1"
                         <- (Valid (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen #addr
+                              "data" ::= SignExtendTruncLsb Rlen #addr
                             }))]
                    @%["val2"
                         <- (Valid (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                              "data" ::= ZeroExtendTruncLsb Rlen (#data @% "data")
+                              "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
                             }))]
                    @%["memBitMask" <- #data @% "mask"]) ;
          LETC retval:

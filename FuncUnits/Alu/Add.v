@@ -68,11 +68,19 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"011") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb (Xlen + 1) (#gcp @% "reg1");
-                                                                          "arg2" ::= neg (ZeroExtend 1 (SignExtendTruncLsb
-                                                                                                          Xlen (imm (#gcp @% "inst"))))
-                                                                }): AddInputType @# _)) ;
+                          inputXform   := (fun gcpin
+                                             => LETE gcp: ExecContextPkt <- gcpin;
+                                                RetE
+                                                  ((STRUCT {
+                                                    "arg1"
+                                                      ::= ZeroExtendTruncLsb (Xlen + 1)
+                                                            (ZeroExtendTruncLsb Xlen (#gcp @% "reg1"));
+                                                    "arg2"
+                                                      ::= neg
+                                                            (ZeroExtend 1
+                                                              (SignExtendTruncLsb
+                                                                Xlen (imm (#gcp @% "inst"))))
+                                                  }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
@@ -133,10 +141,16 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"011") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= ZeroExtendTruncLsb (Xlen + 1) (#gcp @% "reg1");
-                                                                          "arg2" ::= neg (ZeroExtendTruncLsb (Xlen + 1) (#gcp @% "reg2"))
-                                                                }): AddInputType @# _)) ;
+                          inputXform   := (fun gcpin
+                                            => LETE gcp: ExecContextPkt <- gcpin;
+                                               RetE ((STRUCT {
+                                                 "arg1"
+                                                   ::= ZeroExtendTruncLsb (Xlen + 1)
+                                                         (ZeroExtendTruncLsb Xlen (#gcp @% "reg1"));
+                                                 "arg2"
+                                                   ::= neg (ZeroExtendTruncLsb (Xlen + 1)
+                                                         (ZeroExtendTruncLsb Xlen (#gcp @% "reg2")))
+                                               }): AddInputType @# _)) ;
                           outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
                                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
                                                                RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
