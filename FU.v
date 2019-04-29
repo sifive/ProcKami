@@ -338,53 +338,73 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Local Notation Location := (Location ty CsrIdWidth 0 1 1).
+    Local Notation View := (View ty).
+    Local Notation Location := (Location ty CsrIdWidth 0 2 2).
     Local Notation Build_Location := (Build_Location CsrIdWidth 0).
-    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT CsrIdWidth 0 1).
-
+    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT CsrIdWidth 0 2).
     
     (* Represents CSR entry fields. *)
     Local Definition csrField (k : Kind) (value : option (ConstT k))
       :  {k : Kind & option (ConstT k)}
       := existT (fun k => option (ConstT k)) k value.
 
+    Fixpoint repeatView
+      (n m : nat)
+      (x : MayStruct m)
+      {struct n}
+      :  Vector.t (View MxlWidth) n
+      := match n with
+           | 0 => []%vector
+           | S k
+             => ({|
+                  view_context := $n;
+                  view_size    := m;
+                  view_kind    := x
+                |} :: repeatView k x)%vector
+           end.
+
     Definition CSREntries
       :  list Location 
       := [
            Build_Location ^"fflagsG" $1
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        "reserved" ::# Bit 27 #:: (ConstBit (natToWord 27 0));
-                        ^"fflags" :: Bit 5
-                      }
-               |}
-             ]%vector;
+             (repeatView 2
+               MAYSTRUCT {
+                 "reserved" ::# Bit 27 #:: (ConstBit (natToWord 27 0));
+                 ^"fflags" :: Bit 5
+               });
            Build_Location ^"frmG" $2
+             (repeatView 2
+               MAYSTRUCT {
+                 "reserved" ::# Bit 29 #:: (ConstBit (natToWord 29 0));
+                 ^"frm" :: Bit 3
+               });
+           Build_Location ^"fstatusG" $3
+             (repeatView 2
+               MAYSTRUCT {
+                 "reserved" ::# Bit 24 #:: (ConstBit (natToWord 24 0));
+                 ^"frm" :: Bit 3;
+                 ^"fflags" :: Bit 5
+               });
+           Build_Location ^"misa" (CsrIdWidth 'h"301")
              [
                {|
                  view_context := $1;
                  view_size    := _;
                  view_kind
                    := MAYSTRUCT {
-                        "reserved" ::# Bit 29 #:: (ConstBit (natToWord 29 0));
-                        ^"frm" :: Bit 3
+                        ^"mxl" :: Bit 2;
+                        "reserved" ::# Bit 4 #:: (ConstBit (natToWord 4 0));
+                        ^"extensions" :: Bit 26
                       }
-               |}
-             ]%vector;
-           Build_Location ^"frmG" $3
-             [
+               |};
                {|
-                 view_context := $1;
+                 view_context := $2;
                  view_size    := _;
                  view_kind
                    := MAYSTRUCT {
-                        "reserved" ::# Bit 24 #:: (ConstBit (natToWord 24 0));
-                        ^"frm" :: Bit 3;
-                        ^"fflags" :: Bit 5
+                        ^"mxl" :: Bit 2;
+                        "reserved" ::# Bit 36 #:: (ConstBit (natToWord 36 0));
+                        ^"extensions" :: Bit 26
                       }
                |}
              ]%vector
