@@ -89,7 +89,17 @@ Section Params.
                         (if Nat.eqb Xlen_over_8 4
                            then 1
                            else 2)) with
-              Register ^"extensions" : Extensions  <- supportedExts with
+              Register ^"extensions"       : Extensions  <- supportedExts with
+              Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"mpie"             : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"mie"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"mtvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"mtvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
+              Register ^"mscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"mepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"mcause_interrupt" : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
+              Register ^"mtval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
               Rule ^"pipeline"
                 := Read mxl : MxlValue <- ^"mxl";
                    Read init_extensions
@@ -228,27 +238,10 @@ Section Params.
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt)
-                          (#exec_context_pkt @% "fst");
+                          (#exec_context_pkt @% "fst")
+                          (#decoder_pkt @% "fst");
                    System [DispString _ "Inc PC\n"];
-                   Write ^"pc"
-                     :  VAddr
-                     <- (let opt_val1
-                          (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
-                          := #exec_update_pkt @% "fst" @% "val1" in
-                        let opt_val2
-                          (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
-                          := #exec_update_pkt @% "fst" @% "val2" in
-                        ITE
-                          ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
-                          (xlen_sign_extend #extensions Xlen ((opt_val1 @% "data") @% "data"))
-                          (ITE
-                            ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
-                            (xlen_sign_extend #extensions Xlen ((opt_val2 @% "data") @% "data"))
-                            (ITE
-                              (#decoder_pkt @% "fst" @% "compressed?")
-                              (#pc + $2)
-                              (#pc + $4))));
-                   Call ^"pc"(#pc: VAddr);
+                   Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv
          }.
 

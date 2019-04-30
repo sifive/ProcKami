@@ -32,6 +32,7 @@ Require Import FuncUnits.Fpu.FClass.
 Require Import FuncUnits.Fpu.FDivSqrt.
 Require Import FuncUnits.Fpu.FRound.
 Require Import FuncUnits.Zicsr.
+Require Import FuncUnits.MRet.
 
 (* I. FPU configuration parameters. *)
 
@@ -210,8 +211,10 @@ Section exts.
       Local Definition func_units 
         :  list (FUEntry ty)
         := [
+             MRet      Xlen_over_8 Rlen_over_8 _;
+
              (* RVI logical instructions. *)
-             Add       Xlen_over_8 Rlen_over_8  _;
+             Add       Xlen_over_8 Rlen_over_8 _;
              Logical   Xlen_over_8 Rlen_over_8 _;
              Shift     Xlen_over_8 Rlen_over_8 _;
              Branch    Xlen_over_8 Rlen_over_8 _;

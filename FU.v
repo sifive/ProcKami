@@ -99,6 +99,7 @@ Definition CsrTag := 3.
 Definition MemDataTag := 4.
 Definition MemAddrTag := 5.
 Definition FflagsTag := 6.
+Definition MRetTag := 7.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -405,6 +406,136 @@ Section Params.
                         ^"mxl" :: Bit 2;
                         "reserved" ::# Bit 36 #:: (ConstBit (natToWord 36 0));
                         ^"extensions" :: Bit 26
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mstatus" (CsrIdWidth 'h"300")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved0" ::# Bit 19 #:: (ConstBit (natToWord 19 0));
+                        ^"mpp" :: Bit 2;
+                        "reserved1" ::# Bit 3  #:: (ConstBit (natToWord 3 0));
+                        ^"mpie" :: Bit 1;
+                        "reserved2" ::# Bit 3 #:: (ConstBit (natToWord 3 0));
+                        ^"mie" :: Bit 1;
+                        "reserved3" ::# Bit 3 #:: (ConstBit (natToWord 3 0))
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved0" ::# Bit 51 #:: (ConstBit (natToWord 51 0));
+                        ^"mpp" :: Bit 2;
+                        "reserved1" ::# Bit 3  #:: (ConstBit (natToWord 3 0));
+                        ^"mpie" :: Bit 1;
+                        "reserved2" ::# Bit 3 #:: (ConstBit (natToWord 3 0));
+                        ^"mie" :: Bit 1;
+                        "reserved3" ::# Bit 3 #:: (ConstBit (natToWord 3 0))
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mtvec" (CsrIdWidth 'h"305")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mtvec_mode" :: Bit 2;
+                        ^"mtvec_base" :: Bit 30
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mtvec_mode" :: Bit 2;
+                        ^"mtvec_base" :: Bit 62
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mscratch" (CsrIdWidth 'h"340")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mscratch" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mscratch" :: Bit 64
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mepc" (CsrIdWidth 'h"341")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mepc" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mepc" :: Bit 64
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mcause" (CsrIdWidth 'h"342")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mcause_interrupt" :: Bit 1;
+                        ^"mcause_code" :: Bit 31
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mcause_interrupt" :: Bit 1;
+                        ^"mcause_code" :: Bit 63
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"mtval" (CsrIdWidth 'h"343")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mtval" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"mtval" :: Bit 64
                       }
                |}
              ]%vector
@@ -1250,7 +1381,6 @@ Section Params.
                         Retv);
                 Retv);
            Retv.
-        
 
       Definition commit
         (exts_pkt : Extensions @# ty)
@@ -1258,16 +1388,66 @@ Section Params.
         (inst: Inst @# ty)
         (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
+        (decoder_pkt : DecoderPkt @# ty)
         : ActionT ty Void :=
         (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
          LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
          LET reg_index : RegId <- rd inst;
          LET csr_index : CsrId <- imm inst;
-         (* TODO: Revise so that writes to CSR regs only occur when rs1 != 0 and the immediate value is not 0 *)
-         If (!(cxt @% "snd" @% "valid"))
-         then (
-             LETA _ <- commitWriters exts_pkt #val1 #reg_index #csr_index;
-               commitWriters exts_pkt #val2 #reg_index #csr_index);
+         If (cxt @% "snd" @% "valid")
+           then
+             (Write ^"mepc" :  VAddr <- pc;
+              Write ^"mcause_interrupt" : Bit 1 <- $0;
+              Write ^"mcause_code"
+                : Exception
+                <- cxt @% "snd" @% "data" @% "exception";
+              Write ^"mtval"
+                :  Bit MaxXlen
+                <- cxt @% "snd" @% "data" @% "value";
+              Read mtvec_mode : Bit 2 <- ^"mtvec_mode";
+              Read mtvec_base : Bit (MaxXlen - 2) <- ^"mtvec_base";
+              LET addr_base
+                :  VAddr
+                <- xlen_sign_extend exts_pkt MaxXlen
+                     ({<
+                        #mtvec_base,
+                        $$(natToWord 2 0)
+                      >});
+              LET addr_offset
+                :  VAddr
+                <- xlen_sign_extend exts_pkt MaxXlen
+                     ({<
+                        cxt @% "snd" @% "data" @% "exception",
+                        $$(natToWord 2 0)
+                      >});
+              Write ^"pc"
+                :  VAddr
+                <- ITE (#mtvec_mode == $0)
+                     #addr_base
+                     (#addr_base + #addr_offset);
+              Retv)
+           else
+             (LETA _ <- commitWriters exts_pkt #val1 #reg_index #csr_index;
+              LETA _ <- commitWriters exts_pkt #val2 #reg_index #csr_index; 
+              Write ^"pc"
+                :  VAddr
+                <- (let opt_val1
+                     (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
+                     := cxt @% "fst" @% "val1" in
+                   let opt_val2
+                     (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
+                     := cxt @% "fst" @% "val2" in
+                   ITE
+                     ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
+                     (xlen_sign_extend exts_pkt MaxXlen ((opt_val1 @% "data") @% "data"))
+                     (ITE
+                       ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
+                       (xlen_sign_extend exts_pkt MaxXlen ((opt_val2 @% "data") @% "data"))
+                       (ITE
+                         (decoder_pkt @% "compressed?")
+                         (pc + $2)
+                         (pc + $4))));
+              Retv);
          Retv
         ).
 
