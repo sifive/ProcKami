@@ -144,7 +144,7 @@ Section Params.
   
   Variable lgMemSz : nat.
   
-  Variable Max_Xlen_over_8: nat.
+  Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable expWidthMinus2: nat.
@@ -152,9 +152,9 @@ Section Params.
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation MaxXlen := (Max_Xlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation VAddr := (Bit MaxXlen).
+  Local Notation VAddr := (Bit Xlen).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
@@ -165,7 +165,7 @@ Section Params.
   Local Notation Data := (Bit Rlen).
   Local Notation DataMask := (Array Rlen_over_8 Bool).
 
-  Definition ExceptionInfo := Bit MaxXlen.
+  Definition ExceptionInfo := Bit Xlen.
 
   Definition FullException := STRUCT {
                                   "exception" :: Exception ;
@@ -226,7 +226,7 @@ Section Params.
 
   Definition IntRegWrite := STRUCT {
                              "index" :: RegId ;
-                             "data" :: Bit MaxXlen }.
+                             "data" :: Bit Xlen }.
 
   Definition FloatRegWrite := STRUCT {
                                "index" :: RegId ;
@@ -340,9 +340,9 @@ Section Params.
     *)
 
     Local Notation View := (View ty).
-    Local Notation Location := (Location ty CsrIdWidth 0 2 2).
-    Local Notation Build_Location := (Build_Location CsrIdWidth 0).
-    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT CsrIdWidth 0 2).
+    Local Notation Location := (Location ty 0 CsrIdWidth 2).
+    Local Notation Build_Location := (Build_Location 0 CsrIdWidth).
+    Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
     
     (* Represents CSR entry fields. *)
     Local Definition csrField (k : Kind) (value : option (ConstT k))
@@ -675,13 +675,13 @@ Section Params.
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 (xlen_sign_extend exts_pkt MaxXlen pc);
+          <- memRead 1 (xlen_sign_extend exts_pkt Xlen pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
-                       "pc" ::= xlen_sign_extend exts_pkt MaxXlen pc ;
+                       "pc" ::= xlen_sign_extend exts_pkt Xlen pc ;
                        "inst" ::= ZeroExtendTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
@@ -966,7 +966,7 @@ Section Params.
                  (STRUCT {
                       "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
-                      "pc"          ::= xlen_sign_extend exts_pkt MaxXlen (fetch_pkt @% "pc" : VAddr @# ty) ;
+                      "pc"          ::= xlen_sign_extend exts_pkt Xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
                       "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
@@ -1315,7 +1315,7 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= xlen_sign_extend exts_pkt MaxXlen data
+                  "data"  ::= xlen_sign_extend exts_pkt Xlen data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1388,7 +1388,7 @@ Section Params.
         (inst: Inst @# ty)
         (cxt: PktWithException ExecContextUpdPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
-        (decoder_pkt : DecoderPkt @# ty)
+        (compressed : Bool @# ty)
         : ActionT ty Void :=
         (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
          LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
@@ -1402,20 +1402,20 @@ Section Params.
                 : Exception
                 <- cxt @% "snd" @% "data" @% "exception";
               Write ^"mtval"
-                :  Bit MaxXlen
+                :  Bit Xlen
                 <- cxt @% "snd" @% "data" @% "value";
               Read mtvec_mode : Bit 2 <- ^"mtvec_mode";
-              Read mtvec_base : Bit (MaxXlen - 2) <- ^"mtvec_base";
+              Read mtvec_base : Bit (Xlen - 2) <- ^"mtvec_base";
               LET addr_base
                 :  VAddr
-                <- xlen_sign_extend exts_pkt MaxXlen
+                <- xlen_sign_extend exts_pkt Xlen
                      ({<
                         #mtvec_base,
                         $$(natToWord 2 0)
                       >});
               LET addr_offset
                 :  VAddr
-                <- xlen_sign_extend exts_pkt MaxXlen
+                <- xlen_sign_extend exts_pkt Xlen
                      ({<
                         cxt @% "snd" @% "data" @% "exception",
                         $$(natToWord 2 0)
@@ -1439,12 +1439,12 @@ Section Params.
                      := cxt @% "fst" @% "val2" in
                    ITE
                      ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend exts_pkt MaxXlen ((opt_val1 @% "data") @% "data"))
+                     (xlen_sign_extend exts_pkt Xlen ((opt_val1 @% "data") @% "data"))
                      (ITE
                        ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
-                       (xlen_sign_extend exts_pkt MaxXlen ((opt_val2 @% "data") @% "data"))
+                       (xlen_sign_extend exts_pkt Xlen ((opt_val2 @% "data") @% "data"))
                        (ITE
-                         (decoder_pkt @% "compressed?")
+                         compressed
                          (pc + $2)
                          (pc + $4))));
               Retv);
@@ -1605,7 +1605,7 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
-                  (xlen_sign_extend exts_pkt MaxXlen
+                  (xlen_sign_extend exts_pkt Xlen
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")

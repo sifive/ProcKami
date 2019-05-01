@@ -156,7 +156,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) ($$ supportedExts) (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) (#extensions) (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [
@@ -239,7 +239,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt)
                           (#exec_context_pkt @% "fst")
-                          (#decoder_pkt @% "fst");
+                          (#decoder_pkt @% "fst" @% "compressed?");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv

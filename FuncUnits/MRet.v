@@ -65,6 +65,43 @@ Section mret.
               ]
        |}.
 
+  Definition ECall : @FUEntry ty
+    := {|
+         fuName := "ecall";
+         fuFunc
+           := fun _
+                => RetE
+                     (STRUCT {
+                        "fst" ::= noUpdPkt;
+                        "snd"
+                          ::= (Valid (STRUCT {
+                                 "exception" ::= Const ty (natToWord 4 ECallM);
+                                 "value"     ::= Const ty (natToWord Xlen 0)
+                               } : FullException @# ty))
+                      } : PktWithException ExecContextUpdPkt @# ty);
+         fuInsts
+           := [
+                {|
+                  instName   := "ecall";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0000000");
+                         fieldVal rs2Field ('b"00001");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform  := id;
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
+                |}
+              ]
+       |}.
+
   Close Scope kami_expr.
 
 End mret.
