@@ -329,6 +329,38 @@ Section Params.
 
   End Fields.
 
+  Section XlenInterface.
+
+    (* warning: must be n <= m. *)
+    Definition unsafeTruncLsb
+      (n m : nat)
+      (x : Bit n @# ty)
+      :  Bit m @# ty
+      := ZeroExtendTruncLsb m x.
+
+    Definition extendMsbWithFunc
+      (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
+      (n m : nat)
+      (w : MxlValue @# ty)
+      (x : Bit n @# ty)
+      :  Bit m @# ty
+      := IF w == $1
+           then f 32 m (@unsafeTruncLsb n 32 x)
+           else f 64 m (@unsafeTruncLsb n 64 x).
+
+    Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
+
+    Definition xlen_sign_extend := extendMsbWithFunc (@SignExtendTruncLsb ty).
+
+    Definition flen_one_extend
+      (n m : nat)
+      := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
+           (if Nat.eqb Flen_over_8 4
+             then $1
+             else $2).
+
+  End XlenInterface.
+
   Section CsrInterface.
     (*
       This section defines the interface between the processor core and
@@ -583,7 +615,7 @@ Section Params.
                    "isRd"        ::= $$false;
                    "addr"        ::= csrId;
                    "contextCode" ::= $1;
-                   "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
+                   "data"        ::= unsafeTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
          System (
            DispString _ " Reg Write Wrote " ::
@@ -650,39 +682,19 @@ Section Params.
 
   End MemInterface.
 
-  Section XlenInterface.
-
-    Definition xlen_trunc
-      (f : forall ni no : nat, Bit ni @# ty -> Bit no @# ty)
-      (exts_pkt : Extensions @# ty)
-      (n m : nat)
-      (x : Bit n @# ty)
-      :  Bit m @# ty
-      := IF exts_pkt @% "RV32I" == $$true
-           then f 32 m (f n 32 x)
-           else f 64 m (f n 64 x).
-
-    Definition xlen_zero_extend := xlen_trunc (@ZeroExtendTruncLsb ty).
-
-    Definition xlen_sign_extend := xlen_trunc (@SignExtendTruncLsb ty).
-
-    Definition xlen_one_extend := xlen_trunc (@OneExtendTruncLsb ty).
-
-  End XlenInterface.
-
   Definition fetch
-    (exts_pkt : Extensions @# ty)
+    (mxl : MxlValue @# ty)
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 (xlen_sign_extend exts_pkt Xlen pc);
+          <- memRead 1 (xlen_sign_extend Xlen mxl pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
-                       "pc" ::= xlen_sign_extend exts_pkt Xlen pc ;
-                       "inst" ::= ZeroExtendTruncLsb InstSz (#instException @% "fst")
+                       "pc" ::= xlen_sign_extend Xlen mxl pc ;
+                       "inst" ::= unsafeTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
              } : PktWithException FetchPkt @# ty;
@@ -953,6 +965,7 @@ Section Params.
       *)
       Definition decode_full
                  (comp_inst_db : list CompInstEntry)
+                 (mxl : MxlValue @# ty)
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
                  (fetch_pkt : FetchPkt @# ty)
@@ -966,7 +979,7 @@ Section Params.
                  (STRUCT {
                       "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
-                      "pc"          ::= xlen_sign_extend exts_pkt Xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
+                      "pc"          ::= xlen_sign_extend Xlen mxl (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
                       "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
@@ -979,6 +992,7 @@ Section Params.
       Definition decoder := decode_full CompInstDb.
 
       Definition decoderWithException
+                 (mxl : MxlValue @# ty)
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
                  (fetch_struct : PktWithException FetchPkt ## ty): PktWithException DecoderPkt ## ty
@@ -987,7 +1001,7 @@ Section Params.
                                <- fetch_struct;
              LETE decoder_pkt
              :  Maybe DecoderPkt
-                      <- decoder exts_pkt mode (#fetch @% "fst");
+                      <- decoder mxl exts_pkt mode (#fetch @% "fst");
              RetE
                (mkPktWithException 
                   (#fetch)
@@ -1019,7 +1033,7 @@ Section Params.
                                (snd tagged_inst)
                                (RetE exec_context_pkt);
                         RetE
-                          (ZeroExtendTruncLsb
+                          (unsafeTruncLsb
                              FuncUnitInputWidth
                              (pack (#args_pkt))))
                   (decoder_pkt @% "funcUnitTag")
@@ -1070,7 +1084,7 @@ Section Params.
                         (RetE
                            (unpack
                               (fuInputK func_unit)
-                              (ZeroExtendTruncLsb
+                              (unsafeTruncLsb
                                  (size (fuInputK func_unit))
                                  (trans_pkt @% "inp"))))))
              (trans_pkt @% "funcUnitTag")
@@ -1142,13 +1156,13 @@ Section Params.
 
     Local Open Scope kami_action.
     Definition reg_reader_read_reg n
-      (exts_pkt : Extensions @# ty)
+      (mxl : MxlValue @# ty)
       (reg_id : RegId @# ty)
       :  ActionT ty Data
       := Call reg_val
            :  Data
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-           Ret (xlen_sign_extend exts_pkt Rlen #reg_val).
+           Ret (xlen_sign_extend Rlen mxl #reg_val).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
@@ -1156,7 +1170,7 @@ Section Params.
       := Call freg_val
            :  Bit Flen
            <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
-           Ret (OneExtendTruncLsb Rlen (#freg_val)).
+           Ret (flen_one_extend Rlen (#freg_val)).
     
     Import ListNotations.
 
@@ -1189,14 +1203,14 @@ Section Params.
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
 
     Definition reg_reader
-      (exts_pkt : Extensions @# ty)
+      (mxl : MxlValue @# ty)
       (decoder_pkt : DecoderPkt @# ty)
       :  ActionT ty ExecContextPkt
       := LET raw_inst
            :  Inst
            <- decoder_pkt @% "inst";
-         LETA reg1_val  : Data <- reg_reader_read_reg  1 exts_pkt (rs1 #raw_inst);
-         LETA reg2_val  : Data <- reg_reader_read_reg  2 exts_pkt (rs2 #raw_inst);
+         LETA reg1_val  : Data <- reg_reader_read_reg  1 mxl (rs1 #raw_inst);
+         LETA reg2_val  : Data <- reg_reader_read_reg  2 mxl (rs2 #raw_inst);
          LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
          LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
          LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
@@ -1258,12 +1272,12 @@ Section Params.
               } : ExecContextPkt @# ty).
 
     Definition readerWithException
-      (exts_pkt : Extensions @# ty)
+      (mxl : MxlValue @# ty)
       (decoder_pkt : PktWithException DecoderPkt @# ty)
       :  ActionT ty (PktWithException ExecContextPkt)
       := LETA exec_context_pkt
            <- reg_reader
-                exts_pkt
+                mxl
                 ((decoder_pkt @% "fst") : DecoderPkt @# ty);
          Ret
            (mkPktWithException
@@ -1307,7 +1321,7 @@ Section Params.
       Import ListNotations.
 
       Local Definition reg_writer_write_reg
-        (exts_pkt : Extensions @# ty)
+        (mxl : MxlValue @# ty)
         (reg_id : RegId @# ty)
         (data : Data @# ty)
         :  ActionT ty Void
@@ -1315,7 +1329,7 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= xlen_sign_extend exts_pkt Xlen data
+                  "data"  ::= xlen_sign_extend Xlen mxl data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1348,7 +1362,7 @@ Section Params.
            Retv.
 
       Definition commitWriters
-        (exts_pkt : Extensions @# ty)
+        (mxl : MxlValue @# ty)
         (val: Maybe RoutedReg @# ty)
         (reg_index: RegId @# ty)
         (csr_index: CsrId @# ty)
@@ -1359,7 +1373,7 @@ Section Params.
              then 
                (If (#val_pos == $IntRegTag)
                   then (If (reg_index != $0)
-                          then reg_writer_write_reg exts_pkt (reg_index) (#val_data);
+                          then reg_writer_write_reg mxl (reg_index) (#val_data);
                         Retv)
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
@@ -1369,7 +1383,7 @@ Section Params.
                                   else (If (#val_pos == $FflagsTag)
                                           (* then writeCSR $3 (#val_data); *)
                                           then (Write ^"fflags" : FflagsValue
-                                                  <- ZeroExtendTruncLsb FflagsWidth #val_data;
+                                                  <- unsafeTruncLsb FflagsWidth #val_data;
                                                 System [
                                                   DispString _ " Reg Write Wrote ";
                                                   DispDecimal #val_data;
@@ -1383,7 +1397,7 @@ Section Params.
            Retv.
 
       Definition commit
-        (exts_pkt : Extensions @# ty)
+        (mxl : MxlValue @# ty)
         (pc: VAddr @# ty)
         (inst: Inst @# ty)
         (cxt: PktWithException ExecContextUpdPkt @# ty)
@@ -1408,14 +1422,14 @@ Section Params.
               Read mtvec_base : Bit (Xlen - 2) <- ^"mtvec_base";
               LET addr_base
                 :  VAddr
-                <- xlen_sign_extend exts_pkt Xlen
+                <- xlen_sign_extend Xlen mxl
                      ({<
                         #mtvec_base,
                         $$(natToWord 2 0)
                       >});
               LET addr_offset
                 :  VAddr
-                <- xlen_sign_extend exts_pkt Xlen
+                <- xlen_sign_extend Xlen mxl
                      ({<
                         cxt @% "snd" @% "data" @% "exception",
                         $$(natToWord 2 0)
@@ -1427,8 +1441,8 @@ Section Params.
                      (#addr_base + #addr_offset);
               Retv)
            else
-             (LETA _ <- commitWriters exts_pkt #val1 #reg_index #csr_index;
-              LETA _ <- commitWriters exts_pkt #val2 #reg_index #csr_index; 
+             (LETA _ <- commitWriters mxl #val1 #reg_index #csr_index;
+              LETA _ <- commitWriters mxl #val2 #reg_index #csr_index; 
               Write ^"pc"
                 :  VAddr
                 <- (let opt_val1
@@ -1439,10 +1453,10 @@ Section Params.
                      := cxt @% "fst" @% "val2" in
                    ITE
                      ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend exts_pkt Xlen ((opt_val1 @% "data") @% "data"))
+                     (xlen_sign_extend Xlen mxl ((opt_val1 @% "data") @% "data"))
                      (ITE
                        ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
-                       (xlen_sign_extend exts_pkt Xlen ((opt_val2 @% "data") @% "data"))
+                       (xlen_sign_extend Xlen mxl ((opt_val2 @% "data") @% "data"))
                        (ITE
                          compressed
                          (pc + $2)
@@ -1596,7 +1610,7 @@ Section Params.
       Local Open Scope kami_action.
 
       Definition MemUnit
-                 (exts_pkt : Extensions @# ty)
+                 (mxl : MxlValue @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
                  (opt_exec_update_pkt : PktWithException ExecContextUpdPkt @# ty)
@@ -1605,7 +1619,7 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
-                  (xlen_sign_extend exts_pkt Xlen
+                  (xlen_sign_extend Xlen mxl
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")

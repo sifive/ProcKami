@@ -143,7 +143,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #extensions (#pc);
+                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #mxl (#pc);
                    System
                      [
                        DispString _ "Fetched\n";
@@ -156,7 +156,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) (#extensions) (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) #mxl (#extensions) (mode _)
                             (RetE (#fetch_pkt)));
                    System
                      [
@@ -180,7 +180,7 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          #extensions
+                          #mxl
                           #decoder_pkt;
                    System
                      ([
@@ -215,7 +215,7 @@ Section Params.
                    LETA mem_update_pkt
                      <- MemUnit name lgMemSz
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
-                          (#extensions)
+                          (#mxl)
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);
@@ -234,7 +234,7 @@ Section Params.
                      <- commit
                           name
                           Flen_over_8
-                          (#extensions)
+                          (#mxl)
                           (#pc)
                           (#decoder_pkt @% "fst" @% "inst")
                           (#mem_update_pkt)
