@@ -48,8 +48,8 @@ Section Alu.
                                                      RetE ((STRUCT {
                                                               "right?" ::= $$ false ;
                                                               "arith?" ::= $$ false ;
-                                                              "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                              "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                              "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                              "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                            }): ShiftType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                             RetE (intRegTag #result)) ;
@@ -67,8 +67,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -86,8 +86,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -105,8 +105,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -124,8 +124,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -143,8 +143,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -162,8 +162,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -181,8 +181,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -200,8 +200,8 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
                                                                RetE (intRegTag #result)) ;
@@ -219,13 +219,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -241,13 +239,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen/2) (#gcp @% "reg1"));
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= xlen_zero_extend Xlen $1 (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -264,13 +260,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= SignExtendTruncLsb Xlen (SignExtendTruncLsb (Xlen/2) (#gcp @% "reg1"));
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
+                                                                     "arg1" ::= xlen_sign_extend Xlen $1 (#gcp @% "reg1");
+                                                                     "arg2" ::= unsafeTruncLsb (Nat.log2_up Xlen) (imm (#gcp @% "inst"))
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -286,13 +280,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (ZeroExtendTruncLsb (Nat.log2_up Xlen - 1) (#gcp @% "reg2"))
+                                                                     "arg1" ::= unsafeTruncLsb Xlen (#gcp @% "reg1");
+                                                                     "arg2" ::= zero_extend_trunc (Nat.log2_up Xlen - 1) (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
@@ -308,13 +300,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen/2) (#gcp @% "reg1"));
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (ZeroExtendTruncLsb (Nat.log2_up Xlen - 1) (#gcp @% "reg2"))
+                                                                     "arg1" ::= xlen_zero_extend Xlen $1 (#gcp @% "reg1");
+                                                                     "arg2" ::= zero_extend_trunc (Nat.log2_up Xlen - 1) (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
@@ -330,13 +320,11 @@ Section Alu.
                                                           RetE ((STRUCT {
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= SignExtendTruncLsb Xlen (SignExtendTruncLsb (Xlen/2) (#gcp @% "reg1"));
-                                                                     "arg2" ::= ZeroExtendTruncLsb (Nat.log2_up Xlen) (ZeroExtendTruncLsb (Nat.log2_up Xlen - 1) (#gcp @% "reg2"))
+                                                                     "arg1" ::= xlen_sign_extend Xlen $1 (#gcp @% "reg1");
+                                                                     "arg2" ::= zero_extend_trunc (Nat.log2_up Xlen - 1) (Nat.log2_up Xlen) (#gcp @% "reg2")
                                                                 }): ShiftType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result: Bit Xlen <- resultExpr;
-                                                               LETC resultExt <-
-                                                                    SignExtendTruncLsb Xlen
-                                                                    (SignExtendTruncLsb (Xlen/2) #result) ;
+                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #result;
                                                                RetE (intRegTag #resultExt)) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>

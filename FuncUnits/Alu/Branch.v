@@ -27,6 +27,7 @@ Section Alu.
                "unsigned?" :: Bool ;
                "inv?" :: Bool ;
                "pc" :: VAddr ;
+               "mxl" :: MxlValue ;
                "offset" :: VAddr ;
                "compressed?" :: Bool ;
                "misalignedException?" :: Bool ;
@@ -36,7 +37,8 @@ Section Alu.
     Definition BranchOutputType :=
       STRUCT { "misaligned?" :: Bool ;
                "taken?" :: Bool ;
-               "newPc" :: VAddr }.
+               "newPc" :: VAddr ;
+               "mxl" :: MxlValue }.
 
     Definition BeqOp := 0.
     Definition BneOp := 1.
@@ -55,8 +57,6 @@ Section Alu.
     Local Definition branchInput (lt unsigned inv: Bool @# ty) (gcp: ExecContextPkt ## ty)
       :  BranchInputType ## ty
       := LETE x: ExecContextPkt <- gcp;
-         LETC reg1 <- ZeroExtendTruncLsb Xlen (#x @% "reg1");
-         LETC reg2 <- ZeroExtendTruncLsb Xlen (#x @% "reg2");
          LETE bOffset <- branchOffset (#x @% "inst");
          RetE
            ((STRUCT {
@@ -64,17 +64,18 @@ Section Alu.
                "unsigned?" ::= unsigned;
                "inv?" ::= inv;
                "pc" ::= #x @% "pc";
+               "mxl" ::= #x @% "mxl";
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
                "compressed?" ::= #x @% "compressed?";
                "misalignedException?" ::= #x @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned
-                       then ZeroExtendTruncLsb (Xlen + 1) (#reg1)
-                       else SignExtendTruncLsb (Xlen + 1) (#reg1);
+                       then xlen_zero_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg1")
+                       else xlen_sign_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg1");
                "reg2"
                  ::= IF unsigned
-                       then ZeroExtendTruncLsb (Xlen + 1) (#reg2)
-                       else SignExtendTruncLsb (Xlen + 1) (#reg2)
+                       then xlen_zero_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg2")
+                       else xlen_sign_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg2")
              }): BranchInputType @# ty).
 
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
@@ -86,7 +87,7 @@ Section Alu.
                  @%["val2"
                       <- (Valid (STRUCT {
                             "tag"  ::= Const ty (natToWord RoutingTagSz PcTag);
-                            "data" ::= SignExtendTruncLsb Rlen (#bOut @% "newPc")
+                            "data" ::= xlen_sign_extend Rlen (#bOut @% "mxl") (#bOut @% "newPc")
                           }))]
                  @%["taken?" <- #bOut @% "taken?"]);
          LETC retval
@@ -122,9 +123,10 @@ Section Alu.
                                                                then $2
                                                                else $4)) ;
                                LETC newPc: VAddr <- (#x @% "pc") + #newOffset ;
-                               LETC retVal: BranchOutputType <- (STRUCT{"misaligned?" ::= (#x @% "misalignedException?") && ((ZeroExtendTruncLsb 2 #newOffset)$[1:1] != $0) ;
+                               LETC retVal: BranchOutputType <- (STRUCT{"misaligned?" ::= (#x @% "misalignedException?") && ((unsafeTruncLsb 2 #newOffset)$[1:1] != $0) ;
                                                                         "taken?" ::= #taken ;
-                                                                        "newPc" ::= #newPc }) ;
+                                                                        "newPc" ::= #newPc;
+                                                                        "mxl" ::= #x @% "mxl"}) ;
                                RetE #retVal
                    ) ; (* lt unsigned inv *)
          fuInsts := {| instName     := "beq" ; 

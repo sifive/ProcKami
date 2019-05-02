@@ -179,6 +179,7 @@ Section Params.
 
   Definition ExecContextPkt :=
     STRUCT { "pc"                       :: VAddr ;
+             "mxl"                      :: MxlValue;
              "reg1"                     :: Data ;
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
@@ -337,6 +338,17 @@ Section Params.
       (x : Bit n @# ty)
       :  Bit m @# ty
       := ZeroExtendTruncLsb m x.
+
+    Definition extendTruncLsb
+      (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
+      (n m k : nat)
+      (x : Bit n @# ty)
+      :  Bit k @# ty
+      := f m k (@unsafeTruncLsb n m x).
+
+    Definition zero_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
+
+    Definition sign_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
 
     Definition extendMsbWithFunc
       (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
@@ -1254,6 +1266,7 @@ Section Params.
          Ret
            (STRUCT {
                 "pc"     ::= decoder_pkt @% "pc";
+                "mxl"    ::= mxl;
                 "reg1"   ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
                               (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
                 "reg2"   ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
@@ -1443,20 +1456,16 @@ Section Params.
            else
              (LETA _ <- commitWriters mxl #val1 #reg_index #csr_index;
               LETA _ <- commitWriters mxl #val2 #reg_index #csr_index; 
+              LET opt_val1 <- cxt @% "fst" @% "val1";
+              LET opt_val2 <- cxt @% "fst" @% "val2";
               Write ^"pc"
                 :  VAddr
-                <- (let opt_val1
-                     (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
-                     := cxt @% "fst" @% "val1" in
-                   let opt_val2
-                     (* :  Maybe (RoutedReg Rlen_over_8) @# _ *)
-                     := cxt @% "fst" @% "val2" in
-                   ITE
-                     ((opt_val1 @% "valid") && ((opt_val1 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend Xlen mxl ((opt_val1 @% "data") @% "data"))
+                <- (ITE
+                     ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
+                     (xlen_sign_extend Xlen mxl ((#opt_val1 @% "data") @% "data"))
                      (ITE
-                       ((opt_val2 @% "valid") && ((opt_val2 @% "data") @% "tag" == $PcTag))
-                       (xlen_sign_extend Xlen mxl ((opt_val2 @% "data") @% "data"))
+                       ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
+                       (xlen_sign_extend Xlen mxl ((#opt_val2 @% "data") @% "data"))
                        (ITE
                          compressed
                          (pc + $2)

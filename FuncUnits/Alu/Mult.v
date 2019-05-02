@@ -40,7 +40,7 @@ Section Alu.
                     => LETE sem_in_pkt
                          :  MultInputType
                          <- sem_in_pkt_expr;
-                       RetE (ZeroExtendTruncLsb (2 * Xlen)
+                       RetE (unsafeTruncLsb (2 * Xlen)
                               ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")));
         fuInsts
           := {|             
@@ -56,19 +56,17 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
-                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
-                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
-                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#reg2)
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
                       => LETE res
                            :  Bit (2 * Xlen)
                            <- res_expr;
-                         RetE (intRegTag (ZeroExtendTruncLsb Xlen (#res)));
+                         RetE (intRegTag (unsafeTruncLsb Xlen (#res)));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -85,12 +83,10 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
-                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
-                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
-                             "arg2" ::= SignExtendTruncLsb (2 * Xlen) (#reg2)
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -114,12 +110,10 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
-                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
-                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= SignExtendTruncLsb (2 * Xlen) (#reg1);
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -143,12 +137,10 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
-                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
-                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg1);
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
+                             "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
@@ -172,19 +164,17 @@ Section Alu.
                  := fun context_pkt_expr : ExecContextPkt ## ty
                       => LETE context_pkt
                            <- context_pkt_expr;
-                         LETC reg1 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1");
-                         LETC reg2 <- ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2");
                          RetE
                            ((STRUCT {
-                             "arg1" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg1);
-                             "arg2" ::= ZeroExtendTruncLsb (2 * Xlen) (#reg2)
+                             "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : Bit (2 * Xlen) ## ty
                       => LETE res
                            :  Bit (2 * Xlen)
                            <- res_expr;
-                         RetE (intRegTag (SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) (#res))));
+                         RetE (intRegTag (sign_extend_trunc 32 Xlen (#res)));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
