@@ -23,14 +23,6 @@ Section Alu.
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
-    Definition trunc_sign_extend (x : Bit Xlen @# ty)
-      :  Bit Xlen @# ty
-      := SignExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) x).
-
-    Definition trunc_zero_extend (x : Bit Xlen @# ty)
-      :  Bit Xlen @# ty
-      := ZeroExtendTruncLsb Xlen (ZeroExtendTruncLsb (Xlen / 2) x).
-
     Definition DivRemInputType
       := STRUCT {
            "arg1"         :: Bit Xlen;
@@ -85,8 +77,11 @@ Section Alu.
               => LETE sem_in_pkt : DivRemInputType <- sem_in_pkt_expr;
                    LETE res <- div_rem_final (#sem_in_pkt @% "arg1")
                         (#sem_in_pkt @% "arg2");
-                   RetE ((STRUCT {"div" ::= IF #sem_in_pkt @% "not_neg_quo?" then #res @% "quo" else neg (#res @% "quo");
-                                  "rem" ::= IF #sem_in_pkt @% "not_neg_rem?" then #res @% "rem" else neg (#res @% "rem") }) : DivRemOutputType @# ty));
+                   RetE
+                     ((STRUCT {
+                         "div" ::= IF #sem_in_pkt @% "not_neg_quo?" then #res @% "quo" else neg (#res @% "quo");
+                         "rem" ::= IF #sem_in_pkt @% "not_neg_rem?" then #res @% "rem" else neg (#res @% "rem")
+                       }) : DivRemOutputType @# ty));
         fuInsts
         := {|
                instName   := "div";
@@ -101,8 +96,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (unsafeTruncLsb Xlen (#context_pkt @% "reg1"))
+                            (unsafeTruncLsb Xlen (#context_pkt @% "reg2")));
                outputXform
                  := fun res_expr : DivRemOutputType ## ty
                       => LETE res <- res_expr;
@@ -123,8 +118,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (unsafeTruncLsb Xlen (#context_pkt @% "reg1"))
+                            (unsafeTruncLsb Xlen (#context_pkt @% "reg2")));
                outputXform
                := (fun res_expr : DivRemOutputType ## ty
                    => LETE res <- res_expr;
@@ -145,13 +140,13 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                           (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                           (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                           (xlen_sign_extend Xlen $1 (#context_pkt @% "reg1"))
+                           (xlen_sign_extend Xlen $1 (#context_pkt @% "reg2")));
                outputXform
                :=
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
-                       RetE (intRegTag (trunc_sign_extend (#res @% "div"))));
+                       RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "div"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -168,13 +163,13 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                            (xlen_zero_extend Xlen $1 (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen $1 (#context_pkt @% "reg2")));
                outputXform
                := 
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
-                       RetE (intRegTag (trunc_sign_extend (#res @% "div"))));
+                       RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "div"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -191,8 +186,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (xlen_sign_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg1"))
+                            (xlen_sign_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
@@ -213,8 +208,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
@@ -235,12 +230,12 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                            (trunc_sign_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                            (xlen_sign_extend Xlen $1 (#context_pkt @% "reg1"))
+                            (xlen_sign_extend Xlen $1 (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
-                          RetE (intRegTag (trunc_sign_extend (#res @% "rem"))));
+                          RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "rem"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -257,12 +252,12 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg1")))
-                            (trunc_zero_extend (ZeroExtendTruncLsb Xlen (#context_pkt @% "reg2"))));
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
-                          RetE (intRegTag (trunc_sign_extend (#res @% "rem"))));
+                          RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "rem"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::

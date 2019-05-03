@@ -84,11 +84,15 @@ Section Params.
               Register ^"frm"        : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
               Register ^"mxl"
                 :  MxlValue
+(* TODO TESTING Dynamic Xlen *)
+                <- ConstBit (natToWord MxlWidth 1) with
+(*
                 <- ConstBit
                      (natToWord MxlWidth
                         (if Nat.eqb Xlen_over_8 4
                            then 1
                            else 2)) with
+*)
               Register ^"extensions"       : Extensions  <- supportedExts with
               Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
               Register ^"mpie"             : Bit 1 <- ConstBit (natToWord 1 0) with

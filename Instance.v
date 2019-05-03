@@ -28,6 +28,6 @@ Definition model32
 
 Definition model64
   :  RtlModule
-  := generate_model ("RV64I" :: coreExts).
+  := generate_model ("RV64I" :: "RV32I" :: coreExts).
 
 Separate Extraction model32 model64 size wordToNat getFins.

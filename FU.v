@@ -266,6 +266,12 @@ Section Params.
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
 
+  Record int_params_type
+    := {
+         int_params_exts : list string;
+         int_params_xlen : nat
+       }.
+
   Record fu_params_type
     := {
          fu_params_expWidthMinus2 : nat;
@@ -359,6 +365,8 @@ Section Params.
       := IF w == $1
            then f 32 m (@unsafeTruncLsb n 32 x)
            else f 64 m (@unsafeTruncLsb n 64 x).
+
+    Definition xlen_trunc_msb := extendMsbWithFunc (@ZeroExtendTruncMsb ty).
 
     Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
 

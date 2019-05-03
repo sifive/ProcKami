@@ -34,7 +34,19 @@ Require Import FuncUnits.Fpu.FRound.
 Require Import FuncUnits.Zicsr.
 Require Import FuncUnits.MRet.
 
-(* I. FPU configuration parameters. *)
+(* I. configuration parameters. *)
+
+Definition int_params_wide
+  := {|
+       int_params_exts := ["RV32I"];
+       int_params_xlen := 32
+     |}.
+
+Definition int_params_long
+  := {|
+       int_params_exts := ["RV64I"];
+       int_params_xlen := 64
+     |}.
 
 Definition fu_params_single
   := {|
@@ -216,11 +228,13 @@ Section exts.
 
              (* RVI logical instructions. *)
              Add       Xlen_over_8 Rlen_over_8 _;
-             Logical   Xlen_over_8 Rlen_over_8 _;
+             Logical   Xlen_over_8 Rlen_over_8 int_params_wide _;
+             Logical   Xlen_over_8 Rlen_over_8 int_params_long _;
              Shift     Xlen_over_8 Rlen_over_8 _;
              Branch    Xlen_over_8 Rlen_over_8 _;
              Jump      Xlen_over_8 Rlen_over_8 _;
-             Mult      Xlen_over_8 Rlen_over_8 _;
+             Mult      Xlen_over_8 Rlen_over_8 int_params_wide _;
+             Mult      Xlen_over_8 Rlen_over_8 int_params_long _;
              DivRem    Xlen_over_8 Rlen_over_8 _;
 
              (* RVI memory instructions. *)

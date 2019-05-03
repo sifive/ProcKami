@@ -25,11 +25,30 @@ Section Alu.
 
     Definition MultInputType
       := STRUCT {
-           "arg1" :: Bit (2 * Xlen)%nat ;
+           "mxl"  :: MxlValue;
+           "arg1" :: Bit (2 * Xlen)%nat;
            "arg2" :: Bit (2 * Xlen)%nat
          }.
 
-    Definition MultOutputType := Bit (2 * Xlen)%nat.
+    Definition MultOutputType
+      := STRUCT {
+           "mxl" :: MxlValue;
+           "res" :: Bit (2 * Xlen)%nat
+         }.
+
+    Definition trunc_msb
+      (mxl : MxlValue)
+      (x : Bit (2 * Xlen))
+      :  Bit Xlen
+      := IF mxl == $1
+           then
+             SignExtendTruncLsb Xlen
+               (ZeroExtendTruncMsb 32
+                 (unsafeTruncLsb (2 * 32) x))
+           else
+             SignExtendTruncLsb Xlen
+               (ZeroExtendTruncMsb 64
+                 (unsafeTruncLsb (2 * 64) x)).
 
     Local Open Scope kami_expr.
 
@@ -40,12 +59,13 @@ Section Alu.
                     => LETE sem_in_pkt
                          :  MultInputType
                          <- sem_in_pkt_expr;
-                       RetE (unsafeTruncLsb (2 * Xlen)
-                              ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")));
+                       RetE
+                         (unsafeTruncLsb (2 * Xlen)
+                           ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")));
         fuInsts
           := {|             
                instName   := "mul";
-               extensions := "M" :: nil;
+               extensions := "M" :: "RV32I" :: "RV64I" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -58,21 +78,20 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
+                             "mxl"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr : Bit (2 * Xlen) ## ty
-                      => LETE res
-                           :  Bit (2 * Xlen)
-                           <- res_expr;
-                         RetE (intRegTag (unsafeTruncLsb Xlen (#res)));
+                 := fun res_expr
+                      => LETE res <- res_expr;
+                         RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
                instName   := "mulh";
-               extensions := "M" :: nil;
+               extensions := "M" :: "RV32I" :: "RV64I" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -85,21 +104,20 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
+                             "xml"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr : Bit (2 * Xlen) ## ty
-                      => LETE res
-                           :  Bit (2 * Xlen)
-                           <- res_expr;
-                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+                 := fun res_expr
+                      => LETE res <- res_expr;
+                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
                instName   := "mulhsu";
-               extensions := "M" :: nil;
+               extensions := "M" :: "RV32I" :: "RV64I" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -112,21 +130,20 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
+                             "xml"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr : Bit (2 * Xlen) ## ty
-                      => LETE res
-                           :  Bit (2 * Xlen)
-                           <- res_expr;
-                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+                 := fun res_expr
+                      => LETE res <- res_expr;
+                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
                instName   := "mulhu";
-               extensions := "M" :: nil;
+               extensions := "M" :: "RV32I" :: "RV64I" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -139,21 +156,20 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
+                             "xml"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr : Bit (2 * Xlen) ## ty
-                      => LETE res
-                           :  Bit (2 * Xlen)
-                           <- res_expr;
-                         RetE (intRegTag (ZeroExtendTruncMsb Xlen (#res)));
+                 := fun res_expr
+                      => LETE res <- res_expr;
+                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
                instName   := "mulw";
-               extensions := "M" :: nil;
+               extensions := "M" :: "RV64I" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01110") ::
@@ -166,14 +182,13 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "xml"  ::= #context_pkt @% "mxl";
+                             "arg1" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg1");
+                             "arg2" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr : Bit (2 * Xlen) ## ty
-                      => LETE res
-                           :  Bit (2 * Xlen)
-                           <- res_expr;
+                 := fun res_expr
+                      => LETE res <- res_expr;
                          RetE (intRegTag (sign_extend_trunc 32 Xlen (#res)));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>

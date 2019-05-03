@@ -68,7 +68,11 @@ Section Alu.
            :  JumpOutputType
            <- sem_output_expr;
          LETC newPc : VAddr
-           <- ZeroExtendTruncMsb Xlen ({< ZeroExtendTruncMsb (Xlen -1) (#sem_output @% "newPc"), $$ WO~0 >});
+           <- ZeroExtendTruncMsb Xlen (* bit type cast *)
+                ({<
+                   ZeroExtendTruncMsb (Xlen - 1) (#sem_output @% "newPc"),
+                   $$WO~0
+                >});
          RetE (#sem_output @%["newPc" <- #newPc]).
 
     Definition Jump: @FUEntry ty
@@ -86,7 +90,7 @@ Section Alu.
                        (STRUCT {
                           "misaligned?"
                             ::= (#sem_in_pkt @% "misalignedException?" &&
-                                ((ZeroExtendTruncLsb 2 #new_pc)$[1:1] != $0));
+                                ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0));
                           "newPc" ::= #new_pc;
                           "retPc"
                             ::= ((#sem_in_pkt @% "pc") +
@@ -144,10 +148,10 @@ Section Alu.
                                (STRUCT {
                                   "pc" ::= #exec_context_pkt @% "pc";
                                   "new_pc"
-                                    ::= SignExtendTruncLsb Xlen
+                                    ::= SignExtendTruncLsb Xlen (* bit type cast *)
                                           ({<
-                                            SignExtendTruncMsb (Xlen - 1)
-                                              ((ZeroExtendTruncLsb Xlen (#exec_context_pkt @% "reg1")) +
+                                            unsafeTruncLsb (Xlen - 1)
+                                              ((xlen_sign_extend Xlen (#exec_context_pkt @% "mxl") (#exec_context_pkt @% "reg1")) +
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
