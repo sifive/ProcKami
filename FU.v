@@ -925,6 +925,12 @@ Section Params.
              <- decode_match_fields raw_inst (uniqId inst);
            LETE exts_match : Bool
              <- decode_match_enabled_exts inst exts_pkt;
+(*            RetE ((#inst_id_match) && (#exts_match)). *)
+           SystemE
+             (DispString _ "Decoder " ::
+              DispString _ (instName inst) ::
+              DispBinary ((#inst_id_match) && (#exts_match)) ::
+              DispString _ "\n" :: nil);
            RetE ((#inst_id_match) && (#exts_match)).
 
       (*

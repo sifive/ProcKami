@@ -150,7 +150,7 @@ Section Alu.
                                   "new_pc"
                                     ::= SignExtendTruncLsb Xlen (* bit type cast *)
                                           ({<
-                                            unsafeTruncLsb (Xlen - 1)
+                                            ZeroExtendTruncMsb (Xlen - 1)
                                               ((xlen_sign_extend Xlen (#exec_context_pkt @% "mxl") (#exec_context_pkt @% "reg1")) +
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0

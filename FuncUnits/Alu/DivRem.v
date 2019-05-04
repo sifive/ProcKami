@@ -96,8 +96,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (unsafeTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (unsafeTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (xlen_sign_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg1"))
+                            (xlen_sign_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg2")));
                outputXform
                  := fun res_expr : DivRemOutputType ## ty
                       => LETE res <- res_expr;
@@ -118,8 +118,8 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (unsafeTruncLsb Xlen (#context_pkt @% "reg1"))
-                            (unsafeTruncLsb Xlen (#context_pkt @% "reg2")));
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (#context_pkt @% "mxl") (#context_pkt @% "reg2")));
                outputXform
                := (fun res_expr : DivRemOutputType ## ty
                    => LETE res <- res_expr;
@@ -140,13 +140,13 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                           (xlen_sign_extend Xlen $1 (#context_pkt @% "reg1"))
-                           (xlen_sign_extend Xlen $1 (#context_pkt @% "reg2")));
+                           (sign_extend_trunc 32 Xlen (#context_pkt @% "reg1"))
+                           (sign_extend_trunc 32 Xlen (#context_pkt @% "reg2")));
                outputXform
                :=
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
-                       RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "div"))));
+                       RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "div"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -163,13 +163,13 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (xlen_zero_extend Xlen $1 (#context_pkt @% "reg1"))
-                            (xlen_zero_extend Xlen $1 (#context_pkt @% "reg2")));
+                            (zero_extend_trunc 32 Xlen (#context_pkt @% "reg1"))
+                            (zero_extend_trunc 32 Xlen (#context_pkt @% "reg2")));
                outputXform
                := 
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
-                       RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "div"))));
+                       RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "div"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -230,12 +230,12 @@ Section Alu.
                  := (fun context_pkt_expr : ExecContextPkt ## ty
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (xlen_sign_extend Xlen $1 (#context_pkt @% "reg1"))
-                            (xlen_sign_extend Xlen $1 (#context_pkt @% "reg2")));
+                            (sign_extend_trunc 32 Xlen (#context_pkt @% "reg1"))
+                            (sign_extend_trunc 32 Xlen (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
-                          RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "rem"))));
+                          RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "rem"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -257,7 +257,7 @@ Section Alu.
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
-                          RetE (intRegTag (xlen_sign_extend Xlen $1 (#res @% "rem"))));
+                          RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "rem"))));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::

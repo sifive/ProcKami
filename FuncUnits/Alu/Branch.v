@@ -63,7 +63,7 @@ Section Alu.
                "lt?" ::= lt;
                "unsigned?" ::= unsigned;
                "inv?" ::= inv;
-               "pc" ::= #x @% "pc";
+               "pc" ::= xlen_sign_extend Xlen (#x @% "mxl") (#x @% "pc");
                "mxl" ::= #x @% "mxl";
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
                "compressed?" ::= #x @% "compressed?";

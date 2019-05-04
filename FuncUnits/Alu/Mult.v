@@ -36,10 +36,12 @@ Section Alu.
            "res" :: Bit (2 * Xlen)%nat
          }.
 
+    Local Open Scope kami_expr.
+
     Definition trunc_msb
-      (mxl : MxlValue)
-      (x : Bit (2 * Xlen))
-      :  Bit Xlen
+      (mxl : MxlValue @# ty)
+      (x : Bit (2 * Xlen) @# ty)
+      :  Bit Xlen @# ty
       := IF mxl == $1
            then
              SignExtendTruncLsb Xlen
@@ -50,8 +52,6 @@ Section Alu.
                (ZeroExtendTruncMsb 64
                  (unsafeTruncLsb (2 * 64) x)).
 
-    Local Open Scope kami_expr.
-
     Definition Mult : @FUEntry ty
       := {|
         fuName := "mult";
@@ -60,10 +60,14 @@ Section Alu.
                          :  MultInputType
                          <- sem_in_pkt_expr;
                        RetE
-                         (unsafeTruncLsb (2 * Xlen)
-                           ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")));
+                         (STRUCT {
+                            "mxl" ::= #sem_in_pkt @% "mxl";
+                            "res" ::= (unsafeTruncLsb (2 * Xlen)
+                                        ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")))
+                          } : MultOutputType @# ty);
         fuInsts
-          := {|             
+          :=
+             {|             
                instName   := "mul";
                extensions := "M" :: "RV32I" :: "RV64I" :: nil;
                uniqId
@@ -83,7 +87,7 @@ Section Alu.
                              "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr
+                 := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
@@ -104,14 +108,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "xml"  ::= #context_pkt @% "mxl";
+                             "mxl"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
-                            }) : MultInputType @# ty);
+                            } : MultInputType @# ty));
                outputXform
-                 := fun res_expr
+                 := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
+                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -130,14 +134,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "xml"  ::= #context_pkt @% "mxl";
+                             "mxl"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr
+                 := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
+                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -156,14 +160,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "xml"  ::= #context_pkt @% "mxl";
+                             "mxl"  ::= #context_pkt @% "mxl";
                              "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
                              "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr
+                 := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (trunc_msb (#res @% "mxl") (#res @% "res"));
+                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -182,14 +186,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "xml"  ::= #context_pkt @% "mxl";
+                             "mxl"  ::= #context_pkt @% "mxl";
                              "arg1" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg1");
                              "arg2" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
-                 := fun res_expr
+                 := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (sign_extend_trunc 32 Xlen (#res)));
+                         RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::

@@ -21,9 +21,28 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Definition AddInputType := STRUCT {"arg1" :: Bit (Xlen + 1) ; "arg2" :: Bit (Xlen + 1)}.
+    Definition AddInputType
+      := STRUCT {
+           "mxl"  :: MxlValue;
+           "arg1" :: Bit (Xlen + 1);
+           "arg2" :: Bit (Xlen + 1)
+         }.
+
+    Definition AddOutputType
+      := STRUCT {
+           "mxl" :: MxlValue;
+           "res" :: Bit (Xlen + 1)
+         }.
 
     Local Open Scope kami_expr.
+
+    Definition xlen_imm
+      (w : MxlValue @# ty)
+      (imm : Bit 12 @# ty)
+      :  Bit (Xlen + 1) @# ty
+      := IF w == $1
+           then ZeroExtendTruncLsb (Xlen + 1) (SignExtendTruncLsb 32 imm)
+           else ZeroExtendTruncLsb (Xlen + 1) (SignExtendTruncLsb 64 imm).
 
     Definition Add: @FUEntry ty :=
       {| fuName := "add" ;
@@ -31,19 +50,24 @@ Section Alu.
                                LETC a: Bit (Xlen + 1) <- #x @% "arg1";
                                LETC b: Bit (Xlen + 1) <- #x @% "arg2";
                                LETC res: Bit (Xlen + 1) <- #a + #b ;
-                               RetE #res) ;
+                               RetE
+                                 (STRUCT {
+                                    "mxl" ::= #x @% "mxl";
+                                    "res" ::= #res
+                                  } : AddOutputType @# ty)) ;
          fuInsts := {| instName     := "addi" ;
                        extensions   := "RV32I" :: "RV64I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
                        inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                       RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                       RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                       "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                        "arg2" ::= SignExtendTruncLsb (Xlen + 1) (imm (#gcp @% "inst"))
                                                              }): AddInputType @# _)) ;
-                       outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                            LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res;
-                                                            RetE (intRegTag #result)) ;
+                       outputXform  := (fun resultExpr : AddOutputType ## ty
+                                         => LETE res <- resultExpr;
+                                            RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")))) ;
                        optMemXform  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
@@ -53,13 +77,15 @@ Section Alu.
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"010") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (SignExtendTruncLsb
                                                                                             (Xlen + 1) (imm (#gcp @% "inst")))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
-                                                               RetE (intRegTag (unsafeTruncLsb Xlen (#resultMsb)))) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
+                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen #resultMsb)));
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -72,17 +98,14 @@ Section Alu.
                                              => LETE gcp: ExecContextPkt <- gcpin;
                                                 RetE
                                                   ((STRUCT {
-                                                    "arg1"
-                                                      ::= xlen_zero_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
-                                                    "arg2"
-                                                      ::= neg
-                                                            (ZeroExtend 1
-                                                              (SignExtendTruncLsb
-                                                                Xlen (imm (#gcp @% "inst"))))
+                                                    "mxl"  ::= #gcp @% "mxl";
+                                                    "arg1" ::= xlen_zero_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                    "arg2" ::= neg (xlen_imm (#gcp @% "mxl") (imm (#gcp @% "inst")))
                                                   }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
-                                                               RetE (intRegTag (unsafeTruncLsb Xlen (#resultMsb)))) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
+                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen #resultMsb))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -93,12 +116,13 @@ Section Alu.
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res;
-                                                               RetE (intRegTag #result)) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -109,12 +133,13 @@ Section Alu.
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res ;
-                                                               RetE (intRegTag #result)) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -125,12 +150,14 @@ Section Alu.
                                                    fieldVal funct3Field ('b"010") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultMsb : Bit 1 <- UniBit (TruncMsb _ 1) #res ;
-                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               LETC resultMsb : Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res") ;
+                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -143,12 +170,14 @@ Section Alu.
                           inputXform   := (fun gcpin
                                             => LETE gcp: ExecContextPkt <- gcpin;
                                                RetE ((STRUCT {
+                                                 "mxl"  ::= #gcp @% "mxl";
                                                  "arg1" ::= xlen_zero_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                  "arg2" ::= neg (xlen_zero_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2"))
                                                }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) #res;
-                                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty 
+                                            => LETE res <- resultExpr;
+                                               LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
+                                               RetE (intRegTag (ZeroExtendTruncLsb Xlen (#resultMsb)))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -166,19 +195,14 @@ Section Alu.
                                       <- gcpin;
                                     RetE
                                       (STRUCT {
+                                         "mxl"  ::= #gcp @% "mxl";
                                          "arg1" ::= xlen_sign_extend (Xlen + 1) $1 (#gcp @% "reg1");
-                                         "arg2"
-                                           ::= SignExtendTruncLsb (Xlen + 1)
-                                                 (imm (#gcp @% "inst"))
+                                         "arg2" ::= xlen_imm (#gcp @% "mxl") (imm (#gcp @% "inst")) 
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr
-                                 => LETE res
-                                      :  Bit (Xlen + 1)
-                                      <- resultExpr;
-                                    LETC resultExt
-                                      <- xlen_sign_extend Xlen $1 #res;
-                                    RetE (intRegTag #resultExt);
+                            := fun resultExpr : AddOutputType ## ty
+                                 => LETE res <- resultExpr;
+                                    RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "res")));
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -189,12 +213,13 @@ Section Alu.
                                                    fieldVal funct3Field ('b"000") :: 
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #res;
-                                                               RetE (intRegTag #resultExt)) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -205,12 +230,13 @@ Section Alu.
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
                           inputXform   := (fun gcpin => LETE gcp: ExecContextPkt <- gcpin;
-                                                          RetE ((STRUCT { "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
+                                                          RetE ((STRUCT { "mxl"  ::= #gcp @% "mxl";
+                                                                          "arg1" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                                               LETC resultExt <- xlen_sign_extend Xlen $1 #res;
-                                                               RetE (intRegTag #resultExt)) ;
+                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                                            => LETE res <- resultExpr;
+                                               RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "res"))));
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -233,18 +259,14 @@ Section Alu.
                                          >};
                                     RetE
                                       (STRUCT {
+                                         "mxl"  ::= #gcp @% "mxl";
                                          "arg1" ::= SignExtendTruncLsb (Xlen + 1) #imm;
                                          "arg2" ::= $0
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr
-                                 => LETE res
-                                      :  Bit (Xlen + 1)
-                                      <- resultExpr;
-                                    LETC result
-                                      :  Bit Xlen
-                                      <- UniBit (TruncLsb _ 1) #res ;
-                                    RetE (intRegTag #result);
+                            := fun resultExpr : AddOutputType ## ty
+                                 => LETE res <- resultExpr;
+                                    RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")));
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRd := true|>
                        |} ::
@@ -259,6 +281,7 @@ Section Alu.
                                  => LETE gcp: ExecContextPkt <- gcpin;
                                     RetE
                                       (STRUCT {
+                                         "mxl" ::= #gcp @% "mxl";
                                          "arg1"
                                            ::= SignExtendTruncLsb (Xlen + 1)
                                                  ({<
@@ -268,10 +291,9 @@ Section Alu.
                                          "arg2" ::= xlen_sign_extend (Xlen + 1) (#gcp @% "mxl") (#gcp @% "pc")
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr
-                                 => LETE res: Bit (Xlen + 1) <- resultExpr;
-                                    LETC result : Bit Xlen <- UniBit (TruncLsb _ 1) #res ;
-                                    RetE (intRegTag #result);
+                            := fun resultExpr : AddOutputType ## ty
+                                 => LETE res <- resultExpr;
+                                    RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")));
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRd := true|>
                        |} ::
