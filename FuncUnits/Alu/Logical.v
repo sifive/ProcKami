@@ -50,7 +50,7 @@ Section Alu.
                                                                        "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                              }): LogicalType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result <- resultExpr;
-                                                            RetE (intRegTag #result));
+                                                            RetE (intRegTag (SignExtendTruncLsb Rlen #result)));
                        optMemXform  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
@@ -65,7 +65,7 @@ Section Alu.
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
-                                                               RetE (intRegTag #result)) ;
+                                                               RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -80,7 +80,7 @@ Section Alu.
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
-                                                               RetE (intRegTag #result)) ;
+                                                               RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -96,7 +96,7 @@ Section Alu.
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
-                                                               RetE (intRegTag #result)) ;
+                                                               RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -113,7 +113,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr
                                              => LETE result <- resultExpr;
-                                                RetE (intRegTag #result)); 
+                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))); 
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -129,7 +129,7 @@ Section Alu.
                                                                           "arg2" ::= xlen_sign_extend Xlen (#gcp @% "mxl") (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
-                                                               RetE (intRegTag #result)) ;
+                                                               RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::

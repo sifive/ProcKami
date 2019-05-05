@@ -41,14 +41,14 @@ Section Alu.
     Definition trunc_msb
       (mxl : MxlValue @# ty)
       (x : Bit (2 * Xlen) @# ty)
-      :  Bit Xlen @# ty
+      :  Bit Rlen @# ty
       := IF mxl == $1
            then
-             SignExtendTruncLsb Xlen
+             SignExtendTruncLsb Rlen
                (ZeroExtendTruncMsb 32
                  (unsafeTruncLsb (2 * 32) x))
            else
-             SignExtendTruncLsb Xlen
+             SignExtendTruncLsb Rlen
                (ZeroExtendTruncMsb 64
                  (unsafeTruncLsb (2 * 64) x)).
 
@@ -89,7 +89,7 @@ Section Alu.
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (xlen_sign_extend Xlen (#res @% "mxl") (#res @% "res")));
+                         RetE (intRegTag (xlen_sign_extend Rlen (#res @% "mxl") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -193,7 +193,7 @@ Section Alu.
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (sign_extend_trunc 32 Xlen (#res @% "res")));
+                         RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::

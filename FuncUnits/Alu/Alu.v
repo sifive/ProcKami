@@ -29,14 +29,14 @@ Section ty.
 
   Definition ssub n (x y : Bit n @# ty) : Bit n @# ty := x + (neg y).
 
-  Definition intRegTag (val: Bit Xlen @# ty)
+  Definition intRegTag (val: Bit Rlen @# ty)
     :  PktWithException ExecContextUpdPkt @# ty
     := STRUCT {
          "fst"
            ::= noUpdPkt@%["val1"
                  <- (Valid (STRUCT {
                        "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                       "data" ::= SignExtendTruncLsb Rlen val
+                       "data" ::= val
                      }))] ;
          "snd" ::= Invalid
        }.
