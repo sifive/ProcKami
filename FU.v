@@ -354,7 +354,7 @@ Section Params.
 
     Definition zero_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
 
-    Definition sign_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
+    Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
 
     Definition extendMsbWithFunc
       (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
