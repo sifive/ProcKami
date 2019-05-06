@@ -77,14 +77,14 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt ## ty
+                 := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                       => LETE context_pkt
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= #context_pkt @% "mxl";
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "mxl"  ::= (cfg_pkt @% "mxl");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
@@ -103,14 +103,14 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt ## ty
+                 := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                       => LETE context_pkt
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= #context_pkt @% "mxl";
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "mxl"  ::= (cfg_pkt @% "mxl");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
                             } : MultInputType @# ty));
                outputXform
                  := fun res_expr : MultOutputType ## ty
@@ -129,14 +129,14 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt ## ty
+                 := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                       => LETE context_pkt
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= #context_pkt @% "mxl";
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "mxl"  ::= (cfg_pkt @% "mxl");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
@@ -155,14 +155,14 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt ## ty
+                 := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                       => LETE context_pkt
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= #context_pkt @% "mxl";
-                             "arg1" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_zero_extend (2 * Xlen) (#context_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "mxl"  ::= (cfg_pkt @% "mxl");
+                             "arg1" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
@@ -181,12 +181,12 @@ Section Alu.
                     fieldVal funct7Field ('b"0000001") ::
                     nil;
                inputXform
-                 := fun context_pkt_expr : ExecContextPkt ## ty
+                 := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                       => LETE context_pkt
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= #context_pkt @% "mxl";
+                             "mxl"  ::= (cfg_pkt @% "mxl");
                              "arg1" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg1");
                              "arg2" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);

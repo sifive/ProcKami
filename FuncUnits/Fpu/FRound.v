@@ -78,7 +78,7 @@ Section Fpu.
                          fieldVal funct7Field   ('b"0100001")
                        ];
                   inputXform
-                    := (fun context_pkt_expr
+                    := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
@@ -145,7 +145,7 @@ Section Fpu.
                          fieldVal funct7Field   ('b"0100000")
                        ];
                   inputXform
-                    := (fun context_pkt_expr
+                    := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {

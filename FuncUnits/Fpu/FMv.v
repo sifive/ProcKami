@@ -106,8 +106,8 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11100")
                        ];
                   inputXform
-                    := fun x : ExecContextPkt ## ty
-                         => LETE inp <- x;
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE inp <- context_pkt_expr;
                             LETC ret
                               :  Pair Bool (Bit Rlen)
                               <- STRUCT {
@@ -132,8 +132,8 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11110")
                        ];
                   inputXform
-                    := fun x : ExecContextPkt ## ty
-                         => LETE inp <- x;
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE inp <- context_pkt_expr;
                             LETC ret
                               :  Pair Bool (Bit Rlen)
                               <- STRUCT {

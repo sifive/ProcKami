@@ -62,7 +62,10 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FDivSqrtInput (sqrt : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FDivSqrtInput
+    (sqrt : Bool @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty)
     :  inpK expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          :  ExecContextPkt

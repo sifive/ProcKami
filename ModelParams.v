@@ -213,6 +213,7 @@ Section exts.
         := [
              MRet      Xlen_over_8 Rlen_over_8 _;
              ECall     Xlen_over_8 Rlen_over_8 _;
+             Fence     Xlen_over_8 Rlen_over_8 _;
 
              (* RVI logical instructions. *)
              Add       Xlen_over_8 Rlen_over_8 _;
@@ -302,7 +303,6 @@ Section exts.
          20
          Flen_over_8
          param_func_units
-         (fun ty => Const ty $MachineMode)
          param_exts.
 
   Close Scope kami_expr.

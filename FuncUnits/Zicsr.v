@@ -83,7 +83,7 @@ Section zicsr.
                     fieldVal funct3Field   ('b"001")
                 ];
               inputXform
-              := fun exec_context_pkt_expr : ExecContextPkt ## ty
+              := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                  => LETE exec_context_pkt
                     :  ExecContextPkt
                          <- exec_context_pkt_expr;
@@ -109,7 +109,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"010")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -139,7 +139,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"011")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -170,7 +170,7 @@ Section zicsr.
                       fieldVal funct3Field ('b"101")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -196,7 +196,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"110")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -226,7 +226,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"111")
                   ];
                 inputXform
-                := fun exec_context_pkt_expr : ExecContextPkt ## ty
+                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;

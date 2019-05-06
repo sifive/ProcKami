@@ -70,7 +70,10 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FSgnInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FSgnInput
+    (op : Bit 2 @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty)
     :  FSgnInputType ## ty
     := LETE context_pkt
          <- context_pkt_expr;

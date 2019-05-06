@@ -90,7 +90,10 @@ Section Fpu.
          "sig"    ::= $0
        }.
 
-  Definition MacInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
+  Definition MacInput
+    (op : Bit 2 @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty) 
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
@@ -110,7 +113,10 @@ Section Fpu.
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
           } : MacInputType @# ty).
 
-  Definition AddInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
+  Definition AddInput
+    (op : Bit 2 @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty) 
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
@@ -130,7 +136,10 @@ Section Fpu.
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
           } : MacInputType @# ty).
 
-  Definition MulInput (op : Bit 2 @# ty) (context_pkt_expr : ExecContextPkt ## ty) 
+  Definition MulInput
+    (op : Bit 2 @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty) 
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt

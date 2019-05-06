@@ -106,17 +106,17 @@ Section Alu.
                                   fieldVal opcodeField ('b"11011") ::
                                   nil;
                   inputXform 
-                    := fun exec_context_pkt_expr: ExecContextPkt ## ty
-                         => LETE exec_context_pkt
-                              <- exec_context_pkt_expr;
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE context_pkt
+                              <- context_pkt_expr;
                             LETC inst
                               :  Inst
-                              <- #exec_context_pkt @% "inst";
+                              <- #context_pkt @% "inst";
                             RetE
                               (STRUCT {
-                                 "pc" ::= #exec_context_pkt @% "pc";
+                                 "pc" ::= #context_pkt @% "pc";
                                  "new_pc"
-                                   ::= ((#exec_context_pkt @% "pc") +
+                                   ::= ((#context_pkt @% "pc") +
                                         (SignExtendTruncLsb Xlen 
                                            ({<
                                              (#inst $[31:31]),
@@ -125,8 +125,8 @@ Section Alu.
                                              (#inst $[30:21]),
                                              $$ WO~0
                                            >})));
-                                  "compressed?" ::= #exec_context_pkt @% "compressed?";
-                                  "misalignedException?" ::= #exec_context_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (cfg_pkt @% "compressed?");
+                                  "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
                   optMemXform  := None ;
@@ -138,25 +138,25 @@ Section Alu.
                                    fieldVal opcodeField ('b"11001") ::
                                    nil;
                    inputXform
-                     := fun exec_context_pkt_expr: ExecContextPkt ## ty
-                          => LETE exec_context_pkt
-                               <- exec_context_pkt_expr;
+                     := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                          => LETE context_pkt
+                               <- context_pkt_expr;
                              LETC inst
                                :  Inst
-                               <- #exec_context_pkt @% "inst";
+                               <- #context_pkt @% "inst";
                              RetE
                                (STRUCT {
-                                  "pc" ::= #exec_context_pkt @% "pc";
+                                  "pc" ::= #context_pkt @% "pc";
                                   "new_pc"
                                     ::= SignExtendTruncLsb Xlen (* bit type cast *)
                                           ({<
                                             ZeroExtendTruncMsb (Xlen - 1)
-                                              ((xlen_sign_extend Xlen (#exec_context_pkt @% "mxl") (#exec_context_pkt @% "reg1")) +
+                                              ((xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1")) +
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
-                                  "compressed?" ::= #exec_context_pkt @% "compressed?";
-                                  "misalignedException?" ::= #exec_context_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (cfg_pkt @% "compressed?");
+                                  "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
                                 } : JumpInputType @# ty);
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                      => jumpTag (transPC sem_output_expr);

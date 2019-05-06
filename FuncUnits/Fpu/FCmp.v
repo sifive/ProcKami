@@ -105,6 +105,7 @@ Section Fpu.
       (signal : Bool @# ty)
       (cond0 : cmp_cond_kind @# ty)
       (cond1 : cmp_cond_kind @# ty)
+      (_ : ContextCfgPkt @# ty)
       (context_pkt_expr : ExecContextPkt ## ty)
     :  FCmpInputType ## ty
     := LETE context_pkt

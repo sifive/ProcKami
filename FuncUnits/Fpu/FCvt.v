@@ -60,7 +60,10 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition Float_Int_Input (signed : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition Float_Int_Input
+    (signed : Bool @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty)
     :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          <- context_pkt_expr;
@@ -264,7 +267,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun context_pkt_expr : ExecContextPkt ## ty
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                        => LETE context_pkt
                             <- context_pkt_expr;
                           RetE
@@ -290,7 +293,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun context_pkt_expr : ExecContextPkt ## ty
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE
@@ -334,7 +337,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun context_pkt_expr : ExecContextPkt ## ty
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE
@@ -360,7 +363,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun context_pkt_expr : ExecContextPkt ## ty
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE

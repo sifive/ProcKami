@@ -34,7 +34,7 @@ Section Params.
     Local Open Scope kami_expr.
 
     Variable func_units : forall ty, list (FUEntry ty).
-    Variable mode       : forall ty, PrivMode @# ty.
+    (* Variable mode       : forall ty, PrivMode @# ty. *)
     Variable supportedExts : ConstT (Extensions).
 
     Section Display.
@@ -93,6 +93,7 @@ Section Params.
                         (if Nat.eqb Xlen_over_8 4
                            then 1
                            else 2)) with
+              Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"extensions"       : Extensions  <- supportedExts with
               Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
               Register ^"mpie"             : Bit 1 <- ConstBit (natToWord 1 0) with
@@ -106,6 +107,7 @@ Section Params.
               Register ^"mtval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
               Rule ^"pipeline"
                 := Read mxl : MxlValue <- ^"mxl";
+                   Read mode : PrivMode <- ^"mode";
                    Read init_extensions
                      :  Extensions
                      <- ^"extensions";
@@ -160,7 +162,7 @@ Section Params.
                    System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) #mxl (#extensions) (mode _)
+                          (decoderWithException (func_units _) (CompInstDb _) #mxl #extensions #mode
                             (RetE (#fetch_pkt)));
                    System
                      [
@@ -200,6 +202,7 @@ Section Params.
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
                           (transWithException
+                            (#mxl)
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
                    System [DispString _ "Executor\n"];
@@ -238,12 +241,12 @@ Section Params.
                      <- commit
                           name
                           Flen_over_8
-                          (#mxl)
-                          (#pc)
+                          #mxl
+                          #pc
                           (#decoder_pkt @% "fst" @% "inst")
-                          (#mem_update_pkt)
+                          (#decoder_pkt @% "fst" @% "compressed?")
                           (#exec_context_pkt @% "fst")
-                          (#decoder_pkt @% "fst" @% "compressed?");
+                          #mem_update_pkt;
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv

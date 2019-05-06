@@ -84,7 +84,10 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FMinMaxInput (max : Bool @# ty) (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FMinMaxInput
+    (max : Bool @# ty)
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty)
     :  FMinMaxInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt

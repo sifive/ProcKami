@@ -179,7 +179,6 @@ Section Params.
 
   Definition ExecContextPkt :=
     STRUCT { "pc"                       :: VAddr ;
-             "mxl"                      :: MxlValue;
              "reg1"                     :: Data ;
              "reg2"                     :: Data ;
              "reg3"                     :: Data ;
@@ -189,9 +188,15 @@ Section Params.
              "inst"                     :: Inst ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
-             "accessException?"         :: Bool ;
-             "mode"                     :: PrivMode ;
-             "compressed?"              :: Bool }.
+             "accessException?"         :: Bool
+           }.
+
+  Definition ContextCfgPkt :=
+    STRUCT {
+             "mxl"         :: MxlValue;
+             "mode"        :: PrivMode;
+             "compressed?" :: Bool
+           }.
 
   Definition RoutedReg
     := STRUCT {
@@ -261,7 +266,7 @@ Section Params.
     { instName     : string ;
       extensions   : list string ;
       uniqId       : UniqId ;        
-      inputXform   : ExecContextPkt ## ty -> ik ## ty ;
+      inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
       outputXform  : ok ## ty -> PktWithException ExecContextUpdPkt ## ty ;
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
@@ -929,8 +934,17 @@ Section Params.
            SystemE
              (DispString _ "Decoder " ::
               DispString _ (instName inst) ::
+              DispString _ "\n" ::
+              DispString _ "inst: " ::
+              DispBinary (raw_inst) ::
+              DispString _ "\n" ::
+              DispString _ "exts: " ::
+              DispBinary (exts_pkt) ::
+              DispString _ "\n" ::
+              DispString _ "match: " ::
               DispBinary ((#inst_id_match) && (#exts_match)) ::
-              DispString _ "\n" :: nil);
+              DispString _ "\n" ::
+              nil);
            RetE ((#inst_id_match) && (#exts_match)).
 
       (*
@@ -1048,6 +1062,7 @@ Section Params.
       Local Open Scope kami_expr.
 
       Definition createInputXForm
+          (mxl : MxlValue @# ty)
           (decoder_pkt : DecoderPkt @# ty)
           (exec_context_pkt : ExecContextPkt @# ty)
         :  Maybe InputTransPkt ## ty
@@ -1057,6 +1072,11 @@ Section Params.
                      => LETE args_pkt
                           <- inputXform
                                (snd tagged_inst)
+                               (STRUCT {
+                                  "mxl"         ::= mxl;
+                                  "mode"        ::= decoder_pkt @% "mode";
+                                  "compressed?" ::= decoder_pkt @% "compressed?"
+                                } : ContextCfgPkt @# ty)
                                (RetE exec_context_pkt);
                         RetE
                           (unsafeTruncLsb
@@ -1073,11 +1093,12 @@ Section Params.
              ((#opt_args_pkt) @% "valid").
 
       Definition transWithException
+                 (mxl : MxlValue @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : PktWithException ExecContextPkt @# ty)
         :  PktWithException InputTransPkt ## ty
         := LETE opt_trans_pkt
-                <- createInputXForm decoder_pkt
+                <- createInputXForm mxl decoder_pkt
                 (exec_context_pkt @% "fst" : ExecContextPkt @# ty);
              RetE
                (mkPktWithException
@@ -1280,7 +1301,6 @@ Section Params.
          Ret
            (STRUCT {
                 "pc"     ::= decoder_pkt @% "pc";
-                "mxl"    ::= mxl;
                 "reg1"   ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
                               (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
                 "reg2"   ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
@@ -1293,9 +1313,7 @@ Section Params.
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;
                 "memMisalignedException?"  ::= memMisalignedException;
-                "accessException?" ::= accessException;
-                "mode" ::= decoder_pkt @% "mode";
-                "compressed?" ::= decoder_pkt @% "compressed?"
+                "accessException?" ::= accessException
               } : ExecContextPkt @# ty).
 
     Definition readerWithException
@@ -1427,9 +1445,9 @@ Section Params.
         (mxl : MxlValue @# ty)
         (pc: VAddr @# ty)
         (inst: Inst @# ty)
-        (cxt: PktWithException ExecContextUpdPkt @# ty)
-        (exec_context_pkt : ExecContextPkt  @# ty)
         (compressed : Bool @# ty)
+        (exec_context_pkt : ExecContextPkt  @# ty)
+        (cxt: PktWithException ExecContextUpdPkt @# ty)
         : ActionT ty Void :=
         (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
          LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";

@@ -57,7 +57,9 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FClassInput (context_pkt_expr : ExecContextPkt ## ty)
+  Definition FClassInput
+    (_ : ContextCfgPkt @# ty)
+    (context_pkt_expr : ExecContextPkt ## ty)
     :  FN expWidthMinus2 sigWidthMinus2 ## ty
     := LETE context_pkt
          <- context_pkt_expr;

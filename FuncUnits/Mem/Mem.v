@@ -50,6 +50,7 @@ Section Mem.
 
     Definition loadInput
       (size: nat)
+      (_ : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       :  MemInputAddrType ## ty
       := LETE gcp
@@ -127,7 +128,11 @@ Section Mem.
                                    "reg_data" ::= #memOut };
               RetE #outMemReg).
 
-    Definition storeInput (size: nat) (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
+    Definition storeInput
+      (size: nat)
+      (_ : ContextCfgPkt @# ty)
+      (gcpin: ExecContextPkt ## ty)
+      : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret
         :  MemInputAddrType
@@ -201,7 +206,11 @@ Section Mem.
                                   "reg_data" ::= (Invalid: Maybe Data @# ty) };
              RetE #outMemReg).
     
-    Definition amoInput sz (gcpin: ExecContextPkt ## ty): MemInputAddrType ## ty :=
+    Definition amoInput
+      sz
+      (_ : ContextCfgPkt @# ty)
+      (gcpin: ExecContextPkt ## ty)
+      : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
       LETC ret: MemInputAddrType <-
                                  STRUCT {

@@ -54,7 +54,10 @@ Section Alu.
         LETC rdv: Bit 5 <- rd inst;
         RetE ({<#funct7v$[6:6], (#rdv$[0:0]), (#funct7v$[5:0]), (#rdv$[4:1]), $$ WO~0>}).
 
-    Local Definition branchInput (lt unsigned inv: Bool @# ty) (gcp: ExecContextPkt ## ty)
+    Local Definition branchInput
+      (lt unsigned inv: Bool @# ty)
+      (cfg_pkt : ContextCfgPkt @# ty)
+      (gcp: ExecContextPkt ## ty)
       :  BranchInputType ## ty
       := LETE x: ExecContextPkt <- gcp;
          LETE bOffset <- branchOffset (#x @% "inst");
@@ -63,19 +66,19 @@ Section Alu.
                "lt?" ::= lt;
                "unsigned?" ::= unsigned;
                "inv?" ::= inv;
-               "pc" ::= xlen_sign_extend Xlen (#x @% "mxl") (#x @% "pc");
-               "mxl" ::= #x @% "mxl";
+               "pc" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#x @% "pc");
+               "mxl" ::= (cfg_pkt @% "mxl");
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
-               "compressed?" ::= #x @% "compressed?";
+               "compressed?" ::= (cfg_pkt @% "compressed?");
                "misalignedException?" ::= #x @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned
-                       then xlen_zero_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg1")
-                       else xlen_sign_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg1");
+                       then xlen_zero_extend (Xlen + 1) (cfg_pkt @% "mxl") (#x @% "reg1")
+                       else xlen_sign_extend (Xlen + 1) (cfg_pkt @% "mxl") (#x @% "reg1");
                "reg2"
                  ::= IF unsigned
-                       then xlen_zero_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg2")
-                       else xlen_sign_extend (Xlen + 1) (#x @% "mxl") (#x @% "reg2")
+                       then xlen_zero_extend (Xlen + 1) (cfg_pkt @% "mxl") (#x @% "reg2")
+                       else xlen_sign_extend (Xlen + 1) (cfg_pkt @% "mxl") (#x @% "reg2")
              }): BranchInputType @# ty).
 
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
