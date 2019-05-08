@@ -54,7 +54,7 @@ Definition Extensions := STRUCT {
                              "C"    :: Bool }.
 
 Definition PrivMode := (Bit 2).
-Definition MachineMode    := 2.
+Definition MachineMode    := 3.
 Definition SupervisorMode := 1.
 Definition UserMode       := 0.
 
@@ -77,7 +77,7 @@ Definition LoadPageFault      := 13.
 Definition SAmoPageFault      := 15.
 
 (* TODO: Verify *)
-Definition Clen_over_8 : nat := 4.
+Definition Clen_over_8 : nat := 8.
 Definition CsrValueWidth : nat := Clen_over_8 * 8.
 Definition CsrValue : Kind := Bit CsrValueWidth.
 
@@ -399,8 +399,8 @@ Section Params.
       transformations needed to handle this behavior.
     *)
 
-    Local Notation View := (View ty).
-    Local Notation Location := (Location ty 0 CsrIdWidth 2).
+    Local Notation View := (View ty XlenWidth).
+    Local Notation Location := (Location ty 0 CsrIdWidth 2 XlenWidth).
     Local Notation Build_Location := (Build_Location 0 CsrIdWidth).
     Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
     
@@ -413,7 +413,7 @@ Section Params.
       (n m : nat)
       (x : MayStruct m)
       {struct n}
-      :  Vector.t (View XlenWidth) n
+      :  Vector.t View n
       := match n with
            | 0 => []%vector
            | S k
@@ -755,58 +755,51 @@ Section Params.
       :  ActionT ty (Maybe k)
       := locationReadWrite request CSREntries.
 
-    Definition readCSR (csrId : CsrId @# ty)
+    Definition readCSR
+      (xlen : XlenValue @# ty)
+      (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
       := 
-(*
-         System (
-           DispString _ " [readCSR]\n " ::
-           nil
-         );
-*)
          LETA result
            :  Maybe CsrValue
            <- readWriteCSR
                 (STRUCT {
                    "isRd"        ::= ($$true : Bool @# ty);
                    "addr"        ::= (csrId : CsrId @# ty);
-                   "contextCode" ::= $1;
+                   "contextCode" ::= (xlen : XlenValue @# ty);
                    "data"        ::= ($0 : CsrValue @# ty)
                  } : LocationReadWriteInputT CsrValue @# ty);
 (*
          System (
-           DispString _ " Reg Reader Read " ::
-           DispDecimal #result ::
-           DispString _ "\n" ::
-           nil
+           DispString _ " [readCSR]\n";
+           DispString _ " Reg Reader Read ";
+           DispDecimal #result;
+           DispString _ "\n"
          );
 *)
          Ret (#result @% "data").
       
-    Definition writeCSR (csrId : CsrId @# ty) (raw_data : Data @# ty)
+    Definition writeCSR
+      (xlen : XlenValue @# ty)
+      (csrId : CsrId @# ty)
+      (raw_data : Data @# ty)
       :  ActionT ty Void
       := 
-(*
-         System (
-           DispString _ " [writeCSR]\n " ::
-           nil
-         );
-*)
          LETA result
            <- readWriteCSR
                 (STRUCT {
                    "isRd"        ::= $$false;
                    "addr"        ::= csrId;
-                   "contextCode" ::= $1;
+                   "contextCode" ::= xlen;
                    "data"        ::= unsafeTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
 (*
-         System (
-           DispString _ " Reg Write Wrote " ::
-           DispDecimal #result ::
-           DispString _ "\n" ::
-           nil
-         );
+         System [
+           DispString _ " [writeCSR]\n";
+           DispString _ " Reg Write Wrote ";
+           DispDecimal #result;
+           DispString _ "\n"
+         ];
 *)
          Retv.
 
@@ -1086,7 +1079,6 @@ Section Params.
              <- decode_match_fields raw_inst (uniqId inst);
            LETE exts_match : Bool
              <- decode_match_enabled_exts inst exts_pkt;
-(*
            SystemE
              (DispString _ "Decoder " ::
               DispString _ (instName inst) ::
@@ -1101,7 +1093,6 @@ Section Params.
               DispBinary ((#inst_id_match) && (#exts_match)) ::
               DispString _ "\n" ::
               nil);
-*)
            RetE ((#inst_id_match) && (#exts_match)).
 
       (*
@@ -1308,7 +1299,10 @@ Section Params.
                        "snd"
                        ::= ITE
                              (#exec_update_pkt @% "valid")
+                             (#exec_update_pkt @% "data" @% "snd")
+(*
                              (@Invalid ty FullException)
+*)
                              (Valid
                                 (STRUCT {
                                      "exception" ::= ($IllegalInst : Exception @# ty);
@@ -1381,6 +1375,7 @@ Section Params.
     Import ListNotations.
 
     Definition reg_reader_read_csr
+      (xlen : XlenValue @# ty)
       (raw_instr : Inst @# ty)
       :  ActionT ty (Maybe CsrValue)
       (*
@@ -1396,11 +1391,11 @@ Section Params.
       *)
       := LETA csr_value
            :  CsrValue
-           <- readCSR (imm raw_instr);
+           <- readCSR xlen (imm raw_instr);
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
-           DispDecimal (imm raw_instr);  
+           DispHex (imm raw_instr);  
            DispString _ "\n";
            DispString _ "  CSR Value: ";
            DispDecimal #csr_value;
@@ -1422,7 +1417,7 @@ Section Params.
          LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
          LETA csr_val
            :  Maybe CsrValue
-           <- reg_reader_read_csr #raw_inst;
+           <- reg_reader_read_csr xlen #raw_inst;
          Read fflags_val : FflagsValue <- ^"fflags";
          Read frm_val : FrmValue <- ^"frm";
          LETA msg <- Sys [
@@ -1608,10 +1603,23 @@ Section Params.
            Write ^(prefix ++ "cause_code") : Exception <- exception_code;
            (* section 3.1.22 *)
            Write ^(prefix ++ "tval") : Bit Xlen <- exception_val;
+           System [
+             DispString _ "[Register Writer.trapAction]\n";
+             DispString _ ("  mode: " ++ prefix ++ "\n");
+             DispString _ "  tvec mode: ";
+             DispDecimal (#tvec_mode);
+             DispString _ "\n";
+             DispString _ "  address base: ";
+             DispHex (#addr_base);
+             DispString _ "\n";
+             DispString _ "  address offset: ";
+             DispHex (#addr_offset);
+             DispString _ "\n"
+           ];
            Retv.
 
       (*
-        See 4.1.1
+        See 3.2.1 and 4.1.1
       *)
       Definition retAction
         (prefix : string)
@@ -1623,6 +1631,9 @@ Section Params.
            Write ^"mode" : PrivMode <- #pp;
            Write ^(prefix ++ "pie") : Bit 1 <- #ie; (* 4.1.1 conflict with 3.1.7? *)
            Write ^(prefix ++ "pp") : Bit 2 <- $UserMode;
+           System [
+             DispString _ "[Register Writer.retAction]\n"
+           ];
            Retv.
 
       Definition commitRet
@@ -1654,7 +1665,7 @@ Section Params.
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
                           else (If (#val_pos == $CsrTag)
-                                  then writeCSR csr_index (#val_data)
+                                  then writeCSR xlen csr_index (#val_data)
                                   (* else (If (#val_pos == $FloatCsrTag) *)
                                   else (If (#val_pos == $FflagsTag)
                                           (* then writeCSR $3 (#val_data); *)
@@ -1726,6 +1737,13 @@ Section Params.
                 LET opt_val1 <- cxt @% "fst" @% "val1";
                 LET opt_val2 <- cxt @% "fst" @% "val2";
                 Read mepc : VAddr <- ^"mepc";
+(*
+                System [
+                  DispString _ "[commit] mepc:\n";
+                  DispHex #mepc;
+                  DispString _ "\n"
+                ];
+*)
                 Read sepc : VAddr <- ^"sepc";
                 Read uepc : VAddr <- ^"uepc";
                 Write ^"pc"
