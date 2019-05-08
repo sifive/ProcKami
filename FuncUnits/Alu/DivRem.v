@@ -96,8 +96,8 @@ Section Alu.
                  := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1"))
-                            (xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg2")));
+                            (xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1"))
+                            (xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg2")));
                outputXform
                  := fun res_expr : DivRemOutputType ## ty
                       => LETE res <- res_expr;
@@ -118,8 +118,8 @@ Section Alu.
                  := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1"))
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg2")));
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg2")));
                outputXform
                := (fun res_expr : DivRemOutputType ## ty
                    => LETE res <- res_expr;
@@ -186,8 +186,8 @@ Section Alu.
                  := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                      => LETE context_pkt <- context_pkt_expr;
                           divs_rems_pkt
-                            (xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1"))
-                            (xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg2")));
+                            (xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1"))
+                            (xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
@@ -208,8 +208,8 @@ Section Alu.
                  := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1"))
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg2")));
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
@@ -252,8 +252,8 @@ Section Alu.
                  := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                      => LETE context_pkt <- context_pkt_expr;
                           divu_remu_pkt
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1"))
-                            (xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg2")));
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1"))
+                            (xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg2")));
                outputXform
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;

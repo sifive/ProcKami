@@ -46,7 +46,7 @@ Section Alu.
                                                 fieldVal funct3Field ('b"100") :: nil ;
                        inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                        RetE ((STRUCT { "op" ::= $ XorOp ;
-                                                                       "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
+                                                                       "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                        "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                              }): LogicalType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result <- resultExpr;
@@ -61,7 +61,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"110") :: nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
-                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
+                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
@@ -76,7 +76,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"111") :: nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
-                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
+                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
@@ -92,7 +92,7 @@ Section Alu.
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ XorOp ;
-                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
+                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
@@ -108,8 +108,8 @@ Section Alu.
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
-                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
-                                                                          "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg2")
+                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
+                                                                          "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr
                                              => LETE result <- resultExpr;
@@ -125,8 +125,8 @@ Section Alu.
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
-                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1") ;
-                                                                          "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg2")
+                                                                          "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
+                                                                          "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;

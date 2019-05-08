@@ -74,27 +74,29 @@ Section Params.
 
     End Display.
 
+    Definition initXlen
+      := ConstBit
+           (natToWord XlenWidth
+              (if Nat.eqb Xlen_over_8 4
+                 then 1
+                 else 2)).
+
     Local Open Scope list.
     Definition processorCore 
       :  BaseModule
       := 
          MODULE {
-              Register ^"pc"         : VAddr       <- ConstBit (_ 'h "00000000") with
-              Register ^"fflags"     : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
-              Register ^"frm"        : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
-              Register ^"mxl"
-                :  MxlValue
-(* TODO TESTING Dynamic Xlen *)
-(*
-                <- ConstBit (natToWord MxlWidth 1) with
-*)
-                <- ConstBit
-                     (natToWord MxlWidth
-                        (if Nat.eqb Xlen_over_8 4
-                           then 1
-                           else 2)) with
+              (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"extensions"       : Extensions  <- supportedExts with
+              Register ^"pc"               : VAddr       <- ConstBit (_ 'h "00000000") with
+
+              (* floating point registers *)
+              Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
+              Register ^"frm"              : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
+
+              (* machine mode registers *)
+              Register ^"mxl"              : XlenValue    <- initXlen with
               Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
               Register ^"mpie"             : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"mie"              : Bit 1 <- ConstBit (natToWord 1 0) with
@@ -105,15 +107,50 @@ Section Params.
               Register ^"mcause_interrupt" : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"mtval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+
+              (* supervisor mode registers *)
+              Register ^"sxl"              : XlenValue <- initXlen with
+              Register ^"spp"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"spie"             : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"sie"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"stvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"stvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
+              Register ^"sscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"sepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"scause_interrupt" : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
+              Register ^"stval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+
+              (* user mode registers *)
+              Register ^"uxl"              : XlenValue <- initXlen with
+              Register ^"upp"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"upie"             : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"uie"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"utvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"utvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
+              Register ^"uscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"uepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"ucause_interrupt" : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
+              Register ^"utval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
               Rule ^"pipeline"
-                := Read mxl : MxlValue <- ^"mxl";
-                   Read mode : PrivMode <- ^"mode";
+                := Read mode : PrivMode <- ^"mode";
+                   Read mxl : XlenValue <- ^"mxl";
+                   Read sxl : XlenValue <- ^"sxl";
+                   Read uxl : XlenValue <- ^"uxl";
+                   LET xlen
+                     :  XlenValue
+                     <- ITE (#mode == $MachineMode)
+                          #mxl
+                          (ITE (#mode == $SupervisorMode)
+                            #sxl
+                            #uxl);
                    Read init_extensions
                      :  Extensions
                      <- ^"extensions";
                    LET extensions
                      :  Extensions
-                     <- IF #mxl == $1
+                     <- IF #xlen == $1
                           then
                             #init_extensions
                               @%["RV32I" <- $$true]
@@ -128,45 +165,39 @@ Section Params.
                    System
                      [
                        DispString _ "Start\n";
-                       DispString _ "XLEN_over_8: ";
-                       DispDecimal (Const _ (natToWord 32 Xlen_over_8));
+                       DispString _ "Mode:";
+                       DispDecimal #mode;
                        DispString _ "\n";
-                       DispString _ "RLEN_over_8: ";
-                       DispDecimal (Const _ (natToWord 32 Rlen_over_8));
+                       DispString _ "XL:";
+                       DispDecimal #xlen;
                        DispString _ "\n";
-                       DispString _ "MXL:\n";
-                       DispDecimal #mxl;
-                       DispString _ "Extensions:\n";
-                       DispBinary #extensions
+                       DispString _ "Extensions:";
+                       DispBinary #extensions;
+                       DispString _ "\n"
                      ];
                    Read pc : VAddr <- ^"pc";
                    System
                      [
-                       DispString _ "Fetch\n";
-                       DispString _ "  Fetched: ";
+                       DispString _ "PC:";
                        DispHex #pc;
                        DispString _ "\n"
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #mxl (#pc);
+                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #xlen (#pc);
                    System
                      [
-                       DispString _ "Fetched\n";
-                       DispString _ "  Inst: ";
-                       DispHex #fetch_pkt;
-                       DispString _ "\n        ";
+                       DispString _ "Fetch:\n";
                        DispBinary #fetch_pkt;
                        DispString _ "\n"
                      ];
-                   System [DispString _ "Decoder\n"];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) #mxl #extensions #mode
+                          (decoderWithException (func_units _) (CompInstDb _) #xlen #extensions #mode
                             (RetE (#fetch_pkt)));
                    System
                      [
-                       DispString _ "Decode Pkt\n";
+                       DispString _ "Decode:\n";
                        DispDecimal #decoder_pkt;
                        DispString _ "\n"
                      ];
@@ -186,23 +217,19 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          #mxl
+                          #xlen
                           #decoder_pkt;
                    System
-                     ([
-                       DispString _ "Reg Vals\n";
+                     [
+                       DispString _ "Reg Reader:\n";
                        DispHex #exec_context_pkt;    
                        DispString _ "\n"
-                     ] ++
-                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg1")) ++
-                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg2")) ++
-                     (DispNF "    floating point value: " (#exec_context_pkt @% "fst" @% "reg3"))
-                     );
+                     ];
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
                           (transWithException
-                            (#mxl)
+                            (#xlen)
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
                    System [DispString _ "Executor\n"];
@@ -210,41 +237,37 @@ Section Params.
                      <- convertLetExprSyntax_ActionT
                           (execWithException (#trans_pkt));
                    System
-                     ([
+                     [
                        DispString _ "New Reg Vals\n";
                        DispHex #exec_update_pkt;    
                        DispString _ "\n"
-                     ] ++
-                     (DispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     (DispNF "    floating point value: " (#exec_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
-                   (* TODO: Add CSR Read operation here. CSR reads have side effects that register file reads do not. The spec requires that CSR reads not occur if the destination register is X0. *)
-                   System [DispString _ "Mem\n"];
+                     ];
                    LETA mem_update_pkt
                      <- MemUnit name lgMemSz
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
-                          (#mxl)
+                          (#xlen)
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);
                    System
-                     ([
-                       DispString _ "New Reg Vals (after memory ops)\n";
+                     [
+                       DispString _ "Memory Unit:\n";
                        DispHex #mem_update_pkt;    
                        DispString _ "\n"
-                     ] ++
-                     (DispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val1" @% "data" @% "data")) ++
-                     (DispNF "    floating point value: " (#mem_update_pkt @% "fst" @% "val2" @% "data" @% "data")));
-                   (* TODO: the call to commit currently ignores any exceptions propogated through mem_update_pkt. *)
+                     ];
                    System [DispString _ "Reg Write\n"];
                    LETA commit_pkt
                      :  Void
                      <- commit
                           name
                           Flen_over_8
-                          #mxl
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
-                          (#decoder_pkt @% "fst" @% "compressed?")
+                          (STRUCT {
+                             "xlen"         ::= #xlen;
+                             "mode"        ::= #decoder_pkt @% "fst" @% "mode";
+                             "compressed?" ::= #decoder_pkt @% "fst" @% "compressed?"
+                           } : ContextCfgPkt @# _)
                           (#exec_context_pkt @% "fst")
                           #mem_update_pkt;
                    System [DispString _ "Inc PC\n"];
