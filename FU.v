@@ -769,14 +769,16 @@ Section Params.
                    "contextCode" ::= (xlen : XlenValue @# ty);
                    "data"        ::= ($0 : CsrValue @# ty)
                  } : LocationReadWriteInputT CsrValue @# ty);
-(*
-         System (
+         System [
            DispString _ " [readCSR]\n";
            DispString _ " Reg Reader Read ";
            DispDecimal #result;
+           DispString _ " from CSR: ";
+           DispHex csrId;
+           DispString _ " with context code: ";
+           DispDecimal xlen;
            DispString _ "\n"
-         );
-*)
+         ];
          Ret (#result @% "data").
       
     Definition writeCSR
@@ -791,16 +793,19 @@ Section Params.
                    "isRd"        ::= $$false;
                    "addr"        ::= csrId;
                    "contextCode" ::= xlen;
-                   "data"        ::= unsafeTruncLsb CsrValueWidth raw_data
+                   "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
-(*
          System [
            DispString _ " [writeCSR]\n";
            DispString _ " Reg Write Wrote ";
-           DispDecimal #result;
+           DispDecimal raw_data;
+           DispString _ " to CSR: ";
+           DispDecimal csrId;
+           DispString _ "\n";
+           DispString _ " with context code: ";
+           DispDecimal xlen;
            DispString _ "\n"
          ];
-*)
          Retv.
 
     Close Scope kami_expr.
@@ -1665,7 +1670,18 @@ Section Params.
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
                           else (If (#val_pos == $CsrTag)
-                                  then writeCSR xlen csr_index (#val_data)
+                                  then
+                                    (LETA _ <- writeCSR xlen csr_index (#val_data);
+                                     System [
+                                       DispString _ "  [commitWriters] wrote to CSR.\n";
+                                       DispString _ "  [commitWriters] value data: ";
+                                       DispHex #val_data;
+                                       DispString _ "\n";
+                                       DispString _ "  [commitWriters] value packet: ";
+                                       DispHex val;
+                                       DispString _ "\n"
+                                     ];
+                                     Retv)
                                   (* else (If (#val_pos == $FloatCsrTag) *)
                                   else (If (#val_pos == $FflagsTag)
                                           (* then writeCSR $3 (#val_data); *)

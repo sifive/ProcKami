@@ -138,13 +138,27 @@ Section Params.
                    Read mxl : XlenValue <- ^"mxl";
                    Read sxl : XlenValue <- ^"sxl";
                    Read uxl : XlenValue <- ^"uxl";
+                   System [
+                       DispString _ "mxl:";
+                       DispDecimal #mxl;
+                       DispString _ "\n";
+                       DispString _ "sxl:";
+                       DispDecimal #sxl;
+                       DispString _ "\n";
+                       DispString _ "uxl:";
+                       DispDecimal #uxl;
+                       DispString _ "\n"
+                   ];
                    LET xlen
                      :  XlenValue
+                     <- #mxl;
+(* TODO TESTING
                      <- ITE (#mode == $MachineMode)
                           #mxl
                           (ITE (#mode == $SupervisorMode)
                             #sxl
                             #uxl);
+*)
                    Read init_extensions
                      :  Extensions
                      <- ^"extensions";
