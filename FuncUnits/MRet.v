@@ -30,19 +30,17 @@ Section mret.
     := {|
          fuName := "mret";
          fuFunc
-           := fun _
-                => RetE
+           := fun ret_code_pkt : Bit 7 ## ty
+                => LETE ret_code : Bit 7 <- ret_code_pkt;
+                   RetE
                      (STRUCT {
                         "fst"
-                          ::= noUpdPkt;
-(*
                           ::= (noUpdPkt
                                 @%["val1"
                                     <- (Valid (STRUCT {
-                                         "tag"  ::= Const ty (natToWord RoutingTagSz MRetTag);
-                                         "data" ::= Const ty (natToWord Rlen 0)
+                                         "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
+                                         "data" ::= ZeroExtendTruncLsb Rlen #ret_code
                                         }))]);
-*)
                         "snd" ::= Invalid
                       } : PktWithException ExecContextUpdPkt @# ty);
          fuInsts
@@ -60,7 +58,52 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (Const ty (natToWord 0 0));
+                  inputXform 
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE context_pkt <- context_pkt_expr;
+                            RetE (funct7 (#context_pkt @% "inst"));
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
+                |};
+                {|
+                  instName   := "sret";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0001000");
+                         fieldVal rs2Field ('b"00010");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform 
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE context_pkt <- context_pkt_expr;
+                            RetE (funct7 (#context_pkt @% "inst"));
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
+                |};
+                {|
+                  instName   := "uret";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0000000");
+                         fieldVal rs2Field ('b"00010");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform 
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                         => LETE context_pkt <- context_pkt_expr;
+                            RetE (funct7 (#context_pkt @% "inst"));
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
@@ -72,19 +115,25 @@ Section mret.
     := {|
          fuName := "ecall";
          fuFunc
-           := fun _
-                => RetE
+           := (fun mode_pkt : PrivMode ## ty
+                => LETE mode : PrivMode <- mode_pkt;
+                   RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt;
                         "snd"
-                          ::= Invalid
-(*
                           ::= (Valid (STRUCT {
-                                 "exception" ::= Const ty (natToWord 4 ECallM);
+                                 "exception"
+                                   ::= Switch #mode Retn Exception With {
+                                         Const ty (natToWord 2 MachineMode)
+                                           ::= Const ty (natToWord 4 ECallM);
+                                         Const ty (natToWord 2 SupervisorMode)
+                                           ::= Const ty (natToWord 4 ECallS);
+                                         Const ty (natToWord 2 UserMode)
+                                           ::= Const ty (natToWord 4 ECallU)
+                                       };
                                  "value"     ::= Const ty (natToWord Xlen 0)
                                } : FullException @# ty))
-*)
-                      } : PktWithException ExecContextUpdPkt @# ty);
+                      } : PktWithException ExecContextUpdPkt @# ty));
          fuInsts
            := [
                 {|
@@ -101,7 +150,7 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (Const ty (natToWord 0 0));
+                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (cfg_pkt @% "mode");
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
@@ -109,6 +158,7 @@ Section mret.
               ]
        |}.
 
+  (* TODO: Currently, we ignore fence instructions. *)
   Definition Fence : @FUEntry ty
     := {|
          fuName := "fence";

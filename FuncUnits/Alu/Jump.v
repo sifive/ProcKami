@@ -151,7 +151,7 @@ Section Alu.
                                     ::= SignExtendTruncLsb Xlen (* bit type cast *)
                                           ({<
                                             ZeroExtendTruncMsb (Xlen - 1)
-                                              ((xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#context_pkt @% "reg1")) +
+                                              ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1")) +
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});

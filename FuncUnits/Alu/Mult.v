@@ -25,24 +25,24 @@ Section Alu.
 
     Definition MultInputType
       := STRUCT {
-           "mxl"  :: MxlValue;
+           "xlen"  :: XlenValue;
            "arg1" :: Bit (2 * Xlen)%nat;
            "arg2" :: Bit (2 * Xlen)%nat
          }.
 
     Definition MultOutputType
       := STRUCT {
-           "mxl" :: MxlValue;
+           "xlen" :: XlenValue;
            "res" :: Bit (2 * Xlen)%nat
          }.
 
     Local Open Scope kami_expr.
 
     Definition trunc_msb
-      (mxl : MxlValue @# ty)
+      (xlen : XlenValue @# ty)
       (x : Bit (2 * Xlen) @# ty)
       :  Bit Rlen @# ty
-      := IF mxl == $1
+      := IF xlen == $1
            then
              SignExtendTruncLsb Rlen
                (ZeroExtendTruncMsb 32
@@ -61,7 +61,7 @@ Section Alu.
                          <- sem_in_pkt_expr;
                        RetE
                          (STRUCT {
-                            "mxl" ::= #sem_in_pkt @% "mxl";
+                            "xlen" ::= #sem_in_pkt @% "xlen";
                             "res" ::= (unsafeTruncLsb (2 * Xlen)
                                         ((#sem_in_pkt @% "arg1") * (#sem_in_pkt @% "arg2")))
                           } : MultOutputType @# ty);
@@ -82,14 +82,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= (cfg_pkt @% "mxl");
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "xlen"  ::= (cfg_pkt @% "xlen");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (xlen_sign_extend Rlen (#res @% "mxl") (#res @% "res")));
+                         RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -108,14 +108,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= (cfg_pkt @% "mxl");
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "xlen"  ::= (cfg_pkt @% "xlen");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg2")
                             } : MultInputType @# ty));
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
+                         RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -134,14 +134,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= (cfg_pkt @% "mxl");
-                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "xlen"  ::= (cfg_pkt @% "xlen");
+                             "arg1" ::= xlen_sign_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
+                         RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -160,14 +160,14 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= (cfg_pkt @% "mxl");
-                             "arg1" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg1");
-                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "mxl") (#context_pkt @% "reg2")
+                             "xlen"  ::= (cfg_pkt @% "xlen");
+                             "arg1" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg1");
+                             "arg2" ::= xlen_zero_extend (2 * Xlen) (cfg_pkt @% "xlen") (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);
                outputXform
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
-                         RetE (intRegTag (trunc_msb (#res @% "mxl") (#res @% "res")));
+                         RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
                optMemXform := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
@@ -186,7 +186,7 @@ Section Alu.
                            <- context_pkt_expr;
                          RetE
                            ((STRUCT {
-                             "mxl"  ::= (cfg_pkt @% "mxl");
+                             "xlen"  ::= (cfg_pkt @% "xlen");
                              "arg1" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg1");
                              "arg2" ::= sign_extend_trunc 32 (2 * Xlen) (#context_pkt @% "reg2")
                             }) : MultInputType @# ty);

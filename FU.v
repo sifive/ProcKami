@@ -54,10 +54,9 @@ Definition Extensions := STRUCT {
                              "C"    :: Bool }.
 
 Definition PrivMode := (Bit 2).
-Definition MachineMode    := 0.
-Definition HypervisorMode := 1.
-Definition SupervisorMode := 2.
-Definition UserMode       := 3.
+Definition MachineMode    := 2.
+Definition SupervisorMode := 1.
+Definition UserMode       := 0.
 
 Definition Exception := (Bit 4).
 
@@ -99,7 +98,11 @@ Definition CsrTag := 3.
 Definition MemDataTag := 4.
 Definition MemAddrTag := 5.
 Definition FflagsTag := 6.
-Definition MRetTag := 7.
+Definition RetTag := 7.
+
+Definition RetCodeU := 0.
+Definition RetCodeS := 8.
+Definition RetCodeM := 24.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -135,8 +138,8 @@ Definition falseHints :=
      isSystem    := false ;
      isCsr       := false |}.
 
-Definition MxlWidth : nat := 2.
-Definition MxlValue : Kind := Bit MxlWidth.
+Definition XlenWidth : nat := 2.
+Definition XlenValue : Kind := Bit XlenWidth.
 
 Section Params.
   Variable name: string.
@@ -193,7 +196,7 @@ Section Params.
 
   Definition ContextCfgPkt :=
     STRUCT {
-             "mxl"         :: MxlValue;
+             "xlen"        :: XlenValue;
              "mode"        :: PrivMode;
              "compressed?" :: Bool
            }.
@@ -364,7 +367,7 @@ Section Params.
     Definition extendMsbWithFunc
       (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
       (n m : nat)
-      (w : MxlValue @# ty)
+      (w : XlenValue @# ty)
       (x : Bit n @# ty)
       :  Bit m @# ty
       := IF w == $1
@@ -410,7 +413,7 @@ Section Params.
       (n m : nat)
       (x : MayStruct m)
       {struct n}
-      :  Vector.t (View MxlWidth) n
+      :  Vector.t (View XlenWidth) n
       := match n with
            | 0 => []%vector
            | S k
@@ -475,11 +478,16 @@ Section Params.
                    := MAYSTRUCT {
                         "reserved0" ::# Bit 19 #:: (ConstBit (natToWord 19 0));
                         ^"mpp" :: Bit 2;
-                        "reserved1" ::# Bit 3  #:: (ConstBit (natToWord 3 0));
+                        "reserved1" ::# Bit 2  #:: (ConstBit (natToWord 2 0));
+                        ^"spp" :: Bit 1;
                         ^"mpie" :: Bit 1;
-                        "reserved2" ::# Bit 3 #:: (ConstBit (natToWord 3 0));
+                        "reserved2" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
+                        ^"spie" :: Bit 1;
+                        ^"upie" :: Bit 1;
                         ^"mie" :: Bit 1;
-                        "reserved3" ::# Bit 3 #:: (ConstBit (natToWord 3 0))
+                        "reserved3" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
+                        ^"sie" :: Bit 1;
+                        ^"uie" :: Bit 1
                       }
                |};
                {|
@@ -487,13 +495,21 @@ Section Params.
                  view_size    := _;
                  view_kind
                    := MAYSTRUCT {
-                        "reserved0" ::# Bit 51 #:: (ConstBit (natToWord 51 0));
+                        "reserved0" ::# Bit 28 #:: (ConstBit (natToWord 28 0));
+                        ^"sxl" :: Bit 2;
+                        ^"uxl" :: Bit 2;
+                        "reserved1" ::# Bit 19 #:: (ConstBit (natToWord 19 0));
                         ^"mpp" :: Bit 2;
-                        "reserved1" ::# Bit 3  #:: (ConstBit (natToWord 3 0));
+                        "reserved2" ::# Bit 2  #:: (ConstBit (natToWord 2 0));
+                        ^"spp" :: Bit 1;
                         ^"mpie" :: Bit 1;
-                        "reserved2" ::# Bit 3 #:: (ConstBit (natToWord 3 0));
+                        "reserved3" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
+                        ^"spie" :: Bit 1;
+                        ^"upie" :: Bit 1;
                         ^"mie" :: Bit 1;
-                        "reserved3" ::# Bit 3 #:: (ConstBit (natToWord 3 0))
+                        "reserved4" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
+                        ^"sie" :: Bit 1;
+                        ^"uie" :: Bit 1
                       }
                |}
              ]%vector;
@@ -595,6 +611,140 @@ Section Params.
                         ^"mtval" :: Bit 64
                       }
                |}
+             ]%vector;
+           Build_Location ^"sstatus" (CsrIdWidth 'h"100")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved0" ::# Bit 23 #:: (ConstBit (natToWord 23 0));
+                        ^"spp" :: Bit 1;
+                        "reserved1" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
+                        ^"spie" :: Bit 1;
+                        ^"upie" :: Bit 1;
+                        "reserved2" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
+                        ^"sie" :: Bit 1;
+                        ^"uie" :: Bit 1
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        "reserved0" ::# Bit 30 #:: (ConstBit (natToWord 30 0));
+                        ^"uxl" :: Bit 2;
+                        "reserved1" ::# Bit 23 #:: (ConstBit (natToWord 23 0));
+                        ^"spp" :: Bit 1;
+                        "reserved2" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
+                        ^"spie" :: Bit 1;
+                        ^"upie" :: Bit 1;
+                        "reserved3" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
+                        ^"sie" :: Bit 1;
+                        ^"uie" :: Bit 1
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"stvec" (CsrIdWidth 'h"105")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"stvec_mode" :: Bit 2;
+                        ^"stvec_base" :: Bit 30
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"stvec_mode" :: Bit 2;
+                        ^"stvec_base" :: Bit 62
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"sscratch" (CsrIdWidth 'h"140")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"sscratch" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"sscratch" :: Bit 64
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"sepc" (CsrIdWidth 'h"141")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"sepc" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"sepc" :: Bit 64
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"scause" (CsrIdWidth 'h"142")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"scause_interrupt" :: Bit 1;
+                        ^"scause_code" :: Bit 31
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"scause_interrupt" :: Bit 1;
+                        ^"scause_code" :: Bit 63
+                      }
+               |}
+             ]%vector;
+           Build_Location ^"stval" (CsrIdWidth 'h"143")
+             [
+               {|
+                 view_context := $1;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"stval" :: Bit 32
+                      }
+               |};
+               {|
+                 view_context := $2;
+                 view_size    := _;
+                 view_kind
+                   := MAYSTRUCT {
+                        ^"stval" :: Bit 64
+                      }
+               |}
              ]%vector
          ].
 
@@ -607,10 +757,13 @@ Section Params.
 
     Definition readCSR (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
-      := System (
+      := 
+(*
+         System (
            DispString _ " [readCSR]\n " ::
            nil
          );
+*)
          LETA result
            :  Maybe CsrValue
            <- readWriteCSR
@@ -620,20 +773,25 @@ Section Params.
                    "contextCode" ::= $1;
                    "data"        ::= ($0 : CsrValue @# ty)
                  } : LocationReadWriteInputT CsrValue @# ty);
+(*
          System (
            DispString _ " Reg Reader Read " ::
            DispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
+*)
          Ret (#result @% "data").
       
     Definition writeCSR (csrId : CsrId @# ty) (raw_data : Data @# ty)
       :  ActionT ty Void
-      := System (
+      := 
+(*
+         System (
            DispString _ " [writeCSR]\n " ::
            nil
          );
+*)
          LETA result
            <- readWriteCSR
                 (STRUCT {
@@ -642,12 +800,14 @@ Section Params.
                    "contextCode" ::= $1;
                    "data"        ::= unsafeTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
+(*
          System (
            DispString _ " Reg Write Wrote " ::
            DispDecimal #result ::
            DispString _ "\n" ::
            nil
          );
+*)
          Retv.
 
     Close Scope kami_expr.
@@ -679,8 +839,6 @@ Section Params.
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool
                             <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-           System (DispString _ "READ RESERVATION: " :: DispHex addr :: DispString _ " " :: DispBinary #result ::
-                              DispString _ "\n" :: nil);
            Ret #result.
 
     Definition memWrite (pkt : MemWrite @# ty)
@@ -689,7 +847,6 @@ Section Params.
                                     "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr") ;
                                     "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
                                     "mask" ::= pkt @% "mask" };
-           System (DispString _ "WRITE MEM: " :: DispHex #writeRq :: DispString _ "\n" :: nil);           
            Call ^"writeMem"(#writeRq: _);
            Ret Invalid.
 
@@ -699,7 +856,6 @@ Section Params.
       := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
                                                                        "data" ::= rsv ;
                                                                        "mask" ::= mask } ;
-           System (DispString _ "WRITE RESERVATION: " :: DispHex #writeRq :: DispString _ "\n" :: nil);
            Call ^"writeMemReservation" (#writeRq: _);
            Retv.
 
@@ -708,17 +864,17 @@ Section Params.
   End MemInterface.
 
   Definition fetch
-    (mxl : MxlValue @# ty)
+    (xlen : XlenValue @# ty)
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 (xlen_sign_extend Xlen mxl pc);
+          <- memRead 1 (xlen_sign_extend Xlen xlen pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
                "fst"
                  ::= (STRUCT {
-                       "pc" ::= xlen_sign_extend Xlen mxl pc ;
+                       "pc" ::= xlen_sign_extend Xlen xlen pc ;
                        "inst" ::= unsafeTruncLsb InstSz (#instException @% "fst")
                      } : FetchPkt @# ty);
                "snd" ::= #instException @% "snd"
@@ -930,7 +1086,7 @@ Section Params.
              <- decode_match_fields raw_inst (uniqId inst);
            LETE exts_match : Bool
              <- decode_match_enabled_exts inst exts_pkt;
-(*            RetE ((#inst_id_match) && (#exts_match)). *)
+(*
            SystemE
              (DispString _ "Decoder " ::
               DispString _ (instName inst) ::
@@ -945,6 +1101,7 @@ Section Params.
               DispBinary ((#inst_id_match) && (#exts_match)) ::
               DispString _ "\n" ::
               nil);
+*)
            RetE ((#inst_id_match) && (#exts_match)).
 
       (*
@@ -986,8 +1143,10 @@ Section Params.
            LETE opt_uncomp_inst
            :  Maybe Inst
                     <- decompress comp_inst_db exts_pkt #prefix;
+(*
              SystemE (DispString _ "Decompressed Inst: " ::
                       DispHex #opt_uncomp_inst :: nil);
+*)
              (decode exts_pkt
                      (ITE ((#opt_uncomp_inst) @% "valid")
                           ((#opt_uncomp_inst) @% "data")
@@ -1005,7 +1164,7 @@ Section Params.
       *)
       Definition decode_full
                  (comp_inst_db : list CompInstEntry)
-                 (mxl : MxlValue @# ty)
+                 (xlen : XlenValue @# ty)
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
                  (fetch_pkt : FetchPkt @# ty)
@@ -1019,7 +1178,7 @@ Section Params.
                  (STRUCT {
                       "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
-                      "pc"          ::= xlen_sign_extend Xlen mxl (fetch_pkt @% "pc" : VAddr @# ty) ;
+                      "pc"          ::= xlen_sign_extend Xlen xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
                       "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
@@ -1032,7 +1191,7 @@ Section Params.
       Definition decoder := decode_full CompInstDb.
 
       Definition decoderWithException
-                 (mxl : MxlValue @# ty)
+                 (xlen : XlenValue @# ty)
                  (exts_pkt : Extensions @# ty)
                  (mode : PrivMode @# ty)
                  (fetch_struct : PktWithException FetchPkt ## ty): PktWithException DecoderPkt ## ty
@@ -1041,7 +1200,7 @@ Section Params.
                                <- fetch_struct;
              LETE decoder_pkt
              :  Maybe DecoderPkt
-                      <- decoder mxl exts_pkt mode (#fetch @% "fst");
+                      <- decoder xlen exts_pkt mode (#fetch @% "fst");
              RetE
                (mkPktWithException 
                   (#fetch)
@@ -1062,7 +1221,7 @@ Section Params.
       Local Open Scope kami_expr.
 
       Definition createInputXForm
-          (mxl : MxlValue @# ty)
+          (xlen : XlenValue @# ty)
           (decoder_pkt : DecoderPkt @# ty)
           (exec_context_pkt : ExecContextPkt @# ty)
         :  Maybe InputTransPkt ## ty
@@ -1073,7 +1232,7 @@ Section Params.
                           <- inputXform
                                (snd tagged_inst)
                                (STRUCT {
-                                  "mxl"         ::= mxl;
+                                  "xlen"         ::= xlen;
                                   "mode"        ::= decoder_pkt @% "mode";
                                   "compressed?" ::= decoder_pkt @% "compressed?"
                                 } : ContextCfgPkt @# ty)
@@ -1093,12 +1252,12 @@ Section Params.
              ((#opt_args_pkt) @% "valid").
 
       Definition transWithException
-                 (mxl : MxlValue @# ty)
+                 (xlen : XlenValue @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : PktWithException ExecContextPkt @# ty)
         :  PktWithException InputTransPkt ## ty
         := LETE opt_trans_pkt
-                <- createInputXForm mxl decoder_pkt
+                <- createInputXForm xlen decoder_pkt
                 (exec_context_pkt @% "fst" : ExecContextPkt @# ty);
              RetE
                (mkPktWithException
@@ -1203,13 +1362,13 @@ Section Params.
 
     Local Open Scope kami_action.
     Definition reg_reader_read_reg n
-      (mxl : MxlValue @# ty)
+      (xlen : XlenValue @# ty)
       (reg_id : RegId @# ty)
       :  ActionT ty Data
       := Call reg_val
            :  Data
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-           Ret (xlen_sign_extend Rlen mxl #reg_val).
+           Ret (xlen_sign_extend Rlen xlen #reg_val).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
@@ -1250,14 +1409,14 @@ Section Params.
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
 
     Definition reg_reader
-      (mxl : MxlValue @# ty)
+      (xlen : XlenValue @# ty)
       (decoder_pkt : DecoderPkt @# ty)
       :  ActionT ty ExecContextPkt
       := LET raw_inst
            :  Inst
            <- decoder_pkt @% "inst";
-         LETA reg1_val  : Data <- reg_reader_read_reg  1 mxl (rs1 #raw_inst);
-         LETA reg2_val  : Data <- reg_reader_read_reg  2 mxl (rs2 #raw_inst);
+         LETA reg1_val  : Data <- reg_reader_read_reg  1 xlen (rs1 #raw_inst);
+         LETA reg2_val  : Data <- reg_reader_read_reg  2 xlen (rs2 #raw_inst);
          LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
          LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
          LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
@@ -1317,12 +1476,12 @@ Section Params.
               } : ExecContextPkt @# ty).
 
     Definition readerWithException
-      (mxl : MxlValue @# ty)
+      (xlen : XlenValue @# ty)
       (decoder_pkt : PktWithException DecoderPkt @# ty)
       :  ActionT ty (PktWithException ExecContextPkt)
       := LETA exec_context_pkt
            <- reg_reader
-                mxl
+                xlen
                 ((decoder_pkt @% "fst") : DecoderPkt @# ty);
          Ret
            (mkPktWithException
@@ -1366,7 +1525,7 @@ Section Params.
       Import ListNotations.
 
       Local Definition reg_writer_write_reg
-        (mxl : MxlValue @# ty)
+        (xlen : XlenValue @# ty)
         (reg_id : RegId @# ty)
         (data : Data @# ty)
         :  ActionT ty Void
@@ -1374,7 +1533,7 @@ Section Params.
              :  IntRegWrite
              <- STRUCT {
                   "index" ::= reg_id;
-                  "data"  ::= xlen_sign_extend Xlen mxl data
+                  "data"  ::= xlen_sign_extend Xlen xlen data
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1406,8 +1565,80 @@ Section Params.
            ]%list;
            Retv.
 
+(* TODO Add width argument *)
+      Definition trapAction
+        (prefix : string)
+        (xlen : XlenValue @# ty)
+        (mode : PrivMode @# ty)
+        (pc : VAddr @# ty)
+        (exception_code : Exception @# ty)
+        (exception_val : ExceptionInfo @# ty)
+        :  ActionT ty Void
+        := (* section 3.1.7, 4.1.1 *)
+           Read ie : Bit 1 <- ^(prefix ++ "ie");
+           Write ^(prefix ++ "pie") : Bit 1 <- #ie;
+           Write ^(prefix ++ "ie") : Bit 1 <- $0;
+           Write ^(prefix ++ "pp") : PrivMode <- mode;
+           (* section 3.1.12 *)
+           Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
+           Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
+           LET addr_base
+             :  VAddr
+             <- xlen_sign_extend Xlen xlen
+                  ({<
+                     #tvec_base,
+                     $$(natToWord 2 0)
+                   >});
+           LET addr_offset
+             :  VAddr
+             <- xlen_sign_extend Xlen xlen
+                  ({<
+                     exception_code,
+                     $$(natToWord 2 0)
+                   >});
+           Write ^"pc"
+             :  VAddr
+             <- ITE (#tvec_mode == $0)
+                  #addr_base
+                  (#addr_base + #addr_offset);
+           (* section 3.1.20 *)
+           Write ^(prefix ++ "epc") : VAddr <- pc;
+           (* section 3.1.21 *)
+           Write ^(prefix ++ "cause_interrupt") : Bit 1 <- $0;
+           Write ^(prefix ++ "cause_code") : Exception <- exception_code;
+           (* section 3.1.22 *)
+           Write ^(prefix ++ "tval") : Bit Xlen <- exception_val;
+           Retv.
+
+      (*
+        See 4.1.1
+      *)
+      Definition retAction
+        (prefix : string)
+        :  ActionT ty Void
+        := Read ie : Bit 1 <- ^(prefix ++ "ie");
+           Read pie : Bit 1 <- ^(prefix ++ "pie");
+           Read pp : PrivMode <- ^(prefix ++ "pp");
+           Write ^(prefix ++ "ie") <- #pie;
+           Write ^"mode" : PrivMode <- #pp;
+           Write ^(prefix ++ "pie") : Bit 1 <- #ie; (* 4.1.1 conflict with 3.1.7? *)
+           Write ^(prefix ++ "pp") : Bit 2 <- $UserMode;
+           Retv.
+
+      Definition commitRet
+        (val : Maybe RoutedReg @# ty)
+        :  ActionT ty Void
+        := If val @% "data" @% "data" == $RetCodeM
+             then retAction "m"
+             else
+               If val @% "data" @% "data" == $RetCodeS
+                 then retAction "s"
+                 else retAction "u";
+               Retv;
+             Retv.
+
       Definition commitWriters
-        (mxl : MxlValue @# ty)
+        (xlen : XlenValue @# ty)
         (val: Maybe RoutedReg @# ty)
         (reg_index: RegId @# ty)
         (csr_index: CsrId @# ty)
@@ -1418,7 +1649,7 @@ Section Params.
              then 
                (If (#val_pos == $IntRegTag)
                   then (If (reg_index != $0)
-                          then reg_writer_write_reg mxl (reg_index) (#val_data);
+                          then reg_writer_write_reg xlen (reg_index) (#val_data);
                         Retv)
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
@@ -1434,7 +1665,16 @@ Section Params.
                                                   DispDecimal #val_data;
                                                   DispString _ " to FFLAGS field in FCSR\n"
                                                 ];
-                                                Retv);
+                                                Retv)
+                                          else
+                                            (If (#val_pos == $RetTag)
+                                               then
+                                                 (LETA _ <- commitRet val;
+                                                  System [
+                                                    DispString _ "Executing Ret Instruction.\n"
+                                                  ];
+                                                  Retv);
+                                               Retv);
                                         Retv);
                                 Retv);
                         Retv);
@@ -1442,69 +1682,74 @@ Section Params.
            Retv.
 
       Definition commit
-        (mxl : MxlValue @# ty)
         (pc: VAddr @# ty)
         (inst: Inst @# ty)
-        (compressed : Bool @# ty)
+        (cfg_pkt : ContextCfgPkt @# ty)
         (exec_context_pkt : ExecContextPkt  @# ty)
         (cxt: PktWithException ExecContextUpdPkt @# ty)
-        : ActionT ty Void :=
-        (LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
-         LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
-         LET reg_index : RegId <- rd inst;
-         LET csr_index : CsrId <- imm inst;
-         If (cxt @% "snd" @% "valid")
-           then
-             (Write ^"mepc" :  VAddr <- pc;
-              Write ^"mcause_interrupt" : Bit 1 <- $0;
-              Write ^"mcause_code"
-                : Exception
-                <- cxt @% "snd" @% "data" @% "exception";
-              Write ^"mtval"
-                :  Bit Xlen
-                <- cxt @% "snd" @% "data" @% "value";
-              Read mtvec_mode : Bit 2 <- ^"mtvec_mode";
-              Read mtvec_base : Bit (Xlen - 2) <- ^"mtvec_base";
-              LET addr_base
-                :  VAddr
-                <- xlen_sign_extend Xlen mxl
-                     ({<
-                        #mtvec_base,
-                        $$(natToWord 2 0)
-                      >});
-              LET addr_offset
-                :  VAddr
-                <- xlen_sign_extend Xlen mxl
-                     ({<
-                        cxt @% "snd" @% "data" @% "exception",
-                        $$(natToWord 2 0)
-                      >});
-              Write ^"pc"
-                :  VAddr
-                <- ITE (#mtvec_mode == $0)
-                     #addr_base
-                     (#addr_base + #addr_offset);
-              Retv)
-           else
-             (LETA _ <- commitWriters mxl #val1 #reg_index #csr_index;
-              LETA _ <- commitWriters mxl #val2 #reg_index #csr_index; 
-              LET opt_val1 <- cxt @% "fst" @% "val1";
-              LET opt_val2 <- cxt @% "fst" @% "val2";
-              Write ^"pc"
-                :  VAddr
-                <- (ITE
-                     ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend Xlen mxl ((#opt_val1 @% "data") @% "data"))
-                     (ITE
-                       ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
-                       (xlen_sign_extend Xlen mxl ((#opt_val2 @% "data") @% "data"))
+        :  ActionT ty Void
+        := LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
+           LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
+           LET reg_index : RegId <- rd inst;
+           LET csr_index : CsrId <- imm inst;
+           If (cxt @% "snd" @% "valid")
+             then
+               If cxt @% "snd" @% "data" @% "exception" == $ECallM
+                 then
+                   trapAction "m"
+                     (cfg_pkt @% "xlen")
+                     (cfg_pkt @% "mode")
+                     pc
+                     (cxt @% "snd" @% "data" @% "exception")
+                     (cxt @% "snd" @% "data" @% "value")
+                 else
+                   (If cxt @% "snd" @% "data" @% "exception" == $ECallS
+                      then
+                        trapAction "s"
+                          (cfg_pkt @% "xlen")
+                          (cfg_pkt @% "mode")
+                          pc
+                          (cxt @% "snd" @% "data" @% "exception")
+                          (cxt @% "snd" @% "data" @% "value")
+                      else
+                        trapAction "u"
+                          (cfg_pkt @% "xlen")
+                          (cfg_pkt @% "mode")
+                          pc
+                          (cxt @% "snd" @% "data" @% "exception")
+                          (cxt @% "snd" @% "data" @% "value");
+                      Retv);
+                 Retv
+             else
+               (LETA _ <- commitWriters (cfg_pkt @% "xlen") #val1 #reg_index #csr_index;
+                LETA _ <- commitWriters (cfg_pkt @% "xlen") #val2 #reg_index #csr_index; 
+                LET opt_val1 <- cxt @% "fst" @% "val1";
+                LET opt_val2 <- cxt @% "fst" @% "val2";
+                Read mepc : VAddr <- ^"mepc";
+                Read sepc : VAddr <- ^"sepc";
+                Read uepc : VAddr <- ^"uepc";
+                Write ^"pc"
+                  :  VAddr
+                  <- (ITE
+                       ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
+                       (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
                        (ITE
-                         compressed
-                         (pc + $2)
-                         (pc + $4))));
-              Retv);
-         Retv
-        ).
+                         ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
+                         (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
+                         (* Note: Ret instructions always set val1. *)
+                         (ITE
+                           ((#opt_val1 @% "valid") &&
+                            ((#opt_val1 @% "data") @% "tag" == $RetTag))
+                           (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
+                             #mepc
+                             (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
+                               #sepc
+                               #uepc))
+                           (ITE (cfg_pkt @% "compressed?")
+                             (pc + $2)
+                             (pc + $4)))));
+                Retv);
+           Retv.
 
     End RegWriter.
 
@@ -1651,7 +1896,7 @@ Section Params.
       Local Open Scope kami_action.
 
       Definition MemUnit
-                 (mxl : MxlValue @# ty)
+                 (xlen : XlenValue @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : ExecContextPkt @# ty)
                  (opt_exec_update_pkt : PktWithException ExecContextUpdPkt @# ty)
@@ -1660,7 +1905,7 @@ Section Params.
            LETA memRet
              :  PktWithException MemRet
              <- fullMemAction
-                  (xlen_sign_extend Xlen mxl
+                  (xlen_sign_extend Xlen xlen
                     (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                   (decoder_pkt @% "funcUnitTag")
                   (decoder_pkt @% "instTag")

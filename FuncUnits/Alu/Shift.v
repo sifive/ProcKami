@@ -23,7 +23,7 @@ Section Alu.
 
     Definition ShiftInputType
       := STRUCT { 
-           "mxl"    :: MxlValue ;
+           "xlen"    :: XlenValue ;
            "right?" :: Bool ;
            "arith?" :: Bool ;
            "arg1" :: Bit Xlen ;
@@ -32,7 +32,7 @@ Section Alu.
 
     Definition ShiftOutputType
       := STRUCT {
-           "mxl" :: MxlValue;
+           "xlen" :: XlenValue;
            "res" :: Bit Xlen
          }.
 
@@ -53,7 +53,7 @@ Section Alu.
                           else (#x @% "arg1") << (#x @% "arg2");
                    RetE
                      (STRUCT {
-                        "mxl" ::= #x @% "mxl";
+                        "xlen" ::= #x @% "xlen";
                         "res" ::= #res
                       } : ShiftOutputType @# _));
          fuInsts := {| instName     := "slli" ; 
@@ -65,14 +65,14 @@ Section Alu.
                                                 nil ;
                        inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                      RetE ((STRUCT {
-                                                              "mxl" ::= cfg_pkt @% "mxl";
+                                                              "xlen" ::= cfg_pkt @% "xlen";
                                                               "right?" ::= $$ false ;
                                                               "arith?" ::= $$ false ;
-                                                              "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                              "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                               "arg2" ::= unsafeTruncLsb 6 (imm (#gcp @% "inst"))
                                                            }): ShiftInputType @# _)) ;
                        outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
-                                                            RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                            RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                        optMemXform  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
@@ -85,14 +85,14 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                                     "arg1" ::= xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                      "arg2" ::= unsafeTruncLsb 6 (imm (#gcp @% "inst"))
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
-                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -105,14 +105,14 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                      "arg2" ::= unsafeTruncLsb 6 (imm (#gcp @% "inst"))
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
-                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
@@ -125,14 +125,14 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                      "arg2" ::= unsafeTruncLsb 6 (#gcp @% "reg2")
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
-                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -145,14 +145,14 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
-                                                                     "arg1" ::= xlen_zero_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                                     "arg1" ::= xlen_zero_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                      "arg2" ::= unsafeTruncLsb 6 (#gcp @% "reg2")
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
-                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -165,14 +165,14 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
-                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "mxl") (#gcp @% "reg1");
+                                                                     "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                      "arg2" ::= unsafeTruncLsb 6 (#gcp @% "reg2")
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
-                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "mxl") (#result @% "res")))) ;
+                                                               RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
                           optMemXform  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
@@ -185,7 +185,7 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
                                                                      "arg1" ::= sign_extend_trunc 32 Xlen (#gcp @% "reg1");
@@ -205,7 +205,7 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
                                                                      "arg1" ::= zero_extend_trunc 32 Xlen (#gcp @% "reg1");
@@ -226,7 +226,7 @@ Section Alu.
                                nil;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
                                                                      "arg1" ::= sign_extend_trunc 32 Xlen (#gcp @% "reg1");
@@ -246,7 +246,7 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ false ;
                                                                      "arith?" ::= $$ false ;
                                                                      "arg1" ::= sign_extend_trunc 32 Xlen (#gcp @% "reg1");
@@ -266,7 +266,7 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ false ;
                                                                      "arg1" ::= zero_extend_trunc 32 Xlen (#gcp @% "reg1");
@@ -286,7 +286,7 @@ Section Alu.
                                                    nil ;
                           inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT {
-                                                                     "mxl" ::= (cfg_pkt @% "mxl");
+                                                                     "xlen" ::= (cfg_pkt @% "xlen");
                                                                      "right?" ::= $$ true ;
                                                                      "arith?" ::= $$ true ;
                                                                      "arg1" ::= sign_extend_trunc 32 Xlen (#gcp @% "reg1");
