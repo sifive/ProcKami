@@ -1084,6 +1084,7 @@ Section Params.
              <- decode_match_fields raw_inst (uniqId inst);
            LETE exts_match : Bool
              <- decode_match_enabled_exts inst exts_pkt;
+(*
            SystemE
              (DispString _ "Decoder " ::
               DispString _ (instName inst) ::
@@ -1098,6 +1099,7 @@ Section Params.
               DispBinary ((#inst_id_match) && (#exts_match)) ::
               DispString _ "\n" ::
               nil);
+*)
            RetE ((#inst_id_match) && (#exts_match)).
 
       (*
@@ -1596,11 +1598,13 @@ Section Params.
                      exception_code,
                      $$(natToWord 2 0)
                    >});
+(* TODO: 
            Write ^"pc"
              :  VAddr
              <- ITE (#tvec_mode == $0)
                   #addr_base
                   (#addr_base + #addr_offset);
+*)
            (* section 3.1.20 *)
            Write ^(prefix ++ "epc") : VAddr <- pc;
            (* section 3.1.21 *)
@@ -1719,6 +1723,7 @@ Section Params.
            LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
            LET reg_index : RegId <- rd inst;
            LET csr_index : CsrId <- imm inst;
+(*
            If (cxt @% "snd" @% "valid")
              then
                If cxt @% "snd" @% "data" @% "exception" == $ECallM
@@ -1747,8 +1752,9 @@ Section Params.
                           (cxt @% "snd" @% "data" @% "value");
                       Retv);
                  Retv
-             else
-               (LETA _ <- commitWriters (cfg_pkt @% "xlen") #val1 #reg_index #csr_index;
+             else (
+*)
+                LETA _ <- commitWriters (cfg_pkt @% "xlen") #val1 #reg_index #csr_index;
                 LETA _ <- commitWriters (cfg_pkt @% "xlen") #val2 #reg_index #csr_index; 
                 LET opt_val1 <- cxt @% "fst" @% "val1";
                 LET opt_val2 <- cxt @% "fst" @% "val2";
@@ -1782,7 +1788,7 @@ Section Params.
                            (ITE (cfg_pkt @% "compressed?")
                              (pc + $2)
                              (pc + $4)))));
-                Retv);
+(*                Retv); *)
            Retv.
 
     End RegWriter.
