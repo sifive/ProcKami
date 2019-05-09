@@ -299,7 +299,7 @@ Section exts.
   (* IV. the model generator. *)
 
   Definition generate_model
-    := model "proc_core"
+    := processor "proc_core"
          20
          Flen_over_8
          param_func_units

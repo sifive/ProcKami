@@ -329,9 +329,6 @@ Section Params.
              ^"writeMemReservation"
            ].  
 
-    Definition model
-      := getRtlSafe processor.
-
     Local Close Scope list.
 
     Local Close Scope kami_expr.

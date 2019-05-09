@@ -22,12 +22,44 @@ Definition coreExts
        "C"
      ].
 
+Definition model (base : string) : Mod := generate_model (base :: coreExts).
+
 Definition model32
   :  RtlModule
-  := generate_model ("RV32I" :: coreExts).
+  := getRtlSafe (model "RV32I").
 
 Definition model64
   :  RtlModule
-  := generate_model ("RV64I" :: "RV32I" :: coreExts).
+  := getRtlSafe (model "RV64I").
 
-Separate Extraction model32 model64 size wordToNat getFins.
+Definition kami_model32 := snd (separateModRemove (model "RV32I")).
+Definition kami_model64 := snd (separateModRemove (model "RV64I")).
+
+Separate Extraction
+
+  model32
+  model64
+
+  kami_model32
+  kami_model64
+
+  size
+  wordToNat
+  getFins
+  Fin.to_nat
+  fullFormatHex
+  fullFormatBinary
+  fullFormatDecimal
+  readReqName
+  readResName
+  readRegName
+  rfIsWrMask
+  rfNum
+  rfDataArray
+  rfRead
+  rfWrite
+  rfIdxNum
+  rfData
+  rfInit
+  pack
+  unpack.
