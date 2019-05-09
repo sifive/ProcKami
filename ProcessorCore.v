@@ -84,8 +84,7 @@ Section Params.
     Local Open Scope list.
     Definition processorCore 
       :  BaseModule
-      := 
-         MODULE {
+      := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"extensions"       : Extensions  <- supportedExts with
@@ -134,61 +133,10 @@ Section Params.
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"utval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
               Rule ^"pipeline"
-                := Read mode : PrivMode <- ^"mode";
-                   Read mxl : XlenValue <- ^"mxl";
-                   Read sxl : XlenValue <- ^"sxl";
-                   Read uxl : XlenValue <- ^"uxl";
-                   System [
-                       DispString _ "mxl:";
-                       DispDecimal #mxl;
-                       DispString _ "\n";
-                       DispString _ "sxl:";
-                       DispDecimal #sxl;
-                       DispString _ "\n";
-                       DispString _ "uxl:";
-                       DispDecimal #uxl;
-                       DispString _ "\n"
-                   ];
-                   LET xlen
-                     :  XlenValue
-                     <- #mxl;
-(* TODO TESTING
-                     <- ITE (#mode == $MachineMode)
-                          #mxl
-                          (ITE (#mode == $SupervisorMode)
-                            #sxl
-                            #uxl);
-*)
-                   Read init_extensions
-                     :  Extensions
-                     <- ^"extensions";
-                   LET extensions
-                     :  Extensions
-                     <- IF #xlen == $1
-                          then
-                            #init_extensions
-                              @%["RV32I" <- $$true]
-                              @%["RV64I" <- $$false]
-                          else
-                            #init_extensions
-                              @%["RV32I" <- $$false]
-                              @%["RV64I" <- $$true];
+                := LETA cfg_pkt <- readConfig name _;
                    Write ^"extensions"
                      :  Extensions
-                     <- #extensions;
-                   System
-                     [
-                       DispString _ "Start\n";
-                       DispString _ "Mode:";
-                       DispDecimal #mode;
-                       DispString _ "\n";
-                       DispString _ "XL:";
-                       DispDecimal #xlen;
-                       DispString _ "\n";
-                       DispString _ "Extensions:";
-                       DispBinary #extensions;
-                       DispString _ "\n"
-                     ];
+                     <- #cfg_pkt @% "extensions";
                    Read pc : VAddr <- ^"pc";
                    System
                      [
@@ -198,7 +146,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 #xlen (#pc);
+                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 (#cfg_pkt @% "xlen") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -207,7 +155,7 @@ Section Params.
                      ];
                    LETA decoder_pkt
                      <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) #xlen #extensions #mode
+                          (decoderWithException (func_units _) (CompInstDb _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "extensions")
                             (RetE (#fetch_pkt)));
                    System
                      [
@@ -231,7 +179,7 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          #xlen
+                          (#cfg_pkt @% "xlen")
                           #decoder_pkt;
                    System
                      [
@@ -243,7 +191,7 @@ Section Params.
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
                           (transWithException
-                            (#xlen)
+                            #cfg_pkt
                             (#decoder_pkt @% "fst")
                             (#exec_context_pkt));
                    System [DispString _ "Executor\n"];
@@ -259,7 +207,7 @@ Section Params.
                    LETA mem_update_pkt
                      <- MemUnit name lgMemSz
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
-                          (#xlen)
+                          (#cfg_pkt @% "xlen")
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);
@@ -277,11 +225,14 @@ Section Params.
                           Flen_over_8
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
+(*
                           (STRUCT {
-                             "xlen"         ::= #xlen;
+                             "xlen"         ::= #cfg_pkt @% "xlen";
                              "mode"        ::= #decoder_pkt @% "fst" @% "mode";
                              "compressed?" ::= #decoder_pkt @% "fst" @% "compressed?"
                            } : ContextCfgPkt @# _)
+*)
+                          #cfg_pkt
                           (#exec_context_pkt @% "fst")
                           #mem_update_pkt;
                    System [DispString _ "Inc PC\n"];

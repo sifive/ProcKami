@@ -189,6 +189,7 @@ Section Params.
              "fflags"                   :: FflagsValue;
              "frm"                      :: FrmValue;
              "inst"                     :: Inst ;
+             "compressed?"              :: Bool ;
              "instMisalignedException?" :: Bool ;
              "memMisalignedException?"  :: Bool ;
              "accessException?"         :: Bool
@@ -198,7 +199,7 @@ Section Params.
     STRUCT {
              "xlen"        :: XlenValue;
              "mode"        :: PrivMode;
-             "compressed?" :: Bool
+             "extensions"  :: Extensions
            }.
 
   Definition RoutedReg
@@ -861,6 +862,71 @@ Section Params.
 
   End MemInterface.
 
+  Open Scope kami_action.
+
+  Definition readConfig
+    :  ActionT ty ContextCfgPkt
+    := Read mode : PrivMode <- ^"mode";
+       Read mxl : XlenValue <- ^"mxl";
+       Read sxl : XlenValue <- ^"sxl";
+       Read uxl : XlenValue <- ^"uxl";
+       System [
+           DispString _ "mxl:";
+           DispDecimal #mxl;
+           DispString _ "\n";
+           DispString _ "sxl:";
+           DispDecimal #sxl;
+           DispString _ "\n";
+           DispString _ "uxl:";
+           DispDecimal #uxl;
+           DispString _ "\n"
+       ];
+       LET xlen
+         :  XlenValue
+         <- #mxl;
+(* TODO TESTING
+       <- ITE (#mode == $MachineMode)
+            #mxl
+            (ITE (#mode == $SupervisorMode)
+              #sxl
+              #uxl);
+*)
+       Read init_extensions
+         :  Extensions
+         <- ^"extensions";
+       LET extensions
+         :  Extensions
+         <- IF #xlen == $1
+              then
+                #init_extensions
+                  @%["RV32I" <- $$true]
+                  @%["RV64I" <- $$false]
+              else
+                #init_extensions
+                  @%["RV32I" <- $$false]
+                  @%["RV64I" <- $$true];
+       System
+         [
+           DispString _ "Start\n";
+           DispString _ "Mode:";
+           DispDecimal #mode;
+           DispString _ "\n";
+           DispString _ "XL:";
+           DispDecimal #xlen;
+           DispString _ "\n";
+           DispString _ "Extensions:";
+           DispBinary #extensions;
+           DispString _ "\n"
+         ];
+       Ret
+         (STRUCT {
+            "xlen"       ::= #xlen;
+            "mode"       ::= #mode;
+            "extensions" ::= #extensions
+          } : ContextCfgPkt @# ty).
+
+  Close Scope kami_action.
+
   Definition fetch
     (xlen : XlenValue @# ty)
     (pc: VAddr @# ty)
@@ -959,12 +1025,11 @@ Section Params.
 
     (* Represents the kind of packets output by the decoder. *)
     Definition DecoderPkt := STRUCT {
-                                 "funcUnitTag"              :: FuncUnitId;
-                                 "instTag"                  :: InstId;
-                                 "pc"                       :: VAddr;
-                                 "inst"                     :: Inst;
-                                 "mode"                     :: PrivMode;
-                                 "compressed?"              :: Bool }.
+                                 "funcUnitTag" :: FuncUnitId;
+                                 "instTag"     :: InstId;
+                                 "pc"          :: VAddr;
+                                 "inst"        :: Inst;
+                                 "compressed?" :: Bool}.
 
     Definition FuncUnitInputWidth :=
       fold_left
@@ -1164,7 +1229,6 @@ Section Params.
                  (comp_inst_db : list CompInstEntry)
                  (xlen : XlenValue @# ty)
                  (exts_pkt : Extensions @# ty)
-                 (mode : PrivMode @# ty)
                  (fetch_pkt : FetchPkt @# ty)
         :  Maybe DecoderPkt ## ty
         := LETC raw_inst: Inst <- fetch_pkt @% "inst";
@@ -1178,7 +1242,6 @@ Section Params.
                       "instTag"     ::= #decoder_pkt @% "instTag" ;
                       "pc"          ::= xlen_sign_extend Xlen xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
                       "inst"        ::= #decoder_pkt @% "inst";
-                      "mode"        ::= mode;
                       "compressed?" ::= !(decode_decompressed #raw_inst)
                     } : DecoderPkt @# ty) ;
              (utila_expr_opt_pkt #decoder_ext_pkt
@@ -1191,14 +1254,13 @@ Section Params.
       Definition decoderWithException
                  (xlen : XlenValue @# ty)
                  (exts_pkt : Extensions @# ty)
-                 (mode : PrivMode @# ty)
                  (fetch_struct : PktWithException FetchPkt ## ty): PktWithException DecoderPkt ## ty
         := LETE fetch
            :  PktWithException FetchPkt
                                <- fetch_struct;
              LETE decoder_pkt
              :  Maybe DecoderPkt
-                      <- decoder xlen exts_pkt mode (#fetch @% "fst");
+                      <- decoder xlen exts_pkt (#fetch @% "fst");
              RetE
                (mkPktWithException 
                   (#fetch)
@@ -1219,7 +1281,7 @@ Section Params.
       Local Open Scope kami_expr.
 
       Definition createInputXForm
-          (xlen : XlenValue @# ty)
+          (cfg_pkt : ContextCfgPkt @# ty)
           (decoder_pkt : DecoderPkt @# ty)
           (exec_context_pkt : ExecContextPkt @# ty)
         :  Maybe InputTransPkt ## ty
@@ -1229,11 +1291,7 @@ Section Params.
                      => LETE args_pkt
                           <- inputXform
                                (snd tagged_inst)
-                               (STRUCT {
-                                  "xlen"         ::= xlen;
-                                  "mode"        ::= decoder_pkt @% "mode";
-                                  "compressed?" ::= decoder_pkt @% "compressed?"
-                                } : ContextCfgPkt @# ty)
+                               cfg_pkt
                                (RetE exec_context_pkt);
                         RetE
                           (unsafeTruncLsb
@@ -1250,12 +1308,12 @@ Section Params.
              ((#opt_args_pkt) @% "valid").
 
       Definition transWithException
-                 (xlen : XlenValue @# ty)
+                 (cfg_pkt : ContextCfgPkt @# ty)
                  (decoder_pkt : DecoderPkt @# ty)
                  (exec_context_pkt : PktWithException ExecContextPkt @# ty)
         :  PktWithException InputTransPkt ## ty
         := LETE opt_trans_pkt
-                <- createInputXForm xlen decoder_pkt
+                <- createInputXForm cfg_pkt decoder_pkt
                 (exec_context_pkt @% "fst" : ExecContextPkt @# ty);
              RetE
                (mkPktWithException
@@ -1307,9 +1365,6 @@ Section Params.
                        ::= ITE
                              (#exec_update_pkt @% "valid")
                              (#exec_update_pkt @% "data" @% "snd")
-(*
-                             (@Invalid ty FullException)
-*)
                              (Valid
                                 (STRUCT {
                                      "exception" ::= ($IllegalInst : Exception @# ty);
@@ -1461,16 +1516,17 @@ Section Params.
            ] Retv;
          Ret
            (STRUCT {
-                "pc"     ::= decoder_pkt @% "pc";
-                "reg1"   ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
-                              (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
-                "reg2"   ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
-                              (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
-                "reg3"   ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
-                "csr"    ::= #csr_val;
-                "fflags" ::= #fflags_val;
-                "frm"    ::= #frm_val;
-                "inst"   ::= #raw_inst;
+                "pc"          ::= decoder_pkt @% "pc";
+                "reg1"        ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
+                                   (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
+                "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
+                                   (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
+                "reg3"        ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
+                "csr"         ::= #csr_val;
+                "fflags"      ::= #fflags_val;
+                "frm"         ::= #frm_val;
+                "inst"        ::= #raw_inst;
+                "compressed?" ::= (decoder_pkt @% "compressed?" : Bool @# ty);
                 (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
                 "instMisalignedException?" ::= instMisalignedException;
                 "memMisalignedException?"  ::= memMisalignedException;
@@ -1785,7 +1841,7 @@ Section Params.
                              (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
                                #sepc
                                #uepc))
-                           (ITE (cfg_pkt @% "compressed?")
+                           (ITE (exec_context_pkt @% "compressed?")
                              (pc + $2)
                              (pc + $4)))));
 (*                Retv); *)

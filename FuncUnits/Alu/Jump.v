@@ -125,7 +125,7 @@ Section Alu.
                                              (#inst $[30:21]),
                                              $$ WO~0
                                            >})));
-                                  "compressed?" ::= (cfg_pkt @% "compressed?");
+                                  "compressed?" ::= (#context_pkt @% "compressed?");
                                   "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
@@ -155,7 +155,7 @@ Section Alu.
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
-                                  "compressed?" ::= (cfg_pkt @% "compressed?");
+                                  "compressed?" ::= (#context_pkt @% "compressed?");
                                   "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
                                 } : JumpInputType @# ty);
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
