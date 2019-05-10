@@ -117,6 +117,11 @@ Section mret.
          fuFunc
            := (fun mode_pkt : PrivMode ## ty
                 => LETE mode : PrivMode <- mode_pkt;
+                   SystemE [
+                     DispString _ "[ecall] mode: ";
+                     DispDecimal #mode;
+                     DispString _ "\n"
+                   ];
                    RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt;
@@ -141,12 +146,10 @@ Section mret.
                   extensions := ["RV32I"; "RV64I"];
                   uniqId
                     := [
-(*
                          fieldVal funct7Field ('b"0000000");
-                         fieldVal rs2Field ('b"00001");
+                         fieldVal rs2Field ('b"00000");
                          fieldVal rs1Field ('b"00000");
                          fieldVal rdField ('b"00000");
-*)
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];

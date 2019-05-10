@@ -69,7 +69,7 @@ Section Alu.
                "pc" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#x @% "pc");
                "xlen" ::= (cfg_pkt @% "xlen");
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
-               "compressed?" ::= (cfg_pkt @% "compressed?");
+               "compressed?" ::= (#x @% "compressed?");
                "misalignedException?" ::= #x @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned

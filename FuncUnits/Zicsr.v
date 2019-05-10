@@ -95,7 +95,7 @@ Section zicsr.
                            (ZeroExtendTruncLsb CsrValueWidth
                                                (#exec_context_pkt @% "reg1"))
                    } : ZicsrInput @# ty);
-              outputXform := fun pkt => pkt;
+              outputXform := id;
               optMemXform := None;
               instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
             |};
