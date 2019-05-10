@@ -234,16 +234,12 @@ Section Params.
                                  "reg_data" :: Maybe Data }.
 
   Definition IntRegWrite := STRUCT {
-                             "index" :: RegId ;
-                             "data" :: Bit Xlen }.
+                             "addr" :: RegId ;
+                             "data" :: Array 1 (Bit Xlen) }.
 
   Definition FloatRegWrite := STRUCT {
-                               "index" :: RegId ;
-                               "data" :: Bit Flen }.
-
-  Definition CsrWrite := STRUCT {
-                             "addr" :: CsrId ;
-                             "data" :: CsrValue }.
+                               "addr" :: RegId ;
+                               "data" :: Array 1 (Bit Flen) }.
 
   Definition MemWrite := STRUCT {
                              "addr" :: VAddr ;
@@ -1366,17 +1362,17 @@ Section Params.
       (reg_id : RegId @# ty)
       :  ActionT ty Data
       := Call reg_val
-           :  Data
+           :  Array 1 Data
            <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-           Ret (xlen_sign_extend Rlen xlen #reg_val).
+           Ret (IF reg_id == $0 then $0 else xlen_sign_extend Rlen xlen (ReadArrayConst #reg_val Fin.F1)).
 
     Definition reg_reader_read_freg n
                (freg_id : RegId @# ty)
       :  ActionT ty Data
       := Call freg_val
-           :  Bit Flen
+           :  Array 1 (Bit Flen)
            <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
-           Ret (flen_one_extend Rlen (#freg_val)).
+           Ret (flen_one_extend Rlen (ReadArrayConst #freg_val Fin.F1)).
     
     Import ListNotations.
 
@@ -1532,8 +1528,8 @@ Section Params.
         := LET pkt
              :  IntRegWrite
              <- STRUCT {
-                  "index" ::= reg_id;
-                  "data"  ::= xlen_sign_extend Xlen xlen data
+                  "addr" ::= reg_id;
+                  "data"  ::= ARRAY { xlen_sign_extend Xlen xlen data }
                 };
            Call ^"regWrite" (#pkt : IntRegWrite);
            System [
@@ -1552,8 +1548,8 @@ Section Params.
         := LET pkt
              :  FloatRegWrite
              <- STRUCT {
-                  "index" ::= reg_id;
-                  "data"  ::= OneExtendTruncLsb Flen data
+                  "addr" ::= reg_id;
+                  "data"  ::= ARRAY { OneExtendTruncLsb Flen data }
                 };
            Call (^"fregWrite") (#pkt : FloatRegWrite);
            System [
