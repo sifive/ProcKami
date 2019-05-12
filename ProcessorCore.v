@@ -179,7 +179,8 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          (#cfg_pkt @% "xlen")
+                          (* (#cfg_pkt @% "xlen") *)
+                          #cfg_pkt
                           #decoder_pkt;
                    System
                      [
