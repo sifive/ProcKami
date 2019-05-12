@@ -262,14 +262,18 @@ Section Params.
                                  "reg_data" :: Data
                                }.
 
-  Definition CSRWriteState
+  Definition WarlStateField
     :  Kind
     := STRUCT {
-         (* "csrValueCurrent" :: k; *)
-         (* "csrValueToWrite" :: k; *)
          "pc" :: VAddr;
          "compressed?" :: Bool
        }.
+
+  Definition FieldUpd
+    := STRUCT {
+      "warlStateField" :: WarlStateField;
+      "config" :: ContextCfgPkt
+    }.
 
   Record CompInstEntry := { req_exts: list (list string);
                             comp_inst_id: UniqId;
@@ -408,51 +412,28 @@ Section Params.
       write subfields within other registers. This module performs the
       transformations needed to handle this behavior.
     *)
-
-    Local Notation View := (View ty XlenWidth).
-    Local Notation Location := (Location ty 0 CsrIdWidth 2 XlenWidth).
-    Local Notation Build_Location := (Build_Location 0 CsrIdWidth).
     Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
-    
-    (* Represents CSR entry fields. *)
-(*
-    Local Definition csrField (k : Kind) (value : option (ConstT k))
-      :  {k : Kind & option (ConstT k)}
-      := existT (fun k => option (ConstT k)) k value.
 
-    Fixpoint repeatView
-      (n m : nat)
-      (x : MayStruct m)
-      {struct n}
-      :  Vector.t View n
-      := match n with
-           | 0 => []%vector
-           | S k
-             => ({|
-                  view_context := $n;
-                  view_size    := m;
-                  view_kind    := x
-                |} :: repeatView k x)%vector
-           end.
-
-    Definition MayStructField
-      :  Type
-      := string * {k : Kind & option (ConstT k)}.
-*)
     Record CSRField
       := {
            csrFieldName : string;
            csrFieldKind : Kind;
            csrFieldDefaultValue : option (ConstT csrFieldKind);
            csrFieldIsValid
+(*
              : ContextCfgPkt @# ty ->
-               CSRWriteState @# ty ->
+               WarlStateField @# ty ->
+*)
+             : FieldUpd @# ty ->
                csrFieldKind @# ty ->
                csrFieldKind @# ty ->
                Bool @# ty;
            csrFieldXform
+(*
              : ContextCfgPkt @# ty ->
-               CSRWriteState @# ty ->
+               WarlStateField @# ty ->
+*)
+             : FieldUpd @# ty ->
                csrFieldKind @# ty ->
                csrFieldKind @# ty ->
                csrFieldKind @# ty
@@ -555,25 +536,6 @@ Section Params.
              (Vector.nth (Vector.map f xs))
              (fun i : Fin.t n => nth_map f i xs).
 
-(*
-Coq < Show Script.
-Proof.
-intro.
-(unfold csrViewKind).
-(apply (f_equal2 (@Struct (csrViewNumFields view)))).
- (rewrite
-   <- (gen_nth_map
-         (fun field : CSRField =>
-          existT (fun k => option (ConstT k)) (csrFieldKind field)
-            (csrFieldDefaultValue field)) (csrViewFields view))).
- (simpl).
- symmetry.
- (apply gen_nth_map).
-
- reflexivity.
-
-Qed.
-*)
     Lemma csrViewKindCorrect
       : forall view : CSRView,
           csrViewKind view =
@@ -628,8 +590,9 @@ Qed.
     Definition csrViewReadWrite
       (view : CSRView)
       (k : Kind)
-      (cfg_pkt : ContextCfgPkt @# ty)
-      (context_pkt : CSRWriteState @# ty)
+      (* (cfg_pkt : ContextCfgPkt @# ty) *)
+      (* (context_pkt : WarlStateField @# ty) *)
+      (upd_pkt : FieldUpd @# ty)
       (req : LocationReadWriteInputT k @# ty)
       :  ActionT ty k
       := LETA csr_value
@@ -684,14 +647,16 @@ Qed.
                            (fun t => Expr ty (SyntaxKind t))
                            (ITE
                              (csrFieldIsValid field
-                               cfg_pkt
-                               context_pkt
+                               (* cfg_pkt
+                               context_pkt *)
+                               upd_pkt
                                curr_field_value
                                input_field_value)
                              input_field_value
                              (csrFieldXform field
-                               cfg_pkt
-                               context_pkt
+                               (* cfg_pkt
+                               context_pkt *)
+                               upd_pkt
                                curr_field_value
                                input_field_value))
                            (Vector.nth (Vector.map csrFieldKind (csrViewFields view)) i)
@@ -716,8 +681,9 @@ Qed.
     Definition csrReadWrite
       (entries : list CSR)
       (k : Kind)
-      (cfg_pkt : ContextCfgPkt @# ty)
-      (context_pkt : CSRWriteState @# ty)
+      (* (cfg_pkt : ContextCfgPkt @# ty) *)
+      (* (context_pkt : WarlStateField @# ty) *)
+      (upd_pkt : FieldUpd @# ty)
       (req : LocationReadWriteInputT k @# ty)
       :  ActionT ty (Maybe k)
       := System [
@@ -744,7 +710,8 @@ Qed.
                                  DispString _ (csrName csr_entry);
                                  DispString _ "\n"
                                ];
-                               csrViewReadWrite view_entry cfg_pkt context_pkt req 
+                               (* csrViewReadWrite view_entry cfg_pkt context_pkt req  *)
+                               csrViewReadWrite view_entry upd_pkt req 
                              else
                                Ret (unpack k $0)
                              as result;
@@ -762,9 +729,9 @@ Qed.
            csrFieldKind := Bit n;
            csrFieldDefaultValue := Some (ConstBit (natToWord n 0));
            csrFieldIsValid
-             := fun _ _ _ _ => $$false;
+             := fun _ _ _ => $$false;
            csrFieldXform
-             := fun _ _ _ _ => Const ty (natToWord n 0);
+             := fun _ _ _ => Const ty (natToWord n 0);
          |}.
 
     Definition csrFieldAny
@@ -777,9 +744,9 @@ Qed.
            csrFieldKind := Bit n;
            csrFieldDefaultValue := default;
            csrFieldIsValid
-             := fun _ _ _ _ => $$true;
+             := fun _ _ _ => $$true;
            csrFieldXform
-             := fun _ _ _ => id
+             := fun _ _ => id
          |}.
 
     Fixpoint repeatCSRView
@@ -804,10 +771,10 @@ Qed.
            csrFieldKind := Bit 2;
            csrFieldDefaultValue := None; (* TODO *)
            csrFieldIsValid
-             := fun _ _ _ x
+             := fun _ _ x
                   => x == $1 || x == $2;
            csrFieldXform
-             := fun _ _ curr_value _
+             := fun _ curr_value _
                   => curr_value
          |}.
 
@@ -1200,450 +1167,47 @@ Qed.
          ].
 
     Definition readCSR
+(*
       (cfg_pkt : ContextCfgPkt @# ty)
-      (context_pkt : CSRWriteState @# ty)
+      (context_pkt : WarlStateField @# ty)
+*)
+      (upd_pkt : FieldUpd @# ty)
       (csrId : CsrId @# ty)
       :  ActionT ty CsrValue
       := LETA result
            :  Maybe CsrValue
-           <- csrReadWrite CSRs cfg_pkt context_pkt
+           (* <- csrReadWrite CSRs cfg_pkt context_pkt *)
+           <- csrReadWrite CSRs upd_pkt
                 (STRUCT {
                    "isRd"        ::= $$true;
                    "addr"        ::= csrId;
-                   "contextCode" ::= cfg_pkt @% "xlen";
+                   "contextCode" ::= upd_pkt @% "config" @% "xlen";
                    "data"        ::= ($0 : CsrValue @# ty)
                  } : LocationReadWriteInputT CsrValue @# ty);
          Ret (#result @% "data").
 
     Definition writeCSR
+(*
       (cfg_pkt : ContextCfgPkt @# ty)
-      (context_pkt : CSRWriteState @# ty)
+      (context_pkt : WarlStateField @# ty)
+*)
+      (upd_pkt : FieldUpd @# ty)
       (csrId : CsrId @# ty)
       (raw_data : Data @# ty)
       :  ActionT ty Void
       := LETA result
            :  Maybe CsrValue
-           <- csrReadWrite CSRs cfg_pkt context_pkt
+           (* <- csrReadWrite CSRs cfg_pkt context_pkt *)
+           <- csrReadWrite CSRs upd_pkt
                 (STRUCT {
                    "isRd"        ::= $$false;
                    "addr"        ::= csrId;
-                   "contextCode" ::= cfg_pkt @% "xlen";
+                   "contextCode" ::= upd_pkt @% "config" @% "xlen";
                    "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
          Retv.
 
     Close Scope kami_action.
-(*
-    Record CSR
-      := {
-           csrName : string;
-           csrAddr : word CsrIdWidth;
-           csrFields : Vector.t CSRField 2
-         }.
-
-    Definition csrReadWrite
-      (k : Kind)
-      (req : LocationReadWriteInputT k @# ty)
-      (entries : list CSR)
-      :  ActionT ty (Maybe k)
-      := utila_acts_find_pkt
-           (map
-             (fun csr_entry : CSR
-               => utila_acts_find_pkt
-                    (map
-                      (fun field_entry : CSRField
-                        => LET entry_match
-                             :  Bool
-                             <- ((req @% "addr") == $$(csrAddr csr_entry) &&
-                                 (req @% "contextCode") == csr
-
-    Definition CSREntries
-      :  list Location 
-      := [
-           Build_Location ^"fflagsG" $1
-             (repeatView 2
-               MAYSTRUCT {
-                 "reserved" ::# Bit 27 #:: (ConstBit (natToWord 27 0));
-                 ^"fflags" :: Bit 5
-               });
-           Build_Location ^"frmG" $2
-             (repeatView 2
-               MAYSTRUCT {
-                 "reserved" ::# Bit 29 #:: (ConstBit (natToWord 29 0));
-                 ^"frm" :: Bit 3
-               });
-           Build_Location ^"fstatusG" $3
-             (repeatView 2
-               MAYSTRUCT {
-                 "reserved" ::# Bit 24 #:: (ConstBit (natToWord 24 0));
-                 ^"frm" :: Bit 3;
-                 ^"fflags" :: Bit 5
-               });
-           Build_Location ^"misa" (CsrIdWidth 'h"301")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mxl" :: Bit 2;
-                        "reserved" ::# Bit 4 #:: (ConstBit (natToWord 4 0));
-                        ^"extensions" :: Bit 26
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mxl" :: Bit 2;
-                        "reserved" ::# Bit 36 #:: (ConstBit (natToWord 36 0));
-                        ^"extensions" :: Bit 26
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mstatus" (CsrIdWidth 'h"300")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        "reserved0" ::# Bit 19 #:: (ConstBit (natToWord 19 0));
-                        ^"mpp" :: Bit 2;
-                        "reserved1" ::# Bit 2  #:: (ConstBit (natToWord 2 0));
-                        ^"spp" :: Bit 1;
-                        ^"mpie" :: Bit 1;
-                        "reserved2" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
-                        ^"spie" :: Bit 1;
-                        ^"upie" :: Bit 1;
-                        ^"mie" :: Bit 1;
-                        "reserved3" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
-                        ^"sie" :: Bit 1;
-                        ^"uie" :: Bit 1
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        "reserved0" ::# Bit 28 #:: (ConstBit (natToWord 28 0));
-                        ^"sxl" :: Bit 2;
-                        ^"uxl" :: Bit 2;
-                        "reserved1" ::# Bit 19 #:: (ConstBit (natToWord 19 0));
-                        ^"mpp" :: Bit 2;
-                        "reserved2" ::# Bit 2  #:: (ConstBit (natToWord 2 0));
-                        ^"spp" :: Bit 1;
-                        ^"mpie" :: Bit 1;
-                        "reserved3" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
-                        ^"spie" :: Bit 1;
-                        ^"upie" :: Bit 1;
-                        ^"mie" :: Bit 1;
-                        "reserved4" ::# Bit 1 #:: (ConstBit (natToWord 1 0));
-                        ^"sie" :: Bit 1;
-                        ^"uie" :: Bit 1
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mtvec" (CsrIdWidth 'h"305")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mtvec_mode" :: Bit 2;
-                        ^"mtvec_base" :: Bit 30
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mtvec_mode" :: Bit 2;
-                        ^"mtvec_base" :: Bit 62
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mscratch" (CsrIdWidth 'h"340")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mscratch" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mscratch" :: Bit 64
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mepc" (CsrIdWidth 'h"341")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mepc" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mepc" :: Bit 64
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mcause" (CsrIdWidth 'h"342")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mcause_interrupt" :: Bit 1;
-                        ^"mcause_code" :: Bit 31
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mcause_interrupt" :: Bit 1;
-                        ^"mcause_code" :: Bit 63
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"mtval" (CsrIdWidth 'h"343")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mtval" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"mtval" :: Bit 64
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"sstatus" (CsrIdWidth 'h"100")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        "reserved0" ::# Bit 23 #:: (ConstBit (natToWord 23 0));
-                        ^"spp" :: Bit 1;
-                        "reserved1" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
-                        ^"spie" :: Bit 1;
-                        ^"upie" :: Bit 1;
-                        "reserved2" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
-                        ^"sie" :: Bit 1;
-                        ^"uie" :: Bit 1
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        "reserved0" ::# Bit 30 #:: (ConstBit (natToWord 30 0));
-                        ^"uxl" :: Bit 2;
-                        "reserved1" ::# Bit 23 #:: (ConstBit (natToWord 23 0));
-                        ^"spp" :: Bit 1;
-                        "reserved2" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
-                        ^"spie" :: Bit 1;
-                        ^"upie" :: Bit 1;
-                        "reserved3" ::# Bit 2 #:: (ConstBit (natToWord 2 0));
-                        ^"sie" :: Bit 1;
-                        ^"uie" :: Bit 1
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"stvec" (CsrIdWidth 'h"105")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"stvec_mode" :: Bit 2;
-                        ^"stvec_base" :: Bit 30
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"stvec_mode" :: Bit 2;
-                        ^"stvec_base" :: Bit 62
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"sscratch" (CsrIdWidth 'h"140")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"sscratch" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"sscratch" :: Bit 64
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"sepc" (CsrIdWidth 'h"141")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"sepc" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"sepc" :: Bit 64
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"scause" (CsrIdWidth 'h"142")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"scause_interrupt" :: Bit 1;
-                        ^"scause_code" :: Bit 31
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"scause_interrupt" :: Bit 1;
-                        ^"scause_code" :: Bit 63
-                      }
-               |}
-             ]%vector;
-           Build_Location ^"stval" (CsrIdWidth 'h"143")
-             [
-               {|
-                 view_context := $1;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"stval" :: Bit 32
-                      }
-               |};
-               {|
-                 view_context := $2;
-                 view_size    := _;
-                 view_kind
-                   := MAYSTRUCT {
-                        ^"stval" :: Bit 64
-                      }
-               |}
-             ]%vector
-         ].
-
-    Open Scope kami_expr.
-    Open Scope kami_action.
-
-    Definition readWriteCSR (k : Kind) (request : LocationReadWriteInputT k @# ty)
-      :  ActionT ty (Maybe k)
-      := locationReadWrite request CSREntries.
-
-    Definition readCSR
-      (xlen : XlenValue @# ty)
-      (csrId : CsrId @# ty)
-      :  ActionT ty CsrValue
-      := 
-         LETA result
-           :  Maybe CsrValue
-           <- readWriteCSR
-                (STRUCT {
-                   "isRd"        ::= ($$true : Bool @# ty);
-                   "addr"        ::= (csrId : CsrId @# ty);
-                   "contextCode" ::= (xlen : XlenValue @# ty);
-                   "data"        ::= ($0 : CsrValue @# ty)
-                 } : LocationReadWriteInputT CsrValue @# ty);
-         System [
-           DispString _ " [readCSR]\n";
-           DispString _ " Reg Reader Read ";
-           DispDecimal #result;
-           DispString _ " from CSR: ";
-           DispHex csrId;
-           DispString _ " with context code: ";
-           DispDecimal xlen;
-           DispString _ "\n"
-         ];
-         Ret (#result @% "data").
-      
-    Definition writeCSR
-      (xlen : XlenValue @# ty)
-      (csrId : CsrId @# ty)
-      (raw_data : Data @# ty)
-      :  ActionT ty Void
-      := 
-         LETA result
-           <- readWriteCSR
-                (STRUCT {
-                   "isRd"        ::= $$false;
-                   "addr"        ::= csrId;
-                   "contextCode" ::= xlen;
-                   "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
-                 } : LocationReadWriteInputT CsrValue @# ty);
-         System [
-           DispString _ " [writeCSR]\n";
-           DispString _ " Reg Write Wrote ";
-           DispDecimal raw_data;
-           DispString _ " to CSR: ";
-           DispDecimal csrId;
-           DispString _ "\n";
-           DispString _ " with context code: ";
-           DispDecimal xlen;
-           DispString _ "\n"
-         ];
-         Retv.
-    Close Scope kami_expr.
-
-    Close Scope kami_action.
-*)
 
   End CsrInterface.
 
@@ -2269,9 +1833,11 @@ Qed.
     Import ListNotations.
 
     Definition reg_reader_read_csr
-      (* (xlen : XlenValue @# ty) *)
+(*
       (cfg_pkt : ContextCfgPkt @# ty)
-      (context_pkt : CSRWriteState @# ty)
+      (context_pkt : WarlStateField @# ty)
+*)
+      (upd_pkt : FieldUpd @# ty)
       (raw_instr : Inst @# ty)
       :  ActionT ty (Maybe CsrValue)
       (*
@@ -2287,7 +1853,8 @@ Qed.
       *)
       := LETA csr_value
            :  CsrValue
-           <- readCSR cfg_pkt context_pkt (imm raw_instr);
+           (* <- readCSR cfg_pkt context_pkt (imm raw_instr); *)
+           <- readCSR upd_pkt (imm raw_instr);
          System [
            DispString _ "Read CSR Register\n";
            DispString _ "  CSR ID: ";
@@ -2300,7 +1867,6 @@ Qed.
          Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
 
     Definition reg_reader
-      (* (xlen : XlenValue @# ty) *)
       (cfg_pkt : ContextCfgPkt @# ty)
       (decoder_pkt : DecoderPkt @# ty)
       :  ActionT ty ExecContextPkt
@@ -2314,12 +1880,16 @@ Qed.
          LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
          LETA csr_val
            :  Maybe CsrValue
-           (* <- reg_reader_read_csr xlen #raw_inst; *)
-           <- reg_reader_read_csr cfg_pkt
+           (* <- reg_reader_read_csr cfg_pkt *)
+           <- reg_reader_read_csr
                 (STRUCT {
-                   "pc"          ::= decoder_pkt @% "pc";
-                   "compressed?" ::= decoder_pkt @% "compressed?"
-                 } : CSRWriteState @# ty)
+                  "warlStateField"
+                     ::= (STRUCT {
+                            "pc"          ::= decoder_pkt @% "pc";
+                            "compressed?" ::= decoder_pkt @% "compressed?"
+                          } : WarlStateField @# ty);
+                   "config" ::= cfg_pkt
+                 } : FieldUpd @# ty)
                 #raw_inst;
          Read fflags_val : FflagsValue <- ^"fflags";
          Read frm_val : FrmValue <- ^"frm";
@@ -2557,9 +2127,11 @@ Qed.
              Retv.
 
       Definition commitWriters
-        (* (xlen : XlenValue @# ty) *)
+(*
         (cfg_pkt : ContextCfgPkt @# ty)
-        (context_pkt : CSRWriteState @# ty)
+        (context_pkt : WarlStateField @# ty)
+*)
+        (upd_pkt : FieldUpd @# ty)
         (val: Maybe RoutedReg @# ty)
         (reg_index: RegId @# ty)
         (csr_index: CsrId @# ty)
@@ -2570,15 +2142,15 @@ Qed.
              then 
                (If (#val_pos == $IntRegTag)
                   then (If (reg_index != $0)
-                          (* then reg_writer_write_reg xlen (reg_index) (#val_data); *)
-                          then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data);
+                          (* then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data); *)
+                          then reg_writer_write_reg (upd_pkt @% "config" @% "xlen") (reg_index) (#val_data);
                         Retv)
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
                           else (If (#val_pos == $CsrTag)
                                   then
-                                    (* (LETA _ <- writeCSR xlen csr_index (#val_data); *)
-                                    (LETA _ <- writeCSR cfg_pkt context_pkt csr_index (#val_data);
+                                    (* (LETA _ <- writeCSR cfg_pkt context_pkt csr_index (#val_data); *)
+                                    (LETA _ <- writeCSR upd_pkt csr_index (#val_data);
                                      System [
                                        DispString _ "  [commitWriters] wrote to CSR.\n";
                                        DispString _ "  [commitWriters] value data: ";
@@ -2589,9 +2161,7 @@ Qed.
                                        DispString _ "\n"
                                      ];
                                      Retv)
-                                  (* else (If (#val_pos == $FloatCsrTag) *)
                                   else (If (#val_pos == $FflagsTag)
-                                          (* then writeCSR $3 (#val_data); *)
                                           then (Write ^"fflags" : FflagsValue
                                                   <- unsafeTruncLsb FflagsWidth #val_data;
                                                 System [
@@ -2658,17 +2228,27 @@ Qed.
              else (
 *)
 (*
-                LETA _ <- commitWriters (cfg_pkt @% "xlen") #val1 #reg_index #csr_index;
-                LETA _ <- commitWriters (cfg_pkt @% "xlen") #val2 #reg_index #csr_index; 
-*)
                 LET context_pkt
-                  :  CSRWriteState
+                  :  WarlStateField
                   <- STRUCT {
                        "pc" ::= pc;
                        "compressed?" ::= exec_context_pkt @% "compressed?"
                      }; 
                 LETA _ <- commitWriters cfg_pkt #context_pkt #val1 #reg_index #csr_index;
                 LETA _ <- commitWriters cfg_pkt #context_pkt #val2 #reg_index #csr_index; 
+*)
+                LET upd_pkt
+                  :  FieldUpd
+                  <- STRUCT {
+                       "warlStateField"
+                         ::= (STRUCT {
+                                "pc" ::= pc;
+                                "compressed?" ::= exec_context_pkt @% "compressed?"
+                              } : WarlStateField @# ty);
+                       "config" ::= cfg_pkt
+                     } : FieldUpd @# ty;
+                LETA _ <- commitWriters #upd_pkt #val1 #reg_index #csr_index;
+                LETA _ <- commitWriters #upd_pkt #val2 #reg_index #csr_index; 
                 LET opt_val1 <- cxt @% "fst" @% "val1";
                 LET opt_val2 <- cxt @% "fst" @% "val2";
                 Read mepc : VAddr <- ^"mepc";
