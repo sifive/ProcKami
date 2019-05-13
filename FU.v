@@ -272,7 +272,7 @@ Section Params.
   Definition FieldUpd
     := STRUCT {
       "warlStateField" :: WarlStateField;
-      "config" :: ContextCfgPkt
+      "cfg" :: ContextCfgPkt
     }.
 
   Record CompInstEntry := { req_exts: list (list string);
@@ -1181,7 +1181,7 @@ Section Params.
                 (STRUCT {
                    "isRd"        ::= $$true;
                    "addr"        ::= csrId;
-                   "contextCode" ::= upd_pkt @% "config" @% "xlen";
+                   "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
                    "data"        ::= ($0 : CsrValue @# ty)
                  } : LocationReadWriteInputT CsrValue @# ty);
          Ret (#result @% "data").
@@ -1202,7 +1202,7 @@ Section Params.
                 (STRUCT {
                    "isRd"        ::= $$false;
                    "addr"        ::= csrId;
-                   "contextCode" ::= upd_pkt @% "config" @% "xlen";
+                   "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
                    "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
                  } : LocationReadWriteInputT CsrValue @# ty);
          Retv.
@@ -1888,7 +1888,7 @@ Section Params.
                             "pc"          ::= decoder_pkt @% "pc";
                             "compressed?" ::= decoder_pkt @% "compressed?"
                           } : WarlStateField @# ty);
-                   "config" ::= cfg_pkt
+                   "cfg" ::= cfg_pkt
                  } : FieldUpd @# ty)
                 #raw_inst;
          Read fflags_val : FflagsValue <- ^"fflags";
@@ -2143,7 +2143,7 @@ Section Params.
                (If (#val_pos == $IntRegTag)
                   then (If (reg_index != $0)
                           (* then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data); *)
-                          then reg_writer_write_reg (upd_pkt @% "config" @% "xlen") (reg_index) (#val_data);
+                          then reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") (reg_index) (#val_data);
                         Retv)
                   else (If (#val_pos == $FloatRegTag)
                           then reg_writer_write_freg (reg_index) (#val_data)
@@ -2245,7 +2245,7 @@ Section Params.
                                 "pc" ::= pc;
                                 "compressed?" ::= exec_context_pkt @% "compressed?"
                               } : WarlStateField @# ty);
-                       "config" ::= cfg_pkt
+                       "cfg" ::= cfg_pkt
                      } : FieldUpd @# ty;
                 LETA _ <- commitWriters #upd_pkt #val1 #reg_index #csr_index;
                 LETA _ <- commitWriters #upd_pkt #val2 #reg_index #csr_index; 
