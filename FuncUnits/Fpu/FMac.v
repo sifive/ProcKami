@@ -63,7 +63,7 @@ Section Fpu.
 
   Definition MacInputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr"      :: CsrValue; *)
            "fflags"    :: FflagsValue;
            "muladd_in" :: (MulAdd_Input expWidthMinus2 sigWidthMinus2)
@@ -71,7 +71,7 @@ Section Fpu.
 
   Definition MacOutputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr"       :: CsrValue; *)
            "fflags"     :: FflagsValue;
            "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2

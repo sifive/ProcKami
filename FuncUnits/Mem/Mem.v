@@ -17,15 +17,16 @@ Section Mem.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
 
-  Definition MaskedMem := STRUCT { "data" :: Data ;
-                                   "mask" :: Array Rlen_over_8 Bool }.
+  Definition MaskedMem := STRUCT_TYPE
+                            { "data" :: Data ;
+                              "mask" :: Array Rlen_over_8 Bool }.
   
   Section Ty.
     Variable ty: Kind -> Type.
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
-    Definition MemInputAddrType := STRUCT {
+    Definition MemInputAddrType := STRUCT_TYPE {
                                        "base" :: VAddr ;
                                        "offset" :: VAddr ;
                                        "numZeros" :: Bit 3 ;
@@ -35,7 +36,7 @@ Section Mem.
                                        "memMisalignedException?" :: Bool ;
                                        "accessException?" :: Bool }.
 
-    Definition MemOutputAddrType := STRUCT {
+    Definition MemOutputAddrType := STRUCT_TYPE {
                                         "addr" :: VAddr ;
                                         "data" :: MaskedMem ;
                                         "aq" :: Bool ;

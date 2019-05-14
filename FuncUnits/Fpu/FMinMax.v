@@ -66,7 +66,7 @@ Section Fpu.
 
   Definition FMinMaxInputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr" :: CsrValue; *)
            "fflags" :: FflagsValue;
            "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
@@ -76,7 +76,7 @@ Section Fpu.
 
   Definition FMinMaxOutputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr"   :: Maybe CsrValue; *)
            "fflags"   :: Maybe FflagsValue;
            "result" :: Bit len

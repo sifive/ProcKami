@@ -42,7 +42,7 @@ Definition RegId := Bit RegIdWidth.
 Definition CsrIdWidth := 12.
 Definition CsrId := Bit CsrIdWidth.
 
-Definition Extensions := STRUCT {
+Definition Extensions := STRUCT_TYPE {
                              "RV32I"    :: Bool ;
                              "RV64I"    :: Bool ;
                              "Zifencei" :: Bool ;
@@ -170,60 +170,62 @@ Section Params.
 
   Definition ExceptionInfo := Bit Xlen.
 
-  Definition FullException := STRUCT {
+  Definition FullException := STRUCT_TYPE {
                                   "exception" :: Exception ;
                                   "value" :: ExceptionInfo }.
 
   Definition PktWithException k := Pair k (Maybe FullException).
 
-  Definition FetchPkt := STRUCT {
+  Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst }.
 
   Definition ExecContextPkt :=
-    STRUCT { "pc"                       :: VAddr ;
-             "reg1"                     :: Data ;
-             "reg2"                     :: Data ;
-             "reg3"                     :: Data ;
-             "csr"                      :: Maybe CsrValue;
-             "fflags"                   :: FflagsValue;
-             "frm"                      :: FrmValue;
-             "inst"                     :: Inst ;
-             "compressed?"              :: Bool ;
-             "instMisalignedException?" :: Bool ;
-             "memMisalignedException?"  :: Bool ;
-             "accessException?"         :: Bool
-           }.
+    STRUCT_TYPE {
+        "pc"                       :: VAddr ;
+        "reg1"                     :: Data ;
+        "reg2"                     :: Data ;
+        "reg3"                     :: Data ;
+        "csr"                      :: Maybe CsrValue;
+        "fflags"                   :: FflagsValue;
+        "frm"                      :: FrmValue;
+        "inst"                     :: Inst ;
+        "compressed?"              :: Bool ;
+        "instMisalignedException?" :: Bool ;
+        "memMisalignedException?"  :: Bool ;
+        "accessException?"         :: Bool
+      }.
 
   Definition ContextCfgPkt :=
-    STRUCT {
-             "xlen"        :: XlenValue;
-             "mode"        :: PrivMode;
-             "extensions"  :: Extensions
-           }.
+    STRUCT_TYPE {
+        "xlen"        :: XlenValue;
+        "mode"        :: PrivMode;
+        "extensions"  :: Extensions
+      }.
 
   Definition RoutedReg
-    := STRUCT {
+    := STRUCT_TYPE {
            "tag"  :: RoutingTag;
            "data" :: Data
          }.
 
   Definition ExecContextUpdPkt :=
-    STRUCT { "val1"       :: Maybe RoutedReg ;
-             "val2"       :: Maybe RoutedReg ;
-             "memBitMask" :: DataMask ;
-             "taken?"     :: Bool ;
-             "aq"         :: Bool ;
-             "rl"         :: Bool }.
+    STRUCT_TYPE {
+        "val1"       :: Maybe RoutedReg ;
+        "val2"       :: Maybe RoutedReg ;
+        "memBitMask" :: DataMask ;
+        "taken?"     :: Bool ;
+        "aq"         :: Bool ;
+        "rl"         :: Bool }.
 
-  Definition MemoryInput := STRUCT {
+  Definition MemoryInput := STRUCT_TYPE {
                                 "aq" :: Bool ;
                                 "rl" :: Bool ;
                                 "reservation" :: Array Rlen_over_8 Bool ;
                                 "mem" :: Data ;
                                 "reg_data" :: Data }.
 
-  Definition MemoryOutput := STRUCT {
+  Definition MemoryOutput := STRUCT_TYPE {
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
                                  "isWr" :: Bool ;
@@ -234,29 +236,29 @@ Section Params.
                                  "tag" :: RoutingTag ;
                                  "reg_data" :: Maybe Data }.
 
-  Definition IntRegWrite := STRUCT {
+  Definition IntRegWrite := STRUCT_TYPE {
                              "index" :: RegId ;
                              "data" :: Bit Xlen }.
 
-  Definition FloatRegWrite := STRUCT {
+  Definition FloatRegWrite := STRUCT_TYPE {
                                "index" :: RegId ;
                                "data" :: Bit Flen }.
 
-  Definition CsrWrite := STRUCT {
+  Definition CsrWrite := STRUCT_TYPE {
                              "addr" :: CsrId ;
                              "data" :: CsrValue }.
 
-  Definition MemWrite := STRUCT {
+  Definition MemWrite := STRUCT_TYPE {
                              "addr" :: VAddr ;
                              "data" :: Data ;
                              "mask" :: Array Rlen_over_8 Bool }.
   
-  Definition MemRet := STRUCT {
+  Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
                            "tag"  :: RoutingTag ;
                            "data" :: Data }.
   
-  Definition MemUnitInput := STRUCT {
+  Definition MemUnitInput := STRUCT_TYPE {
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
                                  "reg_data" :: Data
@@ -264,13 +266,13 @@ Section Params.
 
   Definition WarlStateField
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
          "pc" :: VAddr;
          "compressed?" :: Bool
        }.
 
   Definition FieldUpd
-    := STRUCT {
+    := STRUCT_TYPE {
       "warlStateField" :: WarlStateField;
       "cfg" :: ContextCfgPkt
     }.
@@ -1413,14 +1415,14 @@ Section Params.
     (* decoder packets *)
 
     (* Represents the kind of packets used "internally" by the decoder. *)
-    Definition DecoderPktInternal := STRUCT {
+    Definition DecoderPktInternal := STRUCT_TYPE {
                                          "funcUnitTag" :: FuncUnitId;
                                          "instTag"     :: InstId;
                                          "inst"        :: Inst (* Todo: Temporary for debugging -
                                                                   remove when done. *) }.
 
     (* Represents the kind of packets output by the decoder. *)
-    Definition DecoderPkt := STRUCT {
+    Definition DecoderPkt := STRUCT_TYPE {
                                  "funcUnitTag" :: FuncUnitId;
                                  "instTag"     :: InstId;
                                  "pc"          :: VAddr;
@@ -1437,7 +1439,7 @@ Section Params.
       Bit FuncUnitInputWidth.
 
     Definition InputTransPkt :=
-      STRUCT {
+      STRUCT_TYPE {
           "funcUnitTag" :: FuncUnitId;
           "instTag"     :: InstId;
           "inp"         :: FuncUnitInput

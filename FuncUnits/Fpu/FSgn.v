@@ -63,7 +63,7 @@ Section Fpu.
 
   Definition FSgnInputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            "sign_bit" :: Bit 1;
            "arg1"     :: Bit len
          }.

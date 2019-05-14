@@ -22,16 +22,16 @@ Section Alu.
     Variable ty: Kind -> Type.
 
     Definition ShiftInputType
-      := STRUCT { 
-           "xlen"    :: XlenValue ;
+      := STRUCT_TYPE { 
+           "xlen"   :: XlenValue ;
            "right?" :: Bool ;
            "arith?" :: Bool ;
-           "arg1" :: Bit Xlen ;
-           "arg2" :: Bit 6
+           "arg1"   :: Bit Xlen ;
+           "arg2"   :: Bit 6
          }.
 
     Definition ShiftOutputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "xlen" :: XlenValue;
            "res" :: Bit Xlen
          }.

@@ -22,7 +22,7 @@ Section Alu.
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition JumpInputType :=
-      STRUCT {
+      STRUCT_TYPE {
         "pc"                   :: VAddr;
         "new_pc"               :: VAddr;
         "compressed?"          :: Bool;
@@ -30,9 +30,10 @@ Section Alu.
       }.
 
     Definition JumpOutputType :=
-      STRUCT { "misaligned?" :: Bool ;
-               "newPc" :: VAddr ;
-               "retPc" :: VAddr }.
+      STRUCT_TYPE {
+          "misaligned?" :: Bool ;
+          "newPc" :: VAddr ;
+          "retPc" :: VAddr }.
 
     Local Open Scope kami_expr.
 

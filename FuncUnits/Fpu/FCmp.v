@@ -81,7 +81,7 @@ Section Fpu.
 
   Definition FCmpInputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr"   :: CsrValue; *)
            "fflags" :: FflagsValue;
            "signal" :: Bool;
@@ -93,7 +93,7 @@ Section Fpu.
 
   Definition FCmpOutputType
     :  Kind
-    := STRUCT {
+    := STRUCT_TYPE {
            (* "fcsr"   :: Maybe CsrValue; *)
            "fflags" :: Maybe FflagsValue;
            "result" :: Bit len

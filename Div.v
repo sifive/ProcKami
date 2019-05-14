@@ -32,11 +32,11 @@ Eval compute in (div_rem_nat_final 8 100 3).
 
 Section divnat_expr.
   Variable sz: nat.
-  Definition DivRemDen := STRUCT {
+  Definition DivRemDen := STRUCT_TYPE {
                               "den" :: Bit sz ;
                               "quo" :: Bit sz ;
                               "rem" :: Bit (sz + sz) }.
-  Definition DivRem := STRUCT {
+  Definition DivRem := STRUCT_TYPE {
                            "quo" :: Bit sz ;
                            "rem" :: Bit sz }.
   Let opK := Bit 0.

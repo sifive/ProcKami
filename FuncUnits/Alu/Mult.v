@@ -24,14 +24,14 @@ Section Alu.
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition MultInputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "xlen"  :: XlenValue;
            "arg1" :: Bit (2 * Xlen)%nat;
            "arg2" :: Bit (2 * Xlen)%nat
          }.
 
     Definition MultOutputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "xlen" :: XlenValue;
            "res" :: Bit (2 * Xlen)%nat
          }.
