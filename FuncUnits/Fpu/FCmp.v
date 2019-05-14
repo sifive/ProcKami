@@ -81,8 +81,7 @@ Section Fpu.
 
   Definition FCmpInputType
     :  Kind
-    := STRUCT {
-           (* "fcsr"   :: CsrValue; *)
+    := STRUCT_TYPE {
            "fflags" :: FflagsValue;
            "signal" :: Bool;
            "cond0"  :: cmp_cond_kind;
@@ -93,8 +92,7 @@ Section Fpu.
 
   Definition FCmpOutputType
     :  Kind
-    := STRUCT {
-           (* "fcsr"   :: Maybe CsrValue; *)
+    := STRUCT_TYPE {
            "fflags" :: Maybe FflagsValue;
            "result" :: Bit len
          }.
@@ -112,7 +110,6 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            (* "fcsr"   ::= #context_pkt @% "fcsr"; *)
             "fflags" ::= #context_pkt @% "fflags";
             "signal" ::= signal;
             "cond0"  ::= cond0;
@@ -133,12 +130,6 @@ Section Fpu.
                    LETE cmp_result
                      :  Compare_Output
                      <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
-(*
-                   LETC fcsr
-                     :  CsrValue
-                     <- ((#sem_in_pkt @% "fcsr") |
-                         (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
-*)
                    LETC fflags
                      :  FflagsValue
                      <- ((#sem_in_pkt @% "fflags") |
@@ -176,16 +167,6 @@ Section Fpu.
                                          "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
                                          "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
                                        } : RoutedReg @# ty);
-(*
-                                 "val2"
-                                   ::= ITE
-                                         (#result @% "fcsr" @% "valid")
-                                         (Valid (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                          } : RoutedReg @# ty))
-                                         (@Invalid ty _);
-*)
                                  "val2"
                                    ::= ITE
                                          (#result @% "fflags" @% "valid")

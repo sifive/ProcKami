@@ -23,7 +23,7 @@ Section zicsr.
   Variable ty : Kind -> Type.
 
   Definition ZicsrInput
-    := STRUCT {
+    := STRUCT_TYPE {
            "orig_csr_value" :: Maybe CsrValue;
            "new_csr_value"  :: Maybe CsrValue
          }%kami_struct.

@@ -23,7 +23,7 @@ Section Alu.
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
-    Definition LogicalType := STRUCT {"op" :: Bit 2 ; "arg1" :: Bit Xlen ; "arg2" :: Bit Xlen}.
+    Definition LogicalType := STRUCT_TYPE {"op" :: Bit 2 ; "arg1" :: Bit Xlen ; "arg2" :: Bit Xlen}.
     Definition XorOp := 0.
     Definition OrOp  := 2.
     Definition AndOp := 3.

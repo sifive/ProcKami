@@ -190,7 +190,7 @@ Section exts.
     *)
     Local Definition param_exts
       :  ConstT (Extensions)
-      := STRUCT {
+      := STRUCT_CONST {
            param_ext_set "RV32I";
            param_ext_set "RV64I";
            param_ext_set "Zifencei";

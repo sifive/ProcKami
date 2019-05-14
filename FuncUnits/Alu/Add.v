@@ -22,14 +22,14 @@ Section Alu.
     Variable ty: Kind -> Type.
 
     Definition AddInputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "xlen"  :: XlenValue;
            "arg1" :: Bit (Xlen + 1);
            "arg2" :: Bit (Xlen + 1)
          }.
 
     Definition AddOutputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "xlen" :: XlenValue;
            "res" :: Bit (Xlen + 1)
          }.

@@ -23,22 +23,24 @@ Section Alu.
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition BranchInputType :=
-      STRUCT { "lt?" :: Bool ;
-               "unsigned?" :: Bool ;
-               "inv?" :: Bool ;
-               "pc" :: VAddr ;
-               "xlen" :: XlenValue ;
-               "offset" :: VAddr ;
-               "compressed?" :: Bool ;
-               "misalignedException?" :: Bool ;
-               "reg1" :: Bit (Xlen + 1) ;
-               "reg2" :: Bit (Xlen + 1) }.
+      STRUCT_TYPE {
+        "lt?" :: Bool ;
+        "unsigned?" :: Bool ;
+        "inv?" :: Bool ;
+        "pc" :: VAddr ;
+        "xlen" :: XlenValue ;
+        "offset" :: VAddr ;
+        "compressed?" :: Bool ;
+        "misalignedException?" :: Bool ;
+        "reg1" :: Bit (Xlen + 1) ;
+        "reg2" :: Bit (Xlen + 1) }.
 
     Definition BranchOutputType :=
-      STRUCT { "misaligned?" :: Bool ;
-               "taken?" :: Bool ;
-               "newPc" :: VAddr ;
-               "xlen" :: XlenValue }.
+      STRUCT_TYPE {
+        "misaligned?" :: Bool ;
+        "taken?" :: Bool ;
+        "newPc" :: VAddr ;
+        "xlen" :: XlenValue }.
 
     Definition BeqOp := 0.
     Definition BneOp := 1.

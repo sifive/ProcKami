@@ -11,6 +11,15 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
+Require Import ConfigReader.
+Require Import Fetch.
+Require Import Decompressor.
+Require Import Decoder.
+Require Import InputTrans.
+Require Import RegReader.
+Require Import Executer.
+Require Import MemUnit.
+Require Import RegWriter.
 
 Section Params.
   Variable name: string.
@@ -34,7 +43,6 @@ Section Params.
     Local Open Scope kami_expr.
 
     Variable func_units : forall ty, list (FUEntry ty).
-    (* Variable mode       : forall ty, PrivMode @# ty. *)
     Variable supportedExts : ConstT (Extensions).
 
     Section Display.
@@ -146,7 +154,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name lgMemSz Xlen_over_8 Rlen_over_8 (#cfg_pkt @% "xlen") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 lgMemSz (#cfg_pkt @% "xlen") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -179,7 +187,6 @@ Section Params.
                             (#fetch_pkt @% "snd" @% "valid")
                             ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
                             $$(false))
-                          (* (#cfg_pkt @% "xlen") *)
                           #cfg_pkt
                           #decoder_pkt;
                    System
@@ -226,13 +233,6 @@ Section Params.
                           Flen_over_8
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
-(*
-                          (STRUCT {
-                             "xlen"         ::= #cfg_pkt @% "xlen";
-                             "mode"        ::= #decoder_pkt @% "fst" @% "mode";
-                             "compressed?" ::= #decoder_pkt @% "fst" @% "compressed?"
-                           } : ContextCfgPkt @# _)
-*)
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
                           #mem_update_pkt;

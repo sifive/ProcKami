@@ -66,8 +66,7 @@ Section Fpu.
 
   Definition FMinMaxInputType
     :  Kind
-    := STRUCT {
-           (* "fcsr" :: CsrValue; *)
+    := STRUCT_TYPE {
            "fflags" :: FflagsValue;
            "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
            "arg2"   :: NF expWidthMinus2 sigWidthMinus2;
@@ -76,8 +75,7 @@ Section Fpu.
 
   Definition FMinMaxOutputType
     :  Kind
-    := STRUCT {
-           (* "fcsr"   :: Maybe CsrValue; *)
+    := STRUCT_TYPE {
            "fflags"   :: Maybe FflagsValue;
            "result" :: Bit len
          }.
@@ -94,7 +92,6 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
             "fflags" ::= #context_pkt @% "fflags";
             "arg1"   ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
             "arg2"   ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
@@ -113,12 +110,6 @@ Section Fpu.
                    LETE cmp_out_pkt
                      :  Compare_Output
                      <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
-(*
-                   LETC fcsr
-                     :  CsrValue
-                     <- ((#sem_in_pkt @% "fcsr" : CsrValue @# ty) |
-                         (ZeroExtendTruncLsb CsrValueWidth csr_invalid_mask));
-*)
                    LETC fflags
                      :  FflagsValue
                      <- ((#sem_in_pkt @% "fflags" : FflagsValue @# ty) |
@@ -126,13 +117,6 @@ Section Fpu.
                    LETC result
                      :  FMinMaxOutputType
                      <- STRUCT {
-(*
-                          "fcsr"
-                            ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
-                                     (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
-                                  (Valid #fcsr)
-                                  (@Invalid ty CsrValue);
-*)
                           "fflags"
                             ::= ITE ((isSigNaNRawFloat (#sem_in_pkt @% "arg1")) ||
                                      (isSigNaNRawFloat (#sem_in_pkt @% "arg2")))
@@ -174,15 +158,6 @@ Section Fpu.
                                          "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
                                          "data" ::= OneExtendTruncLsb Rlen (#result @% "result")
                                        });
-(*
-                                 "val2"
-                                   ::= ITE (#result @% "fcsr" @% "valid")
-                                         (Valid (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FloatCsrTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fcsr" @% "data")
-                                         }))
-                                         Invalid;
-*)
                                  "val2"
                                    ::= ITE (#result @% "fflags" @% "valid")
                                          (Valid (STRUCT {

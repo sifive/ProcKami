@@ -24,7 +24,7 @@ Section Alu.
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition DivRemInputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "arg1"         :: Bit Xlen;
            "arg2"         :: Bit Xlen;
            "not_neg_quo?" :: Bool;
@@ -32,7 +32,7 @@ Section Alu.
          }.
 
     Definition DivRemOutputType
-      := STRUCT {
+      := STRUCT_TYPE {
            "div" :: Bit Xlen ;
            "rem" :: Bit Xlen
          }.
