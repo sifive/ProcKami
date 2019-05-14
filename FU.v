@@ -237,12 +237,12 @@ Section Params.
                                  "reg_data" :: Maybe Data }.
 
   Definition IntRegWrite := STRUCT_TYPE {
-                             "index" :: RegId ;
-                             "data" :: Bit Xlen }.
+                             "addr" :: RegId ;
+                             "data" :: Array 1 (Bit Xlen) }.
 
   Definition FloatRegWrite := STRUCT_TYPE {
-                               "index" :: RegId ;
-                               "data" :: Bit Flen }.
+                               "addr" :: RegId ;
+                               "data" :: Array 1 (Bit Flen) }.
 
   Definition MemWrite := STRUCT_TYPE {
                              "addr" :: VAddr ;
