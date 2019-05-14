@@ -64,7 +64,6 @@ Section Fpu.
   Definition MacInputType
     :  Kind
     := STRUCT_TYPE {
-           (* "fcsr"      :: CsrValue; *)
            "fflags"    :: FflagsValue;
            "muladd_in" :: (MulAdd_Input expWidthMinus2 sigWidthMinus2)
          }.
@@ -72,7 +71,6 @@ Section Fpu.
   Definition MacOutputType
     :  Kind
     := STRUCT_TYPE {
-           (* "fcsr"       :: CsrValue; *)
            "fflags"     :: FflagsValue;
            "muladd_out" :: MulAdd_Output expWidthMinus2 sigWidthMinus2
          }.
@@ -100,7 +98,6 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
             "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
@@ -123,7 +120,6 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
             "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
@@ -146,7 +142,6 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            (* "fcsr" ::= #context_pkt @% "fcsr"; *)
             "fflags" ::= #context_pkt @% "fflags";
             "muladd_in"
               ::= (STRUCT {
@@ -200,7 +195,6 @@ Section Fpu.
                      <- MulAdd_expr (#sem_in_pkt @% "muladd_in");
                    RetE
                      (STRUCT {
-                        (* "fcsr"       ::= #sem_in_pkt @% "fcsr"; *)
                         "fflags"     ::= #sem_in_pkt @% "fflags";
                         "muladd_out" ::= #muladd_out
                       } : MacOutputType @# ty);

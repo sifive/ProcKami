@@ -43,13 +43,27 @@ Separate Extraction
   kami_model32
   kami_model64
 
+  UpdateStruct
+  Kind_dec
   size
   wordToNat
+  EclecticLib.getBool
+  Base
   getFins
+  getCallsWithSignPerRule
+  getRegisters
+  getRules
   Fin.to_nat
+  Fin.t_rect
   fullFormatHex
   fullFormatBinary
   fullFormatDecimal
+  List.find
+  List.fold_left
+  List.hd
+  List.in_dec
+  List.last
+  Mod
   readReqName
   readResName
   readRegName
@@ -61,5 +75,6 @@ Separate Extraction
   rfIdxNum
   rfData
   rfInit
+  separateModRemove
   pack
   unpack.
