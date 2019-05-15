@@ -168,7 +168,7 @@ Section Params.
                    System
                      [
                        DispString _ "Decode:\n";
-                       DispDecimal #decoder_pkt;
+                       DispHex #decoder_pkt;
                        DispString _ "\n"
                      ];
                    System [DispString _ "Reg Read\n"];
