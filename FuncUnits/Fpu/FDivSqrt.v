@@ -84,11 +84,6 @@ Section Fpu.
     := LETE sem_out_pkt
          :  outK expWidthMinus2 sigWidthMinus2
          <- sem_out_pkt_expr;
-       SystemE [
-         DispString ty "fdivsqrt outK: ";
-         DispBinary #sem_out_pkt;
-         DispString ty "\n"
-       ];
        RetE
          (STRUCT {
             "fst"

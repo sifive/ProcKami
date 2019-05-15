@@ -170,22 +170,6 @@ Section decoder.
            <- decode_match_fields raw_inst (uniqId inst);
          LETE exts_match : Bool
            <- decode_match_enabled_exts inst exts_pkt;
-
-         SystemE
-           (DispString _ "Decoder " ::
-            DispString _ (instName inst) ::
-            DispString _ "\n" ::
-            DispString _ "inst: " ::
-            DispBinary (raw_inst) ::
-            DispString _ "\n" ::
-            DispString _ "exts: " ::
-            DispBinary (exts_pkt) ::
-            DispString _ "\n" ::
-            DispString _ "match: " ::
-            DispBinary ((#inst_id_match) && (#exts_match)) ::
-            DispString _ "\n" ::
-            nil);
-
          RetE ((#inst_id_match) && (#exts_match)).
 
     (*

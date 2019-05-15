@@ -223,7 +223,7 @@ Section RegWriter.
        LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
        LET reg_index : RegId <- rd inst;
        LET csr_index : CsrId <- imm inst;
-(*
+
        If (cxt @% "snd" @% "valid")
          then
            If cxt @% "snd" @% "data" @% "exception" == $ECallM
@@ -253,17 +253,6 @@ Section RegWriter.
                   Retv);
              Retv
          else (
-*)
-(*
-            LET context_pkt
-              :  WarlStateField
-              <- STRUCT {
-                   "pc" ::= pc;
-                   "compressed?" ::= exec_context_pkt @% "compressed?"
-                 }; 
-            LETA _ <- commitWriters cfg_pkt #context_pkt #val1 #reg_index #csr_index;
-            LETA _ <- commitWriters cfg_pkt #context_pkt #val2 #reg_index #csr_index; 
-*)
             LET upd_pkt
               :  FieldUpd
               <- STRUCT {
@@ -279,13 +268,13 @@ Section RegWriter.
             LET opt_val1 <- cxt @% "fst" @% "val1";
             LET opt_val2 <- cxt @% "fst" @% "val2";
             Read mepc : VAddr <- ^"mepc";
-(*
+
             System [
               DispString _ "[commit] mepc:\n";
               DispHex #mepc;
               DispString _ "\n"
             ];
-*)
+
             Read sepc : VAddr <- ^"sepc";
             Read uepc : VAddr <- ^"uepc";
             Write ^"pc"
@@ -308,7 +297,7 @@ Section RegWriter.
                        (ITE (exec_context_pkt @% "compressed?")
                          (pc + $2)
                          (pc + $4)))));
-(*            Retv); *)
+            Retv); 
        Retv.
 
   Close Scope kami_expr.
