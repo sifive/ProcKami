@@ -44,9 +44,9 @@ Section RegWriter.
        Call ^"regWrite" (#pkt : IntRegWrite);
        System [
          DispString _ " Reg Write Wrote ";
-         DispDecimal data;    
+         DispHex data;    
          DispString _ " to register ";
-         DispDecimal reg_id;
+         DispHex reg_id;
          DispString _ "\n"
        ]%list;
        Retv.
@@ -64,9 +64,9 @@ Section RegWriter.
        Call (^"fregWrite") (#pkt : FloatRegWrite);
        System [
          DispString _ " Reg Write Wrote ";
-         DispDecimal data;
+         DispHex data;
          DispString _ " to floating point register ";
-         DispDecimal reg_id;
+         DispHex reg_id;
          DispString _ "\n"
        ]%list;
        Retv.
@@ -118,7 +118,7 @@ Section RegWriter.
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
          DispString _ "  tvec mode: ";
-         DispDecimal (#tvec_mode);
+         DispHex (#tvec_mode);
          DispString _ "\n";
          DispString _ "  address base: ";
          DispHex (#addr_base);
@@ -193,7 +193,7 @@ Section RegWriter.
                                               <- unsafeTruncLsb FflagsWidth #val_data;
                                             System [
                                               DispString _ " Reg Write Wrote ";
-                                              DispDecimal #val_data;
+                                              DispHex #val_data;
                                               DispString _ " to FFLAGS field in FCSR\n"
                                             ];
                                             Retv)

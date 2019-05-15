@@ -26,13 +26,13 @@ Section config_reader.
        Read uxl : XlenValue <- ^"uxl";
        System [
            DispString _ "mxl:";
-           DispDecimal #mxl;
+           DispHex #mxl;
            DispString _ "\n";
            DispString _ "sxl:";
-           DispDecimal #sxl;
+           DispHex #sxl;
            DispString _ "\n";
            DispString _ "uxl:";
-           DispDecimal #uxl;
+           DispHex #uxl;
            DispString _ "\n"
        ];
        LET xlen
@@ -60,10 +60,10 @@ Section config_reader.
          [
            DispString _ "Start\n";
            DispString _ "Mode:";
-           DispDecimal #mode;
+           DispHex #mode;
            DispString _ "\n";
            DispString _ "XL:";
-           DispDecimal #xlen;
+           DispHex #xlen;
            DispString _ "\n";
            DispString _ "Extensions:";
            DispBinary #extensions;
