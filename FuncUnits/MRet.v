@@ -119,7 +119,7 @@ Section mret.
                 => LETE mode : PrivMode <- mode_pkt;
                    SystemE [
                      DispString _ "[ecall] mode: ";
-                     DispDecimal #mode;
+                     DispHex #mode;
                      DispString _ "\n"
                    ];
                    RetE
