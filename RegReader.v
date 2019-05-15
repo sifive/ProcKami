@@ -122,7 +122,7 @@ Section reg_reader.
          DispHex (imm raw_instr);  
          DispString _ "\n";
          DispString _ "  CSR Value: ";
-         DispDecimal #csr_value;
+         DispHex #csr_value;
          DispString _ "\n"
        ];
        Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
@@ -155,13 +155,13 @@ Section reg_reader.
        Read frm_val : FrmValue <- ^"frm";
        LETA msg <- Sys [
            DispString _ "Reg 1 selector: ";
-           DispDecimal (rs1 #raw_inst);
+           DispHex (rs1 #raw_inst);
            DispString _ "\n";
            DispString _ "Reg 2 selector: ";
-           DispDecimal (rs2 #raw_inst);
+           DispHex (rs2 #raw_inst);
            DispString _ "\n";
            DispString _ "CSR selector: ";
-           DispDecimal (imm #raw_inst);
+           DispHex (imm #raw_inst);
            DispString _ "\n";
            DispString _ "has RS1: ";
            DispBinary (reg_reader_has hasRs1 decoder_pkt);
