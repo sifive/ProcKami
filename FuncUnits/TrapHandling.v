@@ -49,18 +49,25 @@ Section trap_handling.
        Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
        LET addr_base
          :  VAddr
-         <- xlen_sign_extend Xlen xlen
-              ({<
-                 #tvec_base,
-                 $$(natToWord 2 0)
-               >});
+         <- xlen_sign_extend Xlen xlen #tvec_base;
        LET addr_offset
          :  VAddr
-         <- xlen_sign_extend Xlen xlen
-              ({<
-                 exception_code,
-                 $$(natToWord 2 0)
-               >});
+         <- xlen_sign_extend Xlen xlen exception_code;
+       System [
+         DispString _ "[trapAction]\n";
+         DispString _ "  tvec_mode: ";
+         DispDecimal #tvec_mode;
+         DispString _ "\n";
+         DispString _ "  tvec_base: ";
+         DispHex #tvec_base;
+         DispString _ "\n";
+         DispString _ "  addr_base: ";
+         DispHex #addr_base;
+         DispString _ "\n";
+         DispString _ "  addr_offset: ";
+         DispHex #addr_offset;
+         DispString _ "\n"
+       ];
        Write ^"pc"
          :  VAddr
          <- ITE (#tvec_mode == $0)

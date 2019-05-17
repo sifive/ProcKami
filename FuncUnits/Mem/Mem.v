@@ -15,9 +15,9 @@ Section Mem.
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
-
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation isAligned := (isAligned Xlen_over_8).
 
   Definition MaskedMem := STRUCT_TYPE
                             { "data" :: Data ;
@@ -47,9 +47,6 @@ Section Mem.
                                         "accessException?" :: Bool }.
 
     Local Open Scope kami_expr.
-
-    Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
 
     Definition loadInput
       (size: nat)

@@ -31,6 +31,7 @@ Section CsrInterface.
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation WarlStateField := (WarlStateField Xlen_over_8).
+  Local Notation isAligned := (isAligned Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
 
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
@@ -512,7 +513,18 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldAny "mtvec_mode" 2 None;
-                           @csrFieldAny "mtvec_base" 30 None
+                           {|
+                             csrFieldName := ^"mtvec_base";
+                             csrFieldKind := Bit 30;
+                             csrFieldDefaultValue := None;
+                             csrFieldIsValid
+                               := fun _ _ input_value
+                                    => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
+                                      isAligned (SignExtendTruncLsb Xlen input_value) $2;
+                             csrFieldXform
+                               := fun _ curr_value _
+                                    => curr_value
+                           |}
                          ]%vector
                   |};
                   {|

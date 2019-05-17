@@ -335,6 +335,9 @@ Section Params.
                            "data" ::= $ 0 } ;
         "snd" ::= Invalid }.
 
+  Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
+    ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     
