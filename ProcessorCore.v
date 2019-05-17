@@ -107,7 +107,8 @@ Section Params.
               Register ^"frm"              : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
 
               (* machine mode registers *)
-              Register ^"mxl"              : XlenValue    <- initXlen with
+              Register ^"mxl"              : XlenValue <- initXlen with
+              Register ^"medeleg"          : Bit 16 <- ConstBit (natToWord 16 0) with
               Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
               Register ^"mpie"             : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"mie"              : Bit 1 <- ConstBit (natToWord 1 0) with
@@ -121,6 +122,7 @@ Section Params.
 
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
+              Register ^"sedeleg"          : Bit 16 <- ConstBit (natToWord 16 0) with
               Register ^"spp"              : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"spie"             : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"sie"              : Bit 1 <- ConstBit (natToWord 1 0) with

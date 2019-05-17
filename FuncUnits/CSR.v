@@ -429,6 +429,31 @@ Section CsrInterface.
                 ]%vector
          |};
          {|
+           csrName := ^"medeleg";
+           csrAddr := CsrIdWidth 'h"302";
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewNumFields := 2;
+                    csrViewFields
+                      := [
+                           csrFieldReserved "reserved" 16;
+                           @csrFieldAny "medeleg" 16 None
+                         ]%vector
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewNumFields := 2;
+                    csrViewFields
+                      := [
+                           csrFieldReserved "reserved" 48;
+                           @csrFieldAny "medeleg" 16 None
+                         ]%vector
+                  |}
+                ]%vector
+         |};
+         {|
            csrName := ^"mstatus";
            csrAddr := CsrIdWidth 'h"300";
            csrViews
@@ -630,6 +655,31 @@ Section CsrInterface.
                            csrFieldReserved "reserved3" 2;
                            @csrFieldAny "sie" 1 None;
                            @csrFieldAny "uie" 1 None
+                         ]%vector
+                  |}
+                ]%vector
+         |};
+         {|
+           csrName := ^"sedeleg";
+           csrAddr := CsrIdWidth 'h"102";
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewNumFields := 2;
+                    csrViewFields
+                      := [
+                           csrFieldReserved "reserved" 16;
+                           @csrFieldAny "medeleg" 16 None
+                         ]%vector
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewNumFields := 2;
+                    csrViewFields
+                      := [
+                           csrFieldReserved "reserved" 48;
+                           @csrFieldAny "medeleg" 16 None
                          ]%vector
                   |}
                 ]%vector
@@ -890,15 +940,6 @@ Section CsrInterface.
        LETA csr_val
          :  CsrValue
          <- readCSR #upd_pkt csr_index;
-(*
-       If rd_index != $0
-         then
-           (LETA _
-              <- reg_writer_write_reg (#upd_pkt @% "cfg" @% "xlen") rd_index
-                   (ZeroExtendTruncLsb Rlen #csr_val);
-            Retv);
-*)
-       (* TODO: we can eliminate some circuitry by requiring val1 to always contain the CSR update *)
        System [
          DispString _ "[commitCSRWrites] curr csr value:\n";
          DispBinary #csr_val;

@@ -123,11 +123,9 @@ Section trap_handling.
          Retv.
 
   Definition commitWriters
-    (* (upd_pkt : FieldUpd @# ty) *)
     (cfg_pkt : ContextCfgPkt @# ty)
     (val: Maybe RoutedReg @# ty)
     (reg_index: RegId @# ty)
-    (* (csr_index: CsrId @# ty) *)
     : ActionT ty Void
     := LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
        LET val_data : Data <- (val @% "data") @% "data" ;
@@ -135,46 +133,10 @@ Section trap_handling.
          then 
            (If (#val_pos == $IntRegTag)
               then (If (reg_index != $0)
-                      (* then reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") (reg_index) (#val_data); *)
                       then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data);
                     Retv)
               else (If (#val_pos == $FloatRegTag)
                       then reg_writer_write_freg (reg_index) (#val_data)
-(*
-                      else (If (#val_pos == $CsrTag)
-                              then
-                                (LETA _ <- writeCSR upd_pkt csr_index (#val_data);
-                                 System [
-                                   DispString _ "  [commitWriters] wrote to CSR.\n";
-                                   DispString _ "  [commitWriters] value data: ";
-                                   DispHex #val_data;
-                                   DispString _ "\n";
-                                   DispString _ "  [commitWriters] value packet: ";
-                                   DispHex val;
-                                   DispString _ "\n"
-                                 ];
-                                 Retv)
-                              else (If (#val_pos == $FflagsTag)
-                                      then (Write ^"fflags" : FflagsValue
-                                              <- unsafeTruncLsb FflagsWidth #val_data;
-                                            System [
-                                              DispString _ " Reg Write Wrote ";
-                                              DispHex #val_data;
-                                              DispString _ " to FFLAGS field in FCSR\n"
-                                            ];
-                                            Retv)
-                                      else
-                                        (If (#val_pos == $RetTag)
-                                           then
-                                             (LETA _ <- commitRet val; (* TODO uncomment once registers ported over. *)
-                                              System [
-                                                DispString _ "Executing Ret Instruction.\n"
-                                              ];
-                                              Retv);
-                                           Retv);
-                                    Retv);
-                            Retv);
-*)
                       else (If (#val_pos == $FflagsTag)
                               then (Write ^"fflags" : FflagsValue
                                       <- unsafeTruncLsb FflagsWidth #val_data;
@@ -187,7 +149,7 @@ Section trap_handling.
                               else
                                 (If (#val_pos == $RetTag)
                                    then
-                                     (LETA _ <- commitRet val; (* TODO uncomment once registers ported over. *)
+                                     (LETA _ <- commitRet val;
                                       System [
                                         DispString _ "Executing Ret Instruction.\n"
                                       ];
@@ -209,54 +171,79 @@ Section trap_handling.
        LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
        LET reg_index : RegId <- rd inst;
        LET csr_index : CsrId <- imm inst;
-
+       LET exception_code : Exception <- cxt @% "snd" @% "data" @% "exception";
+       Read medeleg : Bit 16 <- ^"medeleg";
+       Read sedeleg : Bit 16 <- ^"sedeleg";
        If (cxt @% "snd" @% "valid")
          then
-           If cxt @% "snd" @% "data" @% "exception" == $ECallM
+           If #exception_code == $ECallM
              then
                trapAction "m"
                  (cfg_pkt @% "xlen")
                  (cfg_pkt @% "mode")
                  pc
-                 (cxt @% "snd" @% "data" @% "exception")
+                 (#exception_code)
                  (cxt @% "snd" @% "data" @% "value")
              else
-               (If cxt @% "snd" @% "data" @% "exception" == $ECallS
+               (If #exception_code == $ECallS
                   then
                     trapAction "s"
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc
-                      (cxt @% "snd" @% "data" @% "exception")
+                      (#exception_code)
                       (cxt @% "snd" @% "data" @% "value")
                   else
-                    trapAction "u"
-                      (cfg_pkt @% "xlen")
-                      (cfg_pkt @% "mode")
-                      pc
-                      (cxt @% "snd" @% "data" @% "exception")
-                      (cxt @% "snd" @% "data" @% "value");
+                    (If #exception_code == $ECallU
+                       then
+                         trapAction "u"
+                          (cfg_pkt @% "xlen")
+                          (cfg_pkt @% "mode")
+                          pc
+                          (#exception_code)
+                          (cxt @% "snd" @% "data" @% "value")
+                       else
+                         (If unsafeTruncLsb 1 (#medeleg >> #exception_code) == Const ty (natToWord 1 1) &&
+                             cfg_pkt @% "mode" == $SupervisorMode
+                            then
+                              System [
+                                DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
+                              ];
+                              trapAction "s"
+                                (cfg_pkt @% "xlen")
+                                (cfg_pkt @% "mode")
+                                pc
+                                (#exception_code)
+                                (cxt @% "snd" @% "data" @% "value")
+                            else
+                              (If unsafeTruncLsb 1 (#sedeleg >> #exception_code) == Const ty (natToWord 1 1) &&
+                                  cfg_pkt @% "mode" == $UserMode
+                                 then
+                                   System [
+                                     DispString _ "[commit] delegating exception to user mode trap handler.\n"
+                                   ];
+                                   trapAction "u"
+                                     (cfg_pkt @% "xlen")
+                                     (cfg_pkt @% "mode")
+                                     pc
+                                     (#exception_code)
+                                     (cxt @% "snd" @% "data" @% "value")
+                                 else (* by default we trap to machine mode 3.1.13 *)
+                                   System [
+                                     DispString _ "[commit] trapping exception using machine mode handler.\n"
+                                   ];
+                                   trapAction "m"
+                                     (cfg_pkt @% "xlen")
+                                     (cfg_pkt @% "mode")
+                                     pc
+                                     (#exception_code)
+                                     (cxt @% "snd" @% "data" @% "value");
+                                 Retv);
+                            Retv);
+                       Retv);
                   Retv);
              Retv
          else (
-(*
-            LET upd_pkt
-              :  FieldUpd
-              <- STRUCT {
-                   "warlStateField"
-                     ::= (STRUCT {
-                            "pc" ::= pc;
-                            "compressed?" ::= exec_context_pkt @% "compressed?"
-                          } : WarlStateField @# ty);
-                   "cfg" ::= cfg_pkt
-                 } : FieldUpd @# ty;
-            LETA _ <- commitWriters #upd_pkt #val1 #reg_index #csr_index;
-            LETA _ <- commitWriters #upd_pkt #val2 #reg_index #csr_index; 
-*)
-(*
-            LETA _ <- commitWriters cfg_pkt #val1 #reg_index #csr_index;
-            LETA _ <- commitWriters cfg_pkt #val2 #reg_index #csr_index; 
-*)
             LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
             LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
             LET opt_val1 <- cxt @% "fst" @% "val1";
