@@ -2,7 +2,6 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import RegWriter.
-Require Import FuncUnits.CSR.
 Import ListNotations.
 
 Section trap_handling.
@@ -22,12 +21,9 @@ Section trap_handling.
   Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8).
-  Local Notation writeCSR := (writeCSR name Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation WarlStateField := (WarlStateField Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
   Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
 
@@ -160,6 +156,12 @@ Section trap_handling.
             Retv);
        Retv.
 
+  Definition delegated
+    (edeleg : Bit 16 @# ty)
+    (exception_code : Exception @# ty)
+    :  Bool @# ty
+    := unsafeTruncLsb 1 (edeleg >> exception_code) == Const ty (natToWord 1 1).
+
   Definition commit
     (pc: VAddr @# ty)
     (inst: Inst @# ty)
@@ -170,77 +172,46 @@ Section trap_handling.
     := LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
        LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
        LET reg_index : RegId <- rd inst;
-       LET csr_index : CsrId <- imm inst;
        LET exception_code : Exception <- cxt @% "snd" @% "data" @% "exception";
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
        If (cxt @% "snd" @% "valid")
          then
-           If #exception_code == $ECallM
+           If delegated #medeleg #exception_code &&
+              cfg_pkt @% "mode" == $SupervisorMode
              then
-               trapAction "m"
+               System [
+                 DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
+               ];
+               trapAction "s"
                  (cfg_pkt @% "xlen")
                  (cfg_pkt @% "mode")
                  pc
                  (#exception_code)
                  (cxt @% "snd" @% "data" @% "value")
              else
-               (If #exception_code == $ECallS
+               (If delegated #sedeleg #exception_code &&
+                   cfg_pkt @% "mode" == $UserMode
                   then
-                    trapAction "s"
+                    System [
+                      DispString _ "[commit] delegating exception to user mode trap handler.\n"
+                    ];
+                    trapAction "u"
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc
                       (#exception_code)
                       (cxt @% "snd" @% "data" @% "value")
-                  else
-                    (If #exception_code == $ECallU
-                       then
-                         trapAction "u"
-                          (cfg_pkt @% "xlen")
-                          (cfg_pkt @% "mode")
-                          pc
-                          (#exception_code)
-                          (cxt @% "snd" @% "data" @% "value")
-                       else
-                         (If unsafeTruncLsb 1 (#medeleg >> #exception_code) == Const ty (natToWord 1 1) &&
-                             cfg_pkt @% "mode" == $SupervisorMode
-                            then
-                              System [
-                                DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
-                              ];
-                              trapAction "s"
-                                (cfg_pkt @% "xlen")
-                                (cfg_pkt @% "mode")
-                                pc
-                                (#exception_code)
-                                (cxt @% "snd" @% "data" @% "value")
-                            else
-                              (If unsafeTruncLsb 1 (#sedeleg >> #exception_code) == Const ty (natToWord 1 1) &&
-                                  cfg_pkt @% "mode" == $UserMode
-                                 then
-                                   System [
-                                     DispString _ "[commit] delegating exception to user mode trap handler.\n"
-                                   ];
-                                   trapAction "u"
-                                     (cfg_pkt @% "xlen")
-                                     (cfg_pkt @% "mode")
-                                     pc
-                                     (#exception_code)
-                                     (cxt @% "snd" @% "data" @% "value")
-                                 else (* by default we trap to machine mode 3.1.13 *)
-                                   System [
-                                     DispString _ "[commit] trapping exception using machine mode handler.\n"
-                                   ];
-                                   trapAction "m"
-                                     (cfg_pkt @% "xlen")
-                                     (cfg_pkt @% "mode")
-                                     pc
-                                     (#exception_code)
-                                     (cxt @% "snd" @% "data" @% "value");
-                                 Retv);
-                            Retv);
-                       Retv);
+                  else (* by default we trap to machine mode 3.1.13 *)
+                    System [
+                      DispString _ "[commit] trapping exception using machine mode handler.\n"
+                    ];
+                    trapAction "m"
+                      (cfg_pkt @% "xlen")
+                      (cfg_pkt @% "mode")
+                      pc
+                      (#exception_code)
+                      (cxt @% "snd" @% "data" @% "value");
                   Retv);
              Retv
          else (
@@ -249,13 +220,6 @@ Section trap_handling.
             LET opt_val1 <- cxt @% "fst" @% "val1";
             LET opt_val2 <- cxt @% "fst" @% "val2";
             Read mepc : VAddr <- ^"mepc";
-
-            System [
-              DispString _ "[commit] mepc:\n";
-              DispHex #mepc;
-              DispString _ "\n"
-            ];
-
             Read sepc : VAddr <- ^"sepc";
             Read uepc : VAddr <- ^"uepc";
             Write ^"pc"
