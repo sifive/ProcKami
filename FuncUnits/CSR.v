@@ -368,6 +368,23 @@ Section CsrInterface.
                 => curr_value
        |}.
 
+  Definition tvecField
+    (prefix : string)
+    (width : nat)
+    :  CSRField
+    := {|
+         csrFieldName := ^(prefix ++ "tvec_base");
+         csrFieldKind := Bit width;
+         csrFieldDefaultValue := None;
+         csrFieldIsValid
+           := fun _ _ input_value
+                => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
+                  isAligned (SignExtendTruncLsb Xlen input_value) $2;
+         csrFieldXform
+           := fun _ curr_value _
+                => curr_value
+       |}
+
   Definition CSRs
     :  list CSR
     := [
@@ -513,18 +530,7 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldAny "mtvec_mode" 2 None;
-                           {|
-                             csrFieldName := ^"mtvec_base";
-                             csrFieldKind := Bit 30;
-                             csrFieldDefaultValue := None;
-                             csrFieldIsValid
-                               := fun _ _ input_value
-                                    => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
-                                      isAligned (SignExtendTruncLsb Xlen input_value) $2;
-                             csrFieldXform
-                               := fun _ curr_value _
-                                    => curr_value
-                           |}
+                           @tvecField "m" 30
                          ]%vector
                   |};
                   {|
@@ -533,7 +539,7 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldAny "mtvec_mode" 2 None;
-                           @csrFieldAny "mtvec_base" 62 None
+                           @tvecField "m" 62
                          ]%vector
                   |}
                 ]%vector
@@ -707,7 +713,7 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldAny "stvec_mode" 2 None;
-                           @csrFieldAny "stvec_base" 30 None
+                           @tvecField "s" 30
                          ]%vector
                   |};
                   {|
@@ -716,7 +722,7 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldAny "stvec_mode" 2 None;
-                           @csrFieldAny "stvec_base" 62 None
+                           @tvecField "s" 62
                          ]%vector
                   |}
                 ]%vector
