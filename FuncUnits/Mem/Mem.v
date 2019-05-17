@@ -1,5 +1,7 @@
 Require Import Kami.All FU.
 Require Import List.
+Import ListNotations.
+
 
 Section Mem.
   Variable Xlen_over_8: nat.
@@ -232,8 +234,6 @@ Section Mem.
       RetE #ret.
 
     Definition amoTag := storeTag.
-
-    Import ListNotations.
 
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in

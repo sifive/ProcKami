@@ -77,7 +77,7 @@ Section Mem.
                                              "rl" ::= #x @% "rl" ;
                                              "misalignedException?" ::=
                                                (#x @% "memMisalignedException?")
-                                                 && isAligned #addr (#x @% "numZeros") ;
+                                                 && !(isAligned #addr (#x @% "numZeros")) ;
                                              "accessException?" ::= #x @% "accessException?"
                                            } ;
                                RetE #ret ) ;

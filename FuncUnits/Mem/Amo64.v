@@ -1,6 +1,7 @@
 Require Import Kami.All FU.
 Require Import FuncUnits.Mem.Mem.
 Require Import List.
+Import ListNotations.
 
 Section Mem.
   Variable Xlen_over_8: nat.
@@ -78,13 +79,13 @@ Section Mem.
                                              "rl" ::= #x @% "rl" ;
                                              "misalignedException?" ::=
                                                (#x @% "memMisalignedException?")
-                                                 && isAligned #addr (#x @% "numZeros") ;
+                                                 && !(isAligned #addr (#x @% "numZeros")) ;
                                              "accessException?" ::= #x @% "accessException?"
                                            } ;
                                RetE #ret ) ;
          fuInsts :=
            {| instName     := "amoswap.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -95,7 +96,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoadd.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -106,7 +107,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoxor.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -117,7 +118,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoand.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -128,7 +129,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amoor.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -139,7 +140,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomin.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -150,7 +151,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomax.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -161,7 +162,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amominu.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -172,7 +173,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
            {| instName     := "amomaxu.d" ;
-              extensions   := "RV64I" :: nil;
+              extensions   := ["RV64I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::

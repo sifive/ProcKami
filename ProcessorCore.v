@@ -3,7 +3,9 @@
   into a single pipeline processor model.
 *)
 
-Require Import Kami.All FU CompressedInsts.
+Require Import Kami.All.
+Require Import FU.
+Require Import CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
@@ -20,6 +22,8 @@ Require Import RegReader.
 Require Import Executer.
 Require Import MemUnit.
 Require Import RegWriter.
+Require Import FuncUnits.CSR.
+Require Import FuncUnits.TrapHandling.
 
 Section Params.
   Variable name: string.
@@ -236,6 +240,19 @@ Section Params.
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
                           #mem_update_pkt;
+                   System [DispString _ "CSR Write\n"];
+                   LETA _
+                     :  Void
+                     <- commitCSRWrites
+                          name
+                          Xlen_over_8
+                          #pc
+                          (#decoder_pkt @% "fst" @% "compressed?")
+                          (#cfg_pkt)
+                          (rd (#exec_context_pkt @% "fst" @% "inst"))
+                          (rs1 (#exec_context_pkt @% "fst" @% "inst"))
+                          (imm (#exec_context_pkt @% "fst" @% "inst"))
+                          (#exec_update_pkt @% "fst");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv

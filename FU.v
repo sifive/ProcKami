@@ -92,11 +92,13 @@ Definition RoutingTag := Bit RoutingTagSz.
 Definition PcTag := 0.
 Definition IntRegTag := 1.
 Definition FloatRegTag := 2.
-Definition CsrTag := 3.
-Definition MemDataTag := 4.
-Definition MemAddrTag := 5.
-Definition FflagsTag := 6.
-Definition RetTag := 7.
+Definition MemDataTag := 3.
+Definition MemAddrTag := 4.
+Definition FflagsTag := 5.
+Definition RetTag := 6.
+Definition CsrWriteTag := 7.
+Definition CsrSetTag := 8.
+Definition CsrClearTag := 9.
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
@@ -184,7 +186,7 @@ Section Params.
         "reg1"                     :: Data ;
         "reg2"                     :: Data ;
         "reg3"                     :: Data ;
-        "csr"                      :: Maybe CsrValue;
+        (* "csr"                      :: Maybe CsrValue; *)
         "fflags"                   :: FflagsValue;
         "frm"                      :: FrmValue;
         "inst"                     :: Inst ;

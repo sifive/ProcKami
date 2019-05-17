@@ -22,10 +22,18 @@ Section zicsr.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Variable ty : Kind -> Type.
 
+  Definition ZicsrOpWidth : nat := 2.
+  Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
+  Definition zicsrOpWrite := 0.
+  Definition zicsrOpSet   := 1.
+  Definition zicsrOpClear := 2.
+
   Definition ZicsrInput
     := STRUCT_TYPE {
-           "orig_csr_value" :: Maybe CsrValue;
-           "new_csr_value"  :: Maybe CsrValue
+           "op" :: ZicsrOpType;
+           (* "orig_csr_value" :: Maybe CsrValue; *)
+           (* "new_csr_value"  :: Maybe CsrValue *)
+           "mask_value"  :: Maybe CsrValue
          }%kami_struct.
 
   Local Open Scope kami_expr.
@@ -40,36 +48,55 @@ Section zicsr.
                    <- sem_in_pkt_expr;
         RetE
           ((STRUCT {
-                "fst"
+              "fst"
                 ::= (STRUCT {
-                         "val1" (* writes to the CSR *)
-                         ::= ITE
-                               (#sem_in_pkt @% "new_csr_value" @% "valid")
-                               (Valid
-                                  (STRUCT {
-                                       "tag" ::= $CsrTag;
-                                       "data"
-                                       ::= ZeroExtendTruncLsb Rlen
-                                                              (#sem_in_pkt @% "new_csr_value" @% "data")
-                                     } : RoutedReg @# ty))
-                               (@Invalid ty (RoutedReg));
-                         "val2" (* writes to RD *)
-                         ::= ITE
-                               (#sem_in_pkt @% "orig_csr_value" @% "valid")
-                               (Valid
-                                  (STRUCT {
-                                       "tag" ::= $IntRegTag;
-                                       "data"
+                       "val1" (* writes to the CSR *)
+                       ::= ITE
+(*
+                             (#sem_in_pkt @% "new_csr_value" @% "valid")
+*)
+                             (#sem_in_pkt @% "mask_value" @% "valid")
+                             (Valid
+                                (STRUCT {
+(*
+                                   "tag" ::= $CsrTag;
+*)
+                                   "tag"
+                                     ::= Switch #sem_in_pkt @% "op"
+                                           Of ZicsrOpType Retn RoutingTag With {
+                                             ($zicsrOpWrite : ZicsrOpType @# ty) ::= ($CsrWriteTag : RoutingTag @# ty);
+                                             ($zicsrOpSet : ZicsrOpType @# ty)   ::= ($CsrSetTag : RoutingTag @# ty);
+                                             ($zicsrOpClear : ZicsrOpType @# ty) ::= ($CsrClearTag : RoutingTag @# ty)
+                                           };
+                                   "data"
+                                     ::= ZeroExtendTruncLsb Rlen
+                                         (#sem_in_pkt @% "mask_value" @% "data")
+(*
+                                   ::= ZeroExtendTruncLsb Rlen
+                                                          (#sem_in_pkt @% "new_csr_value" @% "data")
+*)
+                                   } : RoutedReg @# ty))
+                             (@Invalid ty (RoutedReg));
+                       "val2" (* writes to RD *)
+                       ::= @Invalid ty RoutedReg;
+(*
+                       ::= ITE
+                             (#sem_in_pkt @% "orig_csr_value" @% "valid")
+                             (Valid
+                                (STRUCT {
+                                     "tag" ::= $IntRegTag;
+                                     "data"
                                        ::= SignExtendTruncLsb Rlen
-                                                              (#sem_in_pkt @% "orig_csr_value" @% "data")
-                                     } : RoutedReg @# ty))
-                               (@Invalid ty RoutedReg);
-                         "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                         "taken?"     ::= $$false;
-                         "aq"         ::= $$false;
-                         "rl"         ::= $$false
-                       } : ExecContextUpdPkt @# ty);
-                "snd" ::= Invalid
+                                             (#sem_in_pkt @% "orig_csr_value" @% "data")
+                                   } : RoutedReg @# ty))
+                             (@Invalid ty RoutedReg);
+*)
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false
+                     } : ExecContextUpdPkt @# ty);
+              "snd" ::= Invalid
            }): PktWithException ExecContextUpdPkt @# ty);
         fuInsts
         := [
@@ -89,11 +116,15 @@ Section zicsr.
                          <- exec_context_pkt_expr;
               RetE
                 (STRUCT {
-                     "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                     "op" ::= $zicsrOpWrite;
+(*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+(*
                      "new_csr_value" 
-                     ::= Valid
-                           (ZeroExtendTruncLsb CsrValueWidth
-                                               (#exec_context_pkt @% "reg1"))
+*)
+                     "mask_value" 
+                       ::= Valid
+                             (ZeroExtendTruncLsb CsrValueWidth
+                                (#exec_context_pkt @% "reg1"))
                    } : ZicsrInput @# ty);
               outputXform := id;
               optMemXform := None;
@@ -115,15 +146,25 @@ Section zicsr.
                            <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                       "op" ::= $zicsrOpSet;
+  (*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+(*
                        "new_csr_value" 
-                       ::= ITE
-                             (rs1 (#exec_context_pkt @% "inst") == $0)
-                             (@Invalid ty CsrValue)
-                             (Valid
+*)
+                       "mask_value" 
+(*
+                         ::= ITE
+                               (rs1 (#exec_context_pkt @% "inst") == $0)
+                               (@Invalid ty CsrValue)
+*)
+                         ::= (Valid
+                                (ZeroExtendTruncLsb CsrValueWidth
+                                  (#exec_context_pkt @% "reg1")))
+(*
                                 ((ZeroExtendTruncLsb CsrValueWidth
                                                      (#exec_context_pkt @% "reg1")) ^
                                  (#exec_context_pkt @% "csr" @% "data")))
+*)
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -145,16 +186,25 @@ Section zicsr.
                            <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
-                       "new_csr_value" 
+                       "op" ::= $zicsrOpClear;
+  (*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+                       (* "new_csr_value" *)
+                       "mask_value" 
+(*
                        ::= ITE
                              (rs1 (#exec_context_pkt @% "inst") == $0)
                              (@Invalid ty CsrValue)
+*)
+                         ::= (Valid
+                               (ZeroExtendTruncLsb CsrValueWidth
+                                 (#exec_context_pkt @% "reg1")))
+(*
                              (Valid
                                 (((ZeroExtendTruncLsb CsrValueWidth
                                                       (#exec_context_pkt @% "reg1")) ^
                                   (~ $(0))) &
                                  (#exec_context_pkt @% "csr" @% "data")))
+*)
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -176,11 +226,15 @@ Section zicsr.
                            <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                       "op" ::= $zicsrOpWrite;
+  (*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+(*
                        "new_csr_value" 
+*)
+                       "mask_value" 
                        ::= Valid
                              (ZeroExtendTruncLsb CsrValueWidth
-                                                 (rs1 (#exec_context_pkt @% "inst")))
+                               (rs1 (#exec_context_pkt @% "inst")))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -202,15 +256,26 @@ Section zicsr.
                            <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                       "op" ::= $zicsrOpSet;
+  (*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+(*
                        "new_csr_value" 
+*)
+                       "mask_value" 
+(*
                        ::= ITE
                              (rs1 (#exec_context_pkt @% "inst") == $0)
                              (@Invalid ty CsrValue)
+*)
+                         ::= (Valid
+                                (ZeroExtendTruncLsb CsrValueWidth
+                                  (rs1 (#exec_context_pkt @% "inst"))))
+(*
                              (Valid
                                 ((ZeroExtendTruncLsb CsrValueWidth
                                                      (rs1 (#exec_context_pkt @% "inst"))) ^
                                  (#exec_context_pkt @% "csr" @% "data")))
+*)
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;
@@ -232,16 +297,27 @@ Section zicsr.
                            <- exec_context_pkt_expr;
                 RetE
                   (STRUCT {
-                       "orig_csr_value" ::= #exec_context_pkt @% "csr";
+                       "op" ::= $zicsrOpClear;
+  (*                   "orig_csr_value" ::= #exec_context_pkt @% "csr"; *)
+(*
                        "new_csr_value" 
+*)
+                       "mask_value" 
+(*
                        ::= ITE
                              (rs1 (#exec_context_pkt @% "inst") == $0)
                              (@Invalid ty CsrValue)
+*)
+                         ::= (Valid
+                                (ZeroExtendTruncLsb CsrValueWidth
+                                  (rs1 (#exec_context_pkt @% "inst"))))
+(*
                              (Valid
                                 (((ZeroExtendTruncLsb CsrValueWidth
                                                       (rs1 (#exec_context_pkt @% "inst"))) ^
                                   (~ $(0))) &
                                  (#exec_context_pkt @% "csr" @% "data")))
+*)
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
                 optMemXform := None;

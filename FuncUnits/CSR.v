@@ -10,6 +10,7 @@ Require Import Vector.
 Import VectorNotations.
 Require Import Kami.All.
 Require Import FU.
+Require Import RegWriter.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
@@ -21,12 +22,16 @@ Section CsrInterface.
   Variable Rlen_over_8: nat.
   Variable ty: Kind -> Type.
 
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0) : local_scope.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation FieldUpd := (FieldUpd Xlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
+  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation WarlStateField := (WarlStateField Xlen_over_8).
+  Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
 
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
 
@@ -238,6 +243,14 @@ Section CsrInterface.
                              input_field_value))
                          (Vector.nth (Vector.map csrFieldKind (csrViewFields view)) i)
                          (nth_map2 csrFieldKind i (csrViewFields view)));
+           System [
+             DispString _ "[csrViewReadWrite] input value:\n";
+             DispBinary #input_value;
+             DispString _ "\n";
+             DispString _ "[csrViewReadWrite] write value:\n";
+             DispBinary #write_value;
+             DispString _ "\n"
+           ];
            LETA _
              : Void 
              <- MayStruct_RegWrites (csrViewMayStruct view)
@@ -308,6 +321,8 @@ Section CsrInterface.
            := fun _ _ _ => Const ty (natToWord n 0);
        |}.
 
+  Local Open Scope local_scope.
+
   Definition csrFieldAny
     (name : string)
     (n : nat)
@@ -376,7 +391,7 @@ Section CsrInterface.
                   ]%vector
          |};
          {|
-           csrName := ^"fstatusG";
+           csrName := ^"fcsrG";
            csrAddr := natToWord CsrIdWidth 3;
            csrViews
              := repeatCSRView 2
@@ -740,6 +755,8 @@ Section CsrInterface.
          |}
        ].
 
+  Close Scope local_scope.
+
   Definition readCSR
     (upd_pkt : FieldUpd @# ty)
     (csrId : CsrId @# ty)
@@ -758,7 +775,7 @@ Section CsrInterface.
   Definition writeCSR
     (upd_pkt : FieldUpd @# ty)
     (csrId : CsrId @# ty)
-    (raw_data : Data @# ty)
+    (raw_data : CsrValue @# ty)
     :  ActionT ty Void
     := LETA result
          :  Maybe CsrValue
@@ -767,8 +784,133 @@ Section CsrInterface.
                  "isRd"        ::= $$false;
                  "addr"        ::= csrId;
                  "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
-                 "data"        ::= ZeroExtendTruncLsb CsrValueWidth raw_data
+                 "data"        ::= raw_data
                } : LocationReadWriteInputT CsrValue @# ty);
+       Retv.
+
+  Definition commitCSRWrite
+    (upd_pkt : FieldUpd @# ty)
+    (rd_index : RegId @# ty)
+    (rs1_index : RegId @# ty)
+    (csr_index : CsrId @# ty)
+    (csr_val : CsrValue @# ty)
+    (val : Maybe RoutedReg @# ty)
+    :  ActionT ty Void
+    := LET val_pos
+         :  RoutingTag
+         <- val @% "data" @% "tag";
+       LET val_data
+         :  CsrValue
+         <- ZeroExtendTruncLsb CsrValueWidth (val @% "data" @% "data");
+       If val @% "valid"
+         then
+           (If #val_pos == $CsrWriteTag
+             then
+               (LETA _ <- writeCSR upd_pkt csr_index (#val_data);
+                If rd_index != $0
+                  then
+                    (LETA _
+                      <- reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
+                           (ZeroExtendTruncLsb Rlen csr_val);
+                     System [
+                       DispString _ "[commitCSRWrite] wrote:\n";
+                       DispBinary csr_val;
+                       DispString _ "\n  to integer register: ";
+                       DispDecimal rd_index;
+                       DispString _ "\n"
+                     ];
+                     Retv);
+                Retv)
+             else
+               (If #val_pos == $CsrSetTag
+                 then
+                   (If rs1_index != $0
+                      then
+                        (LETA _ <- writeCSR upd_pkt csr_index (CABit Bxor [#val_data; csr_val]);
+                         Retv);
+                    If rd_index != $0
+                      then
+                        (LETA _
+                          <- reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
+                               (ZeroExtendTruncLsb Rlen csr_val);
+                         System [
+                           DispString _ "[commitCSRWrite] wrote:\n";
+                           DispBinary csr_val;
+                           DispString _ "\n  to integer register: ";
+                           DispDecimal rd_index;
+                           DispString _ "\n"
+                         ];
+                         Retv);
+                    Retv)
+                 else
+                   (If #val_pos == $CsrClearTag
+                     then
+                       (If rs1_index != $0
+                          then
+                            (LETA _ <- writeCSR upd_pkt csr_index ((CABit Bxor [#val_data; ~ $0]) & csr_val);
+                             Retv);
+                        If rd_index != $0
+                          then
+                            (LETA _
+                              <- reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
+                                   (ZeroExtendTruncLsb Rlen csr_val);
+                             System [
+                               DispString _ "[commitCSRWrite] wrote:\n";
+                               DispBinary csr_val;
+                               DispString _ "\n  to integer register: ";
+                               DispDecimal rd_index;
+                               DispString _ "\n"
+                             ];
+                             Retv);
+                        Retv);
+                    Retv);
+                Retv);
+            Retv);
+       Retv.
+
+  Definition commitCSRWrites
+    (pc : VAddr @# ty)
+    (compressed : Bool @# ty)
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (rd_index : RegId @# ty)
+    (rs1_index : RegId @# ty)
+    (csr_index : CsrId @# ty)
+    (update_pkt : ExecContextUpdPkt @# ty)
+    :  ActionT ty Void
+    := LET upd_pkt
+         :  FieldUpd
+         <- STRUCT {
+              "warlStateField"
+                ::= (STRUCT {
+                       "pc" ::= pc;
+                       "compressed?" ::= compressed
+                     } : WarlStateField @# ty);
+              "cfg" ::= cfg_pkt
+            } : FieldUpd @# ty;
+       LETA csr_val
+         :  CsrValue
+         <- readCSR #upd_pkt csr_index;
+(*
+       If rd_index != $0
+         then
+           (LETA _
+              <- reg_writer_write_reg (#upd_pkt @% "cfg" @% "xlen") rd_index
+                   (ZeroExtendTruncLsb Rlen #csr_val);
+            Retv);
+*)
+       (* TODO: we can eliminate some circuitry by requiring val1 to always contain the CSR update *)
+       System [
+         DispString _ "[commitCSRWrites] curr csr value:\n";
+         DispBinary #csr_val;
+         DispString _ "\n"
+       ];
+       System [
+         DispString _ "[commitCSRWrites] destination register index:\n";
+         DispBinary rd_index;
+         DispString _ "\n"
+       ];
+       LETA _ <- commitCSRWrite #upd_pkt rd_index rs1_index csr_index #csr_val (update_pkt @% "val1");
+       LETA _ <- commitCSRWrite #upd_pkt rd_index rs1_index csr_index #csr_val (update_pkt @% "val2");
        Retv.
 
   Close Scope kami_expr.
