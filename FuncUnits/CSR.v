@@ -383,7 +383,7 @@ Section CsrInterface.
          csrFieldXform
            := fun _ curr_value _
                 => curr_value
-       |}
+       |}.
 
   Definition CSRs
     :  list CSR
