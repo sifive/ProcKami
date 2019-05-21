@@ -874,7 +874,7 @@ Section CsrInterface.
          then
            (If #val_pos == $CsrWriteTag
              then
-               (LETA _ <- writeCSR upd_pkt csr_index (#val_data);
+               (LETA _ <- writeCSR upd_pkt csr_index #val_data;
                 If rd_index != $0
                   then
                     (LETA _

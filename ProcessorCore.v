@@ -333,7 +333,7 @@ Section Params.
              ^"readMem1";
              ^"readMem2";
              ^"readMemReservation";
-             ^"writeMem";
+             (* ^"writeMem"; *)
              ^"writeMemReservation"
            ].  
 
