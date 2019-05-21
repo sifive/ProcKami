@@ -285,16 +285,16 @@ Section Params.
            (RFNonFile _ None).
     
     Definition memRegFile
-      :  RegFileBase
-      := @Build_RegFileBase
-           true
-           Rlen_over_8
-           (^"mem_reg_file")
-           (Async [^"readMem1"; ^"readMem2"])
-           (^"writeMem")
-           (pow2 20)
-           (Bit 8)
-           (RFFile true true "testfile" (fun _ => wzero _)).
+      :  RegFileBase :=
+      @Build_RegFileBase
+        true
+        Rlen_over_8
+        (^"mem_reg_file")
+        (Async [^"readMem1"; ^"readMem2"])
+        (^"writeMem")
+        (pow2 lgMemSz)
+        (Bit 8)
+        (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
 
     Definition memReservationRegFile
       :  RegFileBase
@@ -304,9 +304,9 @@ Section Params.
            (^"memReservation_reg_file")
            (Async [^"readMemReservation"])
            (^"writeMemReservation")
-           (pow2 20)
+           (pow2 lgMemSz)
            Bool
-           (RFNonFile _ (Some (ConstBool false))).
+           (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
 
     Definition processor
       :  Mod 
@@ -344,3 +344,4 @@ Section Params.
 
   End model.
 End Params.
+
