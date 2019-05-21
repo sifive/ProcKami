@@ -83,9 +83,9 @@ Section trap_handling.
        Write ^(prefix ++ "epc") : VAddr <- pc;
        (* section 3.1.21 *)
        Write ^(prefix ++ "cause_interrupt") : Bit 1 <- $0;
-       (* TODO TESTING: REMOVE WHEN DONE *)
-       (* Write ^(prefix ++ "cause_code") : Exception <- exception_code; *)
-       Write ^"mcause_code" : Bit (Xlen - 1) <- ZeroExtendTruncLsb (Xlen - 1) exception_code;
+       Write ^(prefix ++ "cause_code")
+         :  Bit (Xlen - 1)
+         <- ZeroExtendTruncLsb (Xlen - 1) exception_code;
        (* section 3.1.22 *)
        Write ^(prefix ++ "tval") : Bit Xlen <- exception_val;
        System [
@@ -190,13 +190,6 @@ Section trap_handling.
        LET exception_code : Exception <- cxt @% "snd" @% "data" @% "exception";
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
-(* TODO: TESTING ONLY REMOVE WHEN DONE *)
-       Read mcause_code : Bit (Xlen - 1) <- ^"mcause_code";
-       System [
-         DispString _ "[commit] TESTING mcause: ";
-         DispHex #mcause_code;
-         DispString _ "\n"
-       ];
        If (cxt @% "snd" @% "valid")
          then
            If delegated #medeleg #exception_code &&
