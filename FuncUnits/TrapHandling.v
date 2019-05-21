@@ -111,14 +111,19 @@ Section trap_handling.
   *)
   Definition retAction
     (prefix : string)
+    (pp_width : nat)
     :  ActionT ty Void
     := Read ie : Bit 1 <- ^(prefix ++ "ie");
        Read pie : Bit 1 <- ^(prefix ++ "pie");
-       Read pp : PrivMode <- ^(prefix ++ "pp");
+       Read pp
+         :  Bit pp_width
+         <- ^(prefix ++ "pp");
        Write ^(prefix ++ "ie") <- #pie;
-       Write ^"mode" : PrivMode <- #pp;
+       Write ^"mode" : PrivMode <- ZeroExtendTruncLsb 2 #pp;
        Write ^(prefix ++ "pie") : Bit 1 <- #ie; (* 4.1.1 conflict with 3.1.7? *)
-       Write ^(prefix ++ "pp") : Bit 2 <- $UserMode;
+       Write ^(prefix ++ "pp")
+         :  Bit pp_width
+         <- ZeroExtendTruncLsb pp_width (Const ty (natToWord 2 UserMode));
        System [
          DispString _ "[Register Writer.retAction]\n"
        ];
@@ -128,11 +133,11 @@ Section trap_handling.
     (val : Maybe RoutedReg @# ty)
     :  ActionT ty Void
     := If val @% "data" @% "data" == $RetCodeM
-         then retAction "m"
+         then retAction "m" 2
          else
            If val @% "data" @% "data" == $RetCodeS
-             then retAction "s"
-             else retAction "u";
+             then retAction "s" 1
+             else retAction "u" 0;
            Retv;
          Retv.
 
