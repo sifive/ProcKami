@@ -41,9 +41,9 @@ Section trap_handling.
     (exception_val : ExceptionInfo @# ty)
     :  ActionT ty Void
     := (* section 3.1.7, 4.1.1 *)
-       Read ie : Bit 1 <- ^(prefix ++ "ie");
-       Write ^(prefix ++ "pie") : Bit 1 <- #ie;
-       Write ^(prefix ++ "ie") : Bit 1 <- $0;
+       Read ie : Bool <- ^(prefix ++ "ie");
+       Write ^(prefix ++ "pie") : Bool <- #ie;
+       Write ^(prefix ++ "ie") : Bool <- $$false;
        Write ^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width mode;
@@ -85,7 +85,7 @@ Section trap_handling.
        (* section 3.1.20 *)
        Write ^(prefix ++ "epc") : VAddr <- pc;
        (* section 3.1.21 *)
-       Write ^(prefix ++ "cause_interrupt") : Bit 1 <- $0;
+       Write ^(prefix ++ "cause_interrupt") : Bool <- $$false;
        Write ^(prefix ++ "cause_code")
          :  Bit (Xlen - 1)
          <- ZeroExtendTruncLsb (Xlen - 1) exception_code;
@@ -113,14 +113,14 @@ Section trap_handling.
     (prefix : string)
     (pp_width : nat)
     :  ActionT ty Void
-    := Read ie : Bit 1 <- ^(prefix ++ "ie");
-       Read pie : Bit 1 <- ^(prefix ++ "pie");
+    := Read ie : Bool <- ^(prefix ++ "ie");
+       Read pie : Bool <- ^(prefix ++ "pie");
        Read pp
          :  Bit pp_width
          <- ^(prefix ++ "pp");
        Write ^(prefix ++ "ie") <- #pie;
        Write ^"mode" : PrivMode <- ZeroExtendTruncLsb 2 #pp;
-       Write ^(prefix ++ "pie") : Bit 1 <- #ie; (* 4.1.1 conflict with 3.1.7? *)
+       Write ^(prefix ++ "pie") : Bool <- #ie; (* 4.1.1 conflict with 3.1.7? *)
        Write ^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width (Const ty (natToWord 2 UserMode));
