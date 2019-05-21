@@ -33,6 +33,7 @@ Section trap_handling.
   (* TODO Add width argument *)
   Definition trapAction
     (prefix : string)
+    (pp_width : nat)
     (xlen : XlenValue @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
@@ -43,7 +44,9 @@ Section trap_handling.
        Read ie : Bit 1 <- ^(prefix ++ "ie");
        Write ^(prefix ++ "pie") : Bit 1 <- #ie;
        Write ^(prefix ++ "ie") : Bit 1 <- $0;
-       Write ^(prefix ++ "pp") : PrivMode <- mode;
+       Write ^(prefix ++ "pp")
+         :  Bit pp_width
+         <- ZeroExtendTruncLsb pp_width mode;
        (* section 3.1.12 *)
        Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
        Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
@@ -198,7 +201,7 @@ Section trap_handling.
                System [
                  DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
                ];
-               trapAction "s"
+               trapAction "s" 1
                  (cfg_pkt @% "xlen")
                  (cfg_pkt @% "mode")
                  pc
@@ -211,7 +214,7 @@ Section trap_handling.
                     System [
                       DispString _ "[commit] delegating exception to user mode trap handler.\n"
                     ];
-                    trapAction "u"
+                    trapAction "u" 0
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc
@@ -221,7 +224,7 @@ Section trap_handling.
                     System [
                       DispString _ "[commit] trapping exception using machine mode handler.\n"
                     ];
-                    trapAction "m"
+                    trapAction "m" 2
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc

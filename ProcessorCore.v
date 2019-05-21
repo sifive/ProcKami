@@ -136,7 +136,7 @@ Section Params.
 
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
-              Register ^"upp"              : Bit 1 <- ConstBit (natToWord 1 0) with
+              Register ^"upp"              : Bit 0 <- ConstBit WO with (* 3.1.7 *)
               Register ^"upie"             : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"uie"              : Bit 1 <- ConstBit (natToWord 1 0) with
               Register ^"utvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
