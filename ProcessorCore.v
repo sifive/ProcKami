@@ -30,6 +30,7 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
 
   Variable lgMemSz: nat.
+  Variable napot_granularity : nat.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
@@ -146,6 +147,42 @@ Section Params.
               Register ^"ucause_interrupt" : Bit 1 <- $0 with
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"utval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+
+              (* memory protection registers. *)
+              Register ^"pmp0cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp1cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp2cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp3cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp4cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp5cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp6cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp7cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp8cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp9cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp10cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp11cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp12cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp13cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp14cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp15cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+
+              Register ^"pmpaddr0" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr1" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr2" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr3" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr4" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr5" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr6" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr7" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr8" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr9" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr10" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr11" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr12" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr13" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr14" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr15" : Bit 54 <- ConstBit (natToWord 54 0) with
+
               Rule ^"pipeline"
                 := LETA cfg_pkt <- readConfig name _;
                    Write ^"extensions"
@@ -160,7 +197,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 lgMemSz (#cfg_pkt @% "xlen") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 lgMemSz napot_granularity (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -206,9 +243,10 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     <- MemUnit name lgMemSz
+                     <- MemUnit name lgMemSz napot_granularity
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#cfg_pkt @% "xlen")
+                          (#cfg_pkt @% "mode")
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
                           (#exec_update_pkt);

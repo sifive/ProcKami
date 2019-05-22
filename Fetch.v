@@ -8,6 +8,7 @@ Section fetch.
   Variable Rlen_over_8: nat.
   Variable ty: Kind -> Type.
   Variable lgMemSz : nat.
+  Variable napot_granularity : nat.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -21,16 +22,17 @@ Section fetch.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation memRead := (@memRead name Xlen_over_8 Rlen_over_8 ty lgMemSz).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty lgMemSz napot_granularity).
 
   Open Scope kami_expr.
 
   Definition fetch
     (xlen : XlenValue @# ty)
+    (mode : PrivMode @# ty)
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memRead 1 (xlen_sign_extend Xlen xlen pc);
+          <- memFetch 1 mode (xlen_sign_extend Xlen xlen pc);
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
