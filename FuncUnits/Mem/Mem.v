@@ -10,7 +10,7 @@ Section Mem.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
@@ -50,7 +50,7 @@ Section Mem.
 
     Definition loadInput
       (size: nat)
-      (_ : ContextCfgPkt @# ty)
+      (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       :  MemInputAddrType ## ty
       := LETE gcp
@@ -71,17 +71,17 @@ Section Mem.
                         } : MaskedMem @# ty);
                   "aq" ::= $$ false;
                   "rl" ::= $$ false;
-                  "memMisalignedException?" ::= #gcp @% "memMisalignedException?";
-                  "accessException?" ::= #gcp @% "accessException?"
+                  "memMisalignedException?" ::= cfg @% "memMisalignedException?";
+                  "accessException?" ::= cfg @% "accessException?"
                 } : MemInputAddrType @# ty;
          RetE #ret.
 
     Definition loadTag (valin: MemOutputAddrType ## ty)
-      :  PktWithException ExecContextUpdPkt ## ty
+      :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr";
          LETC valret
-           :  ExecContextUpdPkt
+           :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val1"
                       <- (Valid (STRUCT {
@@ -89,7 +89,7 @@ Section Mem.
                             "data" ::= SignExtendTruncLsb Rlen #addr
                           }))]) ;
          LETC retval
-           :  (PktWithException ExecContextUpdPkt)
+           :  (PktWithException ExecUpdPkt)
            <- STRUCT {
                 "fst" ::= #valret ;
                 "snd"
@@ -130,7 +130,7 @@ Section Mem.
 
     Definition storeInput
       (size: nat)
-      (_ : ContextCfgPkt @# ty)
+      (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
@@ -148,18 +148,18 @@ Section Mem.
                          } : MaskedMem @# ty);
              "aq" ::= $$ false;
              "rl" ::= $$ false;
-             "memMisalignedException?" ::= #gcp @% "memMisalignedException?";
-             "accessException?" ::= #gcp @% "accessException?"
+             "memMisalignedException?" ::= cfg @% "memMisalignedException?";
+             "accessException?" ::= cfg @% "accessException?"
            };
       RetE #ret.
 
     Definition storeTag (valin: MemOutputAddrType ## ty)
-      :  PktWithException ExecContextUpdPkt ## ty
+      :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr" ;
          LETC data: MaskedMem <- #val @% "data" ;
          LETC valret
-           :  ExecContextUpdPkt
+           :  ExecUpdPkt
              <- (noUpdPkt
                    @%["val1"
                         <- (Valid (STRUCT {
@@ -173,7 +173,7 @@ Section Mem.
                             }))]
                    @%["memBitMask" <- #data @% "mask"]) ;
          LETC retval:
-           (PktWithException ExecContextUpdPkt)
+           (PktWithException ExecUpdPkt)
              <-
              STRUCT { "fst" ::= #valret ;
                       "snd" ::= (IF #val @% "misalignedException?"
@@ -208,7 +208,7 @@ Section Mem.
     
     Definition amoInput
       sz
-      (_ : ContextCfgPkt @# ty)
+      (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
@@ -226,7 +226,7 @@ Section Mem.
                                    "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
                                    "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
                                    "memMisalignedException?" ::= $$ true ;
-                                   "accessException?" ::= #gcp @% "accessException?"
+                                   "accessException?" ::= cfg @% "accessException?"
                                  } ;
       RetE #ret.
 

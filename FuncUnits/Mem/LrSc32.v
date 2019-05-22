@@ -10,7 +10,7 @@ Section Mem.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).

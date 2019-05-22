@@ -199,11 +199,7 @@ Section reg_reader.
               "fflags"      ::= #fflags_val;
               "frm"         ::= #frm_val;
               "inst"        ::= #raw_inst;
-              "compressed?" ::= (decoder_pkt @% "compressed?" : Bool @# ty);
-              (* TODO: can these exceptions be removed given that they are set by the fetch unit? *)
-              "instMisalignedException?" ::= instMisalignedException;
-              "memMisalignedException?"  ::= memMisalignedException;
-              "accessException?" ::= accessException
+              "compressed?" ::= (decoder_pkt @% "compressed?" : Bool @# ty)
             } : ExecContextPkt @# ty).
 
   Definition readerWithException
@@ -219,33 +215,7 @@ Section reg_reader.
            decoder_pkt
            (STRUCT {
              "fst" ::= (#exec_context_pkt);
-             "snd"
-               ::= ITE
-                     (((#exec_context_pkt) @% "instMisalignedException?") ||
-                      ((#exec_context_pkt) @% "memMisalignedException?") ||
-                      ((#exec_context_pkt) @% "accessException?"))
-                     (Valid
-                       (STRUCT {
-                         "exception"
-                           ::= CABit Bor
-                                 ((ITE
-                                   ((#exec_context_pkt) @% "instMisalignedException?")
-                                   ($IllegalInst : Exception @# ty)
-                                   ($0)) ::
-                                 (* TODO: Verify *)
-                                 (ITE
-                                   ((#exec_context_pkt) @% "memMisalignedException?")
-                                   ($LoadAddrMisaligned : Exception @# ty)
-                                   ($0)) ::
-                                 (* TODO: Verify *)
-                                 (ITE
-                                   ((#exec_context_pkt) @% "accessException?")
-                                   ($InstAccessFault : Exception @# ty)
-                                   ($0)) ::
-                                 nil);
-                         "value"     ::= $$(getDefaultConst ExceptionInfo)
-                       } : FullException @# ty))
-                     (@Invalid ty FullException)
+             "snd" ::= @Invalid ty FullException
            } : PktWithException ExecContextPkt @# ty)).
 
   Close Scope kami_action.

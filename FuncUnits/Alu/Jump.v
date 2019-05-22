@@ -11,7 +11,7 @@ Section Alu.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -38,10 +38,10 @@ Section Alu.
     Local Open Scope kami_expr.
 
     Local Definition jumpTag (jumpOut: JumpOutputType ## ty)
-      :  PktWithException ExecContextUpdPkt ## ty
+      :  PktWithException ExecUpdPkt ## ty
       := LETE jOut <- jumpOut;
          LETC val
-           :  ExecContextUpdPkt
+           :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val1"
                       <- (Valid (STRUCT {
@@ -55,7 +55,7 @@ Section Alu.
                           }))]
                  @%["taken?" <- $$ true]) ;
          LETC retval:
-           (PktWithException ExecContextUpdPkt)
+           (PktWithException ExecUpdPkt)
              <- STRUCT { "fst" ::= #val ;
                          "snd" ::= STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                            "data"  ::= STRUCT {
@@ -107,17 +107,17 @@ Section Alu.
                                   fieldVal opcodeField ('b"11011") ::
                                   nil;
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
-                         => LETE context_pkt
-                              <- context_pkt_expr;
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) exec_context_pkt
+                         => LETE exec_pkt
+                              <- exec_context_pkt;
                             LETC inst
                               :  Inst
-                              <- #context_pkt @% "inst";
+                              <- #exec_pkt @% "inst";
                             RetE
                               (STRUCT {
-                                 "pc" ::= #context_pkt @% "pc";
+                                 "pc" ::= #exec_pkt @% "pc";
                                  "new_pc"
-                                   ::= ((#context_pkt @% "pc") +
+                                   ::= ((#exec_pkt @% "pc") +
                                         (SignExtendTruncLsb Xlen 
                                            ({<
                                              (#inst $[31:31]),
@@ -126,8 +126,8 @@ Section Alu.
                                              (#inst $[30:21]),
                                              $$ WO~0
                                            >})));
-                                  "compressed?" ::= (#context_pkt @% "compressed?");
-                                  "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (#exec_pkt @% "compressed?");
+                                  "misalignedException?" ::= cfg_pkt @% "instMisalignedException?"
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
                   optMemXform  := None ;
@@ -139,25 +139,25 @@ Section Alu.
                                    fieldVal opcodeField ('b"11001") ::
                                    nil;
                    inputXform
-                     := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
-                          => LETE context_pkt
-                               <- context_pkt_expr;
+                     := fun (cfg_pkt : ContextCfgPkt @# ty) expr_context_pkt
+                          => LETE exec_pkt
+                               <- expr_context_pkt;
                              LETC inst
                                :  Inst
-                               <- #context_pkt @% "inst";
+                               <- #exec_pkt @% "inst";
                              RetE
                                (STRUCT {
-                                  "pc" ::= #context_pkt @% "pc";
+                                  "pc" ::= #exec_pkt @% "pc";
                                   "new_pc"
                                     ::= SignExtendTruncLsb Xlen (* bit type cast *)
                                           ({<
                                             ZeroExtendTruncMsb (Xlen - 1)
-                                              ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#context_pkt @% "reg1")) +
+                                              ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#exec_pkt @% "reg1")) +
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
-                                  "compressed?" ::= (#context_pkt @% "compressed?");
-                                  "misalignedException?" ::= #context_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (#exec_pkt @% "compressed?");
+                                  "misalignedException?" ::= cfg_pkt @% "instMisalignedException?"
                                 } : JumpInputType @# ty);
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                      => jumpTag (transPC sem_output_expr);

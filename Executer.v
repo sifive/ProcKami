@@ -21,7 +21,7 @@ Section Executor.
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
@@ -37,7 +37,7 @@ Section Executor.
 
   Definition exec
              (trans_pkt : InputTransPkt @# ty)
-    :  Maybe (PktWithException ExecContextUpdPkt) ## ty
+    :  Maybe (PktWithException ExecUpdPkt) ## ty
     := inst_db_get_pkt
          (fun func_unit func_unit_id tagged_inst
             => outputXform (snd tagged_inst)
@@ -53,7 +53,7 @@ Section Executor.
 
   Definition execWithException
              (trans_pkt : PktWithException InputTransPkt @# ty)
-    :  PktWithException ExecContextUpdPkt ## ty
+    :  PktWithException ExecUpdPkt ## ty
     := LETE exec_update_pkt <- exec (trans_pkt @% "fst");
          RetE
            (mkPktWithException
@@ -69,7 +69,7 @@ Section Executor.
                                  "exception" ::= ($IllegalInst : Exception @# ty);
                                  "value"     ::= $$(getDefaultConst ExceptionInfo)
                                } : FullException @# ty))
-                 } : PktWithException ExecContextUpdPkt @# ty)).
+                 } : PktWithException ExecUpdPkt @# ty)).
 
   Local Close Scope kami_expr.
 End Executor.

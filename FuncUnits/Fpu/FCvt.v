@@ -31,7 +31,7 @@ Section Fpu.
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -75,7 +75,7 @@ Section Fpu.
           } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
 
   Definition Float_Int_Output (size : nat) (sem_out_pkt_expr : NFToINOutput size ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
+    :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  NFToINOutput size
          <- sem_out_pkt_expr;
@@ -97,9 +97,9 @@ Section Fpu.
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
+                   } : ExecUpdPkt @# ty);
             "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
+          } : PktWithException ExecUpdPkt @# ty).
 
   Definition Float_word
     :  @FUEntry ty
@@ -210,7 +210,7 @@ Section Fpu.
       |}.
 
   Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
+    :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  OpOutput expWidthMinus2 sigWidthMinus2
          <- sem_out_pkt_expr;
@@ -236,9 +236,9 @@ Section Fpu.
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
+                   } : ExecUpdPkt @# ty);
             "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
+          } : PktWithException ExecUpdPkt @# ty).
 
   Definition Word_float
     :  @FUEntry ty

@@ -12,7 +12,7 @@ Section Alu.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -72,7 +72,7 @@ Section Alu.
                "xlen" ::= (cfg_pkt @% "xlen");
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
                "compressed?" ::= (#x @% "compressed?");
-               "misalignedException?" ::= #x @% "instMisalignedException?";
+               "misalignedException?" ::= cfg_pkt @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned
                        then xlen_zero_extend (Xlen + 1) (cfg_pkt @% "xlen") (#x @% "reg1")
@@ -84,10 +84,10 @@ Section Alu.
              }): BranchInputType @# ty).
 
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
-      :  PktWithException ExecContextUpdPkt ## ty
+      :  PktWithException ExecUpdPkt ## ty
       := LETE bOut: BranchOutputType <- branchOut;
          LETC val
-           :  ExecContextUpdPkt
+           :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val2"
                       <- (Valid (STRUCT {
@@ -96,7 +96,7 @@ Section Alu.
                           }))]
                  @%["taken?" <- #bOut @% "taken?"]);
          LETC retval
-           :  PktWithException ExecContextUpdPkt
+           :  PktWithException ExecUpdPkt
            <- STRUCT {
                 "fst" ::= #val;
                 "snd"

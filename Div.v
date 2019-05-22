@@ -28,8 +28,6 @@ Section divnat.
   Definition div_rem_nat_final := (fst div_rem_nat_full, snd div_rem_nat_full / pow2 sz).
 End divnat.
 
-Eval compute in (div_rem_nat_final 8 100 3).
-
 Section divnat_expr.
   Variable sz: nat.
   Definition DivRemDen := STRUCT_TYPE {

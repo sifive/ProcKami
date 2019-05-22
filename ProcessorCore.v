@@ -180,19 +180,6 @@ Section Params.
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      <- readerWithException name Flen_over_8
-                          (ITE
-                            (#fetch_pkt @% "snd" @% "valid")
-                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAddrMisaligned)
-                            $$(false))
-                          (* TODO: does fetch raise this exception? *)
-                          (ITE
-                            (#fetch_pkt @% "snd" @% "valid")
-                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $LoadAddrMisaligned)
-                            $$(false))
-                          (ITE
-                            (#fetch_pkt @% "snd" @% "valid")
-                            ((#fetch_pkt @% "snd" @% "data" @% "exception") == $InstAccessFault)
-                            $$(false))
                           #cfg_pkt
                           #decoder_pkt;
                    System

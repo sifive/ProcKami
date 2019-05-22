@@ -19,7 +19,7 @@ Section ty.
   Local Notation Xlen := (Xlen_over_8 * 8).
 
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
@@ -30,7 +30,7 @@ Section ty.
   Definition ssub n (x y : Bit n @# ty) : Bit n @# ty := x + (neg y).
 
   Definition intRegTag (val: Bit Rlen @# ty)
-    :  PktWithException ExecContextUpdPkt @# ty
+    :  PktWithException ExecUpdPkt @# ty
     := STRUCT {
          "fst"
            ::= noUpdPkt@%["val1"

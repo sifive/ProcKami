@@ -18,7 +18,7 @@ Section mret.
   Local Notation VAddr := (Bit Xlen).
   Local Notation DataMask := (Bit Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -42,7 +42,7 @@ Section mret.
                                          "data" ::= ZeroExtendTruncLsb Rlen #ret_code
                                         }))]);
                         "snd" ::= Invalid
-                      } : PktWithException ExecContextUpdPkt @# ty);
+                      } : PktWithException ExecUpdPkt @# ty);
          fuInsts
            := [
                 {|
@@ -138,7 +138,7 @@ Section mret.
                                        };
                                  "value"     ::= Const ty (natToWord Xlen 0)
                                } : FullException @# ty))
-                      } : PktWithException ExecContextUpdPkt @# ty));
+                      } : PktWithException ExecUpdPkt @# ty));
          fuInsts
            := [
                 {|
@@ -171,7 +171,7 @@ Section mret.
                      (STRUCT {
                         "fst" ::= noUpdPkt;
                         "snd" ::= Invalid
-                      } : PktWithException ExecContextUpdPkt @# ty);
+                      } : PktWithException ExecUpdPkt @# ty);
          fuInsts
            := [
                 {|

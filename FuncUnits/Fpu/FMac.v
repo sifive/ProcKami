@@ -30,7 +30,7 @@ Section Fpu.
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -155,7 +155,7 @@ Section Fpu.
           } : MacInputType @# ty).
 
   Definition MacOutput (sem_out_pkt_expr : MacOutputType ## ty)
-    :  PktWithException ExecContextUpdPkt ## ty
+    :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  MacOutputType
          <- sem_out_pkt_expr;
@@ -177,9 +177,9 @@ Section Fpu.
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
-                   } : ExecContextUpdPkt @# ty);
+                   } : ExecUpdPkt @# ty);
             "snd" ::= Invalid
-          } : PktWithException ExecContextUpdPkt @# ty).
+          } : PktWithException ExecUpdPkt @# ty).
 
   Definition Mac
     :  @FUEntry ty

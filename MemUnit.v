@@ -22,7 +22,7 @@ Section Memory.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8). 
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
@@ -222,9 +222,9 @@ Section Memory.
              (xlen : XlenValue @# ty)
              (decoder_pkt : DecoderPkt @# ty)
              (exec_context_pkt : ExecContextPkt @# ty)
-             (opt_exec_update_pkt : PktWithException ExecContextUpdPkt @# ty)
-    :  ActionT ty (PktWithException ExecContextUpdPkt)
-    := LET exec_update_pkt: ExecContextUpdPkt <- opt_exec_update_pkt @% "fst";
+             (opt_exec_update_pkt : PktWithException ExecUpdPkt @# ty)
+    :  ActionT ty (PktWithException ExecUpdPkt)
+    := LET exec_update_pkt: ExecUpdPkt <- opt_exec_update_pkt @% "fst";
        LETA memRet
          :  PktWithException MemRet
          <- fullMemAction
@@ -252,7 +252,7 @@ Section Memory.
                                             } : RoutedReg @# ty)])
                         (#exec_update_pkt));
                  "snd" ::= #memRet @% "snd"
-               } : PktWithException ExecContextUpdPkt @# ty)).
+               } : PktWithException ExecUpdPkt @# ty)).
 
   Local Close Scope kami_action.
 End Memory.

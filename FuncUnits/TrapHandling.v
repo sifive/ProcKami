@@ -22,7 +22,7 @@ Section trap_handling.
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecContextUpdPkt := (ExecContextUpdPkt Rlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
   Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
@@ -190,7 +190,7 @@ Section trap_handling.
     (inst: Inst @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt  @# ty)
-    (cxt: PktWithException ExecContextUpdPkt @# ty)
+    (cxt: PktWithException ExecUpdPkt @# ty)
     :  ActionT ty Void
     := LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
        LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";

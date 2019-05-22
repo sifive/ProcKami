@@ -186,21 +186,20 @@ Section Params.
         "reg1"                     :: Data ;
         "reg2"                     :: Data ;
         "reg3"                     :: Data ;
-        (* "csr"                      :: Maybe CsrValue; *)
         "fflags"                   :: FflagsValue;
         "frm"                      :: FrmValue;
         "inst"                     :: Inst ;
-        "compressed?"              :: Bool ;
-        "instMisalignedException?" :: Bool ;
-        "memMisalignedException?"  :: Bool ;
-        "accessException?"         :: Bool
+        "compressed?"              :: Bool
       }.
 
   Definition ContextCfgPkt :=
     STRUCT_TYPE {
         "xlen"        :: XlenValue;
         "mode"        :: PrivMode;
-        "extensions"  :: Extensions
+        "extensions"  :: Extensions;
+        "instMisalignedException?" :: Bool ;
+        "memMisalignedException?"  :: Bool ;
+        "accessException?"         :: Bool
       }.
 
   Definition RoutedReg
@@ -209,7 +208,7 @@ Section Params.
            "data" :: Data
          }.
 
-  Definition ExecContextUpdPkt :=
+  Definition ExecUpdPkt :=
     STRUCT_TYPE {
         "val1"       :: Maybe RoutedReg ;
         "val2"       :: Maybe RoutedReg ;
@@ -282,7 +281,7 @@ Section Params.
       extensions   : list string ;
       uniqId       : UniqId ;        
       inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
-      outputXform  : ok ## ty -> PktWithException ExecContextUpdPkt ## ty ;
+      outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
 
@@ -319,7 +318,7 @@ Section Params.
      then pkt2@%["snd" <- pkt1 @% "snd"]
      else pkt2).
 
-  Definition noUpdPkt: ExecContextUpdPkt @# ty :=
+  Definition noUpdPkt: ExecUpdPkt @# ty :=
     (STRUCT {
        "val1" ::= @Invalid ty _ ;
        "val2" ::= @Invalid ty _ ;

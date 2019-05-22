@@ -73,7 +73,10 @@ Section config_reader.
          (STRUCT {
             "xlen"       ::= #xlen;
             "mode"       ::= #mode;
-            "extensions" ::= #extensions
+            "extensions" ::= #extensions;
+            "instMisalignedException?" ::= $$false ;
+            "memMisalignedException?"  ::= $$false ;
+            "accessException?"         ::= $$false
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.
