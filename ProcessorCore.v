@@ -30,10 +30,12 @@ Section Params.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
 
   Variable lgMemSz: nat.
-  Variable napot_granularity : nat.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+
+  Variable pmp_addr_ub : option (word 54).
+
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
@@ -42,6 +44,14 @@ Section Params.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
+
+  Definition napot_granularity : nat
+    := match pmp_addr_ub with
+         | Some _
+           => Rlen - 2
+         | _
+           => 0
+         end.
 
   Section model.
     Local Open Scope kami_action.
@@ -149,7 +159,14 @@ Section Params.
               Register ^"utval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
 
               (* memory protection registers. *)
-              Register ^"pmp0cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp0cfg"
+                :  Bit 8
+                <- match pmp_addr_ub with
+                     | Some _
+                       => ConstBit ('b"10001111") (* grant read write privileges within address range [0, pmp_addr_ub]. *)
+                     | _
+                       => ConstBit (natToWord 8 0)
+                     end with
               Register ^"pmp1cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
               Register ^"pmp2cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
               Register ^"pmp3cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
@@ -164,9 +181,22 @@ Section Params.
               Register ^"pmp12cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
               Register ^"pmp13cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
               Register ^"pmp14cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp15cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-
-              Register ^"pmpaddr0" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmp15cfg"
+                :  Bit 8
+                <- match pmp_addr_ub with
+                     | Some _
+                       => ConstBit ('b"10011000") (* deny read write execute privileges beyond address range [0, pmp_addr_ub]. *)
+                     | _
+                       => ConstBit (natToWord 8 0)
+                     end with
+              Register ^"pmpaddr0"
+                :  Bit 54
+                <- match pmp_addr_ub with
+                     | Some addr
+                       => ConstBit addr
+                     | _
+                       => ConstBit (natToWord 54 0)
+                     end with
               Register ^"pmpaddr1" : Bit 54 <- ConstBit (natToWord 54 0) with
               Register ^"pmpaddr2" : Bit 54 <- ConstBit (natToWord 54 0) with
               Register ^"pmpaddr3" : Bit 54 <- ConstBit (natToWord 54 0) with
@@ -181,7 +211,14 @@ Section Params.
               Register ^"pmpaddr12" : Bit 54 <- ConstBit (natToWord 54 0) with
               Register ^"pmpaddr13" : Bit 54 <- ConstBit (natToWord 54 0) with
               Register ^"pmpaddr14" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr15" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr15"
+                :  Bit 54
+                <- match pmp_addr_ub with
+                     | Some _
+                       => ConstBit (^~ (natToWord 54 (pow2 (Rlen - 2)))) (* See table 3.9 *)
+                     | _
+                       => ConstBit (natToWord 54 0)
+                     end with
 
               Rule ^"pipeline"
                 := LETA cfg_pkt <- readConfig name _;

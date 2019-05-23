@@ -301,8 +301,8 @@ Section exts.
   Definition generate_model
     := processor "proc_core"
          20
-         0 (* napot granularity *)
          Flen_over_8
+         None
          param_func_units
          param_exts.
 
