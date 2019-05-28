@@ -59,15 +59,14 @@ Section Memory.
          (STRUCT {
            "fst" ::= pack #result ;
            "snd"
-             ::= Invalid
-(*
-             ::= utila_opt_pkt
-                   (STRUCT {
-                      "exception" ::= ($InstAccessFault : Exception @# ty);
-                      "value"     ::= $0
-                    } : FullException @# ty)
-                   (!#pmp_result)
-*)
+             ::= IF #pmp_result
+                   then Invalid
+                   else
+                     Valid
+                       (STRUCT {
+                          "exception" ::= ($InstAccessFault : Exception @# ty);
+                          "value"     ::= $0
+                        } : FullException @# ty)
           } : PktWithException Data @# ty).
 
   Definition memRead (index: nat) (mode : PrivMode @# ty) (addr: VAddr @# ty)
@@ -83,15 +82,14 @@ Section Memory.
          (STRUCT {
            "fst" ::= pack #result ;
            "snd"
-             ::= Invalid
-(*
-             ::= utila_opt_pkt
-                   (STRUCT {
-                      "exception" ::= ($LoadAccessFault : Exception @# ty);
-                      "value"     ::= $0
-                    } : FullException @# ty)
-                   (!#pmp_result)
-*)
+             ::= IF #pmp_result
+                   then Invalid
+                   else
+                     Valid
+                       (STRUCT {
+                          "exception" ::= ($LoadAccessFault : Exception @# ty);
+                          "value"     ::= $0
+                        } : FullException @# ty)
           } : PktWithException Data @# ty).
 
   Definition memWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
@@ -104,19 +102,17 @@ Section Memory.
          :  Bool
          <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8);
        Call ^"writeMem"(#writeRq: _);
-(*
        If #pmp_result
          then (Call ^"writeMem"(#writeRq: _); Retv);
-*)
-       Ret Invalid.
-(*
-       Ret (utila_opt_pkt
-             (STRUCT {
-                "exception" ::= ($SAmoAccessFault : Exception @# ty);
-                "value"     ::= $0
-              } : FullException @# ty)
-             (!#pmp_result)).
-*)
+       Ret
+         (IF #pmp_result
+           then Invalid
+           else
+             Valid
+               (STRUCT {
+                  "exception" ::= ($SAmoAccessFault : Exception @# ty);
+                  "value"     ::= $0
+                } : FullException @# ty)).
 
   Close Scope kami_expr.
 

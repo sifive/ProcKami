@@ -40,7 +40,7 @@ Section Params.
   Definition napot_granularity : nat
     := match pmp_addr_ub with
          | Some _
-           => Rlen - 2
+           => Xlen - 2
          | _
            => 0
          end.
