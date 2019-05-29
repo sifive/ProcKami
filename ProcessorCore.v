@@ -63,8 +63,7 @@ Section Params.
       := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              Register ^"extensions"       : Extensions  <- supportedExts with
-              Register ^"pc"               : VAddr       <- ConstBit (_ 'h "00000000") with
+              Register ^"pc"               : VAddr <- ConstBit (_ 'h "00000000") with
 
               (* floating point registers *)
               Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
@@ -174,10 +173,7 @@ Section Params.
                      end with
 
               Rule ^"pipeline"
-                := LETA cfg_pkt <- readConfig name _;
-                   Write ^"extensions"
-                     :  Extensions
-                     <- #cfg_pkt @% "extensions";
+                := LETA cfg_pkt <- readConfig name _ supportedExts;
                    Read pc : VAddr <- ^"pc";
                    System
                      [

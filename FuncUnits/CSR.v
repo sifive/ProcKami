@@ -308,30 +308,31 @@ Section CsrInterface.
                       (csrViews csr_entry))))
            entries).
 
-  Definition csrFieldReserved
+  Definition csrFieldNoReg
     (name : string)
-    (n : nat)
+    (k : Kind)
+    (default: ConstT k)
     :  CSRField
     := {|
          csrFieldName := name;
-         csrFieldKind := Bit n;
-         csrFieldDefaultValue := Some (ConstBit (natToWord n 0));
+         csrFieldKind := k;
+         csrFieldDefaultValue := Some default;
          csrFieldIsValid
            := fun _ _ _ => $$false;
          csrFieldXform
-           := fun _ _ _ => Const ty (natToWord n 0);
+           := fun _ _ _ => Const ty default;
        |}.
 
   Local Open Scope local_scope.
 
   Definition csrFieldAny
     (name : string)
-    (n : nat)
-    (default : option (ConstT (Bit n)))
+    (k : Kind)
+    (default : option (ConstT k))
     :  CSRField
     := {| 
-         csrFieldName := ^name;
-         csrFieldKind := Bit n;
+         csrFieldName := name;
+         csrFieldKind := k;
          csrFieldDefaultValue := default;
          csrFieldIsValid
            := fun _ _ _ => $$true;
@@ -357,7 +358,7 @@ Section CsrInterface.
     (prefix : string)
     :  CSRField
     := {|
-         csrFieldName := ^(prefix ++ "xl");
+         csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
          csrFieldDefaultValue := None; (* TODO *)
          csrFieldIsValid
@@ -373,7 +374,7 @@ Section CsrInterface.
     (width : nat)
     :  CSRField
     := {|
-         csrFieldName := ^(prefix ++ "tvec_base");
+         csrFieldName := (prefix ++ "tvec_base");
          csrFieldKind := Bit width;
          csrFieldDefaultValue := None;
          csrFieldIsValid
@@ -394,8 +395,8 @@ Section CsrInterface.
            csrViews
              := repeatCSRView 2
                   [
-                    csrFieldReserved "reserved" 27;
-                    @csrFieldAny "fflags" 5 None
+                    @csrFieldNoReg "reserved" (Bit 27) (getDefaultConst _);
+                    @csrFieldAny ^"fflags" (Bit 5) None
                   ]%vector
          |};
          {|
@@ -404,8 +405,8 @@ Section CsrInterface.
            csrViews
              := repeatCSRView 2
                   [
-                    csrFieldReserved "reserved" 29;
-                    @csrFieldAny "frm" 3 None
+                    @csrFieldNoReg "reserved" (Bit 29) (getDefaultConst _);
+                    @csrFieldAny ^"frm" (Bit 3) None
                   ]%vector
          |};
          {|
@@ -414,9 +415,9 @@ Section CsrInterface.
            csrViews
              := repeatCSRView 2
                   [
-                    csrFieldReserved "reserved" 24;
-                    @csrFieldAny "frm" 3 None;
-                    @csrFieldAny "fflags" 5 None
+                    @csrFieldNoReg "reserved" (Bit 24) (getDefaultConst _);
+                    @csrFieldAny ^"frm" (Bit 3) None;
+                    @csrFieldAny ^"fflags" (Bit 5) None
                   ]%vector
          |};
          {|
@@ -429,9 +430,9 @@ Section CsrInterface.
                     csrViewNumFields := 3;
                     csrViewFields
                       := [
-                           xlField "m";
-                           csrFieldReserved "reserved" 4;
-                           @csrFieldAny "extensions" 26 None (* TODO *)
+                           xlField ^"m";
+                           @csrFieldNoReg "reserved" (Bit 4) (getDefaultConst _);
+                           @csrFieldNoReg "extensions" (Bit 26) (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
                          ]%vector
                   |};
                   {|
@@ -439,9 +440,9 @@ Section CsrInterface.
                     csrViewNumFields := 3;
                     csrViewFields
                       := [
-                           xlField "m";
-                           csrFieldReserved "reserved" 36;
-                           @csrFieldAny "extensions" 26 None (* TODO *)
+                           xlField ^"m";
+                           @csrFieldNoReg "reserved" (Bit 36) (getDefaultConst _);
+                           @csrFieldNoReg "extensions" (Bit 26) (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
                          ]%vector
                   |}
                 ]%vector
@@ -456,8 +457,8 @@ Section CsrInterface.
                     csrViewNumFields := 2;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved" 16;
-                           @csrFieldAny "medeleg" 16 None
+                           @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
+                           @csrFieldAny ^"medeleg" (Bit 16) None
                          ]%vector
                   |};
                   {|
@@ -465,8 +466,8 @@ Section CsrInterface.
                     csrViewNumFields := 2;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved" 48;
-                           @csrFieldAny "medeleg" 16 None
+                           @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
+                           @csrFieldAny ^"medeleg" (Bit 16) None
                          ]%vector
                   |}
                 ]%vector
@@ -481,18 +482,18 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved0" 19;
-                           @csrFieldAny "mpp" 2 None;
-                           csrFieldReserved "hpp" 2;
-                           @csrFieldAny "spp" 1 None;
-                           @csrFieldAny "mpie" 1 None;
-                           csrFieldReserved "hpie" 1;
-                           @csrFieldAny "spie" 1 None;
-                           @csrFieldAny "upie" 1 None;
-                           @csrFieldAny "mie" 1 None;
-                           csrFieldReserved "hie" 1;
-                           @csrFieldAny "sie" 1 None;
-                           @csrFieldAny "uie" 1 None
+                           @csrFieldNoReg "reserved0" (Bit 19) (getDefaultConst _);
+                           @csrFieldAny ^"mpp" (Bit 2) None;
+                           @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"spp" (Bit 1) None;
+                           @csrFieldAny ^"mpie" (Bit 1) None;
+                           @csrFieldNoReg ^"hpie" (Bit 1) (getDefaultConst _);
+                           @csrFieldAny ^"spie" (Bit 1) None;
+                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldAny ^"mie" (Bit 1) None;
+                           @csrFieldNoReg ^"hie" (Bit 1) (getDefaultConst _);
+                           @csrFieldAny ^"sie" (Bit 1) None;
+                           @csrFieldAny ^"uie" (Bit 1) None
                          ]%vector
                   |};
                   {|
@@ -500,21 +501,21 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved0" 28;
-                           xlField "s";
-                           xlField "u";
-                           csrFieldReserved "reserved1" 19;
-                           @csrFieldAny "mpp" 2 None;
-                           csrFieldReserved "hpp" 2;
-                           @csrFieldAny "spp" 1 None;
-                           @csrFieldAny "mpie" 1 None;
-                           csrFieldReserved "hpie" 1;
-                           @csrFieldAny "spie" 1 None;
-                           @csrFieldAny "upie" 1 None;
-                           @csrFieldAny "mie" 1 None;
-                           csrFieldReserved "hie" 1;
-                           @csrFieldAny "sie" 1 None;
-                           @csrFieldAny "uie" 1 None
+                           @csrFieldNoReg "reserved0" (Bit 28) (getDefaultConst _);
+                           xlField ^"s";
+                           xlField ^"u";
+                           @csrFieldNoReg "reserved1" (Bit 19) (getDefaultConst _);
+                           @csrFieldAny ^"mpp" (Bit 2) None;
+                           @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"spp" (Bit 1) None;
+                           @csrFieldAny ^"mpie" (Bit 1) None;
+                           @csrFieldNoReg ^"hpie" (Bit 1) (getDefaultConst _);
+                           @csrFieldAny ^"spie" (Bit 1) None;
+                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldAny ^"mie" (Bit 1) None;
+                           @csrFieldNoReg ^"hie" (Bit 1) (getDefaultConst _);
+                           @csrFieldAny ^"sie" (Bit 1) None;
+                           @csrFieldAny ^"uie" (Bit 1) None
                          ]%vector
                   |}
                 ]%vector
@@ -529,8 +530,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mtvec_mode" 2 None;
-                           @tvecField "m" 30
+                           @csrFieldAny ^"mtvec_mode" (Bit 2) None;
+                           @tvecField ^"m" 30
                          ]%vector
                   |};
                   {|
@@ -538,8 +539,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mtvec_mode" 2 None;
-                           @tvecField "m" 62
+                           @csrFieldAny ^"mtvec_mode" (Bit 2) None;
+                           @tvecField ^"m" 62
                          ]%vector
                   |}
                 ]%vector
@@ -554,7 +555,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mscratch" 32 None
+                           @csrFieldAny ^"mscratch" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -562,7 +563,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mscratch" 64 None
+                           @csrFieldAny ^"mscratch" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
@@ -577,7 +578,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mepc" 32 None
+                           @csrFieldAny ^"mepc" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -585,7 +586,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mepc" 64 None
+                           @csrFieldAny ^"mepc" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
@@ -600,8 +601,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mcause_interrupt" 1 None;
-                           @csrFieldAny "mcause_code" 31 None
+                           @csrFieldAny ^"mcause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"mcause_code" (Bit 31) None
                          ]%vector
                   |};
                   {|
@@ -609,8 +610,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mcause_interrupt" 1 None;
-                           @csrFieldAny "mcause_code" 63 None
+                           @csrFieldAny ^"mcause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"mcause_code" (Bit 63) None
                          ]%vector
                   |}
                 ]%vector
@@ -625,7 +626,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mtval" 32 None
+                           @csrFieldAny ^"mtval" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -633,7 +634,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "mtval" 64 None
+                           @csrFieldAny ^"mtval" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
@@ -648,14 +649,14 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved0" 23;
-                           @csrFieldAny "spp" 1 None;
-                           csrFieldReserved "reserved1" 2;
-                           @csrFieldAny "spie" 1 None;
-                           @csrFieldAny "upie" 1 None;
-                           csrFieldReserved "reserved2" 2;
-                           @csrFieldAny "sie" 1 None;
-                           @csrFieldAny "uie" 1 None
+                           @csrFieldNoReg "reserved0" (Bit 23) (getDefaultConst _);
+                           @csrFieldAny ^"spp" (Bit 1) None;
+                           @csrFieldNoReg "reserved1" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"spie" (Bit 1) None;
+                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldNoReg "reserved2" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"sie" (Bit 1) None;
+                           @csrFieldAny ^"uie" (Bit 1) None
                          ]%vector
                   |};
                   {|
@@ -663,16 +664,16 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved0" 30;
-                           xlField "u";
-                           csrFieldReserved "reserved1" 23;
-                           @csrFieldAny "spp" 1 None;
-                           csrFieldReserved "reserved2" 2;
-                           @csrFieldAny "spie" 1 None;
-                           @csrFieldAny "upie" 1 None;
-                           csrFieldReserved "reserved3" 2;
-                           @csrFieldAny "sie" 1 None;
-                           @csrFieldAny "uie" 1 None
+                           @csrFieldNoReg "reserved0" (Bit 30) (getDefaultConst _);
+                           xlField ^"u";
+                           @csrFieldNoReg "reserved1" (Bit 23) (getDefaultConst _);
+                           @csrFieldAny ^"spp" (Bit 1) None;
+                           @csrFieldNoReg "reserved2" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"spie" (Bit 1) None;
+                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
+                           @csrFieldAny ^"sie" (Bit 1) None;
+                           @csrFieldAny ^"uie" (Bit 1) None
                          ]%vector
                   |}
                 ]%vector
@@ -687,8 +688,8 @@ Section CsrInterface.
                     csrViewNumFields := 2;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved" 16;
-                           @csrFieldAny "medeleg" 16 None
+                           @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
+                           @csrFieldAny ^"medeleg" (Bit 16) None
                          ]%vector
                   |};
                   {|
@@ -696,8 +697,8 @@ Section CsrInterface.
                     csrViewNumFields := 2;
                     csrViewFields
                       := [
-                           csrFieldReserved "reserved" 48;
-                           @csrFieldAny "medeleg" 16 None
+                           @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
+                           @csrFieldAny ^"medeleg" (Bit 16) None
                          ]%vector
                   |}
                 ]%vector
@@ -712,8 +713,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "stvec_mode" 2 None;
-                           @tvecField "s" 30
+                           @csrFieldAny ^"stvec_mode" (Bit 2) None;
+                           @tvecField ^"s" 30
                          ]%vector
                   |};
                   {|
@@ -721,8 +722,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "stvec_mode" 2 None;
-                           @tvecField "s" 62
+                           @csrFieldAny ^"stvec_mode" (Bit 2) None;
+                           @tvecField ^"s" 62
                          ]%vector
                   |}
                 ]%vector
@@ -737,7 +738,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "sscratch" 32 None
+                           @csrFieldAny ^"sscratch" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -745,7 +746,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "sscratch" 64 None
+                           @csrFieldAny ^"sscratch" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
@@ -760,7 +761,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "sepc" 32 None
+                           @csrFieldAny ^"sepc" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -768,7 +769,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "sepc" 64 None
+                           @csrFieldAny ^"sepc" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
@@ -783,8 +784,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "scause_interrupt" 1 None;
-                           @csrFieldAny "scause_code" 31 None
+                           @csrFieldAny ^"scause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"scause_code" (Bit 31) None
                          ]%vector
                   |};
                   {|
@@ -792,8 +793,8 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "scause_interrupt" 1 None;
-                           @csrFieldAny "scause_code" 63 None
+                           @csrFieldAny ^"scause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"scause_code" (Bit 63) None
                          ]%vector
                   |}
                 ]%vector
@@ -808,7 +809,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "stval" 32 None
+                           @csrFieldAny ^"stval" (Bit 32) None
                          ]%vector
                   |};
                   {|
@@ -816,7 +817,7 @@ Section CsrInterface.
                     csrViewNumFields := _;
                     csrViewFields
                       := [
-                           @csrFieldAny "stval" 64 None
+                           @csrFieldAny ^"stval" (Bit 64) None
                          ]%vector
                   |}
                 ]%vector
