@@ -71,44 +71,44 @@ Section Params.
 
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
-              Register ^"medeleg"          : Bit 16 <- ConstBit (natToWord 16 0) with
-              Register ^"mpp"              : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"medeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"mpp"              : Bit 2 <- ConstBit (wzero 2) with
               Register ^"mpie"             : Bit 1 <- $0 with
               Register ^"mie"              : Bit 1 <- $0 with
-              Register ^"mtvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"mtvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"mtvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-              Register ^"mscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
-              Register ^"mepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"mscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"mepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"mcause_interrupt" : Bit 1 <- $0 with
               Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"mtval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"mtval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
-              Register ^"sedeleg"          : Bit 16 <- ConstBit (natToWord 16 0) with
+              Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
               Register ^"spp"              : Bit 1 <- $0 with
               Register ^"spie"             : Bit 1 <- $0 with
               Register ^"sie"              : Bit 1 <- $0 with
-              Register ^"stvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"stvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"stvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-              Register ^"sscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
-              Register ^"sepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"sscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"sepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"scause_interrupt" : Bit 1 <- $0 with
               Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"stval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"stval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
               Register ^"upp"              : Bit 0 <- ConstBit WO with (* Should be Bit 0, but this results in a system verilog error. 3.1.7 *)
               Register ^"upie"             : Bit 1 <- $0 with
               Register ^"uie"              : Bit 1 <- $0 with
-              Register ^"utvec_mode"       : Bit 2 <- ConstBit (natToWord 2 0) with
+              Register ^"utvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"utvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-              Register ^"uscratch"         : Bit Xlen <- ConstBit (natToWord Xlen 0) with
-              Register ^"uepc"             : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"uscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"uepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"ucause_interrupt" : Bit 1 <- $0 with
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"utval"            : Bit Xlen <- ConstBit (natToWord Xlen 0) with
+              Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* memory protection registers. *)
               Register ^"pmp0cfg"
@@ -116,30 +116,31 @@ Section Params.
                 <- match pmp_addr_ub with
                      | Some _
                        => ConstBit ('b"10001111") (* grant read write privileges within address range [0, pmp_addr_ub]. *)
+                       (* => ConstBit (wzero 8) *)
                      | _
-                       => ConstBit (natToWord 8 0)
+                       => ConstBit (wzero 8)
                      end with
-              Register ^"pmp1cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp2cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp3cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp4cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp5cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp6cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp7cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp8cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp9cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp10cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp11cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp12cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp13cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
-              Register ^"pmp14cfg" : Bit 8 <- ConstBit (natToWord 8 0) with
+              Register ^"pmp1cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp2cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp3cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp4cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp5cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp6cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp7cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp8cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp9cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp10cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp11cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp12cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp13cfg" : Bit 8 <- ConstBit (wzero 8) with
+              Register ^"pmp14cfg" : Bit 8 <- ConstBit (wzero 8) with
               Register ^"pmp15cfg"
                 :  Bit 8
                 <- match pmp_addr_ub with
                      | Some _
                        => ConstBit ('b"10011000") (* deny read write execute privileges beyond address range [0, pmp_addr_ub]. *)
                      | _
-                       => ConstBit (natToWord 8 0)
+                       => ConstBit (wzero 8)
                      end with
               Register ^"pmpaddr0"
                 :  Bit 54
@@ -147,29 +148,30 @@ Section Params.
                      | Some addr
                        => ConstBit addr
                      | _
-                       => ConstBit (natToWord 54 0)
+                       => ConstBit (wzero 54)
                      end with
-              Register ^"pmpaddr1" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr2" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr3" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr4" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr5" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr6" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr7" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr8" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr9" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr10" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr11" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr12" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr13" : Bit 54 <- ConstBit (natToWord 54 0) with
-              Register ^"pmpaddr14" : Bit 54 <- ConstBit (natToWord 54 0) with
+              Register ^"pmpaddr1" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr2" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr3" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr4" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr5" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr6" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr7" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr8" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr9" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr10" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr11" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr12" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr13" : Bit 54 <- ConstBit (wzero 54) with
+              Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr15"
                 :  Bit 54
                 <- match pmp_addr_ub with
                      | Some _
-                       => ConstBit (^~ (natToWord 54 (pow2 (Rlen - 2)))) (* See table 3.9 *)
+                       (* => ConstBit (wnot (wlshift' (natToWord 54 1) (Xlen - 2))) *)
+                       => ConstBit (wones 54) (* See table 3.9 *)
                      | _
-                       => ConstBit (natToWord 54 0)
+                       => ConstBit (wzero 54)
                      end with
 
               Rule ^"pipeline"

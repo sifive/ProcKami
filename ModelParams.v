@@ -302,7 +302,8 @@ Section exts.
     := processor "proc_core"
          20
          Flen_over_8
-         None
+         (* None *)
+         (Some (54'h"4000"))
          param_func_units
          param_exts.
 

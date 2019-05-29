@@ -51,6 +51,11 @@ Section pmp.
     :  Bool @# ty
     := unsafeTruncLsb 1 pmp_cfg == $1.
 
+  Definition pmp_cfg_on
+    (pmp_cfg : Bit 8 @# ty)
+    :  Bool @# ty
+    := pmp_cfg_addr_mode pmp_cfg != $0.
+
   Definition PmpEntryPkt
     := STRUCT_TYPE {
          "cfg" :: Bit 8;
@@ -126,12 +131,21 @@ Section pmp.
                    req_addr_lb
          }.
 
-  Local Definition pmp_entry_apply_kind
+  Local Definition pmp_entry_apply_acc_kind
     (k : Kind)
     := STRUCT_TYPE {
+         "any_on" :: Bool;
          "addr" :: Bit 54;
          "matched" :: Bool;
          "data" :: k
+       }.
+
+  Local Definition pmp_entry_apply_result_kind
+    (k : Kind)
+    := STRUCT_TYPE {
+         "any_on" :: Bool;
+         "matched" :: Bool;
+         "result" :: k
        }.
 
   Definition pmp_entry_apply
@@ -139,15 +153,15 @@ Section pmp.
     (f : Bit 8 @# ty -> k @# ty)
     (req_addr_lb : VAddr @# ty)
     (req_addr_ub : VAddr @# ty)
-    :  ActionT ty (Maybe k)
+    :  ActionT ty (pmp_entry_apply_result_kind k)
     := LETA res
-         :  pmp_entry_apply_kind (Bit (size k))
+         :  pmp_entry_apply_acc_kind (Bit (size k))
          <- fold_left
               (fun
-                (acc_act : (ActionT ty (pmp_entry_apply_kind (Bit (size k)))))
+                (acc_act : (ActionT ty (pmp_entry_apply_acc_kind (Bit (size k)))))
                 (entry_index : nat)
                 => LETA acc
-                     :  pmp_entry_apply_kind (Bit (size k))
+                     :  pmp_entry_apply_acc_kind (Bit (size k))
                      <- acc_act;
                    LETA entry
                      :  PmpEntryPkt
@@ -168,6 +182,8 @@ Section pmp.
                        Retv;
                    Ret
                      (STRUCT {
+                        "any_on"
+                          ::= CABool Or [#acc @% "any_on"; pmp_cfg_on (#entry @% "cfg")];
                         "addr"
                           ::= #entry @% "addr";
                         "matched"
@@ -178,13 +194,15 @@ Section pmp.
                                    then pack (f (#entry @% "cfg"))
                                    else $0;
                                  #acc @% "data"]
-                      } : pmp_entry_apply_kind (Bit (size k)) @# ty))
+                      } : pmp_entry_apply_acc_kind (Bit (size k)) @# ty))
               (range 0 16)
-              (Ret (unpack (pmp_entry_apply_kind (Bit (size k))) $0));
+              (Ret (unpack (pmp_entry_apply_acc_kind (Bit (size k))) $0));
        Ret
-         (utila_opt_pkt
-           (unpack k (#res @% "data"))
-           (#res @% "matched")).
+         (STRUCT {
+            "any_on"  ::= #res @% "any_on";
+            "matched" ::= #res @% "matched";
+            "result"  ::= unpack k (#res @% "data")
+          } : pmp_entry_apply_result_kind k @# ty).
 
   Definition pmp_check
     (f : Bit 8 @# ty -> Bool @# ty)
@@ -201,7 +219,7 @@ Section pmp.
          DispString _ "\n"
        ];
        LETA match_result
-         :  Maybe Bool
+         :  pmp_entry_apply_result_kind Bool
          <- pmp_entry_apply
               (fun entry_cfg : Bit 8 @# ty
                 => IF mode == $MachineMode && !pmp_cfg_locked (entry_cfg)
@@ -209,17 +227,26 @@ Section pmp.
                      else f entry_cfg)
               req_addr_lb
               req_addr_ub;
-       If #match_result @% "valid"
+       If #match_result @% "any_on"
          then
-           Ret (#match_result @% "data")
+           If #match_result @% "matched"
+             then
+               Ret (#match_result @% "result") 
+             else
+               System [
+                 DispString _ "[pmp_check] none of the pmp registers matched the given address range.\n"
+               ];
+               Ret
+                 (IF mode == $MachineMode
+                   then $$true
+                   else $$false)
+             as on_result;
+             Ret #on_result
          else
            System [
-             DispString _ "[pmp_check] none of the pmp registers matched the given address range.\n"
+             DispString _ "[pmp_check] all of the pmp configuration registers are off.\n"
            ];
-           Ret
-             (IF mode == $MachineMode
-               then $$true
-               else $$false)
+           Ret $$true
          as result;
        System [
          DispString _ "[pmp_check] memory access granted? ";
