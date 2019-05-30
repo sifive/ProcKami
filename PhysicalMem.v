@@ -9,22 +9,22 @@ Section pmem.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable PAddrSz : nat.
+  Variable mem_params : mem_params_type.
   Variable ty: Kind -> Type.
-  Variable lgMemSz : nat.
-  Variable napot_granularity : nat.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
-  Local Notation pmp_check_execute := (@pmp_check_execute name PAddrSz napot_granularity ty).
-  Local Notation pmp_check_read := (@pmp_check_read name PAddrSz napot_granularity ty).
-  Local Notation pmp_check_write := (@pmp_check_write name PAddrSz napot_granularity ty).
+  Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation pmp_check_execute := (@pmp_check_execute name mem_params ty).
+  Local Notation pmp_check_read := (@pmp_check_read name mem_params ty).
+  Local Notation pmp_check_write := (@pmp_check_write name mem_params ty).
 
   Open Scope kami_expr.
   Open Scope kami_action.

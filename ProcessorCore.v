@@ -30,12 +30,10 @@ Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
 
-  Variable lgMemSz: nat.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable PAddrSz : nat.
-
+  Variable mem_params : mem_params_type.
   Variable pmp_addr_ub : option (word 54).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -43,11 +41,15 @@ Section Params.
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
 
-  Local Notation napot_granularity := (napot_granularity Rlen_over_8 pmp_addr_ub).
+  (* TODO how should we relate napot granularity with pmp_addr_ub *)
+  (* Local Notation napot_granularity := (napot_granularity Rlen_over_8 pmp_addr_ub). *)
+  Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
   
@@ -188,7 +190,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 PAddrSz lgMemSz napot_granularity (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 mem_params (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -234,7 +236,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     <- MemUnit name PAddrSz lgMemSz napot_granularity
+                     <- MemUnit name mem_params
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "mode")

@@ -314,6 +314,18 @@ Section Params.
       fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
       fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
+  Record mem_params_type
+    := {
+         mem_params_size           : nat; (* log2 num mem bytes *)
+         mem_params_addr_size      : nat; (* physical address size *)
+         mem_params_granularity    : nat; (* pmp (napot) granularity *)
+         mem_params_levels         : nat; (* address translation levels. See 4.3.2 *)
+         mem_params_page_size      : nat; (* log2 num page bytes *)
+         mem_params_pte_width      : nat;
+         mem_params_ppn_width      : nat;
+         mem_params_last_ppn_width : nat
+       }.
+
   Local Open Scope kami_expr.
   Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty) k2 (pkt2: PktWithException k2 @# ty) :=
     (IF (pkt1 @% "snd" @% "valid")

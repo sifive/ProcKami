@@ -14,16 +14,15 @@ Section mem_unit.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable PAddrSz : nat.
+  Variable mem_params : mem_params_type.
   Variable ty: Kind -> Type.
-  Variable lgMemSz : nat.
-  Variable napot_granularity : nat.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
@@ -39,14 +38,14 @@ Section mem_unit.
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
   Local Notation defMemRet := (defMemRet Xlen_over_8 Rlen_over_8 ty).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 PAddrSz napot_granularity ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 PAddrSz napot_granularity ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 PAddrSz napot_granularity ty).
-  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
-  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
-  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
-  Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 PAddrSz ty lgMemSz).
-  Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 PAddrSz ty lgMemSz).
+  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
+  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
+  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 mem_params ty).
+  Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 mem_params ty).
 
   Variable func_units : list FUEntry.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).

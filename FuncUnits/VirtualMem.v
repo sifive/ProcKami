@@ -19,21 +19,20 @@ Section pt_walker.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable PAddrSz : nat.
-  Variable lgMemSz : nat.
-  Variable napot_granularity : nat.
-  Variable levels : nat.
+  Variable mem_params : mem_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 lgMemSz napot_granularity).
+  Local Notation levels := (mem_params_levels mem_params).
+  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 mem_params).
 
   Open Scope kami_expr.
   Open Scope kami_action.

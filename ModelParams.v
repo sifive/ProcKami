@@ -64,6 +64,43 @@ Definition fu_params_double
        fu_params_exts_64        := ["D"]
      |}.
 
+(* See 4.3.1 *)
+Definition mem_params_sv32
+  := {|
+       mem_params_size        := 20;
+       mem_params_addr_size   := 34;
+       mem_params_granularity := 20; (* TODO fix *)
+       mem_params_levels      := 2;
+       mem_params_page_size   := 12; (* TODO check *)
+       mem_params_pte_width   := 32;
+       mem_params_ppn_width   := 10;
+       mem_params_last_ppn_width := 12
+     |}.
+
+Definition mem_params_sv39
+  := {|
+       mem_params_size        := 20;
+       mem_params_addr_size   := 56;
+       mem_params_granularity := 20; (* TODO fix *)
+       mem_params_levels      := 3;
+       mem_params_page_size   := 12; (* TODO check *)
+       mem_params_pte_width   := 64;
+       mem_params_ppn_width   := 9;
+       mem_params_last_ppn_width := 26
+     |}.
+
+Definition mem_params_sv48
+  := {|
+       mem_params_size        := 20;
+       mem_params_addr_size   := 56;
+       mem_params_granularity := 20; (* TODO fix *)
+       mem_params_levels      := 4;
+       mem_params_page_size   := 12; (* TODO check *)
+       mem_params_pte_width   := 64;
+       mem_params_ppn_width   := 9;
+       mem_params_last_ppn_width := 17
+     |}.
+
 (* II. Processor extension table entries. *)
 
 Record param_entry
@@ -303,9 +340,8 @@ Section exts.
 
   Definition generate_model
     := processor "proc_core"
-         20
          Flen_over_8
-         PAddrSz
+         mem_params_sv48
          (Some (54'h"4000"))
          param_func_units
          param_exts.

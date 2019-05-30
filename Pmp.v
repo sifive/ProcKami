@@ -13,12 +13,13 @@ Section pmp.
 
   Variable name: string.
   Variable Xlen_over_8: nat.
-  Variable PAddrSz : nat.
-  Variable napot_granularity : nat.
+  Variable mem_params : mem_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation PAddr := (Bit PAddrSz).
 
   Open Scope kami_expr.
@@ -123,8 +124,8 @@ Section pmp.
                    req_addr_lb;
            (Const ty (natToWord 2 3)) (* NAPOT *)
              ::= pmp_entry_match_aux
-                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) >> (Const ty (natToWord 6 napot_granularity)))
-                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) + ((Const ty (natToWord PAddrSz 1)) << (Const ty (natToWord 6 (napot_granularity + 2)))))
+                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) >> (Const ty (natToWord 6 granularity)))
+                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) + ((Const ty (natToWord PAddrSz 1)) << (Const ty (natToWord 6 (granularity + 2)))))
                    req_addr_ub
                    req_addr_lb
          }.
