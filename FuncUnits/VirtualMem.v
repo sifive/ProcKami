@@ -9,7 +9,7 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import ProcessorCore.
-Require Import MemUnit.
+Require Import PhysicalMem.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
@@ -20,6 +20,7 @@ Section pt_walker.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat.
   Variable lgMemSz : nat.
   Variable napot_granularity : nat.
   Variable levels : nat.
@@ -29,6 +30,7 @@ Section pt_walker.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddr := (Bit PAddrSz).
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
@@ -72,16 +74,16 @@ Section pt_walker.
     Definition vaddr_offset
       (level : nat)
       (vaddr : VAddr @# ty)
-      :  VAddr @# ty
+      :  PAddr @# ty
       := let width
            := (offset_width + (level * ppn_width))%nat in
-         ZeroExtendTruncLsb Xlen
+         ZeroExtendTruncLsb PAddrSz
            (unsafeTruncLsb width vaddr).
 
     Definition pte_ppn
       (ppn_index : nat)
       (pte : Bit pte_width @# ty)
-      :  prod nat (VAddr @# ty)
+      :  prod nat (PAddr @# ty)
       := let width
            := if Nat.eqb (S ppn_index) levels
                 then last_ppn_width
@@ -89,7 +91,7 @@ Section pt_walker.
          let lb := (offset_width + (ppn_index * ppn_width))%nat in
          let ub := (lb + width)%nat in
          (lb,
-          ZeroExtendTruncLsb Xlen
+          ZeroExtendTruncLsb PAddrSz
             (ZeroExtendTruncMsb width
               (unsafeTruncLsb ub pte))).
 
@@ -97,11 +99,11 @@ Section pt_walker.
       (ppn_index_ub : nat)
       (ppn_index_lb : nat)
       (pte : Bit pte_width @# ty)
-      :  VAddr @# ty
+      :  PAddr @# ty
       := fold_right
-           (fun (ppn_index : nat) (acc : VAddr @# ty)
+           (fun (ppn_index : nat) (acc : PAddr @# ty)
              => let ppn := pte_ppn ppn_index pte in
-                ((snd ppn << ($(fst ppn) : Bit (Nat.log2_up Xlen) @# ty) & acc)))
+                ((snd ppn << ($(fst ppn) : Bit (Nat.log2_up PAddrSz) @# ty) & acc)))
            $0
            (range ppn_index_lb ppn_index_ub).
 
@@ -124,13 +126,13 @@ Section pt_walker.
       (level : nat)
       (pte : Bit pte_width @# ty)
       (vaddr : VAddr @# ty)
-      : VAddr @# ty
+      : PAddr @# ty
       := (pte_ppns levels level pte &
           vaddr_offset level vaddr).
 
     Definition vm_exception
       (access_type : Bit vm_access_width @# ty)
-      :  PktWithException VAddr @# ty
+      :  PktWithException PAddr @# ty
       := STRUCT {
            "fst" ::= $0;
            "snd"
@@ -147,7 +149,7 @@ Section pt_walker.
                             };
                       "value"     ::= $0 (* TODO *)
                     } : FullException @# ty)
-         } : PktWithException VAddr @# ty.
+         } : PktWithException PAddr @# ty.
 
     (*
       See 4.3.2
@@ -157,9 +159,9 @@ Section pt_walker.
       (level : nat)
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
-      (next_level : VAddr @# ty -> ActionT ty (PktWithException VAddr))
+      (next_level : VAddr @# ty -> ActionT ty (PktWithException PAddr))
       (address : VAddr @# ty)
-      :  ActionT ty (PktWithException VAddr)
+      :  ActionT ty (PktWithException PAddr)
       := LETA read_pte
            :  PktWithException Data
            <- memRead mem_read_index mode address;
@@ -173,7 +175,7 @@ Section pt_walker.
                (STRUCT {
                   "fst" ::= $0;
                   "snd" ::= #read_pte @% "snd"
-                } : PktWithException VAddr @# ty)
+                } : PktWithException PAddr @# ty)
            else
              (* item 3 *)
              (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
@@ -203,7 +205,7 @@ Section pt_walker.
                            (STRUCT {
                               "fst" ::= pte_address level #pte address;
                               "snd" ::= Invalid
-                            } : PktWithException VAddr @# ty)
+                            } : PktWithException PAddr @# ty)
                        as result;
                      Ret #result)
                    as result;
@@ -218,9 +220,9 @@ Section pt_walker.
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
       (address : VAddr @# ty)
-      :  ActionT ty (PktWithException VAddr)
+      :  ActionT ty (PktWithException PAddr)
       := fold_right
-           (fun (level : nat) (acc : VAddr @# ty -> ActionT ty (PktWithException VAddr))
+           (fun (level : nat) (acc : VAddr @# ty -> ActionT ty (PktWithException PAddr))
              => pte_translate
                   (mem_read_index + level)
                   level

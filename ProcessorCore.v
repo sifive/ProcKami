@@ -34,6 +34,7 @@ Section Params.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat.
 
   Variable pmp_addr_ub : option (word 54).
 

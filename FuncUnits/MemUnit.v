@@ -1,16 +1,18 @@
 (*
-  This section defines the interface between the processor core and
-  the RAM.
+  This module defines the memory unit. This unit accepts a memory
+  update packet and performs the requested memory writes.
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import Decoder.
-Require Import Pmp.
+Require Import PhysicalMem.
+Require Import VirtualMem.
 
-Section Memory.
+Section mem_unit.
+
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat.
   Variable ty: Kind -> Type.
   Variable lgMemSz : nat.
   Variable napot_granularity : nat.
@@ -20,6 +22,7 @@ Section Memory.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddr := (Bit PAddrSz).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
@@ -34,9 +37,9 @@ Section Memory.
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
   Local Notation defMemRet := (defMemRet Xlen_over_8 Rlen_over_8 ty).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 napot_granularity ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 napot_granularity ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 napot_granularity ty).
+  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 PAddrSz napot_granularity ty).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 PAddrSz napot_granularity ty).
+  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 PAddrSz napot_granularity ty).
 
   Variable func_units : list FUEntry.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
@@ -46,93 +49,24 @@ Section Memory.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition memFetch (index: nat) (mode : PrivMode @# ty) (addr: VAddr @# ty)
-    : ActionT ty (PktWithException Data)
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       LETA pmp_result
-         :  Bool
-         <- pmp_check_execute mode addr (addr + $4);
-       System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result :: DispString _ "\n" :: nil);
-       Ret
+  (* TODO *)
+  Definition memTranslate
+    (mode : PrivMode @# ty)
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (PktWithException PAddr)
+    := Ret
          (STRUCT {
-           "fst" ::= pack #result ;
-           "snd"
-             ::= IF #pmp_result
-                   then Invalid
-                   else
-                     Valid
-                       (STRUCT {
-                          "exception" ::= ($InstAccessFault : Exception @# ty);
-                          "value"     ::= $0
-                        } : FullException @# ty)
-          } : PktWithException Data @# ty).
-
-  Definition memRead (index: nat) (mode : PrivMode @# ty) (addr: VAddr @# ty)
-    : ActionT ty (PktWithException Data)
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       LETA pmp_result
-         :  Bool
-         <- pmp_check_read mode addr (addr + $Rlen_over_8);
-       System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result :: DispString _ "\n" :: nil);
-       Ret
-         (STRUCT {
-           "fst" ::= pack #result ;
-           "snd"
-             ::= IF #pmp_result
-                   then Invalid
-                   else
-                     Valid
-                       (STRUCT {
-                          "exception" ::= ($LoadAccessFault : Exception @# ty);
-                          "value"     ::= $0
-                        } : FullException @# ty)
-          } : PktWithException Data @# ty).
-
-  Definition memWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-    : ActionT ty (Maybe FullException)
-    := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 (Bit 8) <- STRUCT {
-                                  "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr") ;
-                                  "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ;
-                                  "mask" ::= pkt @% "mask" };
-       LETA pmp_result
-         :  Bool
-         <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8);
-       Call ^"writeMem"(#writeRq: _);
-       If #pmp_result
-         then (Call ^"writeMem"(#writeRq: _); Retv);
-       Ret
-         (IF #pmp_result
-           then Invalid
-           else
-             Valid
-               (STRUCT {
-                  "exception" ::= ($SAmoAccessFault : Exception @# ty);
-                  "value"     ::= $0
-                } : FullException @# ty)).
-
-  Close Scope kami_expr.
-
-  Definition memReadReservation (addr: VAddr @# ty)
-    : ActionT ty (Array Rlen_over_8 Bool)
-    := Call result: Array Rlen_over_8 Bool
-                          <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-         Ret #result.
-
-  Definition memWriteReservation (addr: VAddr @# ty)
-             (mask rsv: Array Rlen_over_8 Bool @# ty)
-    : ActionT ty Void
-    := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
-                                                                     "data" ::= rsv ;
-                                                                     "mask" ::= mask } ;
-         Call ^"writeMemReservation" (#writeRq: _);
-         Retv.
-
-  Close Scope kami_action.
-
+            "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
+            "snd" ::= Invalid
+          } : PktWithException PAddr @# ty).
+(*
+    := If mode == $MachineMode
+         then
+           (* TODO: should this be sign extended? *)
+           Ret (ZeroExtendTruncLsb PAddrSz vaddr)
+         else
+           pte_translate 
+*)
   Definition getMemEntryFromInsts ik ok (insts: list (InstEntry ik ok)) pos :
     option (LetExprSyntax ty MemoryInput ->
             LetExprSyntax ty MemoryOutput) :=
@@ -146,6 +80,7 @@ Section Memory.
     end.
 
   Variable memFuNames: list string.
+
   Definition memFus := filter
                          (fun x => getBool (in_dec string_dec (fuName (snd x)) memFuNames))
                          (tag func_units).
@@ -160,6 +95,7 @@ Section Memory.
     getMemEntryFromInsts (fuInsts fu) pos.
 
   Local Open Scope kami_expr.
+
   Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty)
              (reservation : Array Rlen_over_8 Bool @# ty) : MemoryInput @# ty :=
     STRUCT {
@@ -186,12 +122,19 @@ Section Memory.
            match getMemEntry fu tag with
              | Some fn
                => (
+                  LETA translateResult
+                    :  PktWIthException PAddr
+                    <- memTranslate mode addr;
+                  (* TODO: Handle exception from memTranslate *)
+                  LET paddr
+                    :  PAddr
+                    <- #translateResult @% "fst";
                   LETA memReadVal
                     :  PktWithException Data
-                    <- memRead 2 mode addr;
+                    <- memRead 2 mode #paddr;
                   LETA memReadReservationVal
                     : Array Rlen_over_8 Bool
-                    <- memReadReservation addr;
+                    <- memReadReservation #paddr;
                   System
                     (DispString _ "Mem Read: " ::
                      DispHex #memReadVal ::
@@ -216,7 +159,7 @@ Section Memory.
                        (LET memWriteVal
                         :  MemWrite
                         <- STRUCT {
-                          "addr" ::= addr;
+                          "addr" ::= #paddr;
                           "data" ::= #memoryOutput @% "data" ;
                           "mask" ::=
                             (IF #memoryOutput @% "isWr"
@@ -313,5 +256,8 @@ Section Memory.
                  "snd" ::= #memRet @% "snd"
                } : PktWithException ExecUpdPkt @# ty)).
 
-  Local Close Scope kami_action.
-End Memory.
+  Close Scope kami_expr.
+
+  Close Scope kami_action.
+
+End mem_unit.

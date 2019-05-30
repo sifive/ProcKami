@@ -150,6 +150,7 @@ Section Params.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat. (* physical address size *)
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
@@ -158,6 +159,7 @@ Section Params.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddr := (Bit PAddrSz).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
@@ -244,7 +246,7 @@ Section Params.
                                "data" :: Array 1 (Bit Flen) }.
 
   Definition MemWrite := STRUCT_TYPE {
-                             "addr" :: VAddr ;
+                             "addr" :: PAddr ;
                              "data" :: Data ;
                              "mask" :: Array Rlen_over_8 Bool }.
   

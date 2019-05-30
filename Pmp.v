@@ -13,15 +13,13 @@ Section pmp.
 
   Variable name: string.
   Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat.
   Variable napot_granularity : nat.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation Data := (Bit Rlen).
+  Local Notation PAddr := (Bit PAddrSz).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -83,10 +81,10 @@ Section pmp.
           } : PmpEntryPkt @# ty).
 
   Definition pmp_entry_match_aux
-    (entry_addr_ub : VAddr @# ty)
-    (entry_addr_lb : VAddr @# ty)
-    (req_addr_ub : VAddr @# ty)
-    (req_addr_lb : VAddr @# ty)
+    (entry_addr_ub : PAddr @# ty)
+    (entry_addr_lb : PAddr @# ty)
+    (req_addr_ub : PAddr @# ty)
+    (req_addr_lb : PAddr @# ty)
     :  Bool @# ty
     := (req_addr_lb >= entry_addr_lb) &&
        (req_addr_ub <= entry_addr_ub).
@@ -95,8 +93,8 @@ Section pmp.
     (entry_index : nat)
     (entry : PmpEntryPkt @# ty)
     (prev_entry_addr : Bit 54 @# ty)
-    (req_addr_lb : VAddr @# ty)
-    (req_addr_ub : VAddr @# ty)
+    (req_addr_lb : PAddr @# ty)
+    (req_addr_ub : PAddr @# ty)
     :  Bool @# ty
     := let entry_addr_mode
          :  Bit 2 @# ty
@@ -113,20 +111,20 @@ Section pmp.
                         then $0
                         else prev_entry_addr in
                  pmp_entry_match_aux
-                   (ZeroExtendTruncLsb Xlen (entry @% "addr"))
-                   (ZeroExtendTruncLsb Xlen entry_addr_lb)
+                   (ZeroExtendTruncLsb PAddrSz (entry @% "addr"))
+                   (ZeroExtendTruncLsb PAddrSz entry_addr_lb)
                    req_addr_ub
                    req_addr_lb;
            (Const ty (natToWord 2 2)) (* NA4 *)
              ::= pmp_entry_match_aux
-                   (ZeroExtendTruncLsb Xlen (entry @% "addr"))
-                   ((ZeroExtendTruncLsb Xlen (entry @% "addr")) + $4)
+                   (ZeroExtendTruncLsb PAddrSz (entry @% "addr"))
+                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) + $4)
                    req_addr_ub
                    req_addr_lb;
            (Const ty (natToWord 2 3)) (* NAPOT *)
              ::= pmp_entry_match_aux
-                   ((ZeroExtendTruncLsb Xlen (entry @% "addr")) >> (Const ty (natToWord 6 napot_granularity)))
-                   ((ZeroExtendTruncLsb Xlen (entry @% "addr")) + ((Const ty (natToWord Xlen 1)) << (Const ty (natToWord 6 (napot_granularity + 2)))))
+                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) >> (Const ty (natToWord 6 napot_granularity)))
+                   ((ZeroExtendTruncLsb PAddrSz (entry @% "addr")) + ((Const ty (natToWord PAddrSz 1)) << (Const ty (natToWord 6 (napot_granularity + 2)))))
                    req_addr_ub
                    req_addr_lb
          }.
@@ -151,8 +149,8 @@ Section pmp.
   Definition pmp_entry_apply
     (k : Kind)
     (f : Bit 8 @# ty -> k @# ty)
-    (req_addr_lb : VAddr @# ty)
-    (req_addr_ub : VAddr @# ty)
+    (req_addr_lb : PAddr @# ty)
+    (req_addr_ub : PAddr @# ty)
     :  ActionT ty (pmp_entry_apply_result_kind k)
     := LETA res
          :  pmp_entry_apply_acc_kind (Bit (size k))
@@ -207,8 +205,8 @@ Section pmp.
   Definition pmp_check
     (f : Bit 8 @# ty -> Bool @# ty)
     (mode : PrivMode @# ty)
-    (req_addr_lb : VAddr @# ty)
-    (req_addr_ub : VAddr @# ty)
+    (req_addr_lb : PAddr @# ty)
+    (req_addr_ub : PAddr @# ty)
     :  ActionT ty Bool
     := System [
          DispString _ "[pmp_check] req_addr_lb: ";
@@ -256,15 +254,15 @@ Section pmp.
        Ret #result.
 
   Definition pmp_check_execute 
-    :  PrivMode @# ty -> VAddr @# ty -> VAddr @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> PAddr @# ty -> ActionT ty Bool
     := pmp_check pmp_cfg_execute.
   
   Definition pmp_check_write
-    :  PrivMode @# ty -> VAddr @# ty -> VAddr @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> PAddr @# ty -> ActionT ty Bool
     := pmp_check pmp_cfg_write.
 
   Definition pmp_check_read
-    :  PrivMode @# ty -> VAddr @# ty -> VAddr @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> PAddr @# ty -> ActionT ty Bool
     := pmp_check pmp_cfg_read.
 
   Close Scope kami_action.
