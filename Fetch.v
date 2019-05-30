@@ -7,6 +7,7 @@ Section fetch.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : mem_params_type.
+  Variable vm_params : vm_params_type.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -21,7 +22,7 @@ Section fetch.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params vm_params ty).
 
   Open Scope kami_expr.
 

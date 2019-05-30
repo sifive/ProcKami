@@ -318,12 +318,17 @@ Section Params.
     := {
          mem_params_size           : nat; (* log2 num mem bytes *)
          mem_params_addr_size      : nat; (* physical address size *)
-         mem_params_granularity    : nat; (* pmp (napot) granularity *)
-         mem_params_levels         : nat; (* address translation levels. See 4.3.2 *)
-         mem_params_page_size      : nat; (* log2 num page bytes *)
-         mem_params_pte_width      : nat;
-         mem_params_ppn_width      : nat;
-         mem_params_last_ppn_width : nat
+         mem_params_granularity    : nat  (* pmp (napot) granularity *)
+       }.
+
+  (* virtual memory translation params.*)
+  Record vm_params_type
+    := {
+         vm_params_levels          : nat; (* num page table levels = num ppn fields *)
+         vm_params_page_size       : nat; (* num page and page table bytes *)
+         vm_params_pte_width       : nat; (* num page table entry bits *)
+         vm_params_ppn_width       : nat; (* num physical page number field bits *)
+         vm_params_last_ppn_width  : nat  (* num last physical page number field bits *)
        }.
 
   Definition vm_access_width := 2.

@@ -20,6 +20,7 @@ Section pt_walker.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : mem_params_type.
+  Variable vm_params : vm_params_type.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -31,26 +32,18 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation levels := (mem_params_levels mem_params).
+  Local Notation levels := (vm_params_levels vm_params).
   Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation page_size := (vm_params_page_size vm_params).
+  Local Notation pte_width := (vm_params_pte_width vm_params).
+  Local Notation num_ppns := (vm_params_levels vm_params).
+  Local Notation ppn_width := (vm_params_ppn_width vm_params).
+  Local Notation last_ppn_width := (vm_params_last_ppn_width vm_params).
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
   Section pte.
-(*
-    Variable page_size : nat. (* when PAGESIZE=2^n, page_size = log2 PAGESIZE = n *)
-    Variable pte_width : nat.
-    Variable num_ppns : nat.
-    Variable ppn_width : nat.
-    Variable last_ppn_width : nat.
-*)
-    Local Notation page_size := (mem_params_size mem_params).
-    Local Notation pte_width := (mem_params_pte_width mem_params).
-    Local Notation num_ppns := (mem_params_levels mem_params).
-    Local Notation ppn_width := (mem_params_ppn_width mem_params).
-    Local Notation last_ppn_width := (mem_params_last_ppn_width mem_params).
-
     Local Definition offset_width := 9.
  
     (* See figure 4.15 *)
@@ -168,6 +161,7 @@ Section pt_walker.
            <- pMemRead mem_read_index mode curr_pte_address;
          LET pte
            :  Bit pte_width
+(* add switch statement for mode *)
            <- unsafeTruncLsb pte_width (#read_pte @% "fst");
          (* item 2 *)
          If #read_pte @% "snd" @% "valid"
@@ -185,6 +179,7 @@ Section pt_walker.
                  (* item 4 *)
                  (If !pte_read #pte && !pte_execute #pte
                    then
+(* add mode mechanism to determine if recurse *)
                      (if Nat.eqb level 0
                        then Ret (vm_exception access_type)
                        else LET next_pte_address

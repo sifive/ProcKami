@@ -34,6 +34,7 @@ Section Params.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : mem_params_type.
+  Variable vm_params : vm_params_type.
   Variable pmp_addr_ub : option (word 54).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -46,10 +47,6 @@ Section Params.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-
-  (* TODO how should we relate napot granularity with pmp_addr_ub *)
-  (* Local Notation napot_granularity := (napot_granularity Rlen_over_8 pmp_addr_ub). *)
-  Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
   
@@ -174,6 +171,7 @@ Section Params.
                 <- match pmp_addr_ub with
                      | Some _
                        (* => ConstBit (wnot (wlshift' (natToWord 54 1) (Xlen - 2))) *)
+                       (* TODO use mem granularity. *)
                        => ConstBit (wones 54) (* See table 3.9 *)
                      | _
                        => ConstBit (wzero 54)
@@ -190,7 +188,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 mem_params (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 mem_params vm_params (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -236,7 +234,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     <- MemUnit name mem_params
+                     <- MemUnit name mem_params vm_params
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "mode")
