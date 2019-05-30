@@ -326,6 +326,11 @@ Section Params.
          mem_params_last_ppn_width : nat
        }.
 
+  Definition vm_access_width := 2.
+  Definition vm_access_inst := 0.
+  Definition vm_access_load := 1.
+  Definition vm_access_samo := 2.
+
   Local Open Scope kami_expr.
   Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty) k2 (pkt2: PktWithException k2 @# ty) :=
     (IF (pkt1 @% "snd" @% "valid")

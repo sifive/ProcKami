@@ -51,28 +51,33 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  (* TODO *)
   Definition memTranslate
     (mode : PrivMode @# ty)
+    (access_type : Bit vm_access_width @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
-    := Ret
-         (STRUCT {
-            "fst" ::= SignExtendTruncLsb PAddrSz vaddr; (* See 4.5.1 *)
-            "snd" ::= Invalid
-          } : PktWithException PAddr @# ty).
-(*
     := If mode == $MachineMode
          then
            (* TODO: should this be sign extended? *)
-           Ret (ZeroExtendTruncLsb PAddrSz vaddr)
+           Ret
+             (STRUCT {
+                "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
+                "snd" ::= Invalid
+              } : PktWithException PAddr @# ty)
          else
-           pte_translate 
-*)
+           pt_walker
+             3 (* initial walker mem read index. *)
+             mode
+             access_type
+             vaddr
+         as result;
+       Ret #result.
+             
 
   Definition memFetch
     (index : nat)
@@ -81,7 +86,7 @@ Section mem_unit.
     :  ActionT ty (PktWithException Data)
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate mode vaddr;
+         <- memTranslate mode $vm_access_inst vaddr; (* TODO check access code. *)
        (* TODO handle exception from memTranslate *)
        LETA result
          :  PktWithException Data
@@ -95,7 +100,7 @@ Section mem_unit.
     :  ActionT ty (PktWithException Data)
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate mode vaddr;
+         <- memTranslate mode $vm_access_load vaddr; (* TODO check access code. *)
        (* TODO handle exception from memTranslate *)
        LETA result
          :  PktWithException Data
@@ -108,7 +113,7 @@ Section mem_unit.
     :  ActionT ty (Array Rlen_over_8 Bool)
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate mode vaddr;
+         <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
        (* TODO handle exception from memTranslate *)
        LETA result
          :  Array Rlen_over_8 Bool
@@ -123,7 +128,7 @@ Section mem_unit.
     :  ActionT ty Void
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate mode vaddr;
+         <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
        (* TODO handle exception from memTranslate *)
        LETA result
          :  Void
@@ -187,7 +192,7 @@ Section mem_unit.
                => (
                   LETA translateResult
                     :  PktWithException PAddr
-                    <- memTranslate mode addr;
+                    <- memTranslate mode $vm_access_inst addr; (* TODO check access code. *)
                   (* TODO: Handle exception from memTranslate *)
                   LET paddr
                     :  PAddr

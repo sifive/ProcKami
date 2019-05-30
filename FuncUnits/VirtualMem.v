@@ -38,16 +38,18 @@ Section pt_walker.
   Open Scope kami_action.
 
   Section pte.
+(*
     Variable page_size : nat. (* when PAGESIZE=2^n, page_size = log2 PAGESIZE = n *)
     Variable pte_width : nat.
     Variable num_ppns : nat.
     Variable ppn_width : nat.
     Variable last_ppn_width : nat.
-
-    Local Definition vm_access_width := 2.
-    Local Definition vm_access_inst := 0.
-    Local Definition vm_access_load := 1.
-    Local Definition vm_access_samo := 2.
+*)
+    Local Notation page_size := (mem_params_size mem_params).
+    Local Notation pte_width := (mem_params_pte_width mem_params).
+    Local Notation num_ppns := (mem_params_levels mem_params).
+    Local Notation ppn_width := (mem_params_ppn_width mem_params).
+    Local Notation last_ppn_width := (mem_params_last_ppn_width mem_params).
 
     Local Definition offset_width := 9.
  
