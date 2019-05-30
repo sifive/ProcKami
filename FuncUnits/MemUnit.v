@@ -4,6 +4,8 @@
 *)
 Require Import Kami.All.
 Require Import FU.
+Require Import Decoder.
+Require Import Pmp.
 Require Import PhysicalMem.
 Require Import VirtualMem.
 
@@ -31,7 +33,7 @@ Section mem_unit.
   Local Notation RoutedReg := (RoutedReg Rlen_over_8). 
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation MemWrite := (MemWrite Xlen_over_8 Rlen_over_8).
+  Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
@@ -40,6 +42,11 @@ Section mem_unit.
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 PAddrSz napot_granularity ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 PAddrSz napot_granularity ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 PAddrSz napot_granularity ty).
+  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
+  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
+  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
+  Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 PAddrSz ty lgMemSz).
+  Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 PAddrSz ty lgMemSz).
 
   Variable func_units : list FUEntry.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
@@ -56,7 +63,7 @@ Section mem_unit.
     :  ActionT ty (PktWithException PAddr)
     := Ret
          (STRUCT {
-            "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
+            "fst" ::= SignExtendTruncLsb PAddrSz vaddr; (* See 4.5.1 *)
             "snd" ::= Invalid
           } : PktWithException PAddr @# ty).
 (*
@@ -67,6 +74,63 @@ Section mem_unit.
          else
            pte_translate 
 *)
+
+  Definition memFetch
+    (index : nat)
+    (mode : PrivMode @# ty) 
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (PktWithException Data)
+    := LETA paddr
+         :  PktWithException PAddr
+         <- memTranslate mode vaddr;
+       (* TODO handle exception from memTranslate *)
+       LETA result
+         :  PktWithException Data
+         <- pMemFetch index mode (#paddr @% "fst");
+       Ret #result.
+
+  Definition memRead
+    (index : nat)
+    (mode : PrivMode @# ty) 
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (PktWithException Data)
+    := LETA paddr
+         :  PktWithException PAddr
+         <- memTranslate mode vaddr;
+       (* TODO handle exception from memTranslate *)
+       LETA result
+         :  PktWithException Data
+         <- pMemRead index mode (#paddr @% "fst");
+       Ret #result.
+
+  Definition memReadReservation
+    (mode : PrivMode @# ty) 
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (Array Rlen_over_8 Bool)
+    := LETA paddr
+         :  PktWithException PAddr
+         <- memTranslate mode vaddr;
+       (* TODO handle exception from memTranslate *)
+       LETA result
+         :  Array Rlen_over_8 Bool
+         <- pMemReadReservation (#paddr @% "fst");
+       Ret #result.
+
+  Definition memWriteReservation
+    (index : nat)
+    (mode : PrivMode @# ty) 
+    (vaddr : VAddr @# ty)
+    (mask rsv : Array Rlen_over_8 Bool @# ty)
+    :  ActionT ty Void
+    := LETA paddr
+         :  PktWithException PAddr
+         <- memTranslate mode vaddr;
+       (* TODO handle exception from memTranslate *)
+       LETA result
+         :  Void
+         <- pMemWriteReservation (#paddr @% "fst" : PAddr @# ty) mask rsv;
+       Retv.
+
   Definition getMemEntryFromInsts ik ok (insts: list (InstEntry ik ok)) pos :
     option (LetExprSyntax ty MemoryInput ->
             LetExprSyntax ty MemoryOutput) :=
@@ -123,7 +187,7 @@ Section mem_unit.
              | Some fn
                => (
                   LETA translateResult
-                    :  PktWIthException PAddr
+                    :  PktWithException PAddr
                     <- memTranslate mode addr;
                   (* TODO: Handle exception from memTranslate *)
                   LET paddr
@@ -131,10 +195,10 @@ Section mem_unit.
                     <- #translateResult @% "fst";
                   LETA memReadVal
                     :  PktWithException Data
-                    <- memRead 2 mode #paddr;
+                    <- pMemRead 2 mode #paddr;
                   LETA memReadReservationVal
                     : Array Rlen_over_8 Bool
-                    <- memReadReservation #paddr;
+                    <- pMemReadReservation #paddr;
                   System
                     (DispString _ "Mem Read: " ::
                      DispHex #memReadVal ::
@@ -160,15 +224,15 @@ Section mem_unit.
                         :  MemWrite
                         <- STRUCT {
                           "addr" ::= #paddr;
-                          "data" ::= #memoryOutput @% "data" ;
+                          "data" ::= #memoryOutput @% "data";
                           "mask" ::=
                             (IF #memoryOutput @% "isWr"
                              then #memoryOutput @% "mask"
                              else $$ (ConstArray (fun (_: Fin.t Rlen_over_8) => false)))
-                        };
+                        } : MemWrite @# ty;
                         LETA writeEx
                         :  Maybe FullException
-                        <- memWrite mode #memWriteVal;
+                        <- pMemWrite mode #memWriteVal;
                         System
                           (DispString _ "Mem Write: " ::
                            DispHex #memWriteVal ::
@@ -179,7 +243,7 @@ Section mem_unit.
                         Ret (@Invalid _ FullException)
                      as writeEx;
                      If (#memoryOutput @% "isLrSc")
-                     then memWriteReservation addr (#memoryOutput @% "mask") (#memoryOutput @% "reservation");
+                     then pMemWriteReservation #paddr (#memoryOutput @% "mask") (#memoryOutput @% "reservation");
                      LET memRet
                      : PktWithException MemRet
                      <- STRUCT {

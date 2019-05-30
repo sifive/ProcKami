@@ -97,6 +97,8 @@ Section Params.
               Register ^"scause_interrupt" : Bit 1 <- $0 with
               Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"stval"            : Bit Xlen <- ConstBit (wzero Xlen) with
+              (* TODO: initialize the satp ppn? *)
+              Register ^"satp_ppn"         : Bit 44 <- ConstBit (wzero 44) with
 
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
@@ -186,7 +188,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 lgMemSz napot_granularity (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 PAddrSz lgMemSz napot_granularity (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -232,7 +234,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     <- MemUnit name lgMemSz napot_granularity
+                     <- MemUnit name PAddrSz lgMemSz napot_granularity
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "mode")
@@ -304,7 +306,7 @@ Section Params.
         true
         Rlen_over_8
         (^"mem_reg_file")
-        (Async [^"readMem1"; ^"readMem2"])
+        (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6" ])
         (^"writeMem")
         (pow2 lgMemSz)
         (Bit 8)
@@ -344,8 +346,12 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"readMem1";
+             ^"readMem1"; (* fetch read mem *)
              ^"readMem2";
+             ^"readMem3"; (* page table walker read mem call *)
+             ^"readMem4"; (* page table walker read mem call *)
+             ^"readMem5"; (* page table walker read mem call *)
+             ^"readMem6"; (* page table walker read mem call *)
              ^"readMemReservation";
              ^"writeMem";
              ^"writeMemReservation"

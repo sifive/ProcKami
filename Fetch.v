@@ -6,6 +6,7 @@ Section fetch.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable PAddrSz : nat.
   Variable ty: Kind -> Type.
   Variable lgMemSz : nat.
   Variable napot_granularity : nat.
@@ -22,7 +23,7 @@ Section fetch.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty lgMemSz napot_granularity).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 PAddrSz ty lgMemSz napot_granularity).
 
   Open Scope kami_expr.
 

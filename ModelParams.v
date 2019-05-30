@@ -165,7 +165,10 @@ Section exts.
 
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
-  Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 Flen_over_8.
+  (* TODO: determine the correct way to specify the physical address size. *)
+  Local Definition PAddrSz : nat := 64.
+
+  Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz).
 
   Section ty.
 
@@ -302,7 +305,7 @@ Section exts.
     := processor "proc_core"
          20
          Flen_over_8
-         (* None *)
+         PAddrSz
          (Some (54'h"4000"))
          param_func_units
          param_exts.

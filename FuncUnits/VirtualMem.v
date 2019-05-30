@@ -8,7 +8,6 @@
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import ProcessorCore.
 Require Import PhysicalMem.
 Require Import Vector.
 Import VectorNotations.
@@ -34,7 +33,7 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation memRead := (memRead name Xlen_over_8 Rlen_over_8 lgMemSz napot_granularity).
+  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 lgMemSz napot_granularity).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -159,12 +158,13 @@ Section pt_walker.
       (level : nat)
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
-      (next_level : VAddr @# ty -> ActionT ty (PktWithException PAddr))
-      (address : VAddr @# ty)
+      (vaddr : VAddr @# ty)
+      (next_level : PAddr @# ty -> ActionT ty (PktWithException PAddr))
+      (curr_pte_address : PAddr @# ty)
       :  ActionT ty (PktWithException PAddr)
       := LETA read_pte
            :  PktWithException Data
-           <- memRead mem_read_index mode address;
+           <- pMemRead mem_read_index mode curr_pte_address;
          LET pte
            :  Bit pte_width
            <- unsafeTruncLsb pte_width (#read_pte @% "fst");
@@ -186,14 +186,14 @@ Section pt_walker.
                    then
                      (if Nat.eqb level 0
                        then Ret (vm_exception access_type)
-                       else LET address
-                              :  VAddr
+                       else LET next_pte_address
+                              :  PAddr
                               (* TODO fix calc. *)
-                              <- ZeroExtendTruncLsb Xlen
+                              <- ZeroExtendTruncLsb PAddrSz
                                    ((pte_ppns levels level #pte) << ($page_size : Bit 12 @# ty)); 
                             LETA result
-                              :  PktWithException VAddr
-                              <- next_level #address;
+                              :  PktWithException PAddr
+                              <- next_level #next_pte_address;
                             Ret #result)
                    else (* item 5 and 6 *)
                      (If !pte_grant access_type #pte ||
@@ -203,7 +203,7 @@ Section pt_walker.
                          (* item 8 *)
                          Ret
                            (STRUCT {
-                              "fst" ::= pte_address level #pte address;
+                              "fst" ::= pte_address level #pte vaddr;
                               "snd" ::= Invalid
                             } : PktWithException PAddr @# ty)
                        as result;
@@ -219,21 +219,29 @@ Section pt_walker.
       (mem_read_index : nat)
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
-      (address : VAddr @# ty)
+      (vaddr : VAddr @# ty)
       :  ActionT ty (PktWithException PAddr)
-      := fold_right
-           (fun (level : nat) (acc : VAddr @# ty -> ActionT ty (PktWithException PAddr))
-             => pte_translate
-                  (mem_read_index + level)
-                  level
-                  mode
-                  access_type
-                  acc)
-           (* See 4.3.2 item 4 *)
-           (fun address : VAddr @# ty
-             => Ret (vm_exception access_type))
-           (seq 0 levels)
-           address.
+      := Read read_satp_ppn : Bit 44 <- ^"satp";
+         LET satp_ppn
+           :  PAddr
+           <- ZeroExtendTruncLsb PAddrSz #read_satp_ppn;
+         LETA result
+           :  PktWithException PAddr
+           <- fold_right
+                (fun (level : nat) (acc : PAddr @# ty -> ActionT ty (PktWithException PAddr))
+                  => pte_translate
+                       (mem_read_index + level)
+                       level
+                       mode
+                       access_type
+                       vaddr
+                       acc)
+                (* See 4.3.2 item 4 *)
+                (fun _ : PAddr @# ty
+                  => Ret (vm_exception access_type))
+                (seq 0 levels)
+                #satp_ppn;
+         Ret #result.
 
   End pte.
 

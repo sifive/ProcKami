@@ -21,7 +21,7 @@ Section pmem.
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation MemWrite := (MemWrite Xlen_over_8 Rlen_over_8).
+  Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation pmp_check_execute := (@pmp_check_execute name PAddrSz napot_granularity ty).
   Local Notation pmp_check_read := (@pmp_check_read name PAddrSz napot_granularity ty).
   Local Notation pmp_check_write := (@pmp_check_write name PAddrSz napot_granularity ty).
@@ -29,7 +29,7 @@ Section pmem.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition memFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+  Definition pMemFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
     : ActionT ty (PktWithException Data)
     := Call result
          : Array Rlen_over_8 (Bit 8)
@@ -52,7 +52,7 @@ Section pmem.
                         } : FullException @# ty)
           } : PktWithException Data @# ty).
 
-  Definition memRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+  Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
     : ActionT ty (PktWithException Data)
     := Call result
          : Array Rlen_over_8 (Bit 8)
@@ -75,13 +75,15 @@ Section pmem.
                         } : FullException @# ty)
           } : PktWithException Data @# ty).
 
-  Definition memWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+  Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
     : ActionT ty (Maybe FullException)
-    := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 (Bit 8) <- STRUCT {
-                                  "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr") ;
-                                  (* "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; *) (* TODO TESTING *)
-                                  "data" ::= unpack (Array Rlen_over_8 (Bit 8)) ($0);
-                                  "mask" ::= pkt @% "mask" };
+    := LET writeRq
+        :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
+        <- (STRUCT {
+              "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
+              "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
+              "mask" ::= pkt @% "mask"
+            } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
        LETA pmp_result
          :  Bool
          <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8);
@@ -98,13 +100,13 @@ Section pmem.
                   "value"     ::= $0
                 } : FullException @# ty)).
 
-  Definition memReadReservation (addr: PAddr @# ty)
+  Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)
     := Call result: Array Rlen_over_8 Bool
                           <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
          Ret #result.
 
-  Definition memWriteReservation (addr: PAddr @# ty)
+  Definition pMemWriteReservation (addr: PAddr @# ty)
              (mask rsv: Array Rlen_over_8 Bool @# ty)
     : ActionT ty Void
     := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
