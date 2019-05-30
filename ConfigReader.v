@@ -15,6 +15,8 @@ Section config_reader.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
 
+  Variable supportedExts: ConstT Extensions.
+  
   Open Scope kami_expr.
   Open Scope kami_action.
 
@@ -42,9 +44,9 @@ Section config_reader.
             (ITE (#mode == $SupervisorMode)
               #sxl
               #uxl);
-       Read init_extensions
+       LET init_extensions
          :  Extensions
-         <- ^"extensions";
+         <- $$ supportedExts;
        LET extensions
          :  Extensions
          <- IF #xlen == $1
