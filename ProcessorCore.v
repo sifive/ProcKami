@@ -20,7 +20,7 @@ Require Import Decoder.
 Require Import InputTrans.
 Require Import RegReader.
 Require Import Executer.
-Require Import MemUnit.
+Require Import FuncUnits.MemUnit.
 Require Import RegWriter.
 Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.
@@ -193,7 +193,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 Rlen_over_8 mem_params vm_params (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
+                     <- fetch name Xlen_over_8 Rlen_over_8 mem_params (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -240,7 +240,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     <- MemUnit name mem_params vm_params
+                     <- MemUnit name mem_params
                           ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "mode")

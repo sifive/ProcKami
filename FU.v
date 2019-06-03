@@ -321,10 +321,11 @@ Section Params.
          mem_params_granularity    : nat  (* pmp (napot) granularity *)
        }.
 
-  Local Definition vm_mode_width := 2.
-  Local Definition vm_mode_sv32 := 0.
-  Local Definition vm_mode_sv39 := 1.
-  Local Definition vm_mode_sv48 := 2.
+  Definition satp_mode_width := 4.
+  Definition satp_mode_bare := 0.
+  Definition satp_mode_sv32 := 1.
+  Definition satp_mode_sv39 := 8.
+  Definition satp_mode_sv48 := 9.
 
   (* virtual memory translation params.*)
   Record vm_params_type
@@ -334,7 +335,7 @@ Section Params.
          vm_params_pte_width       : nat; (* num page table entry bits *)
          vm_params_ppn_width       : nat; (* num physical page number field bits *)
          vm_params_last_ppn_width  : nat;  (* num last physical page number field bits *)
-         vm_params_mode            : word vm_mode_width (* the code used to identify this mode. *)
+         vm_params_mode            : word satp_mode_width (* the code used to identify this mode. *)
        }.
 
   (* See 4.3.1 *)
@@ -345,7 +346,7 @@ Section Params.
          vm_params_pte_width      := 32;
          vm_params_ppn_width      := 10;
          vm_params_last_ppn_width := 12;
-         vm_params_mode           := $vm_mode_sv32
+         vm_params_mode           := $satp_mode_sv32
        |}.
 
   Definition vm_params_sv39
@@ -355,7 +356,7 @@ Section Params.
          vm_params_pte_width      := 64;
          vm_params_ppn_width      := 9;
          vm_params_last_ppn_width := 26;
-         vm_params_mode           := $vm_mode_sv39
+         vm_params_mode           := $satp_mode_sv39
        |}.
 
   Definition vm_params_sv48
@@ -365,7 +366,7 @@ Section Params.
          vm_params_pte_width      := 64;
          vm_params_ppn_width      := 9;
          vm_params_last_ppn_width := 17;
-         vm_params_mode           := $vm_mode_sv48
+         vm_params_mode           := $satp_mode_sv48
        |}.
 
   Definition vm_access_width := 2.

@@ -1,6 +1,6 @@
 Require Import Kami.All.
 Require Import FU.
-Require Import MemUnit.
+Require Import FuncUnits.MemUnit.
 
 Section fetch.
   Variable name: string.
@@ -22,7 +22,7 @@ Section fetch.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params vm_params ty).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
 
