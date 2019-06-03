@@ -28,7 +28,6 @@ Section reg_reader.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation flen_one_extend := (@flen_one_extend Flen_over_8 ty).
-  (* Local Notation readCSR := (@readCSR name Xlen_over_8 ty). *)
 
   Variable func_units : list FUEntry.
 
@@ -78,55 +77,28 @@ Section reg_reader.
   Local Definition reg_reader_has (which: InstHints -> bool) pkt :=
     (reg_reader_match (fun ik ok pkt => which (instHints pkt))) pkt.
 
-  Definition reg_reader_read_reg n
+  Definition reg_reader_read_reg
+    (n : nat)
     (xlen : XlenValue @# ty)
     (reg_id : RegId @# ty)
     :  ActionT ty Data
     := Call reg_val
          :  Array 1 Data
          <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
-         Ret
-           (IF reg_id == $0
-              then $0
-              else xlen_sign_extend Rlen xlen (ReadArrayConst #reg_val Fin.F1)).
+       Ret
+         (IF reg_id == $0
+            then $0
+            else xlen_sign_extend Rlen xlen (ReadArrayConst #reg_val Fin.F1)).
 
-  Definition reg_reader_read_freg n
-             (freg_id : RegId @# ty)
+  Definition reg_reader_read_freg
+    (n : nat)
+    (freg_id : RegId @# ty)
     :  ActionT ty Data
     := Call freg_val
          :  Array 1 (Bit Flen)
-         <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId);
-         Ret (flen_one_extend Rlen (ReadArrayConst #freg_val Fin.F1)).
-(*
-  Definition reg_reader_read_csr
-    (upd_pkt : FieldUpd @# ty)
-    (raw_instr : Inst @# ty)
-    :  ActionT ty (Maybe CsrValue)
-    (*
-      WARNING: This is incorrect.
-      The spec requires us not to read the CSR value when the
-      instruction is CSRRW or CSRRWI and the destination register
-      is x0. It requires that no CSR read side effects occur in
-      this case.
+         <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
+       Ret (flen_one_extend Rlen (ReadArrayConst #freg_val Fin.F1)).
 
-      TODO: Ensure that no side effects occur from this read
-      when the instruction is CSRRW or CSRRWI and the destination
-      register is x0 or the instruction is not CSRR*.
-    *)
-    := LETA csr_value
-         :  CsrValue
-         <- readCSR upd_pkt (imm raw_instr);
-       System [
-         DispString _ "Read CSR Register\n";
-         DispString _ "  CSR ID: ";
-         DispHex (imm raw_instr);  
-         DispString _ "\n";
-         DispString _ "  CSR Value: ";
-         DispHex #csr_value;
-         DispString _ "\n"
-       ];
-       Ret (Valid (#csr_value) : Maybe CsrValue @# ty).
-*)
   Definition reg_reader
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : DecoderPkt @# ty)
@@ -139,20 +111,6 @@ Section reg_reader.
        LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
        LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
        LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
-(*
-       LETA csr_val
-         :  Maybe CsrValue
-         <- reg_reader_read_csr
-              (STRUCT {
-                "warlStateField"
-                   ::= (STRUCT {
-                          "pc"          ::= decoder_pkt @% "pc";
-                          "compressed?" ::= decoder_pkt @% "compressed?"
-                        } : WarlStateField @# ty);
-                 "cfg" ::= cfg_pkt
-               } : FieldUpd @# ty)
-              #raw_inst;
- *)
        Read fflags_val : FflagsValue <- ^"fflags";
        Read frm_val : FrmValue <- ^"frm";
        LETA msg <- Sys [
@@ -195,7 +153,6 @@ Section reg_reader.
               "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
                                  (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
               "reg3"        ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
-              (* "csr"         ::= #csr_val; *)
               "fflags"      ::= #fflags_val;
               "frm"         ::= #frm_val;
               "inst"        ::= #raw_inst;

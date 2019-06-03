@@ -144,6 +144,123 @@ Section pt_walker.
                     } : FullException @# ty)
          } : PktWithException PAddr @# ty.
 
+    Local Definition ppn_gen_width := 26.
+(*
+    Definition pte_translate_gen
+      (mode : Bit vm_mode_width)
+      (level : nat)
+      (mode : PrivMode @# ty)
+      (access_type : Bit vm_access_width @# ty)
+      (vaddr : VAddr @# ty)
+      (next_level : PAddr @# ty -> ActionT ty (PktWithException PAddr))
+      (curr_pte_address : PAddr @# ty)
+      :  ActionT ty (PktWithException PAddr)
+      := LETA read_pte
+           :  PktWithException Data
+           <- pMemRead mem_read_index mode curr_pte_address;
+         System [
+           DispString _ "[pte_translate] access_type: ";
+           DispHex access_type;
+           DispString _ "\n";
+           DispString _ "[pte_translate] virtual address: ";
+           DispHex vaddr;
+           DispString _ "\n";
+           DispString _ ("[pte_translate] page table entry level: " ++ natToHexStr level ++ "\n");
+           DispString _ "[pte_translate] page table entry address: ";
+           DispHex curr_pte_address;
+           DispString _ "\n";
+           DispString _ "[pte_translate] page table entry: ";
+           DispHex #read_pte;
+           DispString _ "\n"
+         ];
+         LET pte
+           :  Bit pte_width
+           <- Switch mode Retn Bit ppn_gen_width With {
+                ($vm_mode_sv32 : Bit vm_mode_width @# ty)
+                  ::= ZeroExtendTruncLsb ppn_gen_width
+                        (unsafeTruncLsb (vm_params_pte_width vm_params_sv32)
+                          (#read_pte @% "fst"));
+                ($vm_mode_sv39 : Bit vm_mode_width @# ty)
+                  ::= ZeroExtendTruncLsb ppn_gen_width
+                        (unsafeTruncLsb (vm_params_pte_width vm_params_sv39)
+                          (#read_pte @% "fst"));
+                ($vm_mode_sv48 : Bit vm_mode_width @# ty)
+                  ::= ZeroExtendTruncLsb ppn_gen_width
+                        (unsafeTruncLsb (vm_params_pte_width vm_params_sv48)
+                          (#read_pte @% "fst"))
+              };
+         If #read_pte @% "snd" @% "valid"
+           then
+             System [DispString _ "[pte_translate] an exception occured while reading the page table entry.\n"];
+             Ret
+               (STRUCT {
+                  "fst" ::= $0;
+                  "snd" ::= #read_pte @% "snd"
+                } : PktWithException PAddr @# ty)
+           else
+             (* item 3 *)
+             (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
+               then
+                 System [DispString _ "[pte_translate] the page table entry is not valid.\n"];
+                 Ret (vm_exception access_type)
+               else
+                 (* item 4 *)
+                 (If !pte_read #pte && !pte_execute #pte
+                   then
+                     System [DispString _ "[pte_translate] the page table entry is a pointer.\n"];
+                     If
+                       (fold_right
+                         (fun (vm_params : vm_params_type) (acc : Bool @# ty)
+                           => if (vm_params_levels vm_params) <= (levels - level)
+                                then mode == (vm_params_mode vm_params) || acc
+                                else acc)
+                         $$false
+                         (* TODO: make list of suppported vm modes configurable *)
+                         [vm_params_sv32; vm_params_sv39; vm_params_sv48])
+                       then 
+                         System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
+                         Ret (vm_exception access_type)
+                       else
+                         LET next_pte_address
+                           :  PAddr
+                           (* TODO: genericize pte_ppns and fix calc *)
+                           <- ZeroExtendTruncLsb PAddrSz
+                                ((pte_ppns levels level #pte) << ($page_size : Bit 12 @# ty)); 
+                         LETA result
+                           :  PktWithException PAddr
+                           <- next_level #next_pte_address;
+                         Ret #result
+                       as result;
+                   else (* item 5 and 6 *)
+                     System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
+                     (* TODO: generalize pte_aligned *)
+                     (If !pte_grant access_type #pte ||
+                        !pte_aligned level #pte
+                       then
+                         System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
+                         Ret (vm_exception access_type)
+                       else (* TODO add item 7 *)
+                         (* item 8 *)
+                         (* TODO: generalize pte_address *)
+                         System [
+                           DispString _ "[pte_translate] translated address: ";
+                           DispHex (pte_address level #pte vaddr);
+                           DispString _ "\n"
+                         ];
+                         Ret
+                           (STRUCT {
+                              "fst" ::= pte_address level #pte vaddr;
+                              "snd" ::= Invalid
+                            } : PktWithException PAddr @# ty)
+                       as result;
+                     Ret #result)
+                   as result;
+                 Ret #result)
+               as result;
+             Ret #result)
+           as result;
+         Ret #result.
+*)
     (*
       See 4.3.2
     *)
@@ -159,6 +276,21 @@ Section pt_walker.
       := LETA read_pte
            :  PktWithException Data
            <- pMemRead mem_read_index mode curr_pte_address;
+         System [
+           DispString _ "[pte_translate] access_type: ";
+           DispHex access_type;
+           DispString _ "\n";
+           DispString _ "[pte_translate] virtual address: ";
+           DispHex vaddr;
+           DispString _ "\n";
+           DispString _ ("[pte_translate] page table entry level: " ++ natToHexStr level ++ "\n");
+           DispString _ "[pte_translate] page table entry address: ";
+           DispHex curr_pte_address;
+           DispString _ "\n";
+           DispString _ "[pte_translate] page table entry: ";
+           DispHex #read_pte;
+           DispString _ "\n"
+         ];
          LET pte
            :  Bit pte_width
 (* add switch statement for mode *)
@@ -166,6 +298,7 @@ Section pt_walker.
          (* item 2 *)
          If #read_pte @% "snd" @% "valid"
            then
+             System [DispString _ "[pte_translate] an exception occured while reading the page table entry.\n"];
              Ret
                (STRUCT {
                   "fst" ::= $0;
@@ -174,14 +307,19 @@ Section pt_walker.
            else
              (* item 3 *)
              (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
-               then Ret (vm_exception access_type)
+               then
+                 System [DispString _ "[pte_translate] the page table entry is not valid.\n"];
+                 Ret (vm_exception access_type)
                else
                  (* item 4 *)
                  (If !pte_read #pte && !pte_execute #pte
                    then
 (* add mode mechanism to determine if recurse *)
+                     System [DispString _ "[pte_translate] the page table entry is a pointer.\n"];
                      (if Nat.eqb level 0
-                       then Ret (vm_exception access_type)
+                       then
+                         System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
+                         Ret (vm_exception access_type)
                        else LET next_pte_address
                               :  PAddr
                               (* TODO fix calc. *)
@@ -192,11 +330,19 @@ Section pt_walker.
                               <- next_level #next_pte_address;
                             Ret #result)
                    else (* item 5 and 6 *)
+                     System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
                      (If !pte_grant access_type #pte ||
                         !pte_aligned level #pte
-                       then Ret (vm_exception access_type)
+                       then
+                         System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
+                         Ret (vm_exception access_type)
                        else (* TODO add item 7 *)
                          (* item 8 *)
+                         System [
+                           DispString _ "[pte_translate] translated address: ";
+                           DispHex (pte_address level #pte vaddr);
+                           DispString _ "\n"
+                         ];
                          Ret
                            (STRUCT {
                               "fst" ::= pte_address level #pte vaddr;
@@ -217,7 +363,7 @@ Section pt_walker.
       (access_type : Bit vm_access_width @# ty)
       (vaddr : VAddr @# ty)
       :  ActionT ty (PktWithException PAddr)
-      := Read read_satp_ppn : Bit 44 <- ^"satp";
+      := Read read_satp_ppn : Bit 44 <- ^"satp_ppn";
          LET satp_ppn
            :  PAddr
            <- ZeroExtendTruncLsb PAddrSz #read_satp_ppn;

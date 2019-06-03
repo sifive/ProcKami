@@ -8,6 +8,8 @@ Require Import Decoder.
 Require Import Pmp.
 Require Import PhysicalMem.
 Require Import VirtualMem.
+Require Import List.
+Import ListNotations.
 
 Section mem_unit.
 
@@ -57,28 +59,36 @@ Section mem_unit.
   Open Scope kami_expr.
   Open Scope kami_action.
 
+  (* TODO: should this be sign extended? *)
+  Definition pMemTranslate
+    (vaddr : VAddr @# ty)
+    :  PktWithException PAddr @# ty
+    := STRUCT {
+         "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
+         "snd" ::= Invalid
+       } : PktWithException PAddr @# ty.
+
   Definition memTranslate
     (mode : PrivMode @# ty)
     (access_type : Bit vm_access_width @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
     := If mode == $MachineMode
-         then
-           (* TODO: should this be sign extended? *)
-           Ret
-             (STRUCT {
-                "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
-                "snd" ::= Invalid
-              } : PktWithException PAddr @# ty)
+         then Ret (pMemTranslate vaddr)
          else
-           pt_walker
-             3 (* initial walker mem read index. *)
-             mode
-             access_type
-             vaddr
+           Read satp_mode : Bit 4 <- ^"satp_mode";
+           If #satp_mode == $0 (* BARE mode 4.1.12 *)
+             then Ret (pMemTranslate vaddr)
+             else 
+               pt_walker
+                 3 (* initial walker mem read index. *)
+                 mode
+                 access_type
+                 vaddr
+             as result;
+           Ret #result
          as result;
        Ret #result.
-             
 
   Definition memFetch
     (index : nat)

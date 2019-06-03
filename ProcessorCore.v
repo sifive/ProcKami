@@ -96,7 +96,8 @@ Section Params.
               Register ^"scause_interrupt" : Bit 1 <- $0 with
               Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"stval"            : Bit Xlen <- ConstBit (wzero Xlen) with
-              (* TODO: initialize the satp ppn? *)
+              Register ^"satp_mode"        : Bit 4 <- ConstBit (wzero 4) with
+              Register ^"satp_asid"        : Bit 16 <- ConstBit (wzero 16) with
               Register ^"satp_ppn"         : Bit 44 <- ConstBit (wzero 44) with
 
               (* user mode registers *)
@@ -182,6 +183,10 @@ Section Params.
                    Read pc : VAddr <- ^"pc";
                    System
                      [
+                       DispString _ ("[add] Xlen: " ++ natToHexStr Xlen ++ " Rlen: " ++ natToHexStr Rlen ++ "\n");
+                       DispString _ " [add] xlen: ";
+                       DispDecimal (#cfg_pkt @% "xlen");
+                       DispString _ "\n";
                        DispString _ "PC:";
                        DispHex #pc;
                        DispString _ "\n"
@@ -216,6 +221,7 @@ Section Params.
                        DispHex #exec_context_pkt;    
                        DispString _ "\n"
                      ];
+(* TODO: commented out floating point register reads to avoid segmentation fault in the generated Verilator simulator. *)
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
@@ -230,7 +236,7 @@ Section Params.
                    System
                      [
                        DispString _ "New Reg Vals\n";
-                       DispHex #exec_update_pkt;    
+                       DispHex #exec_update_pkt;
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt

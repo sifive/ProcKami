@@ -71,34 +71,6 @@ Definition mem_params_default
        mem_params_granularity := 20  (* TODO fix *)
      |}.
 
-(* See 4.3.1 *)
-Definition vm_params_sv32
-  := {|
-       vm_params_levels      := 2;
-       vm_params_page_size   := 12; (* TODO check *)
-       vm_params_pte_width   := 32;
-       vm_params_ppn_width   := 10;
-       vm_params_last_ppn_width := 12
-     |}.
-
-Definition vm_params_sv39
-  := {|
-       vm_params_levels      := 3;
-       vm_params_page_size   := 12; (* TODO check *)
-       vm_params_pte_width   := 64;
-       vm_params_ppn_width   := 9;
-       vm_params_last_ppn_width := 26
-     |}.
-
-Definition vm_params_sv48
-  := {|
-       vm_params_levels      := 4;
-       vm_params_page_size   := 12; (* TODO check *)
-       vm_params_pte_width   := 64;
-       vm_params_ppn_width   := 9;
-       vm_params_last_ppn_width := 17
-     |}.
-
 (* II. Processor extension table entries. *)
 
 Record param_entry
@@ -201,9 +173,10 @@ Section exts.
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
   (* TODO: determine the correct way to specify the physical address size. *)
+  Local Definition PAddrSz_over_8 : nat := 8.
   Local Definition PAddrSz : nat := 64.
 
-  Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz).
+  Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
   Section ty.
 
@@ -337,6 +310,17 @@ Section exts.
   (* IV. the model generator. *)
 
   Definition generate_model
+    := @processor
+         "proc_core"
+         Xlen_over_8
+         Flen_over_8
+         Rlen_over_8
+         mem_params_default
+         vm_params_sv48
+         (Some (54'h"4000"))
+         param_func_units
+         param_exts.
+(*
     := processor "proc_core"
          Flen_over_8
          mem_params_default
@@ -344,6 +328,7 @@ Section exts.
          (Some (54'h"4000"))
          param_func_units
          param_exts.
+*)
 
   Close Scope kami_expr.
 

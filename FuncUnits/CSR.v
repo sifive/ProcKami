@@ -821,6 +821,33 @@ Section CsrInterface.
                          ]%vector
                   |}
                 ]%vector
+         |};
+         {|
+           csrName := ^"satp";
+           csrAddr := CsrIdWidth 'h"180"; (* TODO *)
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewNumFields := _;
+                    csrViewFields
+                      := [
+                           @csrFieldAny ^"satp_mode" (Bit 1) None;
+                           @csrFieldAny ^"satp_asid" (Bit 9) None;
+                           @csrFieldAny ^"satp_ppn" (Bit 22) None
+                         ]%vector
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewNumFields := _;
+                    csrViewFields
+                      := [
+                           @csrFieldAny ^"satp_mode" (Bit 4) None;
+                           @csrFieldAny ^"satp_asid" (Bit 16) None;
+                           @csrFieldAny ^"satp_ppn" (Bit 44) None
+                         ]%vector
+                  |}
+                ]%vector
          |}
        ].
 

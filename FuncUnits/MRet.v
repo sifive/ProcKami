@@ -117,11 +117,6 @@ Section mret.
          fuFunc
            := (fun mode_pkt : PrivMode ## ty
                 => LETE mode : PrivMode <- mode_pkt;
-                   SystemE [
-                     DispString _ "[ecall] mode: ";
-                     DispHex #mode;
-                     DispString _ "\n"
-                   ];
                    RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt;

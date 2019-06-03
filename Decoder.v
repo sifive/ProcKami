@@ -170,6 +170,14 @@ Section decoder.
            <- decode_match_fields raw_inst (uniqId inst);
          LETE exts_match : Bool
            <- decode_match_enabled_exts inst exts_pkt;
+(*
+         SystemE (
+           DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
+           DispBinary ((#inst_id_match) && (#exts_match)) ::
+           DispString _ "\n" ::
+           nil
+         );
+*)
          RetE ((#inst_id_match) && (#exts_match)).
 
     (*
@@ -211,10 +219,12 @@ Section decoder.
          LETE opt_uncomp_inst
          :  Maybe Inst
                   <- decompress comp_inst_db exts_pkt #prefix;
-
+(*
            SystemE (DispString _ "Decompressed Inst: " ::
-                    DispHex #opt_uncomp_inst :: nil);
-
+                    DispHex #opt_uncomp_inst ::
+                    DispString _ "\n" ::
+                    nil);
+*)
            (decode exts_pkt
                    (ITE ((#opt_uncomp_inst) @% "valid")
                         ((#opt_uncomp_inst) @% "data")
