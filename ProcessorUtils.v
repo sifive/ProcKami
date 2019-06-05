@@ -15,7 +15,7 @@ Require Import Decoder.
 Require Import InputTrans.
 Require Import RegReader.
 Require Import Executer.
-Require Import MemUnit.
+Require Import FuncUnits.MemUnit.
 Require Import RegWriter.
 Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.

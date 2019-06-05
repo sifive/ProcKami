@@ -316,7 +316,6 @@ Section exts.
          Flen_over_8
          Rlen_over_8
          mem_params_default
-         vm_params_sv48
          (Some (54'h"4000"))
          param_func_units
          param_exts.

@@ -54,7 +54,7 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params vm_params ty).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -77,7 +77,7 @@ Section mem_unit.
          then Ret (pMemTranslate vaddr)
          else
            Read satp_mode : Bit 4 <- ^"satp_mode";
-           If #satp_mode == $0 (* BARE mode 4.1.12 *)
+           If #satp_mode == $satp_mode_bare
              then Ret (pMemTranslate vaddr)
              else 
                pt_walker
