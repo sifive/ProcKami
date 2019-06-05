@@ -18,6 +18,8 @@ Section Mem.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation isAligned := (isAligned Xlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8).
 
   Definition MaskedMem := STRUCT_TYPE
                             { "data" :: Data ;
@@ -80,27 +82,30 @@ Section Mem.
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr";
+         LETC val1: RoutedReg <- (STRUCT {
+                            "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                            "data" ::= SignExtendTruncLsb Rlen #addr
+                                 });
+         LETC fullException: FullException <-
+                                           (STRUCT {
+                                                "exception"
+                                                ::= ((IF #val @% "accessException?"
+                                                      then $LoadAccessFault
+                                                      else $LoadAddrMisaligned): Exception @# ty) ;
+                                                "value" ::= #addr
+                                           });
          LETC valret
            :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val1"
-                      <- (Valid (STRUCT {
-                            "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                            "data" ::= SignExtendTruncLsb Rlen #addr
-                          }))]) ;
+                      <- (Valid #val1)]) ;
          LETC retval
            :  (PktWithException ExecUpdPkt)
            <- STRUCT {
                 "fst" ::= #valret ;
                 "snd"
                   ::= (IF #val @% "misalignedException?"
-                         then Valid (STRUCT {
-                                "exception"
-                                  ::= ((IF #val @% "accessException?"
-                                          then $LoadAccessFault
-                                          else $LoadAddrMisaligned): Exception @# ty) ;
-                                "value" ::= #addr
-                              })
+                         then Valid #fullException
                          else Invalid)} ;
          RetE #retval.
 
@@ -134,18 +139,19 @@ Section Mem.
       (gcpin: ExecContextPkt ## ty)
       : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
+      LETC maskedMem: MaskedMem <- (STRUCT {
+                                        "data" ::= (#gcp @% "reg2" : Data @# ty);
+                                        "mask"
+                                        ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                                             : Array Rlen_over_8 Bool @# ty)
+                                      } : MaskedMem @# ty);
       LETC ret
         :  MemInputAddrType
         <- STRUCT {
              "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
              "offset" ::= SignExtendTruncLsb Xlen ({< funct7 (#gcp @% "inst"), rd (#gcp @% "inst") >});
              "numZeros" ::= $size;
-             "data" ::= (STRUCT {
-                           "data" ::= (#gcp @% "reg2" : Data @# ty);
-                           "mask"
-                             ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
-                                  : Array Rlen_over_8 Bool @# ty)
-                         } : MaskedMem @# ty);
+             "data" ::= #maskedMem;
              "aq" ::= $$ false;
              "rl" ::= $$ false;
              "memMisalignedException?" ::= cfg @% "memMisalignedException?";
@@ -158,31 +164,35 @@ Section Mem.
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr" ;
          LETC data: MaskedMem <- #val @% "data" ;
+         LETC val1: RoutedReg <- (STRUCT {
+                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                              "data" ::= SignExtendTruncLsb Rlen #addr
+                                 });
+         LETC val2: RoutedReg <- (STRUCT {
+                              "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
+                              "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
+                                 });
+         LETC fullException: FullException <-
+                                           (STRUCT {
+                                                "exception" ::=
+                                                  ((IF #val @% "accessException?"
+                                                    then $LoadAccessFault
+                                                    else $LoadAddrMisaligned): Exception @# ty) ;
+                                                "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt
              <- (noUpdPkt
                    @%["val1"
-                        <- (Valid (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= SignExtendTruncLsb Rlen #addr
-                            }))]
+                        <- (Valid #val1)]
                    @%["val2"
-                        <- (Valid (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                              "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
-                            }))]
+                        <- (Valid #val2)]
                    @%["memBitMask" <- #data @% "mask"]) ;
          LETC retval:
            (PktWithException ExecUpdPkt)
              <-
              STRUCT { "fst" ::= #valret ;
                       "snd" ::= (IF #val @% "misalignedException?"
-                                 then Valid (STRUCT {
-                                                 "exception" ::=
-                                                   ((IF #val @% "accessException?"
-                                                     then $LoadAccessFault
-                                                     else $LoadAddrMisaligned): Exception @# ty) ;
-                                                 "value" ::= #addr })
+                                 then Valid #fullException
                                  else Invalid) } ;
          RetE #retval.
 
@@ -212,17 +222,18 @@ Section Mem.
       (gcpin: ExecContextPkt ## ty)
       : MemInputAddrType ## ty :=
       LETE gcp: ExecContextPkt <- gcpin ;
+      LETC maskedMem: MaskedMem <- STRUCT {
+                                  "data" ::= (#gcp @% "reg2" : Data @# ty);
+                                  "mask"
+                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
+                                       : Array Rlen_over_8 Bool @# ty)
+                                };
       LETC ret: MemInputAddrType <-
                                  STRUCT {
                                    "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
                                    "offset" ::= $0 ;
                                    "numZeros" ::= $sz ;
-                                   "data" ::= STRUCT {
-                                                "data" ::= (#gcp @% "reg2" : Data @# ty);
-                                                "mask"
-                                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
-                                                       : Array Rlen_over_8 Bool @# ty)
-                                              };
+                                   "data" ::= #maskedMem;
                                    "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
                                    "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
                                    "memMisalignedException?" ::= $$ true ;

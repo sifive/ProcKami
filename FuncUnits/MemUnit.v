@@ -259,13 +259,14 @@ Section mem_unit.
                      as writeEx;
                      If (#memoryOutput @% "isLrSc")
                      then pMemWriteReservation #paddr (#memoryOutput @% "mask") (#memoryOutput @% "reservation");
-                     LET memRet
-                     : PktWithException MemRet
-                     <- STRUCT {
-                       "fst" ::= STRUCT {
+                     LET fstVal: MemRet <- STRUCT {
                                      "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
                                      "tag" ::= #memoryOutput @% "tag";
                                      "data" ::= #memoryOutput @% "reg_data" @% "data" } ;
+                     LET memRet
+                     : PktWithException MemRet
+                     <- STRUCT {
+                       "fst" ::= #fstVal;
                        "snd" ::= #writeEx };
                      Ret #memRet)
                   as ret;
@@ -317,7 +318,11 @@ Section mem_unit.
                  "aq"       ::= #exec_update_pkt @% "aq";
                  "rl"       ::= #exec_update_pkt @% "rl";
                  "reg_data" ::= exec_context_pkt @% "reg2"
-               } : MemUnitInput @# ty);
+                 } : MemUnitInput @# ty);
+       LET val1 <- (STRUCT {
+                        "tag"  ::= #memRet @% "fst" @% "tag";
+                        "data" ::= (#memRet @% "fst" @% "data" : Bit Rlen @# ty)
+                      } : RoutedReg @# ty);
        Ret
          (mkPktWithException
             opt_exec_update_pkt
@@ -326,11 +331,7 @@ Section mem_unit.
                  ::= (ITE
                         (#memRet @% "fst" @% "writeReg?")
                         (#exec_update_pkt
-                           @%["val1"
-                                <- Valid (STRUCT {
-                                              "tag"  ::= #memRet @% "fst" @% "tag";
-                                              "data" ::= (#memRet @% "fst" @% "data" : Bit Rlen @# ty)
-                                            } : RoutedReg @# ty)])
+                           @%["val1" <- Valid #val1])
                         (#exec_update_pkt));
                  "snd" ::= #memRet @% "snd"
                } : PktWithException ExecUpdPkt @# ty)).

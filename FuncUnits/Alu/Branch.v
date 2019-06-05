@@ -16,6 +16,7 @@ Section Alu.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -86,27 +87,30 @@ Section Alu.
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE bOut: BranchOutputType <- branchOut;
+         LETC val2: RoutedReg <- (STRUCT {
+                                      "tag"  ::= Const ty (natToWord RoutingTagSz PcTag);
+                                      "data" ::= xlen_sign_extend Rlen (#bOut @% "xlen") (#bOut @% "newPc")
+                                 });
          LETC val
            :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val2"
-                      <- (Valid (STRUCT {
-                            "tag"  ::= Const ty (natToWord RoutingTagSz PcTag);
-                            "data" ::= xlen_sign_extend Rlen (#bOut @% "xlen") (#bOut @% "newPc")
-                          }))]
+                      <- (Valid #val2)]
                  @%["taken?" <- #bOut @% "taken?"]);
+         LETC fullException: FullException <- STRUCT {
+                                "exception" ::= ($InstAddrMisaligned : Exception @# ty);
+                                "value" ::= #bOut @% "newPc"
+                                           };
+         LETC sndVal: Maybe FullException <- STRUCT {
+                              "valid" ::= (#bOut @% "misaligned?");
+                              "data"
+                              ::= #fullException };
          LETC retval
            :  PktWithException ExecUpdPkt
            <- STRUCT {
                 "fst" ::= #val;
                 "snd"
-                  ::= STRUCT {
-                        "valid" ::= (#bOut @% "misaligned?");
-                        "data"
-                          ::= STRUCT {
-                                "exception" ::= ($InstAddrMisaligned : Exception @# ty);
-                                "value" ::= #bOut @% "newPc"
-                              }}};
+                  ::= #sndVal};
          RetE #retval.
 
     Definition Branch: @FUEntry ty :=

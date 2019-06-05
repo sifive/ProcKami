@@ -827,14 +827,17 @@ Section CsrInterface.
     (csr_index : CsrId @# ty)
     (update_pkt : ExecUpdPkt @# ty)
     :  ActionT ty Void
-    := LET upd_pkt
-         :  FieldUpd
-         <- STRUCT {
-              "warlStateField"
-                ::= (STRUCT {
+    := LET warlStateField <-
+           (STRUCT {
                        "pc" ::= pc;
                        "compressed?" ::= compressed
                      } : WarlStateField @# ty);
+                                           
+       LET upd_pkt
+         :  FieldUpd
+         <- STRUCT {
+              "warlStateField"
+                ::= #warlStateField;
               "cfg" ::= cfg_pkt
             } : FieldUpd @# ty;
        LETA csr_val

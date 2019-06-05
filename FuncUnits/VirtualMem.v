@@ -132,25 +132,27 @@ Section pt_walker.
 
     Definition vm_exception
       (access_type : Bit vm_access_width @# ty)
-      :  PktWithException PAddr @# ty
-      := STRUCT {
-           "fst" ::= $0;
-           "snd"
-             ::= Valid
-                   (STRUCT {
-                      "exception"
-                        ::= Switch access_type Retn Exception With {
-                              ($vm_access_inst : Bit vm_access_width @# ty)
-                                ::= ($InstPageFault : Exception @# ty);
-                              ($vm_access_load : Bit vm_access_width @# ty)
-                                ::= ($LoadPageFault : Exception @# ty);
-                              ($vm_access_samo : Bit vm_access_width @# ty)
-                                ::= ($SAmoPageFault : Exception @# ty)
-                            };
-                      "value"     ::= $0 (* TODO *)
-                    } : FullException @# ty)
-         } : PktWithException PAddr @# ty.
-
+      :  PktWithException PAddr ## ty
+      :=
+        LETC exception <-
+             STRUCT {
+               "exception"
+               ::= Switch access_type Retn Exception With {
+                            ($vm_access_inst : Bit vm_access_width @# ty)
+                            ::= ($InstPageFault : Exception @# ty);
+                            ($vm_access_load : Bit vm_access_width @# ty)
+                            ::= ($LoadPageFault : Exception @# ty);
+                            ($vm_access_samo : Bit vm_access_width @# ty)
+                            ::= ($SAmoPageFault : Exception @# ty)
+                          };
+               "value"     ::= $0 (* TODO *)
+             } : FullException @# ty;
+        RetE (STRUCT {
+                  "fst" ::= $0;
+                  "snd"
+                  ::= Valid #exception
+                } : PktWithException PAddr @# ty).
+              
     Definition pte_translate_gen
       (mem_read_index : nat)
       (satp_mode : Bit satp_mode_width @# ty)
@@ -208,7 +210,8 @@ Section pt_walker.
              (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
                then
                  System [DispString _ "[pte_translate] the page table entry is not valid.\n"];
-                 Ret (vm_exception access_type)
+                 LETA retVal <- convertLetExprSyntax_ActionT (vm_exception access_type);
+                 Ret #retVal
                else
                  (* item 4 *)
                  (If !pte_read #pte && !pte_execute #pte
@@ -225,7 +228,8 @@ Section pt_walker.
                          [vm_params_sv32; vm_params_sv39; vm_params_sv48])
                        then 
                          System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
-                         Ret (vm_exception access_type)
+                         LETA retVal <- convertLetExprSyntax_ActionT (vm_exception access_type);
+                         Ret #retVal
                        else
                          LET next_pte_address
                            :  PAddr
@@ -246,7 +250,8 @@ Section pt_walker.
                         !pte_aligned level #pte
                        then
                          System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
-                         Ret (vm_exception access_type)
+                         LETA retVal <- convertLetExprSyntax_ActionT (vm_exception access_type);
+                         Ret #retVal
                        else (* TODO add item 7 *)
                          (* item 8 *)
                          (* TODO: generalize pte_address *)
@@ -391,7 +396,9 @@ Section pt_walker.
                        acc)
                 (* See 4.3.2 item 4 *)
                 (fun _ : PAddr @# ty
-                  => Ret (vm_exception access_type))
+                 =>
+                   LETA retVal <- convertLetExprSyntax_ActionT (vm_exception access_type);
+                   Ret #retVal)
                 (seq 0 levels)
                 #satp_ppn;
          Ret #result.

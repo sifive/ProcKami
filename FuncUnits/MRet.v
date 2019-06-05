@@ -116,12 +116,8 @@ Section mret.
          fuName := "ecall";
          fuFunc
            := (fun mode_pkt : PrivMode ## ty
-                => LETE mode : PrivMode <- mode_pkt;
-                   RetE
-                     (STRUCT {
-                        "fst" ::= noUpdPkt;
-                        "snd"
-                          ::= (Valid (STRUCT {
+               => LETE mode : PrivMode <- mode_pkt;
+                    LETC sndVal <- (STRUCT {
                                  "exception"
                                    ::= Switch #mode Retn Exception With {
                                          Const ty (natToWord 2 MachineMode)
@@ -132,7 +128,12 @@ Section mret.
                                            ::= Const ty (natToWord 4 ECallU)
                                        };
                                  "value"     ::= Const ty (natToWord Xlen 0)
-                               } : FullException @# ty))
+                               } : FullException @# ty);
+                   RetE
+                     (STRUCT {
+                        "fst" ::= noUpdPkt;
+                        "snd"
+                          ::= Valid #sndVal
                       } : PktWithException ExecUpdPkt @# ty));
          fuInsts
            := [

@@ -15,6 +15,7 @@ Section Alu.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -40,27 +41,31 @@ Section Alu.
     Local Definition jumpTag (jumpOut: JumpOutputType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE jOut <- jumpOut;
+         LETC val1: RoutedReg <- (STRUCT {
+                                      "tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                      "data" ::= SignExtendTruncLsb Rlen (#jOut @% "retPc")
+                                 });
+         LETC val2: RoutedReg <- (STRUCT {
+                                      "tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                      "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
+                                 });
+         LETC fullException: FullException <- STRUCT {
+                                             "exception" ::= ($InstAddrMisaligned : Exception @# ty) ;
+                                             "value" ::= #jOut @% "newPc" };
+         LETC sndVal: Maybe FullException <-  STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
+                                                      "data"  ::= #fullException };
          LETC val
            :  ExecUpdPkt
            <- (noUpdPkt
                  @%["val1"
-                      <- (Valid (STRUCT {
-                            "tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                            "data" ::= SignExtendTruncLsb Rlen (#jOut @% "retPc")
-                          }))]
+                      <- (Valid #val1)]
                  @%["val2"
-                      <- (Valid (STRUCT {
-                            "tag" ::= Const ty (natToWord RoutingTagSz PcTag);
-                            "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
-                          }))]
+                      <- (Valid #val2)]
                  @%["taken?" <- $$ true]) ;
          LETC retval:
            (PktWithException ExecUpdPkt)
              <- STRUCT { "fst" ::= #val ;
-                         "snd" ::= STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
-                                           "data"  ::= STRUCT {
-                                                           "exception" ::= ($InstAddrMisaligned : Exception @# ty) ;
-                                                           "value" ::= #jOut @% "newPc" } } } ;
+                         "snd" ::= #sndVal } ;
          RetE #retval.
 
     Local Definition transPC (sem_output_expr : JumpOutputType ## ty)
