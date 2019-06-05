@@ -44,15 +44,7 @@ Section zicsr.
            => LETE sem_in_pkt
               :  ZicsrInput
                    <- sem_in_pkt_expr;
-        RetE
-          ((STRUCT {
-              "fst"
-                ::= (STRUCT {
-                       "val1" (* writes to the CSR *)
-                       ::= ITE
-                             (#sem_in_pkt @% "mask_value" @% "valid")
-                             (Valid
-                                (STRUCT {
+        LETC val1 <- (STRUCT {
                                    "tag"
                                      ::= Switch #sem_in_pkt @% "op"
                                            Of ZicsrOpType Retn RoutingTag With {
@@ -63,7 +55,12 @@ Section zicsr.
                                    "data"
                                      ::= ZeroExtendTruncLsb Rlen
                                          (#sem_in_pkt @% "mask_value" @% "data")
-                                   } : RoutedReg @# ty))
+                        } : RoutedReg @# ty);
+        LETC fstVal <- (STRUCT {
+                       "val1" (* writes to the CSR *)
+                       ::= ITE
+                             (#sem_in_pkt @% "mask_value" @% "valid")
+                             (Valid #val1)
                              (@Invalid ty (RoutedReg));
                        "val2" (* writes to RD *)
                        ::= @Invalid ty RoutedReg;
@@ -72,6 +69,10 @@ Section zicsr.
                        "aq"         ::= $$false;
                        "rl"         ::= $$false
                      } : ExecUpdPkt @# ty);
+        RetE
+          ((STRUCT {
+              "fst"
+                ::= #fstVal;
               "snd" ::= Invalid
            }): PktWithException ExecUpdPkt @# ty);
         fuInsts

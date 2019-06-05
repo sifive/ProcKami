@@ -149,27 +149,30 @@ Section Fpu.
                                                 (NFToBit (#sem_in_pkt @% "arg2"))
                                                 (NFToBit (#sem_in_pkt @% "arg1"))))))
                      } : FMinMaxOutputType @# ty;
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= (STRUCT {
-                                 "val1"
-                                   ::= Valid (STRUCT {
+                   LETC val1: RoutedReg <- (STRUCT {
                                          "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
                                          "data" ::= OneExtendTruncLsb Rlen (#result @% "result")
-                                       });
-                                 "val2"
-                                   ::= ITE (#result @% "fflags" @% "valid")
-                                         (Valid (STRUCT {
+                                           });
+                   LETC val2: RoutedReg <- (STRUCT {
                                             "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
                                             "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                         }))
+                                         });
+                   LETC fstVal <- (STRUCT {
+                                 "val1"
+                                   ::= Valid #val1;
+                                 "val2"
+                                   ::= ITE (#result @% "fflags" @% "valid")
+                                         (Valid #val2)
                                          Invalid;
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                  "taken?" ::= $$false;
                                  "aq" ::= $$false;
                                  "rl" ::= $$false
                                } : ExecUpdPkt @# ty);
+                   RetE
+                     (STRUCT {
+                        "fst"
+                          ::= #fstVal;
                         "snd" ::= Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts

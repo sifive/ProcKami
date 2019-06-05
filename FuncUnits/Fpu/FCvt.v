@@ -78,26 +78,29 @@ Section Fpu.
     :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  NFToINOutput size
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
+                         <- sem_out_pkt_expr;
+       LETC val1: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
                              "data" ::= SignExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
-                           });
-                     "val2"
-                       ::= Valid (STRUCT {
+                               });
+       LETC val2: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                              "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
-                           });
+                               });
+       LETC fstVal: ExecUpdPkt <- (STRUCT {
+                     "val1"
+                       ::= Valid #val1;
+                     "val2"
+                       ::= Valid #val2;
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
-                   } : ExecUpdPkt @# ty);
+                   });
+       RetE
+         (STRUCT {
+            "fst"
+              ::= #fstVal;
             "snd" ::= Invalid
           } : PktWithException ExecUpdPkt @# ty).
 
@@ -213,30 +216,33 @@ Section Fpu.
     :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  OpOutput expWidthMinus2 sigWidthMinus2
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
+                     <- sem_out_pkt_expr;
+       LETC val1: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                              "data"
                                ::= OneExtendTruncLsb Rlen
                                      (NFToBit
                                         ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
                                       : Bit len @# ty)
-                                 });
-                     "val2"
-                       ::= Valid (STRUCT {
+                               });
+       LETC val2: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                              "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
-                           });
+                               });
+       LETC fstVal <- (STRUCT {
+                     "val1"
+                       ::= Valid #val1;
+                     "val2"
+                       ::= Valid #val2;
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
                    } : ExecUpdPkt @# ty);
+       RetE
+         (STRUCT {
+            "fst"
+              ::= #fstVal;
             "snd" ::= Invalid
           } : PktWithException ExecUpdPkt @# ty).
 

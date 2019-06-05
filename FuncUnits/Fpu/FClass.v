@@ -70,22 +70,22 @@ Section Fpu.
     :  PktWithException ExecUpdPkt ## ty
     := LETE res
          :  Bit Xlen
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
+                <- sem_out_pkt_expr;
+       LETC val1: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
                              "data" ::= SignExtendTruncLsb Rlen #res
-                           } : RoutedReg @# ty);
+                                  });
+       LETC fstVal: ExecUpdPkt <- (STRUCT {
+                     "val1" ::= Valid #val1;
                      "val2" ::= @Invalid ty _;
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
-                   } : ExecUpdPkt @# ty);
+                   });
+       RetE
+         (STRUCT {
+            "fst" ::= #fstVal;
             "snd" ::= Invalid
           } : PktWithException ExecUpdPkt @# ty).
 

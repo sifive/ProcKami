@@ -58,13 +58,7 @@ Section Fpu.
            := fun sem_in_pkt : Pair Bool (Bit Rlen) ## ty
                 => LETE inp <- sem_in_pkt;
                    LETC isInt <- #inp @% "fst";
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= (STRUCT {
-                                 "val1"
-                                   ::= Valid
-                                         ((STRUCT {
+                   LETC val1 <- ((STRUCT {
                                              "tag"
                                                ::= (IF #isInt
                                                       then $IntRegTag
@@ -82,13 +76,20 @@ Section Fpu.
                                                              (ZeroExtendTruncLsb
                                                                len
                                                                ((#inp @% "snd") : Bit Rlen @# ty)))
-                                           }: RoutedReg @# ty));
+                                    }: RoutedReg @# ty));
+                   LETC fstVal <-  (STRUCT {
+                                 "val1"
+                                   ::= Valid #val1;
                                  "val2" ::= @Invalid ty _;
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                  "taken?" ::= $$false;
                                  "aq" ::= $$false;
                                  "rl" ::= $$false
                                } : ExecUpdPkt @# ty);
+                   RetE
+                     (STRUCT {
+                        "fst"
+                          ::= #fstVal;
                         "snd" ::= Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts

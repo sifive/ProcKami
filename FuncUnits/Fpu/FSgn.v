@@ -103,27 +103,27 @@ Section Fpu.
            := fun sem_in_pkt_expr : FSgnInputType ## ty
                 => LETE sem_in_pkt
                      :  FSgnInputType
-                     <- sem_in_pkt_expr;
+                          <- sem_in_pkt_expr;
+         LETC val1 : RoutedReg <- (STRUCT {
+                                       "tag" ::= $$(natToWord RoutingTagSz FloatRegTag);
+                                       "data" ::=
+                                         OneExtendTruncLsb Rlen
+                                                           ({<
+                                                             (#sem_in_pkt @% "sign_bit"),
+                                                             (OneExtendTruncLsb (len - 1)
+                                                                                (#sem_in_pkt @% "arg1")) >})});
+         LETC fstVal : ExecUpdPkt <- STRUCT {
+                                    "val1"
+                                    ::= Valid (#val1);
+                                    "val2" ::= @Invalid ty (FU.RoutedReg Rlen_over_8);
+                                    "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                    "taken?" ::= $$false;
+                                    "aq" ::= $$false;
+                                    "rl" ::= $$false
+                                  };
                    RetE
                      (STRUCT {
-                        "fst"
-                          ::= (STRUCT {
-                                 "val1"
-                                   ::= Valid (STRUCT {
-                                         "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                         "data"
-                                           ::= OneExtendTruncLsb Rlen
-                                                 ({<
-                                                   (#sem_in_pkt @% "sign_bit"),
-                                                   (OneExtendTruncLsb (len - 1) (#sem_in_pkt @% "arg1"))
-                                                 >})
-                                       });
-                                 "val2" ::= @Invalid ty _;
-                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                 "taken?" ::= $$false;
-                                 "aq" ::= $$false;
-                                 "rl" ::= $$false
-                               } : ExecUpdPkt @# ty);
+                        "fst" ::= #fstVal;
                         "snd" ::= Invalid
                       } : PktWithException ExecUpdPkt@# ty);
          fuInsts

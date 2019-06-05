@@ -95,19 +95,20 @@ Section Fpu.
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fflags" ::= #context_pkt @% "fflags";
-            "muladd_in"
-              ::= (STRUCT {
+              <- context_pkt_expr;
+       LETC muladd_in <- (STRUCT {
                      "op" ::= op;
                      "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
                      "b"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
                      "c"  ::= bitToNF (fp_get_float (#context_pkt @% "reg3"));
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
-                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
+                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty);
+       RetE
+         (STRUCT {
+            "fflags" ::= #context_pkt @% "fflags";
+            "muladd_in"
+              ::= #muladd_in
           } : MacInputType @# ty).
 
   Definition AddInput
@@ -117,19 +118,20 @@ Section Fpu.
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fflags" ::= #context_pkt @% "fflags";
-            "muladd_in"
-              ::= (STRUCT {
+              <- context_pkt_expr;
+       LETC muladd_in <- (STRUCT {
                      "op" ::= op;
                      "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
                      "b"  ::= NF_const_1;
                      "c"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
-                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
+                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty);
+       RetE
+         (STRUCT {
+            "fflags" ::= #context_pkt @% "fflags";
+            "muladd_in"
+              ::= #muladd_in
           } : MacInputType @# ty).
 
   Definition MulInput
@@ -139,45 +141,49 @@ Section Fpu.
     :  MacInputType ## ty
     := LETE context_pkt
          :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fflags" ::= #context_pkt @% "fflags";
-            "muladd_in"
-              ::= (STRUCT {
+              <- context_pkt_expr;
+       LETC muladd_in <- (STRUCT {
                      "op" ::= op;
                      "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
                      "b"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
                      "c"  ::= bitToNF ($0);
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
-                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty)
+                   } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty);
+       RetE
+         (STRUCT {
+            "fflags" ::= #context_pkt @% "fflags";
+            "muladd_in"
+              ::= #muladd_in
           } : MacInputType @# ty).
 
   Definition MacOutput (sem_out_pkt_expr : MacOutputType ## ty)
     :  PktWithException ExecUpdPkt ## ty
     := LETE sem_out_pkt
          :  MacOutputType
-         <- sem_out_pkt_expr;
-       RetE
-         (STRUCT {
-            "fst"
-              ::= (STRUCT {
-                     "val1"
-                       ::= Valid (STRUCT {
+              <- sem_out_pkt_expr;
+       LETC val1: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
                              "data" ::= OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "muladd_out" @% "out"))
-                           });
-                     "val2"
-                       ::= Valid (STRUCT {
+                    });
+       LETC val2: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                              "data" ::= ((csr (#sem_out_pkt @% "muladd_out" @% "exceptionFlags")) : Bit Rlen @# ty)
-                           });
+                               });
+       LETC fstVal <- (STRUCT {
+                     "val1"
+                       ::= Valid #val1;
+                     "val2"
+                       ::= Valid #val2;
                      "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                      "taken?" ::= $$false;
                      "aq" ::= $$false;
                      "rl" ::= $$false
                    } : ExecUpdPkt @# ty);
+       RetE
+         (STRUCT {
+            "fst"
+              ::= #fstVal;
             "snd" ::= Invalid
           } : PktWithException ExecUpdPkt @# ty).
 

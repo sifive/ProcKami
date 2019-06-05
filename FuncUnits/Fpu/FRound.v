@@ -94,26 +94,29 @@ Section Fpu.
                                 } : RoundInput single_expWidthMinus2 single_sigWidthMinus2 @# ty));
                   outputXform
                     := (fun sem_out_pkt_expr : OpOutput double_expWidthMinus2 double_sigWidthMinus2 ## ty
-                          => LETE sem_out_pkt <- sem_out_pkt_expr;
-                             RetE
-                               (STRUCT {
-                                  "fst"
-                                    ::= (STRUCT {
-                                           "val1"
-                                             ::= (Valid (STRUCT {
+                        => LETE sem_out_pkt <- sem_out_pkt_expr;
+                             LETC val1: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
                                                     "data" ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
-                                                  }) : Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid (STRUCT {
+                                                     });
+                             LETC val2: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
-                                                  }) : Maybe RoutedReg @# ty);
+                                                     });
+                             LETC fstVal <- (STRUCT {
+                                           "val1"
+                                             ::= (Valid #val1 : Maybe RoutedReg @# ty);
+                                           "val2"
+                                             ::= (Valid #val2 : Maybe RoutedReg @# ty);
                                            "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                            "taken?"     ::= $$false;
                                            "aq"         ::= $$false;
                                            "rl"         ::= $$false
                                          } : ExecUpdPkt @# ty);
+                             RetE
+                               (STRUCT {
+                                  "fst"
+                                    ::= #fstVal;
                                   "snd" ::= Invalid
                                 } : PktWithException ExecUpdPkt @# ty));
                   optMemXform := None;
@@ -161,26 +164,29 @@ Section Fpu.
                                 } : RoundInput double_expWidthMinus2 double_sigWidthMinus2 @# ty));
                   outputXform
                     := (fun sem_out_pkt_expr : OpOutput single_expWidthMinus2 single_sigWidthMinus2 ## ty
-                          => LETE sem_out_pkt <- sem_out_pkt_expr;
-                             RetE
-                               (STRUCT {
-                                  "fst"
-                                    ::= (STRUCT {
-                                           "val1"
-                                             ::= (Valid (STRUCT {
+                        => LETE sem_out_pkt <- sem_out_pkt_expr;
+                             LETC val1: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
                                                     "data" ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
-                                                  }) : Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid (STRUCT {
+                                          });
+                             LETC val2: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
-                                                  }) : Maybe RoutedReg @# ty);
+                                          });
+                             LETC fstVal <- (STRUCT {
+                                           "val1"
+                                             ::= (Valid #val1: Maybe RoutedReg @# ty);
+                                           "val2"
+                                             ::= (Valid #val2: Maybe RoutedReg @# ty);
                                            "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                            "taken?" ::= $$false;
                                            "aq" ::= $$false;
                                            "rl" ::= $$false
                                          } : ExecUpdPkt @# ty);
+                             RetE
+                               (STRUCT {
+                                  "fst"
+                                    ::= #fstVal;
                                   "snd" ::= Invalid
                                 } : PktWithException ExecUpdPkt @# ty));
                   optMemXform := None;

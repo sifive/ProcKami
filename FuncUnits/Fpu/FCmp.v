@@ -158,28 +158,30 @@ Section Fpu.
                                    cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
                                   $1 $0)
                      } : FCmpOutputType @# ty;
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= (STRUCT {
-                                 "val1"
-                                   ::= Valid (STRUCT {
+                   LETC val1 <- (STRUCT {
                                          "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
                                          "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
-                                       } : RoutedReg @# ty);
+                                   } : RoutedReg @# ty);
+                   LETC val2 <- (STRUCT {
+                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                                   } : RoutedReg @# ty);
+                   LETC fstVal <- (STRUCT {
+                                 "val1"
+                                   ::= Valid #val1;
                                  "val2"
                                    ::= ITE
                                          (#result @% "fflags" @% "valid")
-                                         (Valid (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                          } : RoutedReg @# ty))
+                                         (Valid #val2)
                                          (@Invalid ty _);
                                  "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                  "taken?" ::= $$false;
                                  "aq" ::= $$false;
                                  "rl" ::= $$false
                                } :  ExecUpdPkt @# ty);
+                   RetE
+                     (STRUCT {
+                        "fst" ::= #fstVal;
                         "snd" ::= @Invalid ty _
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts
