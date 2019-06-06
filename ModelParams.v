@@ -66,7 +66,7 @@ Definition fu_params_double
 
 Definition mem_params_default
   := {|
-       mem_params_size        := 20;
+       mem_params_size        := 32; (* TODO TESTING was 20 *)
        mem_params_addr_size   := 34;
        mem_params_granularity := 20  (* TODO fix *)
      |}.
@@ -316,7 +316,7 @@ Section exts.
          Flen_over_8
          Rlen_over_8
          mem_params_default
-         (Some (54'h"4000"))
+         (Some (54'h"8000"))
          param_func_units
          param_exts.
 (*

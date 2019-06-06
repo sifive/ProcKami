@@ -98,10 +98,18 @@ Section mem_unit.
     := LETA paddr
          :  PktWithException PAddr
          <- memTranslate mode $vm_access_inst vaddr; (* TODO check access code. *)
-       (* TODO handle exception from memTranslate *)
-       LETA result
-         :  PktWithException Data
-         <- pMemFetch index mode (#paddr @% "fst");
+       If #paddr @% "snd" @% "valid"
+         then
+           Ret (STRUCT {
+                  "fst" ::= $0;
+                  "snd" ::= #paddr @% "snd"
+                } : PktWithException Data @# ty)
+         else
+           LETA result
+             :  PktWithException Data
+             <- pMemFetch index mode (#paddr @% "fst");
+           Ret #result
+         as result;
        Ret #result.
 
   Definition memRead
@@ -112,10 +120,18 @@ Section mem_unit.
     := LETA paddr
          :  PktWithException PAddr
          <- memTranslate mode $vm_access_load vaddr; (* TODO check access code. *)
-       (* TODO handle exception from memTranslate *)
-       LETA result
-         :  PktWithException Data
-         <- pMemRead index mode (#paddr @% "fst");
+       If #paddr @% "snd" @% "valid"
+         then
+           Ret (STRUCT {
+                  "fst" ::= $0;
+                  "snd" ::= #paddr @% "snd"
+                } : PktWithException Data @# ty)
+         else
+           LETA result
+             :  PktWithException Data
+             <- pMemRead index mode (#paddr @% "fst");
+           Ret #result
+         as result;
        Ret #result.
 
   Definition memReadReservation
@@ -125,10 +141,16 @@ Section mem_unit.
     := LETA paddr
          :  PktWithException PAddr
          <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
-       (* TODO handle exception from memTranslate *)
-       LETA result
-         :  Array Rlen_over_8 Bool
-         <- pMemReadReservation (#paddr @% "fst");
+       If #paddr @% "snd" @% "valid"
+         then
+           (* TODO how should we handle this scenario? *)
+           Ret $$(getDefaultConst (Array Rlen_over_8 Bool))
+         else
+           LETA result
+             :  Array Rlen_over_8 Bool
+             <- pMemReadReservation (#paddr @% "fst");
+           Ret #result
+         as result;
        Ret #result.
 
   Definition memWriteReservation
@@ -140,10 +162,15 @@ Section mem_unit.
     := LETA paddr
          :  PktWithException PAddr
          <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
-       (* TODO handle exception from memTranslate *)
-       LETA result
-         :  Void
-         <- pMemWriteReservation (#paddr @% "fst" : PAddr @# ty) mask rsv;
+       If #paddr @% "snd" @% "valid"
+         then
+           Retv
+         else
+           LETA result
+             :  Void
+             <- pMemWriteReservation (#paddr @% "fst" : PAddr @# ty) mask rsv;
+           Retv
+         as result;
        Retv.
 
   Definition getMemEntryFromInsts ik ok (insts: list (InstEntry ik ok)) pos :

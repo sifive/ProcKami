@@ -63,7 +63,7 @@ Section Params.
       := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              Register ^"pc"               : VAddr <- ConstBit (_ 'h "00000000") with
+              Register ^"pc"               : VAddr <- ConstBit (_ 'h "80000000") with
 
               (* floating point registers *)
               Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
@@ -221,7 +221,6 @@ Section Params.
                        DispHex #exec_context_pkt;    
                        DispString _ "\n"
                      ];
-(* TODO: commented out floating point register reads to avoid segmentation fault in the generated Verilator simulator. *)
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
                      <- convertLetExprSyntax_ActionT
@@ -312,7 +311,7 @@ Section Params.
         true
         Rlen_over_8
         (^"mem_reg_file")
-        (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6" ])
+        (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
         (^"writeMem")
         (pow2 lgMemSz)
         (Bit 8)
