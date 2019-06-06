@@ -91,6 +91,7 @@ Section trap_handling.
          <- ZeroExtendTruncLsb (Xlen - 1) exception_code;
        (* section 3.1.22 *)
        Write ^(prefix ++ "tval") : Bit Xlen <- exception_val;
+       Write ^"mode" : PrivMode <- mode;
        System [
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
