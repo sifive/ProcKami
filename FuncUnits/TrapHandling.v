@@ -33,6 +33,7 @@ Section trap_handling.
   (* TODO Add width argument *)
   Definition trapAction
     (prefix : string)
+    (next_mode : PrivMode @# ty)
     (pp_width : nat)
     (xlen : XlenValue @# ty)
     (mode : PrivMode @# ty)
@@ -91,7 +92,7 @@ Section trap_handling.
          <- ZeroExtendTruncLsb (Xlen - 1) exception_code;
        (* section 3.1.22 *)
        Write ^(prefix ++ "tval") : Bit Xlen <- exception_val;
-       Write ^"mode" : PrivMode <- mode;
+       Write ^"mode" : PrivMode <- next_mode;
        System [
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
@@ -103,6 +104,9 @@ Section trap_handling.
          DispString _ "\n";
          DispString _ "  address offset: ";
          DispHex (#addr_offset);
+         DispString _ "\n";
+         DispString _ "  wrote mode: ";
+         DispHex (next_mode);
          DispString _ "\n"
        ];
        Retv.
@@ -207,7 +211,7 @@ Section trap_handling.
                System [
                  DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
                ];
-               trapAction "s" 1
+               trapAction "s" $1 1
                  (cfg_pkt @% "xlen")
                  (cfg_pkt @% "mode")
                  pc
@@ -220,7 +224,7 @@ Section trap_handling.
                     System [
                       DispString _ "[commit] delegating exception to user mode trap handler.\n"
                     ];
-                    trapAction "u" 0
+                    trapAction "u" $0 0
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc
@@ -230,7 +234,7 @@ Section trap_handling.
                     System [
                       DispString _ "[commit] trapping exception using machine mode handler.\n"
                     ];
-                    trapAction "m" 2
+                    trapAction "m" $3 2
                       (cfg_pkt @% "xlen")
                       (cfg_pkt @% "mode")
                       pc
