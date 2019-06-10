@@ -188,7 +188,7 @@ Section trap_handling.
     (edeleg : Bit 16 @# ty)
     (exception_code : Exception @# ty)
     :  Bool @# ty
-    := unsafeTruncLsb 1 (edeleg >> exception_code) == Const ty (natToWord 1 1).
+    := (unsafeTruncLsb 1 (edeleg >> exception_code)) == Const ty (wones 1).
 
   Definition commit
     (pc: VAddr @# ty)
@@ -203,10 +203,25 @@ Section trap_handling.
        LET exception_code : Exception <- cxt @% "snd" @% "data" @% "exception";
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
+       System [
+         DispString _ "[commit] medeleg: ";
+         DispHex #medeleg;
+         DispString _ "\n";
+         DispString _ "[commit] sedeleg: ";
+         DispHex #sedeleg;
+         DispString _ "\n";
+         DispString _ "[commit] exception code: ";
+         DispHex #exception_code;
+         DispString _ "\n";
+         DispString _ "[commit] shifted medeleg: ";
+         DispHex (unsafeTruncLsb 1 (#medeleg >> #exception_code));
+         DispString _ "\n"
+       ];
        If (cxt @% "snd" @% "valid")
          then
            If delegated #medeleg #exception_code &&
-              cfg_pkt @% "mode" == $SupervisorMode
+              (cfg_pkt @% "mode" == $SupervisorMode ||
+               cfg_pkt @% "mode" == $UserMode)
              then
                System [
                  DispString _ "[commit] delegating exception to supervisor mode trap handler.\n"
