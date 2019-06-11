@@ -182,6 +182,22 @@ Section mret.
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
+                |};
+                {|
+                  instName   := "sfence";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0001001");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (Const ty (natToWord 0 0));
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
                 |}
               ]
        |}.
