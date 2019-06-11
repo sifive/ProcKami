@@ -63,7 +63,7 @@ Section Params.
       := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              Register ^"pc"               : VAddr <- ConstBit (_ 'h "80000000") with
+              Register ^"pc"               : VAddr <- ConstBit (_ 'h "00000000") with
 
               (* floating point registers *)
               Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
