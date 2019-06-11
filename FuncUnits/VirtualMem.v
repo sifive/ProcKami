@@ -76,6 +76,10 @@ Section pt_walker.
       :  Bool @# ty
       := (unsafeTruncLsb 8 pte)$#[3:3] == $1.
 
+    Definition pte_user (pte : Bit pte_width @# ty)
+      :  Bool @# ty
+      := (unsafeTruncLsb 8 pte)$#[4:4] == $1.
+
     Definition vaddr_vpn_field
       (vm_params : vm_params_type)
       (vpn_field_index : nat)
@@ -113,10 +117,24 @@ Section pt_walker.
 
     (* TODO See 4.3.2 item 5 *)
     Definition pte_grant
+      (mode : PrivMode @# ty)
+      (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *)
       (access_type : Bit vm_access_width @# ty)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-      := $$true.
+      (* := $$true. *)
+      := (access_type != $vm_access_load || pte_read pte) &&
+         (access_type != $vm_access_inst || pte_execute pte) &&
+         (access_type != $vm_access_samo || pte_write pte) &&
+         (Switch mode Retn Bool With {
+            ($MachineMode : PrivMode @# ty)
+              ::= $$true;
+            ($SupervisorMode : PrivMode @# ty)
+              ::= (!(pte_user pte) || (!(access_type == $vm_access_inst) && sum));
+            ($UserMode : PrivMode @# ty)
+              ::= pte_user pte
+          }).
+                 
 
     (* TODO See 4.3.2 item 6 *)
     Definition pte_aligned
@@ -164,6 +182,7 @@ Section pt_walker.
       (satp_mode : Bit satp_mode_width @# ty)
       (level : nat)
       (mode : PrivMode @# ty)
+      (sum : Bool @# ty) (* supervisor user mode bit *)
       (access_type : Bit vm_access_width @# ty)
       (vaddr : VAddr @# ty)
       (next_level : PAddr @# ty -> ActionT ty (Maybe PAddr))
@@ -295,7 +314,7 @@ Section pt_walker.
                    else (* item 5 and 6 *)
                      System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
                      (* TODO: generalize pte_aligned *)
-                     (If !pte_grant access_type #pte ||
+                     (If !pte_grant mode sum access_type #pte ||
                         !pte_aligned level #pte
                        then
                          System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
@@ -363,6 +382,8 @@ Section pt_walker.
            DispHex #satp_ppn;
            DispString _ "\n"
          ];
+         Read read_sum : Bit 1 <- ^"sum";
+         LET sum : Bool <- #read_sum == $$(wones 1);
          LETA result
            :  Maybe PAddr
            <- fold_right
@@ -372,6 +393,7 @@ Section pt_walker.
                        #satp_mode
                        level
                        mode
+                       #sum
                        access_type
                        vaddr
                        acc)

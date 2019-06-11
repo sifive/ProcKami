@@ -63,7 +63,8 @@ Section Params.
       := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              Register ^"pc"               : VAddr <- ConstBit (wzero Xlen) with
+              (* Register ^"pc"               : VAddr <- ConstBit (wzero Xlen) with *)
+              Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
 
               (* floating point registers *)
               Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
@@ -86,6 +87,7 @@ Section Params.
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"sum"              : Bit 1 <- $0 with
               Register ^"spp"              : Bit 1 <- $0 with
               Register ^"spie"             : Bit 1 <- $0 with
               Register ^"sie"              : Bit 1 <- $0 with
@@ -304,18 +306,18 @@ Section Params.
            32
            (Bit Flen)
            (RFNonFile _ None).
-    
+
     Definition memRegFile
-      :  RegFileBase :=
-      @Build_RegFileBase
-        true
-        Rlen_over_8
-        (^"mem_reg_file")
-        (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
-        (^"writeMem")
-        (pow2 lgMemSz)
-        (Bit 8)
-        (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
+       :  RegFileBase :=
+       @Build_RegFileBase
+         true
+         Rlen_over_8
+         (^"mem_reg_file")
+         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
+         (^"writeMem")
+         (pow2 lgMemSz)
+         (Bit 8)
+         (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
 
     Definition memReservationRegFile
       :  RegFileBase
