@@ -316,7 +316,8 @@ Section exts.
          Flen_over_8
          Rlen_over_8
          mem_params_default
-         (Some (54'h"4000"))
+         (* (Some (54'h"4000")) *)
+         (Some (wones 54))
          param_func_units
          param_exts.
 (*
