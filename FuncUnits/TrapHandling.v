@@ -53,7 +53,9 @@ Section trap_handling.
        Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
        LET addr_base
          :  VAddr
-         <- xlen_sign_extend Xlen xlen #tvec_base;
+         <- (* TODO: See 4.1.5 are we to allow any {m,s}tvec_base value and append two 0s? The test suite appears to assume we do. *)
+            (* xlen_sign_extend Xlen xlen #tvec_base; *)
+            xlen_sign_extend Xlen xlen #tvec_base << (Const _ (natToWord 2 2));
        LET addr_offset
          :  VAddr
          <- xlen_sign_extend Xlen xlen exception_code;
