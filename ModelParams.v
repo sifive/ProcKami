@@ -320,15 +320,6 @@ Section exts.
          (Some (wones 54))
          param_func_units
          param_exts.
-(*
-    := processor "proc_core"
-         Flen_over_8
-         mem_params_default
-         vm_params_sv48
-         (Some (54'h"4000"))
-         param_func_units
-         param_exts.
-*)
 
   Close Scope kami_expr.
 
