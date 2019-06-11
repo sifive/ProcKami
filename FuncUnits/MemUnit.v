@@ -44,8 +44,10 @@ Section mem_unit.
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
-  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
+  (* Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty). *)
+  Local Notation pMemFetch := (@pMemFetch name Rlen_over_8 mem_params ty).
+  Local Notation pMemRead := (@pMemRead name Rlen_over_8 mem_params ty).
+  (* Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty). *)
   Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 mem_params ty).
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 mem_params ty).
@@ -62,17 +64,22 @@ Section mem_unit.
   (* TODO: should this be sign extended? *)
   Definition pMemTranslate
     (vaddr : VAddr @# ty)
-    :  PktWithException PAddr @# ty
+    (* :  PktWithException PAddr @# ty *)
+    :  Maybe PAddr @# ty
+(*
     := STRUCT {
          "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
          "snd" ::= Invalid
        } : PktWithException PAddr @# ty.
+*)
+    := Valid (SignExtendTruncLsb PAddrSz vaddr).
 
   Definition memTranslate
     (mode : PrivMode @# ty)
     (access_type : Bit vm_access_width @# ty)
     (vaddr : VAddr @# ty)
-    :  ActionT ty (PktWithException PAddr)
+    (* :  ActionT ty (PktWithException PAddr) *)
+    :  ActionT ty (Maybe PAddr)
     := If mode == $MachineMode
          then Ret (pMemTranslate vaddr)
          else
@@ -90,27 +97,53 @@ Section mem_unit.
          as result;
        Ret #result.
 
+  Local Definition memFetchAux
+    (exception : Exception @# ty)
+    (vaddr : VAddr @# ty)
+    :  Maybe FullException @# ty
+    := Valid (STRUCT {
+         "exception" ::= exception;
+         "value" ::= vaddr
+       }).
+
   Definition memFetch
     (index : nat)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
     := LETA paddr
-         :  PktWithException PAddr
+         :  Maybe PAddr
          <- memTranslate mode $vm_access_inst vaddr; (* TODO check access code. *)
-       If #paddr @% "snd" @% "valid"
+       If #paddr @% "valid"
          then
-           Ret (STRUCT {
-                  "fst" ::= $0;
-                  "snd" ::= #paddr @% "snd"
-                } : PktWithException Data @# ty)
+           LETA inst
+             :  Maybe Data
+             <- pMemFetch index mode (#paddr @% "data");
+           Ret
+             (STRUCT {
+                "fst" ::= #inst @% "data";
+                "snd"
+                  ::= IF #inst @% "valid"
+                        then Invalid
+                        else memFetchAux ($InstAccessFault) vaddr
+              } : PktWithException Data @# ty)
          else
-           LETA result
-             :  PktWithException Data
-             <- pMemFetch index mode (#paddr @% "fst");
-           Ret #result
+           Ret
+             (STRUCT {
+                "fst" ::= $0;
+                "snd" ::= memFetchAux ($InstPageFault) vaddr
+              } : PktWithException Data @# ty)
          as result;
        Ret #result.
+
+  Local Definition memReadAux
+    (exception : Exception @# ty)
+    (vaddr : VAddr @# ty)
+    :  Maybe FullException @# ty
+    := Valid (STRUCT {
+         "exception" ::= exception;
+         "value" ::= vaddr (* See 4.1.11 *)
+       }).
 
   Definition memRead
     (index : nat)
@@ -118,19 +151,27 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
     := LETA paddr
-         :  PktWithException PAddr
+         :  Maybe PAddr
          <- memTranslate mode $vm_access_load vaddr; (* TODO check access code. *)
-       If #paddr @% "snd" @% "valid"
+       If #paddr @% "valid"
          then
-           Ret (STRUCT {
-                  "fst" ::= $0;
-                  "snd" ::= #paddr @% "snd"
-                } : PktWithException Data @# ty)
-         else
            LETA result
-             :  PktWithException Data
-             <- pMemRead index mode (#paddr @% "fst");
-           Ret #result
+             :  Maybe Data
+             <- pMemRead index mode (#paddr @% "data");
+           Ret
+             (STRUCT {
+                "fst" ::= #result @% "data";
+                "snd"
+                  ::= IF #result @% "valid"
+                        then Invalid
+                        else memReadAux ($LoadAccessFault) vaddr
+              } : PktWithException Data @# ty)
+         else
+           Ret
+             (STRUCT {
+                "fst" ::= $0;
+                "snd" ::= memReadAux ($LoadPageFault) vaddr
+              } : PktWithException Data @# ty)
          as result;
        Ret #result.
 
@@ -139,17 +180,20 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (Array Rlen_over_8 Bool)
     := LETA paddr
-         :  PktWithException PAddr
+         (* :  PktWithException PAddr *)
+         :  Maybe PAddr
          <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
-       If #paddr @% "snd" @% "valid"
+       (* If #paddr @% "snd" @% "valid" *)
+       If #paddr @% "valid"
          then
-           (* TODO how should we handle this scenario? *)
-           Ret $$(getDefaultConst (Array Rlen_over_8 Bool))
-         else
            LETA result
              :  Array Rlen_over_8 Bool
-             <- pMemReadReservation (#paddr @% "fst");
+             (* <- pMemReadReservation (#paddr @% "fst"); *)
+             <- pMemReadReservation (#paddr @% "data");
            Ret #result
+         else
+           (* TODO how should we handle this scenario? *)
+           Ret $$(getDefaultConst (Array Rlen_over_8 Bool))
          as result;
        Ret #result.
 
@@ -160,15 +204,18 @@ Section mem_unit.
     (mask rsv : Array Rlen_over_8 Bool @# ty)
     :  ActionT ty Void
     := LETA paddr
-         :  PktWithException PAddr
+         (* :  PktWithException PAddr *)
+         :  Maybe PAddr
          <- memTranslate mode $vm_access_samo vaddr; (* TODO check access code. *)
-       If #paddr @% "snd" @% "valid"
+       (* If #paddr @% "snd" @% "valid" *)
+       If #paddr @% "valid"
          then
-           Retv
-         else
            LETA result
              :  Void
-             <- pMemWriteReservation (#paddr @% "fst" : PAddr @# ty) mask rsv;
+             (* <- pMemWriteReservation (#paddr @% "fst" : PAddr @# ty) mask rsv; *)
+             <- pMemWriteReservation (#paddr @% "data" : PAddr @# ty) mask rsv;
+           Retv
+         else
            Retv
          as result;
        Retv.
@@ -229,14 +276,17 @@ Section mem_unit.
              | Some fn
                => (
                   LETA translateResult
-                    :  PktWithException PAddr
+                    :  Maybe PAddr
+                    (* :  PktWithException PAddr *)
                     <- memTranslate mode $vm_access_inst addr; (* TODO check access code. *)
                   (* TODO: Handle exception from memTranslate *)
                   LET paddr
                     :  PAddr
-                    <- #translateResult @% "fst";
+                    (* <- #translateResult @% "fst"; *)
+                    <- #translateResult @% "data";
                   LETA memReadVal
-                    :  PktWithException Data
+                    (* :  PktWithException Data *)
+                    :  Maybe Data
                     <- pMemRead 2 mode #paddr;
                   LETA memReadReservationVal
                     : Array Rlen_over_8 Bool
@@ -246,14 +296,16 @@ Section mem_unit.
                      DispHex #memReadVal ::
                      DispString _ "\n" ::
                      nil);
-                  If (#memReadVal @% "snd" @% "valid")
+                  (* If (#memReadVal @% "snd" @% "valid") *)
+                  If !(#memReadVal @% "valid")
                   then
                     Ret defMemRet
                   else
                     (LETA memoryOutput
                      :  MemoryOutput
                      <- convertLetExprSyntax_ActionT (fn (RetE (makeMemoryInput memUnitInput
-                                                                                (#memReadVal @% "fst")
+                                                                                (* (#memReadVal @% "fst") *)
+                                                                                (#memReadVal @% "data")
                                                                                 #memReadReservationVal)));
                      System
                        (DispString _ "Mem Output Write to Register: " ::

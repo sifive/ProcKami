@@ -32,7 +32,7 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation pMemRead := (pMemRead name Rlen_over_8 mem_params).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -47,6 +47,17 @@ Section pt_walker.
     Local Definition pte_width := 64. (* log2 (num pte bits / 8) *)
     Local Definition ppn_width := 26.
     Local Definition last_ppn_width := 26.
+
+    Definition list_sum : list nat -> nat := fold_right plus 0.
+
+    Fixpoint list_take (A : Type) (xs : list A) (n : nat) {struct n} : list A
+      := match n with
+           | O => nil
+           | S m => match xs with
+                      | nil => nil
+                      | y0 :: ys => y0 :: (list_take ys m)
+                      end
+           end.
 
     (* See figure 4.15 *)
     Definition pte_valid (pte : Bit pte_width @# ty)
@@ -82,29 +93,20 @@ Section pt_walker.
       (ppn_field_index : nat)
       (pte : Bit pte_width @# ty)
       :  PAddr @# ty
-      := let widths
-           := fold_right
-                (fun ppn_field_index (acc : nat * nat)
-                  => let ppn_width
-                       := nth ppn_field_index (vm_params_ppn_widths vm_params) 0 in
-                     (ppn_width,
-                      (snd acc + ppn_width)%nat))
-                (0, 0)
-                (range 0 (S ppn_field_index)) in
-         ZeroExtendTruncLsb PAddrSz
-           (ZeroExtendTruncMsb (fst widths)
-             (unsafeTruncLsb (snd widths) pte)).
+      := ZeroExtendTruncLsb PAddrSz
+           (ZeroExtendTruncMsb
+             (nth ppn_field_index (vm_params_ppn_widths vm_params) 0)
+             (unsafeTruncLsb
+               ((list_sum (list_take (vm_params_ppn_widths vm_params) (S ppn_field_index))) +
+                pte_offset_width)%nat
+               pte)).
 
     Definition pte_ppn
       (vm_params : vm_params_type)
       (pte : Bit pte_width @# ty)
       :  PAddr @# ty
       := let width
-           := fold_right
-                (fun ppn_width acc
-                  => (ppn_width + acc)%nat)
-                0
-                (vm_params_ppn_widths vm_params) in
+           := list_sum (vm_params_ppn_widths vm_params) in
          ZeroExtendTruncLsb PAddrSz
            (ZeroExtendTruncMsb width
              (unsafeTruncLsb (pte_offset_width + width)%nat pte)).
@@ -130,43 +132,26 @@ Section pt_walker.
       (pte : Bit pte_width @# ty)
       (vaddr : VAddr @# ty)
       :  PAddr @# ty
-      := snd
-           (fold_right
-             (fun index (acc : (nat * (PAddr @# ty))%type)
-               => if Nat.ltb index level
-                    then 
-                      ((fst acc + vm_params_vpn_width vm_params)%nat,
-                       (snd acc &
-                        ((vaddr_vpn_field vm_params index vaddr) << (Const ty (natToWord 5 (fst acc))))))
-                    else
-                      ((fst acc + (nth index (vm_params_ppn_widths vm_params) 0))%nat,
-                       (snd acc &
-                        ((pte_ppn_field vm_params index pte) << (Const ty (natToWord 5 (fst acc)))))))
-             (addr_offset_width,
-              ZeroExtendTruncLsb PAddrSz
-                (unsafeTruncLsb addr_offset_width vaddr))
-             (range 0 (vm_params_levels vm_params))).
-
-    Definition vm_exception
-      (access_type : Bit vm_access_width @# ty)
-      :  PktWithException PAddr @# ty
-      := STRUCT {
-           "fst" ::= $0;
-           "snd"
-             ::= Valid
-                   (STRUCT {
-                      "exception"
-                        ::= Switch access_type Retn Exception With {
-                              ($vm_access_inst : Bit vm_access_width @# ty)
-                                ::= ($InstPageFault : Exception @# ty);
-                              ($vm_access_load : Bit vm_access_width @# ty)
-                                ::= ($LoadPageFault : Exception @# ty);
-                              ($vm_access_samo : Bit vm_access_width @# ty)
-                                ::= ($SAmoPageFault : Exception @# ty)
-                            };
-                      "value"     ::= $0 (* TODO *)
-                    } : FullException @# ty)
-         } : PktWithException PAddr @# ty.
+      := let result
+           :  (nat * (PAddr @# ty))
+           := (fold_left
+                (fun (acc : (nat * (PAddr @# ty))%type) index
+                  => if Nat.ltb index level
+                       then 
+                         ((fst acc + vm_params_vpn_width vm_params)%nat,
+                          (snd acc |
+                           ((vaddr_vpn_field vm_params index vaddr) << (Const ty (natToWord 6 (fst acc))))))
+                       else
+                         ((fst acc + (nth index (vm_params_ppn_widths vm_params) 0))%nat,
+                          (snd acc |
+                           ((pte_ppn_field vm_params index pte) << (Const ty (natToWord 6 (fst acc)))))))
+                (range 0 (vm_params_levels vm_params))
+                (addr_offset_width,
+                 ZeroExtendTruncLsb PAddrSz
+                   (unsafeTruncLsb addr_offset_width vaddr))
+                ) in
+         SignExtendTruncLsb PAddrSz
+           (unsafeTruncLsb (fst result) (snd result)).
 
     Local Definition pte_index
       (vm_params : vm_params_type)
@@ -181,9 +166,9 @@ Section pt_walker.
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
       (vaddr : VAddr @# ty)
-      (next_level : PAddr @# ty -> ActionT ty (PktWithException PAddr))
+      (next_level : PAddr @# ty -> ActionT ty (Maybe PAddr))
       (curr_pte_base_address : PAddr @# ty)
-      :  ActionT ty (PktWithException PAddr)
+      :  ActionT ty (Maybe PAddr)
       := (* See 4.3.2.item 2 *)
          LET debug_index
            :  Bit 3
@@ -222,11 +207,11 @@ Section pt_walker.
            :  PAddr
            <- curr_pte_base_address + #curr_pte_offset;
          LETA read_pte
-           :  PktWithException Data
+           :  Maybe Data
            <- pMemRead mem_read_index mode #curr_pte_address;
          LET pte
            :  Bit pte_width
-           <- ZeroExtendTruncLsb pte_width (#read_pte @% "fst");
+           <- ZeroExtendTruncLsb pte_width (#read_pte @% "data");
          System [
            DispString _ "[pte_translate] access_type: ";
            DispHex access_type;
@@ -254,20 +239,16 @@ Section pt_walker.
            DispHex #read_pte;
            DispString _ "\n"
          ];
-         If #read_pte @% "snd" @% "valid"
+         If !(#read_pte @% "valid")
            then
              System [DispString _ "[pte_translate] an exception occured while reading the page table entry.\n"];
-             Ret
-               (STRUCT {
-                  "fst" ::= $0;
-                  "snd" ::= #read_pte @% "snd"
-                } : PktWithException PAddr @# ty)
+             Ret Invalid
            else
              (* item 3 *)
              (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
                then
                  System [DispString _ "[pte_translate] the page table entry is not valid.\n"];
-                 Ret (vm_exception access_type)
+                 Ret Invalid
                else
                  (* item 4 *)
                  (If !pte_read #pte && !pte_execute #pte
@@ -284,7 +265,7 @@ Section pt_walker.
                          [vm_params_sv32; vm_params_sv39; vm_params_sv48])
                        then 
                          System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
-                         Ret (vm_exception access_type)
+                         Ret Invalid
                        else
                          LET ppn
                            :  PAddr
@@ -306,7 +287,7 @@ Section pt_walker.
                            DispString _ "\n"
                          ];
                          LETA result
-                           :  PktWithException PAddr
+                           :  Maybe PAddr
                            <- next_level #next_pte_address;
                          Ret #result
                        as result;
@@ -318,23 +299,45 @@ Section pt_walker.
                         !pte_aligned level #pte
                        then
                          System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
-                         Ret (vm_exception access_type)
+                         Ret Invalid
                        else (* TODO add item 7 *)
                          (* item 8 *)
                          (* TODO: generalize pte_address *)
-                         Ret
-                           (STRUCT {
-                              "fst"
-                                ::= Switch satp_mode Retn PAddr With {
-                                      ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                                        ::= pte_address vm_params_sv32 (pte_index vm_params_sv32 level) #pte vaddr;
-                                      ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                                        ::= pte_address vm_params_sv39 (pte_index vm_params_sv39 level) #pte vaddr;
-                                      ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                                        ::= pte_address vm_params_sv48 (pte_index vm_params_sv48 level) #pte vaddr
-                                    };
-                              "snd" ::= Invalid
-                            } : PktWithException PAddr @# ty)
+                         LET paddr
+                           :  Maybe PAddr
+                           <- Valid
+                                (Switch satp_mode Retn PAddr With {
+                                   ($satp_mode_sv32 : Bit satp_mode_width @# ty)
+                                     ::= pte_address vm_params_sv32 (pte_index vm_params_sv32 level) #pte vaddr;
+                                   ($satp_mode_sv39 : Bit satp_mode_width @# ty)
+                                     ::= pte_address vm_params_sv39 (pte_index vm_params_sv39 level) #pte vaddr;
+                                   ($satp_mode_sv48 : Bit satp_mode_width @# ty)
+                                     ::= pte_address vm_params_sv48 (pte_index vm_params_sv48 level) #pte vaddr
+                                 });
+                         System [
+                           DispString _ "[pte_translate] ppn [0]: ";
+                           DispHex (pte_ppn_field vm_params_sv39 0 #pte);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] ppn [1]: ";
+                           DispHex (pte_ppn_field vm_params_sv39 1 #pte);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] ppn [2]: ";
+                           DispHex (pte_ppn_field vm_params_sv39 2 #pte);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] vpn [0]: ";
+                           DispHex (vaddr_vpn_field vm_params_sv39 0 vaddr);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] vpn [1]: ";
+                           DispHex (vaddr_vpn_field vm_params_sv39 1 vaddr);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] vpn [2]: ";
+                           DispHex (vaddr_vpn_field vm_params_sv39 2 vaddr);
+                           DispString _ "\n";
+                           DispString _ "[pte_translate] the resulting paddr: ";
+                           DispHex #paddr;
+                           DispString _ "\n"
+                         ];
+                         Ret #paddr
                        as result;
                      Ret #result)
                    as result;
@@ -349,7 +352,7 @@ Section pt_walker.
       (mode : PrivMode @# ty)
       (access_type : Bit vm_access_width @# ty)
       (vaddr : VAddr @# ty)
-      :  ActionT ty (PktWithException PAddr)
+      :  ActionT ty (Maybe PAddr)
       := Read satp_mode : Bit 4 <- ^"satp_mode";
          Read read_satp_ppn : Bit 44 <- ^"satp_ppn";
          LET satp_ppn
@@ -361,9 +364,9 @@ Section pt_walker.
            DispString _ "\n"
          ];
          LETA result
-           :  PktWithException PAddr
+           :  Maybe PAddr
            <- fold_right
-                (fun (level : nat) (acc : PAddr @# ty -> ActionT ty (PktWithException PAddr))
+                (fun (level : nat) (acc : PAddr @# ty -> ActionT ty (Maybe PAddr))
                   => pte_translate_gen
                        (mem_read_index + level)
                        #satp_mode
@@ -374,7 +377,7 @@ Section pt_walker.
                        acc)
                 (* See 4.3.2 item 4 *)
                 (fun _ : PAddr @# ty
-                  => Ret (vm_exception access_type))
+                  => Ret Invalid)
                 (rev (seq 0 levels))
                 (#satp_ppn << (Const ty (natToWord 4 page_size)));
          Ret #result.
