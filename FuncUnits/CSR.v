@@ -390,7 +390,7 @@ Section CsrInterface.
                            xlField ^"u";
                            @csrFieldNoReg "reserved1" (Bit 13) (getDefaultConst _);
                            @csrFieldAny ^"sum" (Bit 1) None;
-                           @csrFieldNoReg "reserved1" (Bit 5) (getDefaultConst _);
+                           @csrFieldNoReg "reserved2" (Bit 5) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
                            @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
