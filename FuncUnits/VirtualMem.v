@@ -59,6 +59,20 @@ Section pt_walker.
                       end
            end.
 
+    Definition mode_select
+      (k : Kind)
+      (satp_mode : Bit satp_mode_width @# ty)
+      (f : vm_params_type -> k @# ty)
+      :  k @# ty
+      := Switch satp_mode Retn k With {
+           ($satp_mode_sv32 : Bit satp_mode_width @# ty)
+             ::= f vm_params_sv32;
+           ($satp_mode_sv39 : Bit satp_mode_width @# ty)
+             ::= f vm_params_sv39;
+           ($satp_mode_sv48 : Bit satp_mode_width @# ty)
+             ::= f vm_params_sv48
+         }.
+
     (* See figure 4.15 *)
     Definition pte_valid (pte : Bit pte_width @# ty)
       :  Bool @# ty
@@ -79,6 +93,18 @@ Section pt_walker.
     Definition pte_user (pte : Bit pte_width @# ty)
       :  Bool @# ty
       := (unsafeTruncLsb 8 pte)$#[4:4] == $1.
+
+    Definition pte_global (pte : Bit pte_width @# ty)
+      :  Bool @# ty
+      := (unsafeTruncLsb 8 pte)$#[5:5] == $1.
+
+    Definition pte_access (pte : Bit pte_width @# ty)
+      :  Bool @# ty
+      := (unsafeTruncLsb 8 pte)$#[6:6] == $1.
+
+    Definition pte_dirty (pte : Bit pte_width @# ty)
+      :  Bool @# ty
+      := (unsafeTruncLsb 8 pte)$#[7:7] == $1.
 
     Definition vaddr_vpn_field
       (vm_params : vm_params_type)
@@ -104,7 +130,17 @@ Section pt_walker.
                ((list_sum (list_take (vm_params_ppn_widths vm_params) (S ppn_field_index))) +
                 pte_offset_width)%nat
                pte)).
-
+(*
+    Definition pte_ppn_fields
+      (vm_params : vm_params_type)
+      (ppn_field_index : nat)
+      (pte : Bit pte_width @# ty)
+      :  PAddr @# ty
+      := let width := list_sum (list_take (vm_params_ppn_widths vm_params) (S ppn_field_index)) in
+         ZeroExtendTruncLsb PAddrSz
+           (ZeroExtendTruncMsb width
+             (unsafeTruncLsb (width + pte_offset_width)%nat pte)).
+*)
     Definition pte_ppn
       (vm_params : vm_params_type)
       (pte : Bit pte_width @# ty)
@@ -115,14 +151,15 @@ Section pt_walker.
            (ZeroExtendTruncMsb width
              (unsafeTruncLsb (pte_offset_width + width)%nat pte)).
 
-    (* TODO See 4.3.2 item 5 *)
+    (* See 4.3.2 item 5 *)
     Definition pte_grant
       (mode : PrivMode @# ty)
       (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *)
       (access_type : Bit vm_access_width @# ty)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-      (* := $$true. *)
+      := $$true.
+(*
       := (access_type != $vm_access_load || pte_read pte) &&
          (access_type != $vm_access_inst || pte_execute pte) &&
          (access_type != $vm_access_samo || pte_write pte) &&
@@ -130,20 +167,35 @@ Section pt_walker.
             ($MachineMode : PrivMode @# ty)
               ::= $$true;
             ($SupervisorMode : PrivMode @# ty)
-              ::= (!(pte_user pte) || (!(access_type == $vm_access_inst) && sum));
+              ::= (!(pte_user pte) || (access_type != $vm_access_inst && sum));
             ($UserMode : PrivMode @# ty)
               ::= pte_user pte
           }).
-                 
-
+*)
     (* TODO See 4.3.2 item 6 *)
     Definition pte_aligned
+      (vm_params : vm_params_type)
       (level : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
+(*
+      := if Nat.eqb 0 level
+           then $$true
+           else
+             (ZeroExtendTruncLsb (levels - 1)%nat
+               (ZeroExtendTruncLsb (level - 1)%nat
+                 (pte_ppn vm_params pte))) ==
+              $0.
+*)
       := $$true.
 
-    (* TODO See 4.3.2 item 8 *)
+    (* See 4.3.2. item 7 *)
+    Definition pte_access_dirty
+      (access_type : Bit vm_access_width @# ty)
+      (pte : Bit pte_width @# ty)
+      := !pte_access pte || (access_type == $vm_access_samo && !pte_dirty pte).
+
+    (* See 4.3.2 item 8 *)
     Definition pte_address
       (vm_params : vm_params_type)
       (level : nat)
@@ -191,37 +243,20 @@ Section pt_walker.
       := (* See 4.3.2.item 2 *)
          LET debug_index
            :  Bit 3
-           <- Switch satp_mode Retn Bit 3 With {
-                ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                  ::= Const ty (natToWord 3 (pte_index vm_params_sv32 level));
-                ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                  ::= Const ty (natToWord 3 (pte_index vm_params_sv39 level));
-                ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                  ::= Const ty (natToWord 3 (pte_index vm_params_sv48 level))
-              };
+           <- mode_select satp_mode
+                (fun vm_params
+                  => Const ty (natToWord 3 (pte_index vm_params level)));
          LET debug_vpn
            :  PAddr
-           <- Switch satp_mode Retn PAddr With {
-                ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                  ::= vaddr_vpn_field vm_params_sv32 (pte_index vm_params_sv32 level) vaddr;
-                ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                  ::= vaddr_vpn_field vm_params_sv39 (pte_index vm_params_sv39 level) vaddr;
-                ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                  ::= vaddr_vpn_field vm_params_sv48 (pte_index vm_params_sv48 level) vaddr
-              };
+           <- mode_select satp_mode
+                (fun vm_params
+                  => vaddr_vpn_field vm_params (pte_index vm_params level) vaddr);
          LET curr_pte_offset
            :  PAddr
-           <- Switch satp_mode Retn PAddr With {
-                ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                  ::= (vaddr_vpn_field vm_params_sv32 (pte_index vm_params_sv32 level) vaddr <<
-                        (Const ty (natToWord 3 (vm_params_pte_width vm_params_sv32))));
-                ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                  ::= (vaddr_vpn_field vm_params_sv39 (pte_index vm_params_sv39 level) vaddr <<
-                        (Const ty (natToWord 3 (vm_params_pte_width vm_params_sv39))));
-                ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                  ::= (vaddr_vpn_field vm_params_sv48 (pte_index vm_params_sv48 level) vaddr <<
-                        (Const ty (natToWord 3 (vm_params_pte_width vm_params_sv48))))
-              };
+           <- mode_select satp_mode
+                (fun vm_params
+                  => vaddr_vpn_field vm_params (pte_index vm_params level) vaddr <<
+                       (Const ty (natToWord 3 (vm_params_pte_width vm_params))));
          LET curr_pte_address
            :  PAddr
            <- curr_pte_base_address + #curr_pte_offset;
@@ -288,14 +323,7 @@ Section pt_walker.
                        else
                          LET ppn
                            :  PAddr
-                           <- Switch satp_mode Retn PAddr With {
-                                ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                                  ::= pte_ppn vm_params_sv32 #pte;
-                                ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                                  ::= pte_ppn vm_params_sv39 #pte;
-                                ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                                  ::= pte_ppn vm_params_sv48 #pte
-                              };
+                           <- mode_select satp_mode (fun vm_params => pte_ppn vm_params #pte);
                          (* item 4 *)
                          LET next_pte_address
                            :  PAddr
@@ -311,28 +339,22 @@ Section pt_walker.
                          Ret #result
                        as result;
                      Ret #result
-                   else (* item 5 and 6 *)
+                   else (* item 5, 6, and 7 *)
                      System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
-                     (* TODO: generalize pte_aligned *)
                      (If !pte_grant mode sum access_type #pte ||
-                        !pte_aligned level #pte
+                        !(mode_select satp_mode (fun vm_params => pte_aligned vm_params level #pte)) ||
+                        (pte_access_dirty access_type #pte)
                        then
                          System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
                          Ret Invalid
-                       else (* TODO add item 7 *)
+                       else
                          (* item 8 *)
-                         (* TODO: generalize pte_address *)
                          LET paddr
                            :  Maybe PAddr
                            <- Valid
-                                (Switch satp_mode Retn PAddr With {
-                                   ($satp_mode_sv32 : Bit satp_mode_width @# ty)
-                                     ::= pte_address vm_params_sv32 (pte_index vm_params_sv32 level) #pte vaddr;
-                                   ($satp_mode_sv39 : Bit satp_mode_width @# ty)
-                                     ::= pte_address vm_params_sv39 (pte_index vm_params_sv39 level) #pte vaddr;
-                                   ($satp_mode_sv48 : Bit satp_mode_width @# ty)
-                                     ::= pte_address vm_params_sv48 (pte_index vm_params_sv48 level) #pte vaddr
-                                 });
+                                (mode_select satp_mode
+                                  (fun vm_params
+                                    => pte_address vm_params (pte_index vm_params level) #pte vaddr));
                          System [
                            DispString _ "[pte_translate] ppn [0]: ";
                            DispHex (pte_ppn_field vm_params_sv39 0 #pte);

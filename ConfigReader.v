@@ -27,13 +27,13 @@ Section config_reader.
        Read sxl : XlenValue <- ^"sxl";
        Read uxl : XlenValue <- ^"uxl";
        System [
-           DispString _ "mxl:";
+           DispString _ "mxl: ";
            DispHex #mxl;
            DispString _ "\n";
-           DispString _ "sxl:";
+           DispString _ "sxl: ";
            DispHex #sxl;
            DispString _ "\n";
-           DispString _ "uxl:";
+           DispString _ "uxl: ";
            DispHex #uxl;
            DispString _ "\n"
        ];
@@ -61,13 +61,13 @@ Section config_reader.
        System
          [
            DispString _ "Start\n";
-           DispString _ "Mode:";
+           DispString _ "Mode: ";
            DispHex #mode;
            DispString _ "\n";
-           DispString _ "XL:";
+           DispString _ "XL: ";
            DispHex #xlen;
            DispString _ "\n";
-           DispString _ "Extensions:";
+           DispString _ "Extensions: ";
            DispBinary #extensions;
            DispString _ "\n"
          ];

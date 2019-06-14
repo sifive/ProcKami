@@ -30,7 +30,6 @@ Section trap_handling.
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
-  (* TODO Add width argument *)
   Definition trapAction
     (prefix : string)
     (next_mode : PrivMode @# ty)

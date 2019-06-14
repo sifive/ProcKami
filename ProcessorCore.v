@@ -189,7 +189,7 @@ Section Params.
                        DispString _ " [add] xlen: ";
                        DispDecimal (#cfg_pkt @% "xlen");
                        DispString _ "\n";
-                       DispString _ "PC:";
+                       DispString _ "PC: ";
                        DispHex #pc;
                        DispString _ "\n"
                      ];
