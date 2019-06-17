@@ -105,7 +105,7 @@ Section Mem.
               inputXform   := scInput 3;
               outputXform  := scTag ;
               optMemXform  := scXform false ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            nil |}.
   End Ty.

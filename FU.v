@@ -116,13 +116,14 @@ Record InstHints :=
     isJumpImm   : bool ;
     isJumpReg   : bool ;
     isSystem    : bool ;
-    isCsr       : bool }.
+    isCsr       : bool ;
+    writeMem    : bool }.
 
 Global Instance etaX : Settable _ :=
   settable!
     Build_InstHints
   < hasRs1 ; hasRs2 ; hasRd ; hasFrs1 ; hasFrs2 ; hasFrs3 ; hasFrd
-  ; isBranch ; isJumpImm ; isJumpReg ; isSystem ; isCsr >.
+  ; isBranch ; isJumpImm ; isJumpReg ; isSystem ; isCsr ; writeMem >.
                                                           
 Definition falseHints :=
   {| hasRs1      := false ;
@@ -136,7 +137,8 @@ Definition falseHints :=
      isJumpImm   := false ;
      isJumpReg   := false ;
      isSystem    := false ;
-     isCsr       := false |}.
+     isCsr       := false ;
+     writeMem    := false |}.
 
 Definition XlenWidth : nat := 2.
 Definition XlenValue : Kind := Bit XlenWidth.

@@ -365,7 +365,8 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldNoReg "reserved0" (Bit 13) (getDefaultConst _);
+                           @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
+                           @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldNoReg "reserved1" (Bit 5) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
@@ -388,7 +389,8 @@ Section CsrInterface.
                            @csrFieldNoReg "reserved0" (Bit 28) (getDefaultConst _);
                            xlField ^"s";
                            xlField ^"u";
-                           @csrFieldNoReg "reserved1" (Bit 13) (getDefaultConst _);
+                           @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
+                           @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldNoReg "reserved2" (Bit 5) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
@@ -524,7 +526,8 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldNoReg "reserved0" (Bit 13) (getDefaultConst _);
+                           @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
+                           @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
@@ -542,7 +545,8 @@ Section CsrInterface.
                       := [
                            @csrFieldNoReg "reserved0" (Bit 30) (getDefaultConst _);
                            xlField ^"u";
-                           @csrFieldNoReg "reserved1" (Bit 13) (getDefaultConst _);
+                           @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
+                           @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldNoReg "reserved2" (Bit 9) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;

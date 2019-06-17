@@ -143,7 +143,7 @@ Section Mem.
               inputXform   := storeInput 0 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 0 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "sh" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
@@ -153,7 +153,7 @@ Section Mem.
               inputXform   := storeInput 1 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 1 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "sw" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
@@ -163,7 +163,7 @@ Section Mem.
               inputXform   := storeInput 2 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 2 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "lwu" ;
               extensions   := "RV32I" :: "RV64I" :: nil;
@@ -193,7 +193,7 @@ Section Mem.
               inputXform   := storeInput 3 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 3 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "flw";
               extensions   := "F" :: "D" :: nil;
@@ -216,7 +216,7 @@ Section Mem.
               inputXform   := storeInput 2 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 2 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "fld";
               extensions   := "D" :: nil;
@@ -236,7 +236,7 @@ Section Mem.
               inputXform   := storeInput 3 ;
               outputXform  := storeTag ;
               optMemXform  := storeXform 3 ;
-              instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
            |} ::
            nil |}.
     Local Close Scope kami_expr.

@@ -93,7 +93,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoadd.d" ;
               extensions   := ["RV64I"];
@@ -104,7 +104,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg + mem) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoxor.d" ;
               extensions   := ["RV64I"];
@@ -115,7 +115,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => reg ^ mem) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoand.d" ;
               extensions   := ["RV64I"];
@@ -126,7 +126,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => (reg & mem)%kami_expr) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoor.d" ;
               extensions   := ["RV64I"];
@@ -137,7 +137,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => (reg | mem)%kami_expr) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomin.d" ;
               extensions   := ["RV64I"];
@@ -148,7 +148,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (SignExtendTruncLsb 64 reg) >s (SignExtendTruncLsb (63+1) mem) then mem else reg) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomax.d" ;
               extensions   := ["RV64I"];
@@ -159,7 +159,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (SignExtendTruncLsb 64 reg) >s (SignExtendTruncLsb (63+1) mem) then reg else mem) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amominu.d" ;
               extensions   := ["RV64I"];
@@ -170,7 +170,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (ZeroExtendTruncLsb 64 reg) > (ZeroExtendTruncLsb 64 mem) then mem else reg) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomaxu.d" ;
               extensions   := ["RV64I"];
@@ -181,7 +181,7 @@ Section Mem.
               inputXform   := amoInput 3;
               outputXform  := amoTag ;
               optMemXform  := amoXform false (fun reg mem => IF (ZeroExtendTruncLsb 64 reg) > (ZeroExtendTruncLsb 64 mem) then reg else mem) ;
-              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+              instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            nil |}.
 

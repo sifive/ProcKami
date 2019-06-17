@@ -105,7 +105,7 @@ Section Mem.
                  inputXform   := scInput 2;
                  outputXform  := scTag ;
                  optMemXform  := scXform true ;
-                 instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
+                 instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
               |} ::
               nil |}.
     Local Close Scope kami_expr.

@@ -130,55 +130,60 @@ Section pt_walker.
                ((list_sum (list_take (vm_params_ppn_widths vm_params) (S ppn_field_index))) +
                 pte_offset_width)%nat
                pte)).
-(*
-    Definition pte_ppn_fields
-      (vm_params : vm_params_type)
-      (ppn_field_index : nat)
-      (pte : Bit pte_width @# ty)
-      :  PAddr @# ty
-      := let width := list_sum (list_take (vm_params_ppn_widths vm_params) (S ppn_field_index)) in
-         ZeroExtendTruncLsb PAddrSz
-           (ZeroExtendTruncMsb width
-             (unsafeTruncLsb (width + pte_offset_width)%nat pte)).
-*)
+
     Definition pte_ppn
       (vm_params : vm_params_type)
       (pte : Bit pte_width @# ty)
       :  PAddr @# ty
-      := let width
-           := list_sum (vm_params_ppn_widths vm_params) in
-         ZeroExtendTruncLsb PAddrSz
-           (ZeroExtendTruncMsb width
-             (unsafeTruncLsb (pte_offset_width + width)%nat pte)).
+      := ZeroExtendTruncLsb PAddrSz (pte >> (Const ty (natToWord 4 pte_offset_width))).
 
     (* See 4.3.2 item 5 *)
     Definition pte_grant
       (mode : PrivMode @# ty)
+      (mxr : Bool @# ty)
       (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *)
       (access_type : Bit vm_access_width @# ty)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-      := $$true.
-(*
-      := (access_type != $vm_access_load || pte_read pte) &&
-         (access_type != $vm_access_inst || pte_execute pte) &&
-         (access_type != $vm_access_samo || pte_write pte) &&
-         (Switch mode Retn Bool With {
-            ($MachineMode : PrivMode @# ty)
-              ::= $$true;
-            ($SupervisorMode : PrivMode @# ty)
-              ::= (!(pte_user pte) || (access_type != $vm_access_inst && sum));
-            ($UserMode : PrivMode @# ty)
-              ::= pte_user pte
-          }).
-*)
+      := Switch access_type Retn Bool With {
+           ($vm_access_load : Bit vm_access_width @# ty)
+             ::= (pte_read pte || (mxr && pte_execute pte)) &&
+                 Switch mode Retn Bool With {
+                   ($MachineMode : PrivMode @# ty)
+                     ::= $$true;
+                   ($SupervisorMode : PrivMode @# ty)
+                     ::= ((!(pte_user pte)) || sum);
+                   ($UserMode : PrivMode @# ty)
+                     ::= pte_user pte
+                 };
+           ($vm_access_inst : Bit vm_access_width @# ty)
+             ::= pte_execute pte &&
+                 Switch mode Retn Bool With {
+                   ($MachineMode : PrivMode @# ty)
+                     ::= $$true;
+                   ($SupervisorMode : PrivMode @# ty)
+                     ::= !(pte_user pte);
+                   ($UserMode : PrivMode @# ty)
+                     ::= pte_user pte
+                 };
+           ($vm_access_samo : Bit vm_access_width @# ty)
+             ::= pte_write pte &&
+                 Switch mode Retn Bool With {
+                   ($MachineMode : PrivMode @# ty)
+                     ::= $$true;
+                   ($SupervisorMode : PrivMode @# ty)
+                     ::= ((!(pte_user pte)) || sum);
+                   ($UserMode : PrivMode @# ty)
+                     ::= pte_user pte
+                 }
+         }.
+
     (* TODO See 4.3.2 item 6 *)
     Definition pte_aligned
       (vm_params : vm_params_type)
       (level : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-(*
       := if Nat.eqb 0 level
            then $$true
            else
@@ -186,14 +191,13 @@ Section pt_walker.
                (ZeroExtendTruncLsb (level - 1)%nat
                  (pte_ppn vm_params pte))) ==
               $0.
-*)
-      := $$true.
 
     (* See 4.3.2. item 7 *)
     Definition pte_access_dirty
       (access_type : Bit vm_access_width @# ty)
       (pte : Bit pte_width @# ty)
-      := !pte_access pte || (access_type == $vm_access_samo && !pte_dirty pte).
+      := !pte_access pte || ((access_type == $vm_access_samo) && (!pte_dirty pte)).
+      (* := !pte_access pte. *)
 
     (* See 4.3.2 item 8 *)
     Definition pte_address
@@ -234,6 +238,7 @@ Section pt_walker.
       (satp_mode : Bit satp_mode_width @# ty)
       (level : nat)
       (mode : PrivMode @# ty)
+      (mxr : Bool @# ty)
       (sum : Bool @# ty) (* supervisor user mode bit *)
       (access_type : Bit vm_access_width @# ty)
       (vaddr : VAddr @# ty)
@@ -341,7 +346,7 @@ Section pt_walker.
                      Ret #result
                    else (* item 5, 6, and 7 *)
                      System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
-                     (If !pte_grant mode sum access_type #pte ||
+                     (If !pte_grant mode mxr sum access_type #pte ||
                         !(mode_select satp_mode (fun vm_params => pte_aligned vm_params level #pte)) ||
                         (pte_access_dirty access_type #pte)
                        then
@@ -404,6 +409,8 @@ Section pt_walker.
            DispHex #satp_ppn;
            DispString _ "\n"
          ];
+         Read read_mxr : Bit 1 <- ^"mxr";
+         LET mxr : Bool <- #read_mxr == $$(wones 1);
          Read read_sum : Bit 1 <- ^"sum";
          LET sum : Bool <- #read_sum == $$(wones 1);
          LETA result
@@ -415,6 +422,7 @@ Section pt_walker.
                        #satp_mode
                        level
                        mode
+                       #mxr
                        #sum
                        access_type
                        vaddr
