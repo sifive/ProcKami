@@ -41,7 +41,6 @@ Section mem_unit.
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
   Local Notation defMemRet := (defMemRet Xlen_over_8 Rlen_over_8 ty).
-  (* Local Notation instHints := (instHints Xlen_over_8 Rlen_over_8 ty). *)
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
@@ -321,6 +320,132 @@ Section mem_unit.
 
   Local Open Scope kami_action.
 
+  (*
+  *)
+  Definition mem_unit_exec
+    (mode : PrivMode @# ty)
+    (addr : VAddr @# ty)
+    (func_unit_id : FuncUnitId @# ty)
+    (inst_id : InstId @# ty)
+    (input_pkt : MemUnitInput @# ty)
+    :  ActionT ty (PktWithException MemRet)
+    := (* I. does the instruction perform a memory operation? *)
+       LETA mis_op
+         :  Maybe Bool
+         <- convertLetExprSyntax_ActionT
+              (inst_db_get_pkt
+                (fun _ _ tagged_inst
+                  => let inst := snd tagged_inst in
+                     RetE
+                       (match optMemXform inst with
+                         | Some _ => $$true
+                         | None => $$false
+                         end))
+                func_unit_id
+                inst_id);
+       If #mis_op @% "data"
+         then
+           (* II. does the instruction perform a memory write? *)
+           LETA mis_write
+             :  Maybe Bool
+             <- convertLetExprSyntax_ActionT
+                  (inst_db_get_pkt
+                    (fun _ _ tagged_inst
+                      => RetE (if writeMem (instHints (snd tagged_inst)) then $$true else $$false))
+                    func_unit_id
+                    inst_id);
+           (* III. get the physical address *)
+           LETA mpaddr
+             :  Maybe PAddr
+             <- memTranslate mode
+                  (IF #mis_write @% "data"
+                    then $vm_access_samo
+                    else $vm_access_load)
+                  addr;
+           If #mpaddr @% "valid"
+             then
+               (* IV. read the current value and place reservation *)
+               LETA mread_result
+                 :  Maybe Data
+                 <- pMemRead 2 mode (#mpaddr @% "data");
+               LETA read_reservation_result
+                 :  Array Rlen_over_8 Bool
+                 <- pMemReadReservation (#mpaddr @% "data");
+               (* V. did the read fail? *)
+               If #mread_result @% "valid"
+                 then 
+                   (* VI. apply the memory transform to compute the write value *)
+                   LETA mwrite_value
+                     :  Maybe MemoryOutput
+                     <- convertLetExprSyntax_ActionT
+                          (inst_db_get_pkt
+                            (fun _ _ tagged_inst
+                              => let inst := snd (tagged_inst) in
+                                 match optMemXform inst return MemoryOutput ## ty with
+                                   | Some f
+                                     => ((f
+                                          (RetE
+                                            (makeMemoryInput
+                                              input_pkt
+                                              (#mread_result @% "data")
+                                              #read_reservation_result))) : MemoryOutput ## ty)
+                                   | None (* impossible case *)
+                                     => RetE $$(getDefaultConst MemoryOutput)
+                                   end)
+                            func_unit_id
+                            inst_id);
+                   If #mis_write @% "data"
+                     then
+                       (* VII. write to memory. *)
+                       LET write_mask
+                         :  Array Rlen_over_8 Bool
+                         <- IF #mis_write @% "data"
+                              then #mwrite_value @% "data" @% "mask"
+                              else $$(ConstArray (fun (_ : Fin.t Rlen_over_8) => false));
+                       LETA write_result
+                         :  Maybe FullException
+                         <- pMemWrite mode
+                              (STRUCT {
+                                 "addr" ::= (#mpaddr @% "data" : PAddr @# ty);
+                                 "data" ::= (#mwrite_value @% "data" @% "data" : Data @# ty);
+                                 "mask" ::= (#write_mask : Array Rlen_over_8 Bool @# ty)
+                               } : MemWrite @# ty);
+                       Ret #write_result
+                     else
+                       Ret Invalid
+                     as write_exception;
+                   If #mwrite_value @% "data" @% "isLrSc"
+                     then pMemWriteReservation
+                            (#mpaddr @% "data")
+                            (#mwrite_value @% "data" @% "mask")
+                            (#mwrite_value @% "data" @% "reservation");
+                   LET result
+                     :  MemRet
+                     <- STRUCT {
+                          "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
+                          "tag"  ::= #mwrite_value @% "data" @% "tag";
+                          "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
+                        } : MemRet @# ty;
+                   LET ret_value
+                     :  PktWithException MemRet
+                     <- STRUCT {
+                          "fst" ::= #result;
+                          "snd" ::= #write_exception
+                        } : PktWithException MemRet @# ty;
+                   Ret #ret_value
+                 else 
+                   Ret defMemRet
+                 as result;
+               Ret #result
+             else
+               Ret defMemRet
+             as result;
+           Ret #result
+         else
+           Ret defMemRet
+         as result;
+       Ret #result.
+
   Definition MemUnit
              (xlen : XlenValue @# ty)
              (mode : PrivMode @# ty)
@@ -331,7 +456,20 @@ Section mem_unit.
     := LET exec_update_pkt: ExecUpdPkt <- opt_exec_update_pkt @% "fst";
        LETA memRet
          :  PktWithException MemRet
+(*
          <- fullMemAction
+              mode
+              (xlen_sign_extend Xlen xlen
+                (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
+              (decoder_pkt @% "funcUnitTag")
+              (decoder_pkt @% "instTag")
+              (STRUCT {
+                 "aq"       ::= #exec_update_pkt @% "aq";
+                 "rl"       ::= #exec_update_pkt @% "rl";
+                 "reg_data" ::= exec_context_pkt @% "reg2"
+                 } : MemUnitInput @# ty);
+*)
+         <- mem_unit_exec
               mode
               (xlen_sign_extend Xlen xlen
                 (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))

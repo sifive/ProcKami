@@ -243,7 +243,7 @@ Section Params.
                      ];
                    LETA mem_update_pkt
                      <- MemUnit name mem_params
-                          ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"]
+                          (* ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"] *)
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "mode")
                           (#decoder_pkt @% "fst")
