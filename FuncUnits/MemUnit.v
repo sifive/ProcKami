@@ -126,202 +126,6 @@ Section mem_unit.
          as result;
        Ret #result.
 
-  Definition memReadReservation
-    (mode : PrivMode @# ty) 
-    (vaddr : VAddr @# ty)
-    :  ActionT ty (Array Rlen_over_8 Bool)
-    := LETA paddr
-         :  Maybe PAddr
-         <- memTranslate mode $vm_access_load vaddr; (* TODO check access code. *)
-       If #paddr @% "valid"
-         then
-           LETA result
-             :  Array Rlen_over_8 Bool
-             <- pMemReadReservation (#paddr @% "data");
-           Ret #result
-         else
-           (* TODO how should we handle this scenario? *)
-           Ret $$(getDefaultConst (Array Rlen_over_8 Bool))
-         as result;
-       Ret #result.
-
-  Definition getMemEntryFromInsts ik ok (insts: list (InstEntry ik ok)) pos :
-    option (bool *
-            (LetExprSyntax ty MemoryInput ->
-             LetExprSyntax ty MemoryOutput))%type :=
-    match find (fun x => getBool (Nat.eq_dec pos (fst x))) (tag insts) with
-    | None => None
-    | Some inst => match optMemXform (snd inst)
-                   with
-                   | None => None
-                   | Some val => Some (writeMem (instHints (snd inst)), val)
-                   end
-    end.
-
-  Variable memFuNames: list string.
-
-  Definition memFus := filter
-                         (fun x => getBool (in_dec string_dec (fuName (snd x)) memFuNames))
-                         (tag func_units).
-
-  Definition lengthMemFus := map (fun x => length (fuInsts (snd x))) memFus.
-
-  Definition tagMemFus: list nat := map fst memFus.
-
-  Definition getMemEntry fu pos:
-    option (bool *
-            (LetExprSyntax ty MemoryInput ->
-             LetExprSyntax ty MemoryOutput))%type :=
-    getMemEntryFromInsts (fuInsts fu) pos.
-
-  Local Open Scope kami_expr.
-
-  Definition makeMemoryInput (i: MemUnitInput @# ty) (mem: Data @# ty)
-             (reservation : Array Rlen_over_8 Bool @# ty) : MemoryInput @# ty :=
-    STRUCT {
-        "aq" ::= i @% "aq" ;
-        "rl" ::= i @% "rl" ;
-        "reservation" ::= reservation ;
-        "mem" ::= mem ;
-        "reg_data" ::= i @% "reg_data"
-      }.
-
-  Section MemAddr.
-    Variable mode: PrivMode @# ty.
-    Variable addr: VAddr @# ty.
-    Variable fuTag: FuncUnitId @# ty.
-    Variable instTag: InstId @# ty.
-    Variable memUnitInput: MemUnitInput @# ty.
-
-    Local Open Scope kami_action.
-
-    Definition memAction (fu: FUEntry) (tag: nat)
-      :  ActionT ty (PktWithException MemRet)
-      := If instTag == $tag
-         then 
-           match getMemEntry fu tag with
-             | Some entry
-               => (let (write_mem, fn) := entry in
-                  LETA translateResult
-                    :  Maybe PAddr
-                    <- memTranslate mode
-                         (if write_mem
-                           then $vm_access_samo
-                           else $vm_access_load)
-                         addr;
-                  If !(#translateResult @% "valid")
-                  then
-                    System (DispString _ "[memAction] memory translate failed.\n" :: nil);
-                    Ret (STRUCT {
-                           "fst"
-                             ::= (STRUCT {
-                                    "writeReg?" ::= $$false;
-                                    "tag" ::= $0;
-                                    "data" ::= $0
-                                  } : MemRet @# ty);
-                           "snd"
-                             ::= (Valid (STRUCT {
-                                    "exception" ::= ($vm_access_samo : Exception @# ty);
-                                    "value" ::= addr
-                                  }) : Maybe FullException @# ty)
-                         })
-                  else     
-                    LET paddr
-                      :  PAddr
-                      <- #translateResult @% "data";
-                    LETA memReadVal
-                      :  Maybe Data
-                      <- pMemRead 2 mode #paddr;
-                    LETA memReadReservationVal
-                      : Array Rlen_over_8 Bool
-                      <- pMemReadReservation #paddr;
-                    System
-                      (DispString _ "Mem Read: " ::
-                       DispHex #memReadVal ::
-                       DispString _ "\n" ::
-                       nil);
-                    If !(#memReadVal @% "valid")
-                    then
-                      Ret defMemRet
-                    else
-                      (LETA memoryOutput
-                       :  MemoryOutput
-                       <- convertLetExprSyntax_ActionT (fn (RetE (makeMemoryInput memUnitInput
-                                                                                  (#memReadVal @% "data")
-                                                                                  #memReadReservationVal)));
-                       System
-                         (DispString _ "Mem Output Write to Register: " ::
-                                     DispBinary #memoryOutput ::
-                                     DispString _ "\n" ::
-                                     nil);
-                       If (#memoryOutput @% "isWr")
-                       then
-                         (LET memWriteVal
-                          :  MemWrite
-                          <- STRUCT {
-                            "addr" ::= #paddr;
-                            "data" ::= #memoryOutput @% "data";
-                            "mask" ::=
-                              (IF #memoryOutput @% "isWr"
-                               then #memoryOutput @% "mask"
-                               else $$ (ConstArray (fun (_: Fin.t Rlen_over_8) => false)))
-                          } : MemWrite @# ty;
-                          LETA writeEx
-                          :  Maybe FullException
-                          <- pMemWrite mode #memWriteVal;
-                          System
-                            (DispString _ "Mem Write: " ::
-                             DispHex #memWriteVal ::
-                             DispString _ "\n" ::
-                             nil);
-                          Ret #writeEx)
-                       else
-                          Ret (@Invalid _ FullException)
-                       as writeEx;
-                       If (#memoryOutput @% "isLrSc")
-                       then pMemWriteReservation #paddr (#memoryOutput @% "mask") (#memoryOutput @% "reservation");
-                       LET fstVal: MemRet <- STRUCT {
-                                       "writeReg?" ::= #memoryOutput @% "reg_data" @% "valid";
-                                       "tag" ::= #memoryOutput @% "tag";
-                                       "data" ::= #memoryOutput @% "reg_data" @% "data" } ;
-                       LET memRet
-                       : PktWithException MemRet
-                       <- STRUCT {
-                         "fst" ::= #fstVal;
-                         "snd" ::= #writeEx };
-                       Ret #memRet)
-                    as ret;
-                    Ret #ret
-                  as ret;
-                  Ret #ret)        
-             | None => Ret defMemRet
-             end
-         else Ret defMemRet
-         as ret;
-           Ret #ret.
-
-    Definition fullMemAction
-      :  ActionT ty (PktWithException MemRet)
-      := GatherActions
-           (map (fun memFu =>
-                   (If (fuTag == $ (fst memFu))
-                    then 
-                      (GatherActions (map (memAction (snd memFu)) (0 upto (length (fuInsts (snd memFu))))) as retVals;
-                         Ret (unpack (PktWithException MemRet)
-                                     (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals))))
-                    else
-                      Ret defMemRet
-                     as ret;
-                      Ret #ret)) memFus) as retVals2;
-           Ret (unpack (PktWithException MemRet) (CABit Bor (map (@pack ty (PktWithException MemRet)) retVals2))).
-
-    Local Close Scope kami_action.
-  End MemAddr.
-
-  Local Open Scope kami_action.
-
-  (*
-  *)
   Definition mem_unit_exec
     (mode : PrivMode @# ty)
     (addr : VAddr @# ty)
@@ -385,10 +189,13 @@ Section mem_unit.
                                    | Some f
                                      => ((f
                                           (RetE
-                                            (makeMemoryInput
-                                              input_pkt
-                                              (#mread_result @% "data")
-                                              #read_reservation_result))) : MemoryOutput ## ty)
+                                            (STRUCT {
+                                              "aq" ::= input_pkt @% "aq" ;
+                                              "rl" ::= input_pkt @% "rl" ;
+                                              "reservation" ::= #read_reservation_result;
+                                              "mem" ::= #mread_result @% "data" ;
+                                              "reg_data" ::= input_pkt @% "reg_data"
+                                             } : MemoryInput @# ty))) : MemoryOutput ## ty)
                                    | None (* impossible case *)
                                      => RetE $$(getDefaultConst MemoryOutput)
                                    end)
@@ -414,6 +221,12 @@ Section mem_unit.
                      else
                        Ret Invalid
                      as write_exception;
+                   If #write_exception @% "valid"
+                     then
+                       System [
+                         DispString _ "[mem_unit_exec] the memory write operation threw an exception.\n"
+                       ];
+                       Retv;
                    If #mwrite_value @% "data" @% "isLrSc"
                      then pMemWriteReservation
                             (#mpaddr @% "data")
@@ -434,11 +247,29 @@ Section mem_unit.
                         } : PktWithException MemRet @# ty;
                    Ret #ret_value
                  else 
+                   System [
+                     DispString _ "[mem_unit_exec] the memory read operation threw an exception.\n"
+                   ];
                    Ret defMemRet
                  as result;
                Ret #result
              else
-               Ret defMemRet
+               System [
+                 DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
+               ];
+               Ret
+                 (STRUCT {
+                   "fst" ::= $$(getDefaultConst MemRet);
+                   "snd"
+                     ::= (Valid (STRUCT {
+                            "exception"
+                              ::= (IF #mis_write @% "data"
+                                    then $SAmoPageFault
+                                    else $LoadPageFault
+                                    : Exception @# ty);
+                            "value" ::= addr
+                          }) : Maybe FullException @# ty)
+                  })
              as result;
            Ret #result
          else
@@ -456,19 +287,6 @@ Section mem_unit.
     := LET exec_update_pkt: ExecUpdPkt <- opt_exec_update_pkt @% "fst";
        LETA memRet
          :  PktWithException MemRet
-(*
-         <- fullMemAction
-              mode
-              (xlen_sign_extend Xlen xlen
-                (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
-              (decoder_pkt @% "funcUnitTag")
-              (decoder_pkt @% "instTag")
-              (STRUCT {
-                 "aq"       ::= #exec_update_pkt @% "aq";
-                 "rl"       ::= #exec_update_pkt @% "rl";
-                 "reg_data" ::= exec_context_pkt @% "reg2"
-                 } : MemUnitInput @# ty);
-*)
          <- mem_unit_exec
               mode
               (xlen_sign_extend Xlen xlen
@@ -498,7 +316,6 @@ Section mem_unit.
                } : PktWithException ExecUpdPkt @# ty)).
 
   Close Scope kami_expr.
-
   Close Scope kami_action.
 
 End mem_unit.
