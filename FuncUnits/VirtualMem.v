@@ -181,19 +181,19 @@ Section pt_walker.
     (* TODO See 4.3.2 item 6 *)
     Definition pte_aligned
       (vm_params : vm_params_type)
-      (level : nat)
+      (index : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-      := $$true.
 (*
-      := if Nat.eqb 0 level
+      := $$true.
+*)
+      := if Nat.eqb 0 index
            then $$true
            else
              (ZeroExtendTruncLsb (levels - 1)%nat
-               (ZeroExtendTruncLsb (level - 1)%nat
+               (ZeroExtendTruncLsb (index - 1)%nat
                  (pte_ppn vm_params pte))) ==
               $0.
-*)
 
     (* See 4.3.2. item 7 *)
     Definition pte_access_dirty
@@ -235,7 +235,15 @@ Section pt_walker.
       :  nat
       := (vm_params_levels vm_params - (levels - level))%nat.
 
-    Definition pte_translate_gen
+    Local Definition pte_translate_abort
+      (vm_params : vm_params_type)
+      (level : nat)
+      :  Bool @# ty
+      := if Nat.leb (levels - (vm_params_levels vm_params))%nat level
+           then $$false
+           else $$true.
+
+    Definition pte_translate
       (mem_read_index : nat)
       (satp_mode : Bit satp_mode_width @# ty)
       (level : nat)
@@ -316,6 +324,8 @@ Section pt_walker.
                    then
                      System [DispString _ "[pte_translate] the page table entry is a pointer.\n"];
                      If
+                       mode_select satp_mode (fun vm_params => pte_translate_abort vm_params level)
+(*
                        (fold_right
                          (fun (vm_params : vm_params_type) (acc : Bool @# ty)
                            => if (Nat.leb (levels - (vm_params_levels vm_params))%nat level)
@@ -324,6 +334,7 @@ Section pt_walker.
                          $$false
                          (* TODO: make list of suppported vm modes configurable *)
                          [vm_params_sv32; vm_params_sv39; vm_params_sv48])
+*)
                        then 
                          System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
                          Ret Invalid
@@ -348,8 +359,13 @@ Section pt_walker.
                      Ret #result
                    else (* item 5, 6, and 7 *)
                      System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
+                     System [
+                       DispString _ "[pte_translate] full ppn: ";
+                       DispHex (pte_ppn vm_params_sv39 #pte);
+                       DispString _ "\n"
+                     ];
                      (If !pte_grant mode mxr sum access_type #pte ||
-                        !(mode_select satp_mode (fun vm_params => pte_aligned vm_params level #pte)) ||
+                        !(mode_select satp_mode (fun vm_params => pte_aligned vm_params (pte_index vm_params level) #pte)) ||
                         (pte_access_dirty access_type #pte)
                        then
                          System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
@@ -419,7 +435,7 @@ Section pt_walker.
            :  Maybe PAddr
            <- fold_right
                 (fun (level : nat) (acc : PAddr @# ty -> ActionT ty (Maybe PAddr))
-                  => pte_translate_gen
+                  => pte_translate
                        (mem_read_index + level)
                        #satp_mode
                        level
