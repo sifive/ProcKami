@@ -289,24 +289,24 @@ Section Params.
       optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
       instHints    : InstHints }.
 
-  Record int_params_type
+  Record IntParamsType
     := {
          int_params_exts : list string;
          int_params_xlen : nat
        }.
 
-  Record fu_params_type
+  Record FpuParamsType
     := {
-         fu_params_expWidthMinus2 : nat;
-         fu_params_sigWidthMinus2 : nat; 
-         fu_params_exp_valid      : (fu_params_expWidthMinus2 >= 2)%nat;
-         fu_params_sig_valid      : (pow2 fu_params_expWidthMinus2 + 4 > fu_params_sigWidthMinus2 + 1 + 1)%nat;
-         fu_params_suffix         : string;
-         fu_params_int_suffix     : string;
-         fu_params_format_field   : word 2;
-         fu_params_exts           : list string;
-         fu_params_exts_32        : list string;
-         fu_params_exts_64        : list string
+         fpu_params_expWidthMinus2 : nat;
+         fpu_params_sigWidthMinus2 : nat; 
+         fpu_params_exp_valid      : (fpu_params_expWidthMinus2 >= 2)%nat;
+         fpu_params_sig_valid      : (pow2 fpu_params_expWidthMinus2 + 4 > fpu_params_sigWidthMinus2 + 1 + 1)%nat;
+         fpu_params_suffix         : string;
+         fpu_params_int_suffix     : string;
+         fpu_params_format_field   : word 2;
+         fpu_params_exts           : list string;
+         fpu_params_exts_32        : list string;
+         fpu_params_exts_64        : list string
        }.
 
   Record FUEntry :=
@@ -316,21 +316,21 @@ Section Params.
       fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
       fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
-  Record mem_params_type
+  Record MemParamsType
     := {
          mem_params_size           : nat; (* log2 num mem bytes *)
          mem_params_addr_size      : nat; (* physical address size *)
          mem_params_granularity    : nat  (* pmp (napot) granularity *)
        }.
 
-  Definition satp_mode_width := 4.
-  Definition satp_mode_bare := 0.
-  Definition satp_mode_sv32 := 1.
-  Definition satp_mode_sv39 := 8.
-  Definition satp_mode_sv48 := 9.
+  Definition SatpModeWidth := 4.
+  Definition SatpModeBare := 0.
+  Definition SatpModeSv32 := 1.
+  Definition SatpModeSv39 := 8.
+  Definition SatpModeSv48 := 9.
 
   (* virtual memory translation params.*)
-  Record vm_params_type
+  Record VmParamsType
     := {
          vm_params_levels          : nat; (* num page table levels = num ppn fields *)
          vm_params_page_size       : nat; (* num page and page table bytes *)
@@ -339,7 +339,7 @@ Section Params.
          vm_params_last_ppn_width  : nat;  (* num last physical page number field bits *)
          vm_params_ppn_widths      : list nat; (* the widths of ppn fields 0 - levels *)
          vm_params_vpn_width       : nat; (* the width of each vpn field *)
-         vm_params_mode            : word satp_mode_width (* the code used to identify this mode. *)
+         vm_params_mode            : word SatpModeWidth (* the code used to identify this mode. *)
        }.
 
   (* See 4.3.1 *)
@@ -352,7 +352,7 @@ Section Params.
          vm_params_last_ppn_width := 12;
          vm_params_ppn_widths     := [10; 12];
          vm_params_vpn_width      := 10;
-         vm_params_mode           := $satp_mode_sv32
+         vm_params_mode           := $SatpModeSv32
        |}.
 
   Definition vm_params_sv39
@@ -364,7 +364,7 @@ Section Params.
          vm_params_last_ppn_width := 26;
          vm_params_ppn_widths     := [9; 9; 26];
          vm_params_vpn_width      := 9;
-         vm_params_mode           := $satp_mode_sv39
+         vm_params_mode           := $SatpModeSv39
        |}.
 
   Definition vm_params_sv48
@@ -376,13 +376,13 @@ Section Params.
          vm_params_last_ppn_width := 17;
          vm_params_ppn_widths     := [9; 9; 9; 17];
          vm_params_vpn_width      := 9;
-         vm_params_mode           := $satp_mode_sv48
+         vm_params_mode           := $SatpModeSv48
        |}.
 
-  Definition vm_access_width := 2.
-  Definition vm_access_inst := 0.
-  Definition vm_access_load := 1.
-  Definition vm_access_samo := 2.
+  Definition VmAccessWidth := 2.
+  Definition VmAccessInst := 0.
+  Definition VmAccessLoad := 1.
+  Definition VmAccessSAmo := 2.
 
   Local Open Scope kami_expr.
   Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty) k2 (pkt2: PktWithException k2 @# ty) :=

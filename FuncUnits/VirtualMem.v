@@ -19,8 +19,8 @@ Section pt_walker.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : mem_params_type.
-  Variable vm_params : vm_params_type.
+  Variable mem_params : MemParamsType.
+  Variable vm_params : VmParamsType.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -61,15 +61,15 @@ Section pt_walker.
 
     Definition mode_select
       (k : Kind)
-      (satp_mode : Bit satp_mode_width @# ty)
-      (f : vm_params_type -> k @# ty)
+      (satp_mode : Bit SatpModeWidth @# ty)
+      (f : VmParamsType -> k @# ty)
       :  k @# ty
       := Switch satp_mode Retn k With {
-           ($satp_mode_sv32 : Bit satp_mode_width @# ty)
+           ($SatpModeSv32 : Bit SatpModeWidth @# ty)
              ::= f vm_params_sv32;
-           ($satp_mode_sv39 : Bit satp_mode_width @# ty)
+           ($SatpModeSv39 : Bit SatpModeWidth @# ty)
              ::= f vm_params_sv39;
-           ($satp_mode_sv48 : Bit satp_mode_width @# ty)
+           ($SatpModeSv48 : Bit SatpModeWidth @# ty)
              ::= f vm_params_sv48
          }.
 
@@ -107,7 +107,7 @@ Section pt_walker.
       := (unsafeTruncLsb 8 pte)$#[7:7] == $1.
 
     Definition vaddr_vpn_field
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (vpn_field_index : nat)
       (vaddr : VAddr @# ty)
       :  PAddr @# ty
@@ -119,7 +119,7 @@ Section pt_walker.
              (unsafeTruncLsb width vaddr)).
 
     Definition pte_ppn_field
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (ppn_field_index : nat)
       (pte : Bit pte_width @# ty)
       :  PAddr @# ty
@@ -132,7 +132,7 @@ Section pt_walker.
                pte)).
 
     Definition pte_ppn
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (pte : Bit pte_width @# ty)
       :  PAddr @# ty
       := ZeroExtendTruncLsb PAddrSz (pte >> (Const ty (natToWord 4 pte_offset_width))).
@@ -142,11 +142,11 @@ Section pt_walker.
       (mode : PrivMode @# ty)
       (mxr : Bool @# ty)
       (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *)
-      (access_type : Bit vm_access_width @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
       := Switch access_type Retn Bool With {
-           ($vm_access_load : Bit vm_access_width @# ty)
+           ($VmAccessLoad : Bit VmAccessWidth @# ty)
              ::= (pte_read pte || (mxr && pte_execute pte)) &&
                  Switch mode Retn Bool With {
                    ($MachineMode : PrivMode @# ty)
@@ -156,7 +156,7 @@ Section pt_walker.
                    ($UserMode : PrivMode @# ty)
                      ::= pte_user pte
                  };
-           ($vm_access_inst : Bit vm_access_width @# ty)
+           ($VmAccessInst : Bit VmAccessWidth @# ty)
              ::= pte_execute pte &&
                  Switch mode Retn Bool With {
                    ($MachineMode : PrivMode @# ty)
@@ -166,7 +166,7 @@ Section pt_walker.
                    ($UserMode : PrivMode @# ty)
                      ::= pte_user pte
                  };
-           ($vm_access_samo : Bit vm_access_width @# ty)
+           ($VmAccessSAmo : Bit VmAccessWidth @# ty)
              ::= pte_write pte &&
                  Switch mode Retn Bool With {
                    ($MachineMode : PrivMode @# ty)
@@ -180,7 +180,7 @@ Section pt_walker.
 
     (* TODO See 4.3.2 item 6 *)
     Definition pte_aligned
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (index : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
@@ -197,13 +197,13 @@ Section pt_walker.
 
     (* See 4.3.2. item 7 *)
     Definition pte_access_dirty
-      (access_type : Bit vm_access_width @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
       (pte : Bit pte_width @# ty)
-      := !pte_access pte || ((access_type == $vm_access_samo) && (!pte_dirty pte)).
+      := !pte_access pte || ((access_type == $VmAccessSAmo) && (!pte_dirty pte)).
 
     (* See 4.3.2 item 8 *)
     Definition pte_address
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (level : nat)
       (pte : Bit pte_width @# ty)
       (vaddr : VAddr @# ty)
@@ -230,13 +230,13 @@ Section pt_walker.
            (unsafeTruncLsb (fst result) (snd result)).
 
     Local Definition pte_index
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (level : nat)
       :  nat
       := (vm_params_levels vm_params - (levels - level))%nat.
 
     Local Definition pte_translate_abort
-      (vm_params : vm_params_type)
+      (vm_params : VmParamsType)
       (level : nat)
       :  Bool @# ty
       := if Nat.leb (levels - (vm_params_levels vm_params))%nat level
@@ -245,12 +245,12 @@ Section pt_walker.
 
     Definition pte_translate
       (mem_read_index : nat)
-      (satp_mode : Bit satp_mode_width @# ty)
+      (satp_mode : Bit SatpModeWidth @# ty)
       (level : nat)
       (mode : PrivMode @# ty)
       (mxr : Bool @# ty)
       (sum : Bool @# ty) (* supervisor user mode bit *)
-      (access_type : Bit vm_access_width @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
       (vaddr : VAddr @# ty)
       (next_level : PAddr @# ty -> ActionT ty (Maybe PAddr))
       (curr_pte_base_address : PAddr @# ty)
@@ -327,7 +327,7 @@ Section pt_walker.
                        mode_select satp_mode (fun vm_params => pte_translate_abort vm_params level)
 (*
                        (fold_right
-                         (fun (vm_params : vm_params_type) (acc : Bool @# ty)
+                         (fun (vm_params : VmParamsType) (acc : Bool @# ty)
                            => if (Nat.leb (levels - (vm_params_levels vm_params))%nat level)
                                 then acc
                                 else ((satp_mode == (Const ty (vm_params_mode vm_params))) || acc))
@@ -414,7 +414,7 @@ Section pt_walker.
     Definition pt_walker
       (mem_read_index : nat)
       (mode : PrivMode @# ty)
-      (access_type : Bit vm_access_width @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
       (vaddr : VAddr @# ty)
       :  ActionT ty (Maybe PAddr)
       := Read satp_mode : Bit 4 <- ^"satp_mode";

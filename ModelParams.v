@@ -36,32 +36,32 @@ Require Import FuncUnits.MRet.
 
 (* I. configuration parameters. *)
 
-Definition fu_params_single
+Definition fpu_params_single
   := {|
-       fu_params_expWidthMinus2 := 6;
-       fu_params_sigWidthMinus2 := 22;
-       fu_params_exp_valid      := ltac:(cbv; lia);
-       fu_params_sig_valid      := ltac:(cbv; lia);
-       fu_params_suffix         := ".s";
-       fu_params_int_suffix     := ".w";
-       fu_params_format_field   := 'b"00";
-       fu_params_exts           := ["F"];
-       fu_params_exts_32        := ["F"];
-       fu_params_exts_64        := ["F"]
+       fpu_params_expWidthMinus2 := 6;
+       fpu_params_sigWidthMinus2 := 22;
+       fpu_params_exp_valid      := ltac:(cbv; lia);
+       fpu_params_sig_valid      := ltac:(cbv; lia);
+       fpu_params_suffix         := ".s";
+       fpu_params_int_suffix     := ".w";
+       fpu_params_format_field   := 'b"00";
+       fpu_params_exts           := ["F"];
+       fpu_params_exts_32        := ["F"];
+       fpu_params_exts_64        := ["F"]
      |}.
 
-Definition fu_params_double
+Definition fpu_params_double
   := {|
-       fu_params_expWidthMinus2 := 9;
-       fu_params_sigWidthMinus2 := 51;
-       fu_params_exp_valid      := ltac:(cbv; lia);
-       fu_params_sig_valid      := ltac:(cbv; lia);
-       fu_params_suffix         := ".d";
-       fu_params_int_suffix     := ".d";
-       fu_params_format_field   := 'b"01";
-       fu_params_exts           := ["D"];
-       fu_params_exts_32        := ["D"];
-       fu_params_exts_64        := ["D"]
+       fpu_params_expWidthMinus2 := 9;
+       fpu_params_sigWidthMinus2 := 51;
+       fpu_params_exp_valid      := ltac:(cbv; lia);
+       fpu_params_sig_valid      := ltac:(cbv; lia);
+       fpu_params_suffix         := ".d";
+       fpu_params_int_suffix     := ".d";
+       fpu_params_format_field   := 'b"01";
+       fpu_params_exts           := ["D"];
+       fpu_params_exts_32        := ["D"];
+       fpu_params_exts_64        := ["D"]
      |}.
 
 Definition mem_params_default
@@ -244,32 +244,32 @@ Section exts.
 
              (* RVF instructions. *)
 
-             Float_double Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
-             Double_float Xlen_over_8 Rlen_over_8 fu_params_single fu_params_double _;
+             Float_double Xlen_over_8 Rlen_over_8 fpu_params_single fpu_params_double _;
+             Double_float Xlen_over_8 Rlen_over_8 fpu_params_single fpu_params_double _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             FMv        Xlen_over_8 Rlen_over_8 fu_params_single _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             Word_float Xlen_over_8 Rlen_over_8 fu_params_single _;
-             Long_float Xlen_over_8 Rlen_over_8 fu_params_single _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_single _;
+             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             FMv        Xlen_over_8 Rlen_over_8 fpu_params_single _;
+             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             Word_float Xlen_over_8 Rlen_over_8 fpu_params_single _;
+             Long_float Xlen_over_8 Rlen_over_8 fpu_params_single _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
+             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_single _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             FMv        Xlen_over_8 Rlen_over_8 fu_params_double _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             Word_float Xlen_over_8 Rlen_over_8 fu_params_double _;
-             Long_float Xlen_over_8 Rlen_over_8 fu_params_double _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 fu_params_double _;
+             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             FMv        Xlen_over_8 Rlen_over_8 fpu_params_double _;
+             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             Word_float Xlen_over_8 Rlen_over_8 fpu_params_double _;
+             Long_float Xlen_over_8 Rlen_over_8 fpu_params_double _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
+             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
 
              (* RV Zicsr instructions. *)
              Zicsr     Xlen_over_8 Rlen_over_8 _

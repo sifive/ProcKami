@@ -6,8 +6,8 @@ Section fetch.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : mem_params_type.
-  Variable vm_params : vm_params_type.
+  Variable mem_params : MemParamsType.
+  Variable vm_params : VmParamsType.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).

@@ -24,8 +24,8 @@ Section Fpu.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
 
-  Variable fu_params_single : fu_params_type.
-  Variable fu_params_double : fu_params_type.
+  Variable fpu_params_single : FpuParamsType.
+  Variable fpu_params_double : FpuParamsType.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -38,10 +38,10 @@ Section Fpu.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
-  Local Notation single_expWidthMinus2 := (fu_params_expWidthMinus2 fu_params_single).
-  Local Notation single_sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params_single).
-  Local Notation double_expWidthMinus2 := (fu_params_expWidthMinus2 fu_params_double).
-  Local Notation double_sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params_double).
+  Local Notation single_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_single).
+  Local Notation single_sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params_single).
+  Local Notation double_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_double).
+  Local Notation double_sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params_double).
 
   Local Notation bitToFN := (@bitToFN ty).
   Local Notation bitToNF := (@bitToNF ty).

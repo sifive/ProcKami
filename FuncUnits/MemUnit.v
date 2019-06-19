@@ -16,8 +16,8 @@ Section mem_unit.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : mem_params_type.
-  Variable vm_params : vm_params_type.
+  Variable mem_params : MemParamsType.
+  Variable vm_params : VmParamsType.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -67,14 +67,14 @@ Section mem_unit.
 
   Definition memTranslate
     (mode : PrivMode @# ty)
-    (access_type : Bit vm_access_width @# ty)
+    (access_type : Bit VmAccessWidth @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe PAddr)
     := If mode == $MachineMode
          then Ret (pMemTranslate vaddr)
          else
            Read satp_mode : Bit 4 <- ^"satp_mode";
-           If #satp_mode == $satp_mode_bare
+           If #satp_mode == $SatpModeBare
              then Ret (pMemTranslate vaddr)
              else 
                pt_walker
@@ -103,7 +103,7 @@ Section mem_unit.
     :  ActionT ty (PktWithException Data)
     := LETA paddr
          :  Maybe PAddr
-         <- memTranslate mode $vm_access_inst vaddr;
+         <- memTranslate mode $VmAccessInst vaddr;
        If #paddr @% "valid"
          then
            LETA inst
@@ -163,8 +163,8 @@ Section mem_unit.
              :  Maybe PAddr
              <- memTranslate mode
                   (IF #mis_write @% "data"
-                    then $vm_access_samo
-                    else $vm_access_load)
+                    then $VmAccessSAmo
+                    else $VmAccessLoad)
                   addr;
            If #mpaddr @% "valid"
              then
