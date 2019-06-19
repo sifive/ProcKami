@@ -33,8 +33,8 @@ Section Params.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : mem_params_type.
-  Variable vm_params : vm_params_type.
+  Variable mem_params : MemParamsType.
+  Variable vm_params : VmParamsType.
   Variable pmp_addr_ub : option (word 54).
 
   Local Notation Rlen := (Rlen_over_8 * 8).

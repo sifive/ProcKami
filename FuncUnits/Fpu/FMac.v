@@ -23,7 +23,7 @@ Section Fpu.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
 
-  Variable fu_params : fu_params_type.
+  Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -38,16 +38,16 @@ Section Fpu.
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
 
-  Local Notation expWidthMinus2 := (fu_params_expWidthMinus2 fu_params).
-  Local Notation sigWidthMinus2 := (fu_params_sigWidthMinus2 fu_params).
-  Local Notation exp_valid      := (fu_params_exp_valid fu_params).
-  Local Notation sig_valid      := (fu_params_sig_valid fu_params).
-  Local Notation suffix         := (fu_params_suffix fu_params).
-  Local Notation int_suffix     := (fu_params_int_suffix fu_params).
-  Local Notation format_field   := (fu_params_format_field fu_params).
-  Local Notation exts           := (fu_params_exts fu_params).
-  Local Notation exts_32        := (fu_params_exts_32 fu_params).
-  Local Notation exts_64        := (fu_params_exts_64 fu_params).
+  Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
+  Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
+  Local Notation exp_valid      := (fpu_params_exp_valid fpu_params).
+  Local Notation sig_valid      := (fpu_params_sig_valid fpu_params).
+  Local Notation suffix         := (fpu_params_suffix fpu_params).
+  Local Notation int_suffix     := (fpu_params_int_suffix fpu_params).
+  Local Notation format_field   := (fpu_params_format_field fpu_params).
+  Local Notation exts           := (fpu_params_exts fpu_params).
+  Local Notation exts_32        := (fpu_params_exts_32 fpu_params).
+  Local Notation exts_64        := (fpu_params_exts_64 fpu_params).
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
