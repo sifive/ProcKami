@@ -184,6 +184,8 @@ Section pt_walker.
       (level : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
+      := $$true.
+(*
       := if Nat.eqb 0 level
            then $$true
            else
@@ -191,13 +193,13 @@ Section pt_walker.
                (ZeroExtendTruncLsb (level - 1)%nat
                  (pte_ppn vm_params pte))) ==
               $0.
+*)
 
     (* See 4.3.2. item 7 *)
     Definition pte_access_dirty
       (access_type : Bit vm_access_width @# ty)
       (pte : Bit pte_width @# ty)
       := !pte_access pte || ((access_type == $vm_access_samo) && (!pte_dirty pte)).
-      (* := !pte_access pte. *)
 
     (* See 4.3.2 item 8 *)
     Definition pte_address
