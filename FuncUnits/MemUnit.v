@@ -201,12 +201,12 @@ Section mem_unit.
                                    end)
                             func_unit_id
                             inst_id);
-                   If #mis_write @% "data"
+                   If #mwrite_value @% "data" @% "isWr"
                      then
                        (* VII. write to memory. *)
                        LET write_mask
                          :  Array Rlen_over_8 Bool
-                         <- IF #mis_write @% "data"
+                         <- IF #mwrite_value @% "data" @% "isWr"
                               then #mwrite_value @% "data" @% "mask"
                               else $$(ConstArray (fun (_ : Fin.t Rlen_over_8) => false));
                        LETA write_result
