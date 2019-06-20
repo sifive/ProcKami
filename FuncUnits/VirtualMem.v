@@ -184,9 +184,6 @@ Section pt_walker.
       (index : nat)
       (pte : Bit pte_width @# ty)
       :  Bool @# ty
-(*
-      := $$true.
-*)
       := if Nat.eqb 0 index
            then $$true
            else
@@ -256,16 +253,6 @@ Section pt_walker.
       (curr_pte_base_address : PAddr @# ty)
       :  ActionT ty (Maybe PAddr)
       := (* See 4.3.2.item 2 *)
-         LET debug_index
-           :  Bit 3
-           <- mode_select satp_mode
-                (fun vm_params
-                  => Const ty (natToWord 3 (pte_index vm_params level)));
-         LET debug_vpn
-           :  PAddr
-           <- mode_select satp_mode
-                (fun vm_params
-                  => vaddr_vpn_field vm_params (pte_index vm_params level) vaddr);
          LET curr_pte_offset
            :  PAddr
            <- mode_select satp_mode
@@ -281,62 +268,21 @@ Section pt_walker.
          LET pte
            :  Bit pte_width
            <- ZeroExtendTruncLsb pte_width (#read_pte @% "data");
-         System [
-           DispString _ "[pte_translate] access_type: ";
-           DispHex access_type;
-           DispString _ "\n";
-           DispString _ "[pte_translate] virtual address: ";
-           DispHex vaddr;
-           DispString _ "\n";
-           DispString _ ("[pte_translate] page table entry level: " ++ natToHexStr level ++ "\n");
-           DispString _ "[pte_translate] i: ";
-           DispHex #debug_index;
-           DispString _ "\n";
-           DispString _ "[pte_translate] vpn [i]: ";
-           DispHex #debug_vpn;
-           DispString _ "\n";
-           DispString _ "[pte_translate] page table entry base address: ";
-           DispHex curr_pte_base_address;
-           DispString _ "\n";
-           DispString _ "[pte_translate] page table entry offset: ";
-           DispHex #curr_pte_offset;
-           DispString _ "\n";
-           DispString _ "[pte_translate] page table entry address: ";
-           DispHex #curr_pte_address;
-           DispString _ "\n";
-           DispString _ "[pte_translate] page table entry: ";
-           DispHex #read_pte;
-           DispString _ "\n"
-         ];
          If !(#read_pte @% "valid")
            then
-             System [DispString _ "[pte_translate] an exception occured while reading the page table entry.\n"];
              Ret Invalid
            else
              (* item 3 *)
              (If !pte_valid #pte || (!pte_read #pte && pte_write #pte)
                then
-                 System [DispString _ "[pte_translate] the page table entry is not valid.\n"];
                  Ret Invalid
                else
                  (* item 4 *)
                  (If !pte_read #pte && !pte_execute #pte
                    then
-                     System [DispString _ "[pte_translate] the page table entry is a pointer.\n"];
                      If
                        mode_select satp_mode (fun vm_params => pte_translate_abort vm_params level)
-(*
-                       (fold_right
-                         (fun (vm_params : VmParamsType) (acc : Bool @# ty)
-                           => if (Nat.leb (levels - (vm_params_levels vm_params))%nat level)
-                                then acc
-                                else ((satp_mode == (Const ty (vm_params_mode vm_params))) || acc))
-                         $$false
-                         (* TODO: make list of suppported vm modes configurable *)
-                         [vm_params_sv32; vm_params_sv39; vm_params_sv48])
-*)
                        then 
-                         System [DispString _ "[pte_translate] the page table walker found a pointer rather than a leaf at the last level.\n"];
                          Ret Invalid
                        else
                          LET ppn
@@ -346,11 +292,6 @@ Section pt_walker.
                          LET next_pte_address
                            :  PAddr
                            <- #ppn << Const ty (natToWord 4 page_size);
-                         System [
-                           DispString _ "[pte_translate] the entry points to: ";
-                           DispHex #next_pte_address;
-                           DispString _ "\n"
-                         ];
                          LETA result
                            :  Maybe PAddr
                            <- next_level #next_pte_address;
@@ -358,17 +299,10 @@ Section pt_walker.
                        as result;
                      Ret #result
                    else (* item 5, 6, and 7 *)
-                     System [DispString _ "[pte_translate] the page table walker found a leaf page table entry.\n"];
-                     System [
-                       DispString _ "[pte_translate] full ppn: ";
-                       DispHex (pte_ppn vm_params_sv39 #pte);
-                       DispString _ "\n"
-                     ];
                      (If !pte_grant mode mxr sum access_type #pte ||
                         !(mode_select satp_mode (fun vm_params => pte_aligned vm_params (pte_index vm_params level) #pte)) ||
                         (pte_access_dirty access_type #pte)
                        then
-                         System [DispString _ "[pte_translate] the page entry denied access for the current mode or is misaligned.\n"];
                          Ret Invalid
                        else
                          (* item 8 *)
@@ -378,29 +312,6 @@ Section pt_walker.
                                 (mode_select satp_mode
                                   (fun vm_params
                                     => pte_address vm_params (pte_index vm_params level) #pte vaddr));
-                         System [
-                           DispString _ "[pte_translate] ppn [0]: ";
-                           DispHex (pte_ppn_field vm_params_sv39 0 #pte);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] ppn [1]: ";
-                           DispHex (pte_ppn_field vm_params_sv39 1 #pte);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] ppn [2]: ";
-                           DispHex (pte_ppn_field vm_params_sv39 2 #pte);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] vpn [0]: ";
-                           DispHex (vaddr_vpn_field vm_params_sv39 0 vaddr);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] vpn [1]: ";
-                           DispHex (vaddr_vpn_field vm_params_sv39 1 vaddr);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] vpn [2]: ";
-                           DispHex (vaddr_vpn_field vm_params_sv39 2 vaddr);
-                           DispString _ "\n";
-                           DispString _ "[pte_translate] the resulting paddr: ";
-                           DispHex #paddr;
-                           DispString _ "\n"
-                         ];
                          Ret #paddr
                        as result;
                      Ret #result)
@@ -451,6 +362,258 @@ Section pt_walker.
                 (rev (seq 0 levels))
                 (#satp_ppn << (Const ty (natToWord 4 page_size)));
          Ret #result.
+
+    (* TODO: make all arguments let expressions *)
+    (* TODO: make pte_grant etc let expressions *)
+
+    (* TODO: the max of the vpn fields - do not hard code width.*)
+    Local Definition max_ppn_width := 44.
+
+    Local Definition Entry
+      := STRUCT_TYPE {
+           "ppn" :: Bit max_ppn_width;
+           "rsw" :: Bit 2;
+           "D" :: Bool;
+           "A" :: Bool;
+           "G" :: Bool;
+           "U" :: Bool;
+           "X" :: Bool;
+           "W" :: Bool;
+           "R" :: Bool;
+           "V" :: Bool
+         }.
+
+    Local Definition entryValid (entry : Entry @# ty) : Bool ## ty := RetE (entry @% "V" && (entry @% "W" && entry @% "R")).
+
+    Local Definition entryLeaf (entry : Entry @# ty) : Bool ## ty := RetE (entry @% "R" || entry @% "W").
+
+    Local Definition leafValid
+      (satp_mode : Bit 4 @# ty)
+      (mxr : Bool @# ty)
+      (sum : Bool @# ty)
+      (mode : PrivMode @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
+      (index : nat)
+      (leaf : Entry @# ty)
+      :  Bool ## ty
+      := RetE
+           ((pte_grant
+              mode
+              mxr
+              sum
+              access_type
+              (ZeroExtendTruncLsb pte_width (pack leaf))) && (* TODO remove pack *)
+            (mode_select
+              satp_mode
+              (fun vm_params
+                => pte_aligned vm_params index  (* TODO simplify align *)
+                     (ZeroExtendTruncLsb pte_width (pack leaf)))) && (* TODO remove pack *)
+            (!pte_access_dirty
+              access_type
+              (ZeroExtendTruncLsb pte_width (pack leaf)))). (* TODO remove pack *)
+
+    Local Definition getVAddrRest
+      (satp_mode : Bit 4 @# ty)
+      (vpn : Bit max_ppn_width @# ty)
+      (index : nat)
+      :  Bit max_ppn_width ## ty
+      := RetE
+           (mode_select
+             satp_mode
+             (fun vm_params
+               => (((vpn <<
+                    (Const ty (natToWord 6 (index * vm_params_vpn_width vm_params)%nat)))) >>
+                   (Const ty (natToWord 6 (index * vm_params_vpn_width vm_params)%nat))))).
+
+    Local Definition getVpnOffset
+      (satp_mode : Bit 4 @# ty)
+      (vpn : Bit max_ppn_width @# ty)
+      (index : nat)
+      :  Bit max_ppn_width ## ty
+      := RetE
+           (mode_select
+             satp_mode
+             (fun vm_params
+               => ((vpn >>
+                     (Const ty
+                       (natToWord 6 (* TODO: check *)
+                         (((vm_params_ppn_width vm_params) - index) * (vm_params_vpn_width vm_params))%nat))) &
+                   (ZeroExtendTruncLsb max_ppn_width
+                     ($$(wones (vm_params_vpn_width vm_params)) <<
+                      (Const ty (natToWord 3 (vm_params_pte_width vm_params)))))))).
+
+    Local Definition translateLeaf
+      (satp_mode : Bit 4 @# ty)
+      (mxr : Bool @# ty)
+      (sum : Bool @# ty)
+      (mode : PrivMode @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
+      (vpn : Bit max_ppn_width @# ty)
+      (index : nat)
+      (leaf : Entry @# ty)
+      :  Maybe (Bit max_ppn_width) ## ty
+      := LETE valid : Bool <- leafValid satp_mode mxr sum mode access_type index leaf;
+         LETE result
+           :  Bit max_ppn_width
+           <- getVAddrRest satp_mode vpn index;
+         RetE
+           ((IF #valid
+             then Valid (ZeroExtendTruncLsb max_ppn_width (leaf @% "ppn" + #result))
+             else (@Invalid ty (Bit max_ppn_width))) : Maybe (Bit max_ppn_width) @# ty).
+
+    Local Definition translate
+      (satp_mode : Bit 4 @# ty)
+      (mxr : Bool @# ty)
+      (sum : Bool @# ty)
+      (mode : PrivMode @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
+      (vpn : Bit max_ppn_width @# ty)
+      (index : nat)
+      (entry : Entry @# ty)
+      :  Pair Bool (Maybe (Bit max_ppn_width)) ## ty
+      := LETE isValid : Bool <- entryValid entry;
+         LETE isLeaf : Bool <- entryLeaf entry;
+         LETE leafResult
+           :  Maybe (Bit max_ppn_width)
+           <- translateLeaf satp_mode mxr sum mode access_type vpn index entry;
+         LETE vpnOffset
+           :  Bit max_ppn_width
+           <- getVpnOffset satp_mode vpn index;
+         RetE
+           (IF #isValid
+             then 
+               (IF #isLeaf
+                 then 
+                   (STRUCT {
+                      "fst" ::= $$true;
+                      "snd" ::= #leafResult
+                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
+                 else
+                   (STRUCT {
+                      "fst" ::= $$false;
+                      "snd" ::= Valid (entry @% "ppn" + #vpnOffset)
+                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty))
+             else
+               STRUCT {
+                 "fst" ::= $$true;
+                 "snd" ::= Invalid
+               } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty).
+
+    Local Definition loopFunction
+      (mem_read_index : nat)
+      (satp_mode : Bit 4 @# ty)
+      (mxr : Bool @# ty)
+      (sum : Bool @# ty)
+      (mode : PrivMode @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
+      (voffset     : Bit addr_offset_width @# ty)
+      (vpn : Bit max_ppn_width @# ty)
+      (index : nat)
+      (acc : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
+      :  ActionT ty (Pair Bool (Maybe (Bit max_ppn_width)))
+      := If acc @% "fst"
+           then Ret acc
+           else 
+             (If acc @% "snd" @% "valid"
+               then
+                 LETA read_result
+                   :  Maybe Data
+                   <- pMemRead
+                        mem_read_index
+                        mode
+                        (ZeroExtendTruncLsb PAddrSz
+                          (((ZeroExtendTruncLsb PAddrSz (acc @% "snd" @% "data")) <<
+                             Const ty (natToWord 4 addr_offset_width)) +
+                           (ZeroExtendTruncLsb PAddrSz voffset)));
+                 If #read_result @% "valid"
+                    then 
+                      convertLetExprSyntax_ActionT
+                        (translate satp_mode mxr sum mode access_type vpn index
+                          (unpack Entry
+                            ((ZeroExtendTruncLsb
+                              (size Entry)
+                              (#read_result @% "data")))))
+                    else
+                      Ret
+                        (STRUCT {
+                          "fst" ::= $$true;
+                          "snd" ::= Invalid
+                         } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
+                    as result;
+                 Ret #result
+               else
+                 Ret
+                   (STRUCT {
+                     "fst" ::= $$true;
+                     "snd" ::= Invalid
+                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
+               as result;
+             Ret #result)
+           as result;
+         Ret #result.
+
+    Definition pt_walker_alt
+      (mem_read_index : nat)
+      (mode : PrivMode @# ty)
+      (access_type : Bit VmAccessWidth @# ty)
+      (vaddr : VAddr @# ty)
+      :  ActionT ty (Maybe PAddr)
+      := Read satp_mode : Bit 4 <- ^"satp_mode";
+         Read read_satp_ppn : Bit 44 <- ^"satp_ppn";
+         LET satp_ppn
+           :  PAddr
+           <- ZeroExtendTruncLsb PAddrSz #read_satp_ppn;
+         System [
+           DispString _ "[pt_walker] satp ppn: ";
+           DispHex #satp_ppn;
+           DispString _ "\n"
+         ];
+         Read read_mxr : Bit 1 <- ^"mxr";
+         LET mxr : Bool <- #read_mxr == $$(wones 1);
+         Read read_sum : Bit 1 <- ^"sum";
+         LET sum : Bool <- #read_sum == $$(wones 1);
+         LET voffset
+           :  Bit addr_offset_width
+           <- ZeroExtendTruncLsb addr_offset_width vaddr;
+         LET vpn
+           :  Bit max_ppn_width
+           <- ZeroExtendTruncLsb max_ppn_width
+                (ZeroExtendTruncMsb (Xlen - addr_offset_width)%nat vaddr);
+         LETA result
+           :  Pair Bool (Maybe (Bit max_ppn_width))
+           <- fold_left
+                (fun (acc : ActionT ty (Pair Bool (Maybe (Bit max_ppn_width)))) (level : nat)
+                  => LETA acc_result <- acc;
+                     loopFunction
+                       (mem_read_index + level)
+                       #satp_mode
+                       #mxr
+                       #sum
+                       mode
+                       access_type
+                       #voffset
+                       #vpn
+                       level
+                       #acc_result)
+                (seq 0 levels)
+                (Ret
+                  (STRUCT {
+                     "fst" ::= $$true;
+                     "snd" ::= @Invalid ty (Bit max_ppn_width)
+                   } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty));
+         If #result @% "snd" @% "valid"
+           then
+             Ret
+               (Valid
+                 (ZeroExtendTruncLsb PAddrSz
+                   (((ZeroExtendTruncLsb PAddrSz (#result @% "snd" @% "data")) <<
+                     Const ty (natToWord 4 addr_offset_width)) +
+                    (ZeroExtendTruncLsb PAddrSz #voffset)))
+                 : Maybe PAddr @# ty)
+           else
+             Ret (@Invalid ty PAddr : Maybe PAddr @# ty)
+           as paddr;
+         Ret #paddr.
 
   End pte.
 
