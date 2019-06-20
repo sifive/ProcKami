@@ -382,15 +382,15 @@ Section pt_walker.
            "V" :: Bool
          }.
 
-    Local Definition Entry
+    Local Definition PteEntry
       := STRUCT_TYPE {
            "pointer" :: Bit max_ppn_width;
            "flags" :: PteFlags
          }.
 
-    Local Definition isValidEntry (entry : Entry @# ty) : Bool ## ty := RetE (entry @% "flags" @% "V" && (entry @% "flags" @% "W" && entry @% "flags" @% "R")).
+    Local Definition isValidEntry (entry : PteEntry @# ty) : Bool ## ty := RetE (entry @% "flags" @% "V" && (entry @% "flags" @% "W" && entry @% "flags" @% "R")).
 
-    Local Definition isLeaf (entry : Entry @# ty) : Bool ## ty := RetE (entry @% "flags" @% "R" || entry @% "flags" @% "W").
+    Local Definition isLeaf (entry : PteEntry @# ty) : Bool ## ty := RetE (entry @% "flags" @% "R" || entry @% "flags" @% "W").
 
     Local Definition leafValid
       (satp_mode : Bit 4 @# ty)
@@ -399,7 +399,7 @@ Section pt_walker.
       (mode : PrivMode @# ty)
       (access_type : Bit VmAccessWidth @# ty)
       (index : nat)
-      (leaf : Entry @# ty)
+      (leaf : PteEntry @# ty)
       :  Bool ## ty
       := RetE
            ((pte_grant
@@ -455,7 +455,7 @@ Section pt_walker.
       (access_type : Bit VmAccessWidth @# ty)
       (vpn : Bit max_ppn_width @# ty)
       (index : nat)
-      (leaf : Entry @# ty)
+      (leaf : PteEntry @# ty)
       :  Maybe (Bit max_ppn_width) ## ty
       := LETE valid : Bool <- leafValid satp_mode mxr sum mode access_type index leaf;
          LETE result
@@ -474,7 +474,7 @@ Section pt_walker.
       (access_type : Bit VmAccessWidth @# ty)
       (vpn : Bit max_ppn_width @# ty)
       (index : nat)
-      (entry : Entry @# ty)
+      (entry : PteEntry @# ty)
       :  Pair Bool (Maybe (Bit max_ppn_width)) ## ty
       := LETE isValid : Bool <- isValidEntry entry;
          LETE isLeaf : Bool <- isLeaf entry;
@@ -534,9 +534,9 @@ Section pt_walker.
                     then 
                       convertLetExprSyntax_ActionT
                         (translate satp_mode mxr sum mode access_type vpn index
-                          (unpack Entry
+                          (unpack PteEntry
                             ((ZeroExtendTruncLsb
-                              (size Entry)
+                              (size PteEntry)
                               (#read_result @% "data")))))
                     else
                       Ret
