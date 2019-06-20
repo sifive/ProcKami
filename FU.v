@@ -332,51 +332,51 @@ Section Params.
   (* virtual memory translation params.*)
   Record VmParamsType
     := {
-         vm_params_levels          : nat; (* num page table levels = num ppn fields *)
-         vm_params_page_size       : nat; (* num page and page table bytes *)
-         vm_params_pte_width       : nat; (* log2 (num page table entry bytes) *)
-         vm_params_ppn_width       : nat; (* num physical page number field bits *)
-         vm_params_last_ppn_width  : nat;  (* num last physical page number field bits *)
-         vm_params_ppn_widths      : list nat; (* the widths of ppn fields 0 - levels *)
-         vm_params_vpn_width       : nat; (* the width of each vpn field *)
-         vm_params_mode            : word SatpModeWidth (* the code used to identify this mode. *)
+         vm_mode_levels          : nat; (* num page table levels = num ppn fields *)
+         vm_mode_page_size       : nat; (* num page and page table bytes *)
+         vm_mode_pte_width       : nat; (* log2 (num page table entry bytes) *)
+         vm_mode_ppn_width       : nat; (* num physical page number field bits *)
+         vm_mode_last_ppn_width  : nat;  (* num last physical page number field bits *)
+         vm_mode_ppn_widths      : list nat; (* the widths of ppn fields 0 - levels *)
+         vm_mode_vpn_width       : nat; (* the width of each vpn field *)
+         vm_mode_mode            : word SatpModeWidth (* the code used to identify this mode. *)
        }.
 
   (* See 4.3.1 *)
-  Definition vm_params_sv32
+  Definition vm_mode_sv32
     := {|
-         vm_params_levels         := 2;
-         vm_params_page_size      := 12; (* TODO check *)
-         vm_params_pte_width      := 2;
-         vm_params_ppn_width      := 10;
-         vm_params_last_ppn_width := 12;
-         vm_params_ppn_widths     := [10; 12];
-         vm_params_vpn_width      := 10;
-         vm_params_mode           := $SatpModeSv32
+         vm_mode_levels         := 2;
+         vm_mode_page_size      := 12; (* TODO check *)
+         vm_mode_pte_width      := 2;
+         vm_mode_ppn_width      := 10;
+         vm_mode_last_ppn_width := 12;
+         vm_mode_ppn_widths     := [10; 12];
+         vm_mode_vpn_width      := 10;
+         vm_mode_mode           := $SatpModeSv32
        |}.
 
-  Definition vm_params_sv39
+  Definition vm_mode_sv39
     := {|
-         vm_params_levels         := 3;
-         vm_params_page_size      := 12; (* TODO check *)
-         vm_params_pte_width      := 3;
-         vm_params_ppn_width      := 9;
-         vm_params_last_ppn_width := 26;
-         vm_params_ppn_widths     := [9; 9; 26];
-         vm_params_vpn_width      := 9;
-         vm_params_mode           := $SatpModeSv39
+         vm_mode_levels         := 3;
+         vm_mode_page_size      := 12; (* TODO check *)
+         vm_mode_pte_width      := 3;
+         vm_mode_ppn_width      := 9;
+         vm_mode_last_ppn_width := 26;
+         vm_mode_ppn_widths     := [9; 9; 26];
+         vm_mode_vpn_width      := 9;
+         vm_mode_mode           := $SatpModeSv39
        |}.
 
-  Definition vm_params_sv48
+  Definition vm_mode_sv48
     := {|
-         vm_params_levels         := 4;
-         vm_params_page_size      := 12; (* TODO check *)
-         vm_params_pte_width      := 3;
-         vm_params_ppn_width      := 9;
-         vm_params_last_ppn_width := 17;
-         vm_params_ppn_widths     := [9; 9; 9; 17];
-         vm_params_vpn_width      := 9;
-         vm_params_mode           := $SatpModeSv48
+         vm_mode_levels         := 4;
+         vm_mode_page_size      := 12; (* TODO check *)
+         vm_mode_pte_width      := 3;
+         vm_mode_ppn_width      := 9;
+         vm_mode_last_ppn_width := 17;
+         vm_mode_ppn_widths     := [9; 9; 9; 17];
+         vm_mode_vpn_width      := 9;
+         vm_mode_mode           := $SatpModeSv48
        |}.
 
   Definition VmAccessWidth := 2.
