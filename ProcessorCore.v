@@ -88,6 +88,7 @@ Section Params.
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"tvm"              : Bit 1 <- $0 with
               Register ^"mxr"              : Bit 1 <- $0 with
               Register ^"sum"              : Bit 1 <- $0 with
               Register ^"spp"              : Bit 1 <- $0 with

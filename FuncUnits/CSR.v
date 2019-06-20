@@ -365,7 +365,8 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
+                           @csrFieldNoReg "reserved0" (Bit 11) (getDefaultConst _);
+                           @csrFieldAny ^"tvm" (Bit 1) None;
                            @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldAny ^"mprv" (Bit 1) None;
@@ -390,7 +391,8 @@ Section CsrInterface.
                            @csrFieldNoReg "reserved0" (Bit 28) (getDefaultConst _);
                            xlField ^"s";
                            xlField ^"u";
-                           @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
+                           @csrFieldNoReg "reserved1" (Bit 11) (getDefaultConst _);
+                           @csrFieldAny ^"tvm" (Bit 1) None;
                            @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
                            @csrFieldAny ^"mprv" (Bit 1) None;
