@@ -71,7 +71,21 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe PAddr)
     := If mode == $MachineMode
-         then Ret (pMemTranslate vaddr)
+         then
+           (* See 3.1.9 *)
+           Read mprv : Bit 1 <- ^"mprv";
+           If #mprv == $1
+             then 
+               Read mpp : PrivMode <- ^"mpp";
+               pt_walker
+                 3 (* initial walker mem read index. *)
+                 #mpp
+                 access_type
+                 vaddr
+             else
+               Ret (pMemTranslate vaddr)
+             as result;
+           Ret #result
          else
            Read satp_mode : Bit 4 <- ^"satp_mode";
            If #satp_mode == $SatpModeBare

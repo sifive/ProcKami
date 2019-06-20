@@ -73,6 +73,7 @@ Section Params.
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
               Register ^"medeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"mprv"             : Bit 1 <- $0 with
               Register ^"mpp"              : Bit 2 <- ConstBit (wzero 2) with
               Register ^"mpie"             : Bit 1 <- $0 with
               Register ^"mie"              : Bit 1 <- $0 with

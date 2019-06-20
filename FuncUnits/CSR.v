@@ -368,7 +368,8 @@ Section CsrInterface.
                            @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
                            @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
-                           @csrFieldNoReg "reserved1" (Bit 5) (getDefaultConst _);
+                           @csrFieldAny ^"mprv" (Bit 1) None;
+                           @csrFieldNoReg "reserved1" (Bit 4) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
                            @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
@@ -392,7 +393,8 @@ Section CsrInterface.
                            @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
                            @csrFieldAny ^"mxr" (Bit 1) None;
                            @csrFieldAny ^"sum" (Bit 1) None;
-                           @csrFieldNoReg "reserved2" (Bit 5) (getDefaultConst _);
+                           @csrFieldAny ^"mprv" (Bit 1) None;
+                           @csrFieldNoReg "reserved2" (Bit 4) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
                            @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
