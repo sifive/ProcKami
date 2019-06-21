@@ -19,7 +19,6 @@ Section pt_walker.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
   Variable mem_read_index: nat.
-  Variable vm_mode : VmMode.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -36,12 +35,12 @@ Section pt_walker.
   Local Open Scope kami_action.
 
   Section VirtMem.
-    Variable satp_ppn: PAddr @# ty.
     Variable satp_mode: Bit SatpModeWidth @# ty.
     Variable mxr: Bool @# ty.
     Variable sum: Bool @# ty.
     Variable mode: PrivMode @# ty.
     Variable access_type: VmAccessType @# ty.
+    Variable satp_ppn: PAddr @# ty.
     Variable vAddr: VAddr @# ty.
 
     Definition PteFlags
