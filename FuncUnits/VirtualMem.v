@@ -18,6 +18,7 @@ Section pt_walker.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable vm_mode : VmMode.
+  Variable mem_read_index: nat.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -34,9 +35,13 @@ Section pt_walker.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Section pte.
+  Section VirtMem.
+    Variable mxr: Bool @# ty.
+    Variable sum: Bool @# ty.
+    Variable mode: PrivMode @# ty.
+    Variable access_type: VmAccessType @# ty.
 
-    Local Definition PteFlags
+    Definition PteFlags
       := STRUCT_TYPE {
            "rsw" :: Bit 2;
            "D" :: Bool;
@@ -49,9 +54,9 @@ Section pt_walker.
            "V" :: Bool
          }.
 
-    Local Definition PpnWidth := (Rlen - size (PteFlags))%nat.
+    Local Notation PpnWidth := (Rlen - size (PteFlags))%nat.
 
-    Local Definition PteEntry :=
+    Definition PteEntry :=
       STRUCT_TYPE {
           "pointer" :: Bit PpnWidth;
           "flags" :: PteFlags
@@ -71,184 +76,121 @@ Section pt_walker.
                ::= f vm_mode_sv48
              }.
 
-    Local Definition isLeaf (flags : PteFlags @# ty) : Bool ## ty :=
-      RetE (flags @% "R" || flags @% "X").
+    Section oneIteration.
+      Variable satp_mode: Bit SatpModeWidth @# ty.
+      Variable vAddr: VAddr @# ty.
+      Variable currentLevel: nat.
+      Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
+      Local Notation vpn := (ZeroExtendTruncMsb VpnWidth vAddr).
 
-    Local Definition isValidEntry
-          currentLevel satp_mode (flags : PteFlags @# ty) : Bool ## ty :=
-          LETC cond1 <- satp_select satp_mode
-               (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
-                     (length (vm_mode_sizes x)))%nat));
-          LETC cond2 <- ! (flags @% "V");
-          LETC cond3 <- flags @% "W" && ! (flags @% "R");
-          RetE !(#cond1 || #cond2 || #cond3).
+      Section pte.
+        Variable pte: PteEntry @# ty.
+        Local Notation flags := (pte @% "flags").
+        Local Notation pointer := (pte @% "pointer").
   
-    Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
-    Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
+        Local Definition isLeaf : Bool ## ty :=
+          RetE (flags @% "R" || flags @% "X").
+  
+        Local Definition isValidEntry : Bool ## ty :=
+        LETC cond1 <- satp_select satp_mode
+        (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
+              (length (vm_mode_sizes x)))%nat));
+        LETC cond2 <- ! (flags @% "V");
+        LETC cond3 <- flags @% "W" && ! (flags @% "R");
+        RetE !(#cond1 || #cond2 || #cond3).
+        
+        Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
+        Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
+  
+        Local Definition getVpnOffset: Bit VpnWidth ## ty :=
+          RetE (satp_select
+            satp_mode
+            (fun x
+              => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
+                (ZeroExtendTruncLsb _
+                  ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
+          
+        Local Definition getVAddrRest: PAddr ## ty :=
+          let shiftAmt x := wordOfShiftAmt (currentLevel * vm_mode_vpn_size x) in
+          RetE (ZeroExtendTruncLsb _
+            (satp_select
+              satp_mode
+              (fun x => ((vAddr << shiftAmt x) >> shiftAmt x)))).
+          
+        Local Definition checkAlign: Bool ## ty :=
+          let shiftAmt x := wordOfShiftAmt ((currentLevel + 1) * vm_mode_vpn_size x) in
+          RetE ((pte @% "pointer" << (satp_select satp_mode shiftAmt)) == $0).
+  
+        Local Definition isLeafValid: Bool ## ty :=
+          RetE ($$ true).
+          (* := RetE *)
+          (*      ((pte_grant *)
+          (*         mode *)
+          (*         mxr *)
+          (*         sum *)
+          (*         access_type *)
+          (*         (ZeroExtendTruncLsb pte_width (pack pte))) && (* TODO remove pack *) *)
+          (*       (satp_select *)
+          (*         satp_mode *)
+          (*         (fun satp_mode *)
+          (*           => pte_aligned vm_mode currentLevel  (* TODO simplify align *) *)
+          (*                (ZeroExtendTruncLsb pte_width (pack pte)))) && (* TODO remove pack *) *)
+          (*       (!pte_access_dirty *)
+          (*         access_type *)
+          (*         (ZeroExtendTruncLsb pte_width (pack pte)))). (* TODO remove pack *) *)
+    
+        Definition translatePteLeaf: Maybe PAddr ## ty :=
+          LETE leafValid: Bool <- isLeafValid;
+          LETE isCheckAlign: Bool <- checkAlign;
+          LETE offset: PAddr <- getVAddrRest;
+          LETC retVal: Maybe PAddr <- STRUCT { "valid" ::= #leafValid && #isCheckAlign ;
+                                               "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") + #offset) } ;
+          RetE #retVal.
+    
+        Definition translatePte: Pair Bool (Maybe PAddr) ## ty :=
+          LETE validEntry : Bool <- isValidEntry;
+          LETE leaf : Bool <- isLeaf;
+          LETE leafVal: Maybe PAddr <- translatePteLeaf;
+          LETE vpnOffset <- getVpnOffset;
+          LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= $$ true ;
+                                                   "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") +
+                                                               ZeroExtendTruncLsb PAddrSz #vpnOffset) } ;
+          LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
+          LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
+                                                             "snd" ::= #retVal } ;
+          RetE #finalVal.
+        End pte.
 
-    Local Definition VpnWidth := (Xlen - LgPageSize)%nat.
+      Definition translatePteLoop (acc: Pair Bool (Maybe PAddr) @# ty): ActionT ty (Pair Bool (Maybe PAddr)) :=
+        LET doneInvalid : Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= $$ true; "snd" ::= Invalid };
+        If acc @% "fst"
+        then Ret acc
+        else 
+        (If acc @% "snd" @% "valid"
+          then (
+            LETA read_result: Maybe Data <- pMemRead (mem_read_index + currentLevel) mode (acc @% "snd" @% "data");
+            If #read_result @% "valid"
+            then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
+            else Ret #doneInvalid
+            as result;
+            Ret #result
+            ) else Ret #doneInvalid
+          as result;
+          Ret #result)
+        as result;
+        Ret #result.
+    End oneIteration.
       
-    Local Definition getVpnOffset
-          (vpn : Bit VpnWidth @# ty)
-          (satp_mode : Bit SatpModeWidth @# ty)
-          (currentLevel : nat)
-      :  Bit VpnWidth ## ty :=
-      RetE
-           (satp_select
-             satp_mode
-             (fun x
-               => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
-                 (ZeroExtendTruncLsb _
-                   ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
-      
-    Local Definition getVAddrRest
-          (vAddr: VAddr @# ty)
-          (satp_mode : Bit SatpModeWidth @# ty)
-          (currentLevel : nat)
-      : PAddr ## ty :=
-      let shiftAmt x := wordOfShiftAmt (currentLevel * vm_mode_vpn_size x) in
-      RetE
-      (ZeroExtendTruncLsb _
-        (satp_select
-          satp_mode
-          (fun x => ((vAddr << shiftAmt x) >> shiftAmt x)))).
-      
-    Local Definition checkAlign
-      (pte: PteEntry @# ty)
-      (currentLevel: nat)
-      (satp_mode: Bit SatpModeWidth @# ty)
-      : Bool ## ty :=
-      let shiftAmt x := wordOfShiftAmt ((currentLevel + 1) * vm_mode_vpn_size x) in
-      RetE ((pte @% "pointer" << (satp_select satp_mode shiftAmt)) == $0).
-
-    Local Definition isLeafValid
-          (satp_mode : Bit SatpModeWidth @# ty)
-          (mxr : Bool @# ty)
-          (sum : Bool @# ty)
-          (mode : PrivMode @# ty)
-          (access_type : VmAccessType @# ty)
-          (currentLevel : nat)
-          (pte : PteEntry @# ty)
-      : Bool ## ty :=
-      RetE ($$ true).
-      (* := RetE *)
-      (*      ((pte_grant *)
-      (*         mode *)
-      (*         mxr *)
-      (*         sum *)
-      (*         access_type *)
-      (*         (ZeroExtendTruncLsb pte_width (pack pte))) && (* TODO remove pack *) *)
-      (*       (satp_select *)
-      (*         satp_mode *)
-      (*         (fun satp_mode *)
-      (*           => pte_aligned vm_mode currentLevel  (* TODO simplify align *) *)
-      (*                (ZeroExtendTruncLsb pte_width (pack pte)))) && (* TODO remove pack *) *)
-      (*       (!pte_access_dirty *)
-      (*         access_type *)
-      (*         (ZeroExtendTruncLsb pte_width (pack pte)))). (* TODO remove pack *) *)
-
-    Definition translatePteLeaf
-               (vAddr: VAddr @# ty)
-               (currentLevel: nat)               
-               (satp_mode : Bit SatpModeWidth @# ty)
-               (pte: PteEntry @# ty)
-               (mxr : Bool @# ty)
-               (sum : Bool @# ty)
-               (mode : PrivMode @# ty)
-               (access_type : VmAccessType @# ty)
-      :  Maybe PAddr ## ty :=
-      LETE leafValid: Bool <- isLeafValid satp_mode mxr sum mode access_type currentLevel pte;
-      LETE isCheckAlign: Bool <- checkAlign pte currentLevel satp_mode;
-      LETE offset: PAddr <- getVAddrRest vAddr satp_mode currentLevel;
-      LETC retVal: Maybe PAddr <- STRUCT { "valid" ::= #leafValid && #isCheckAlign ;
-                                           "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") + #offset) } ;
-      RetE #retVal.
-
-    Definition translatePte
-          (vAddr: VAddr @# ty)
-          (currentLevel: nat)
-          (satp_mode : Bit SatpModeWidth @# ty)
-          (pte : PteEntry @# ty)
-          (mxr : Bool @# ty)
-          (sum : Bool @# ty)
-          (mode : PrivMode @# ty)
-          (access_type : VmAccessType @# ty)
-      :  Pair Bool (Maybe PAddr) ## ty :=
-      LETE validEntry : Bool <- isValidEntry currentLevel satp_mode (pte @% "flags") ;
-      LETE leaf : Bool <- isLeaf (pte @% "flags") ;
-      LETE leafVal: Maybe PAddr <- translatePteLeaf vAddr currentLevel satp_mode pte mxr sum mode access_type;
-      LETE vpnOffset <- getVpnOffset (ZeroExtendTruncMsb _ vAddr) satp_mode currentLevel;
-      LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= $$ true ;
-                                               "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") +
-                                                           ZeroExtendTruncLsb PAddrSz #vpnOffset) } ;
-      LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
-      LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
-                                                         "snd" ::= #retVal } ;
-      RetE #finalVal.
-
-    Definition translatePteLoop
-      (mem_read_index : nat)
-      (satp_mode : Bit 4 @# ty)
-      (mxr : Bool @# ty)
-      (sum : Bool @# ty)
-      (mode : PrivMode @# ty)
-      (access_type : Bit VmAccessWidth @# ty)
-      (voffset     : Bit addr_offset_width @# ty)
-      (vpn : Bit max_ppn_width @# ty)
-      (index : nat)
-      (acc : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
-      :  ActionT ty (Pair Bool (Maybe (Bit max_ppn_width)))
-      := If acc @% "fst"
-           then Ret acc
-           else 
-             (If acc @% "snd" @% "valid"
-               then
-                 LETA read_result
-                   :  Maybe Data
-                   <- pMemRead
-                        mem_read_index
-                        mode
-                        (ZeroExtendTruncLsb PAddrSz
-                          (((ZeroExtendTruncLsb PAddrSz (acc @% "snd" @% "data")) <<
-                             Const ty (natToWord 4 addr_offset_width)) +
-                           (ZeroExtendTruncLsb PAddrSz voffset)));
-                 If #read_result @% "valid"
-                    then 
-                      convertLetExprSyntax_ActionT
-                        (translate satp_mode mxr sum mode access_type vpn index
-                          (unpack PteEntry
-                            ((ZeroExtendTruncLsb
-                              (size PteEntry)
-                              (#read_result @% "data")))))
-                    else
-                      Ret
-                        (STRUCT {
-                          "fst" ::= $$true;
-                          "snd" ::= Invalid
-                         } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
-                    as result;
-                 Ret #result
-               else
-                 Ret
-                   (STRUCT {
-                     "fst" ::= $$true;
-                     "snd" ::= Invalid
-                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
-               as result;
-             Ret #result)
-           as result;
-         Ret #result.
-
-    Definition pt_walker_alt
-      (mem_read_index : nat)
-      (mode : PrivMode @# ty)
-      (access_type : Bit VmAccessWidth @# ty)
-      (vaddr : VAddr @# ty)
-      :  ActionT ty (Maybe PAddr)
-      := Read satp_mode : Bit 4 <- ^"satp_mode";
-         Read read_satp_ppn : Bit 44 <- ^"satp_ppn";
-         LET satp_ppn
-           :  PAddr
+      Definition pt_walker_alt
+        (mem_read_index : nat)
+        (mode : PrivMode @# ty)
+        (access_type : Bit VmAccessWidth @# ty)
+        (vaddr : VAddr @# ty)
+        :  ActionT ty (Maybe PAddr)
+        := Read satp_mode : Bit 4 <- ^"satp_mode";
+        Read read_satp_ppn : Bit 44 <- ^"satp_ppn";
+        LET satp_ppn
+        :  PAddr
            <- ZeroExtendTruncLsb PAddrSz #read_satp_ppn;
          System [
            DispString _ "[pt_walker] satp ppn: ";
