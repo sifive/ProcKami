@@ -17,9 +17,9 @@ Section pt_walker.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Variable vm_mode : VmMode.
-  Variable mem_read_index: nat.
   Variable ty : Kind -> Type.
+  Variable mem_read_index: nat.
+  Variable vm_mode : VmMode.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
