@@ -329,57 +329,36 @@ Section Params.
   Definition SatpModeSv39 := 8.
   Definition SatpModeSv48 := 9.
 
+  Definition LgPageSize := 12.
+
   (* virtual memory translation params.*)
-  Record VmParamsType
-    := {
-         vm_mode_levels          : nat; (* num page table levels = num ppn fields *)
-         vm_mode_page_size       : nat; (* num page and page table bytes *)
-         vm_mode_pte_width       : nat; (* log2 (num page table entry bytes) *)
-         vm_mode_ppn_width       : nat; (* num physical page number field bits *)
-         vm_mode_last_ppn_width  : nat;  (* num last physical page number field bits *)
-         vm_mode_ppn_widths      : list nat; (* the widths of ppn fields 0 - levels *)
-         vm_mode_vpn_width       : nat; (* the width of each vpn field *)
-         vm_mode_mode            : word SatpModeWidth (* the code used to identify this mode. *)
+  Record VmMode
+    := { vm_mode_vpn_size: nat ;
+         vm_mode_shift_num: nat ;
+         vm_mode_sizes: list nat ;
+         vm_mode_mode: word SatpModeWidth
        }.
 
   (* See 4.3.1 *)
   Definition vm_mode_sv32
-    := {|
-         vm_mode_levels         := 2;
-         vm_mode_page_size      := 12; (* TODO check *)
-         vm_mode_pte_width      := 2;
-         vm_mode_ppn_width      := 10;
-         vm_mode_last_ppn_width := 12;
-         vm_mode_ppn_widths     := [10; 12];
-         vm_mode_vpn_width      := 10;
-         vm_mode_mode           := $SatpModeSv32
-       |}.
+    := {| vm_mode_vpn_size := 10 ;
+          vm_mode_shift_num := 2 ;
+          vm_mode_sizes := [12 ; 10 ];
+          vm_mode_mode := $SatpModeSv32 |}.
 
   Definition vm_mode_sv39
-    := {|
-         vm_mode_levels         := 3;
-         vm_mode_page_size      := 12; (* TODO check *)
-         vm_mode_pte_width      := 3;
-         vm_mode_ppn_width      := 9;
-         vm_mode_last_ppn_width := 26;
-         vm_mode_ppn_widths     := [9; 9; 26];
-         vm_mode_vpn_width      := 9;
-         vm_mode_mode           := $SatpModeSv39
-       |}.
+    := {| vm_mode_vpn_size := 9 ;
+          vm_mode_shift_num := 3 ;
+          vm_mode_sizes := [26 ; 9; 9 ];
+          vm_mode_mode := $SatpModeSv39 |}.
 
   Definition vm_mode_sv48
-    := {|
-         vm_mode_levels         := 4;
-         vm_mode_page_size      := 12; (* TODO check *)
-         vm_mode_pte_width      := 3;
-         vm_mode_ppn_width      := 9;
-         vm_mode_last_ppn_width := 17;
-         vm_mode_ppn_widths     := [9; 9; 9; 17];
-         vm_mode_vpn_width      := 9;
-         vm_mode_mode           := $SatpModeSv48
-       |}.
+    := {| vm_mode_vpn_size := 9 ;
+          vm_mode_shift_num := 3 ;
+          vm_mode_sizes := [17 ; 9; 9; 9 ];
+          vm_mode_mode := $SatpModeSv48 |}.
 
-  Definition VmAccessWidth := 2.
+  Definition VmAccessType := Bit 2.
   Definition VmAccessInst := 0.
   Definition VmAccessLoad := 1.
   Definition VmAccessSAmo := 2.
