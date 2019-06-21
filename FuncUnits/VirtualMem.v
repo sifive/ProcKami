@@ -35,58 +35,6 @@ Section pt_walker.
   Open Scope kami_action.
 
   Section pte.
-    (* See 4.3.2 item 5 *)
-    (* Definition pte_grant *)
-    (*   (mode : PrivMode @# ty) *)
-    (*   (mxr : Bool @# ty) *)
-    (*   (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *) *)
-    (*   (access_type : VmAccessType @# ty) *)
-    (*   (pte : Bit pte_width @# ty) *)
-    (*   :  Bool @# ty *)
-    (*   := Switch access_type Retn Bool With { *)
-    (*        ($VmAccessLoad : Bit VmAccessWidth @# ty) *)
-    (*          ::= (pte_read pte || (mxr && pte_execute pte)) && *)
-    (*              Switch mode Retn Bool With { *)
-    (*                ($MachineMode : PrivMode @# ty) *)
-    (*                  ::= $$true; *)
-    (*                ($SupervisorMode : PrivMode @# ty) *)
-    (*                  ::= ((!(pte_user pte)) || sum); *)
-    (*                ($UserMode : PrivMode @# ty) *)
-    (*                  ::= pte_user pte *)
-    (*              }; *)
-    (*        ($VmAccessInst : Bit VmAccessWidth @# ty) *)
-    (*          ::= pte_execute pte && *)
-    (*              Switch mode Retn Bool With { *)
-    (*                ($MachineMode : PrivMode @# ty) *)
-    (*                  ::= $$true; *)
-    (*                ($SupervisorMode : PrivMode @# ty) *)
-    (*                  ::= !(pte_user pte); *)
-    (*                ($UserMode : PrivMode @# ty) *)
-    (*                  ::= pte_user pte *)
-    (*              }; *)
-    (*        ($VmAccessSAmo : Bit VmAccessWidth @# ty) *)
-    (*          ::= pte_write pte && *)
-    (*              Switch mode Retn Bool With { *)
-    (*                ($MachineMode : PrivMode @# ty) *)
-    (*                  ::= $$true; *)
-    (*                ($SupervisorMode : PrivMode @# ty) *)
-    (*                  ::= ((!(pte_user pte)) || sum); *)
-    (*                ($UserMode : PrivMode @# ty) *)
-    (*                  ::= pte_user pte *)
-    (*              } *)
-    (*      }. *)
-
-    (* See 4.3.2. item 7 *)
-    (* Definition pte_access_dirty *)
-    (*   (access_type : VmAccessType @# ty) *)
-    (*   (pte : Bit pte_width @# ty) *)
-    (*   := !pte_access pte || ((access_type == $VmAccessSAmo) && (!pte_dirty pte)). *)
-
-    (* TODO: make all arguments let expressions *)
-    (* TODO: make pte_grant etc let expressions *)
-
-    (* TODO: the max of the vpn fields - do not hard code width.*)
-    Local Definition max_ppn_width := 44.
 
     Local Definition PteFlags
       := STRUCT_TYPE {
@@ -101,153 +49,144 @@ Section pt_walker.
            "V" :: Bool
          }.
 
-    Local Definition PteEntry
-      := STRUCT_TYPE {
-           "pointer" :: Bit max_ppn_width;
-           "flags" :: PteFlags
-         }.
+    Local Definition PpnWidth := (Rlen - size (PteFlags))%nat.
 
-    Definition mode_select
+    Local Definition PteEntry :=
+      STRUCT_TYPE {
+          "pointer" :: Bit PpnWidth;
+          "flags" :: PteFlags
+        }.
+
+    Definition satp_select
       (k : Kind)
       (satp_mode : Bit SatpModeWidth @# ty)
       (f : VmMode -> k @# ty)
-      :  k @# ty
-      := Switch satp_mode Retn k With {
-           ($SatpModeSv32 : Bit SatpModeWidth @# ty)
-             ::= f vm_mode_sv32;
-           ($SatpModeSv39 : Bit SatpModeWidth @# ty)
-             ::= f vm_mode_sv39;
-           ($SatpModeSv48 : Bit SatpModeWidth @# ty)
-             ::= f vm_mode_sv48
-         }.
+      :  k @# ty :=
+      Switch satp_mode Retn k With {
+               ($SatpModeSv32 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv32;
+               ($SatpModeSv39 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv39;
+               ($SatpModeSv48 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv48
+             }.
 
     Local Definition isLeaf (flags : PteFlags @# ty) : Bool ## ty :=
       RetE (flags @% "R" || flags @% "X").
 
     Local Definition isValidEntry
-          currentLevel vm_mode (flags : PteFlags @# ty) : Bool ## ty :=
-          LETC cond1 <- mode_select vm_mode
-          (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
-                (length (vm_mode_sizes x)))%nat));
+          currentLevel satp_mode (flags : PteFlags @# ty) : Bool ## ty :=
+          LETC cond1 <- satp_select satp_mode
+               (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
+                     (length (vm_mode_sizes x)))%nat));
           LETC cond2 <- ! (flags @% "V");
           LETC cond3 <- flags @% "W" && ! (flags @% "R");
           RetE !(#cond1 || #cond2 || #cond3).
   
-    Local Definition leafValid
-      (satp_mode : Bit 4 @# ty)
-      (mxr : Bool @# ty)
-      (sum : Bool @# ty)
-      (mode : PrivMode @# ty)
-      (access_type : VmAccessType @# ty)
-      (index : nat)
-      (leaf : PteEntry @# ty)
-      :  Bool ## ty
-              := RetE ($$ true).
+    Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
+    Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
+
+    Local Definition VpnWidth := (Xlen - LgPageSize)%nat.
+      
+    Local Definition getVpnOffset
+          (vpn : Bit VpnWidth @# ty)
+          (satp_mode : Bit SatpModeWidth @# ty)
+          (currentLevel : nat)
+      :  Bit VpnWidth ## ty :=
+      RetE
+           (satp_select
+             satp_mode
+             (fun x
+               => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
+                 (ZeroExtendTruncLsb _
+                   ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
+      
+    Local Definition getVAddrRest
+          (vAddr: VAddr @# ty)
+          (satp_mode : Bit SatpModeWidth @# ty)
+          (currentLevel : nat)
+      : PAddr ## ty :=
+      let shiftAmt x := wordOfShiftAmt (currentLevel * vm_mode_vpn_size x) in
+      RetE
+      (ZeroExtendTruncLsb _
+        (satp_select
+          satp_mode
+          (fun x => ((vAddr << shiftAmt x) >> shiftAmt x)))).
+      
+    Local Definition checkAlign
+      (pte: PteEntry @# ty)
+      (currentLevel: nat)
+      (satp_mode: Bit SatpModeWidth @# ty)
+      : Bool ## ty :=
+      let shiftAmt x := wordOfShiftAmt ((currentLevel + 1) * vm_mode_vpn_size x) in
+      RetE ((pte @% "pointer" << (satp_select satp_mode shiftAmt)) == $0).
+
+    Local Definition isLeafValid
+          (satp_mode : Bit SatpModeWidth @# ty)
+          (mxr : Bool @# ty)
+          (sum : Bool @# ty)
+          (mode : PrivMode @# ty)
+          (access_type : VmAccessType @# ty)
+          (currentLevel : nat)
+          (pte : PteEntry @# ty)
+      : Bool ## ty :=
+      RetE ($$ true).
       (* := RetE *)
       (*      ((pte_grant *)
       (*         mode *)
       (*         mxr *)
       (*         sum *)
       (*         access_type *)
-      (*         (ZeroExtendTruncLsb pte_width (pack leaf))) && (* TODO remove pack *) *)
-      (*       (mode_select *)
+      (*         (ZeroExtendTruncLsb pte_width (pack pte))) && (* TODO remove pack *) *)
+      (*       (satp_select *)
       (*         satp_mode *)
-      (*         (fun vm_mode *)
-      (*           => pte_aligned vm_mode index  (* TODO simplify align *) *)
-      (*                (ZeroExtendTruncLsb pte_width (pack leaf)))) && (* TODO remove pack *) *)
+      (*         (fun satp_mode *)
+      (*           => pte_aligned vm_mode currentLevel  (* TODO simplify align *) *)
+      (*                (ZeroExtendTruncLsb pte_width (pack pte)))) && (* TODO remove pack *) *)
       (*       (!pte_access_dirty *)
       (*         access_type *)
-      (*         (ZeroExtendTruncLsb pte_width (pack leaf)))). (* TODO remove pack *) *)
+      (*         (ZeroExtendTruncLsb pte_width (pack pte)))). (* TODO remove pack *) *)
 
-    Local Definition getVAddrRest
+    Definition translatePteLeaf
+               (vAddr: VAddr @# ty)
+               (currentLevel: nat)               
+               (satp_mode : Bit SatpModeWidth @# ty)
+               (pte: PteEntry @# ty)
+               (mxr : Bool @# ty)
+               (sum : Bool @# ty)
+               (mode : PrivMode @# ty)
+               (access_type : VmAccessType @# ty)
+      :  Maybe PAddr ## ty :=
+      LETE leafValid: Bool <- isLeafValid satp_mode mxr sum mode access_type currentLevel pte;
+      LETE isCheckAlign: Bool <- checkAlign pte currentLevel satp_mode;
+      LETE offset: PAddr <- getVAddrRest vAddr satp_mode currentLevel;
+      LETC retVal: Maybe PAddr <- STRUCT { "valid" ::= #leafValid && #isCheckAlign ;
+                                           "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") + #offset) } ;
+      RetE #retVal.
+
+    Definition translatePte
           (vAddr: VAddr @# ty)
-          (vm_mode : Bit SatpModeWidth @# ty)
-          (currentLevel : nat)
-      :  Bit max_ppn_width ## ty
-      := RetE
-      ZeroExtendTruncLsb _
-      (mode_select
-        vm_mode
-        (fun x
-          => (((vAddr <<
-                (Const ty (natToWord 6 (currentLevel * vm_mode_vpn_size x)%nat)))) >>
-            (Const ty (natToWord 6 (currentLevel * vm_mode_vpn_size x)%nat))))).
-      
-      Local Definition getVpnOffset
-      (satp_mode : Bit 4 @# ty)
-      (vpn : Bit max_ppn_width @# ty)
-      (index : nat)
-      :  Bit max_ppn_width ## ty
-      := RetE
-           (mode_select
-             satp_mode
-             (fun vm_mode
-               => ((vpn >>
-                     (Const ty
-                       (natToWord 6 (* TODO: check *)
-                         (((vm_mode_ppn_size vm_mode) - index) * (vm_mode_vpn_size vm_mode))%nat))) &
-                   (ZeroExtendTruncLsb max_ppn_width
-                     ($$(wones (vm_mode_vpn_width vm_mode)) <<
-                      (Const ty (natToWord 3 (vm_mode_pte_width vm_mode)))))))).
+          (currentLevel: nat)
+          (satp_mode : Bit SatpModeWidth @# ty)
+          (pte : PteEntry @# ty)
+          (mxr : Bool @# ty)
+          (sum : Bool @# ty)
+          (mode : PrivMode @# ty)
+          (access_type : VmAccessType @# ty)
+      :  Pair Bool (Maybe PAddr) ## ty :=
+      LETE validEntry : Bool <- isValidEntry currentLevel satp_mode (pte @% "flags") ;
+      LETE leaf : Bool <- isLeaf (pte @% "flags") ;
+      LETE leafVal: Maybe PAddr <- translatePteLeaf vAddr currentLevel satp_mode pte mxr sum mode access_type;
+      LETE vpnOffset <- getVpnOffset (ZeroExtendTruncMsb _ vAddr) satp_mode currentLevel;
+      LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= $$ true ;
+                                               "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") +
+                                                           ZeroExtendTruncLsb PAddrSz #vpnOffset) } ;
+      LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
+      LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
+                                                         "snd" ::= #retVal } ;
+      RetE #finalVal.
 
-    Local Definition translateLeaf
-      (satp_mode : Bit 4 @# ty)
-      (mxr : Bool @# ty)
-      (sum : Bool @# ty)
-      (mode : PrivMode @# ty)
-      (access_type : Bit VmAccessWidth @# ty)
-      (vpn : Bit max_ppn_width @# ty)
-      (index : nat)
-      (leaf : PteEntry @# ty)
-      :  Maybe (Bit max_ppn_width) ## ty
-      := LETE valid : Bool <- leafValid satp_mode mxr sum mode access_type index leaf;
-         LETE result
-           :  Bit max_ppn_width
-           <- getVAddrRest satp_mode vpn index;
-         RetE
-           ((IF #valid
-             then Valid (ZeroExtendTruncLsb max_ppn_width (leaf @% "pointer" + #result))
-             else (@Invalid ty (Bit max_ppn_width))) : Maybe (Bit max_ppn_width) @# ty).
-
-    Local Definition translate
-      (satp_mode : Bit 4 @# ty)
-      (mxr : Bool @# ty)
-      (sum : Bool @# ty)
-      (mode : PrivMode @# ty)
-      (access_type : Bit VmAccessWidth @# ty)
-      (vpn : Bit max_ppn_width @# ty)
-      (index : nat)
-      (entry : PteEntry @# ty)
-      :  Pair Bool (Maybe (Bit max_ppn_width)) ## ty
-      := LETE isValid : Bool <- isValidEntry entry;
-         LETE isLeaf : Bool <- isLeaf entry;
-         LETE leafResult
-           :  Maybe (Bit max_ppn_width)
-           <- translateLeaf satp_mode mxr sum mode access_type vpn index entry;
-         LETE vpnOffset
-           :  Bit max_ppn_width
-           <- getVpnOffset satp_mode vpn index;
-         RetE
-           (IF #isValid
-             then 
-               (IF #isLeaf
-                 then 
-                   (STRUCT {
-                      "fst" ::= $$true;
-                      "snd" ::= #leafResult
-                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty)
-                 else
-                   (STRUCT {
-                      "fst" ::= $$false;
-                      "snd" ::= Valid (entry @% "pointer" + #vpnOffset)
-                    } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty))
-             else
-               STRUCT {
-                 "fst" ::= $$true;
-                 "snd" ::= Invalid
-               } : Pair Bool (Maybe (Bit max_ppn_width)) @# ty).
-
-    Local Definition loopFunction
+    Definition translatePteLoop
       (mem_read_index : nat)
       (satp_mode : Bit 4 @# ty)
       (mxr : Bool @# ty)
@@ -369,3 +308,55 @@ Section pt_walker.
   Close Scope kami_expr.
 
 End pt_walker.
+
+    (* See 4.3.2 item 5 *)
+    (* Definition pte_grant *)
+    (*   (mode : PrivMode @# ty) *)
+    (*   (mxr : Bool @# ty) *)
+    (*   (sum : Bool @# ty) (* 4.3.1 supervisor user mode bit *) *)
+    (*   (access_type : VmAccessType @# ty) *)
+    (*   (pte : Bit pte_width @# ty) *)
+    (*   :  Bool @# ty *)
+    (*   := Switch access_type Retn Bool With { *)
+    (*        ($VmAccessLoad : Bit VmAccessWidth @# ty) *)
+    (*          ::= (pte_read pte || (mxr && pte_execute pte)) && *)
+    (*              Switch mode Retn Bool With { *)
+    (*                ($MachineMode : PrivMode @# ty) *)
+    (*                  ::= $$true; *)
+    (*                ($SupervisorMode : PrivMode @# ty) *)
+    (*                  ::= ((!(pte_user pte)) || sum); *)
+    (*                ($UserMode : PrivMode @# ty) *)
+    (*                  ::= pte_user pte *)
+    (*              }; *)
+    (*        ($VmAccessInst : Bit VmAccessWidth @# ty) *)
+    (*          ::= pte_execute pte && *)
+    (*              Switch mode Retn Bool With { *)
+    (*                ($MachineMode : PrivMode @# ty) *)
+    (*                  ::= $$true; *)
+    (*                ($SupervisorMode : PrivMode @# ty) *)
+    (*                  ::= !(pte_user pte); *)
+    (*                ($UserMode : PrivMode @# ty) *)
+    (*                  ::= pte_user pte *)
+    (*              }; *)
+    (*        ($VmAccessSAmo : Bit VmAccessWidth @# ty) *)
+    (*          ::= pte_write pte && *)
+    (*              Switch mode Retn Bool With { *)
+    (*                ($MachineMode : PrivMode @# ty) *)
+    (*                  ::= $$true; *)
+    (*                ($SupervisorMode : PrivMode @# ty) *)
+    (*                  ::= ((!(pte_user pte)) || sum); *)
+    (*                ($UserMode : PrivMode @# ty) *)
+    (*                  ::= pte_user pte *)
+    (*              } *)
+    (*      }. *)
+
+    (* See 4.3.2. item 7 *)
+    (* Definition pte_access_dirty *)
+    (*   (access_type : VmAccessType @# ty) *)
+    (*   (pte : Bit pte_width @# ty) *)
+    (*   := !pte_access pte || ((access_type == $VmAccessSAmo) && (!pte_dirty pte)). *)
+
+    (* TODO: make all arguments let expressions *)
+    (* TODO: make pte_grant etc let expressions *)
+
+    (* TODO: the max of the vpn fields - do not hard code width.*)
