@@ -257,6 +257,26 @@ Section Params.
                        DispHex #mem_update_pkt;    
                        DispString _ "\n"
                      ];
+                   System [DispString _ "CSR Write\n"];
+                   Read tvm : Bit 1 <- ^"tvm";
+                   LETA csr_update_pkt
+                     <- CsrUnit
+                          name
+                          #tvm
+                          #pc
+                          (#decoder_pkt @% "fst" @% "inst")
+                          (#decoder_pkt @% "fst" @% "compressed?")
+                          (#cfg_pkt)
+                          (rd (#exec_context_pkt @% "fst" @% "inst"))
+                          (rs1 (#exec_context_pkt @% "fst" @% "inst"))
+                          (imm (#exec_context_pkt @% "fst" @% "inst"))
+                          #mem_update_pkt;
+                   System
+                     [
+                       DispString _ "CSR Unit:\n";
+                       DispHex #csr_update_pkt;    
+                       DispString _ "\n"
+                     ];
                    System [DispString _ "Reg Write\n"];
                    LETA commit_pkt
                      :  Void
@@ -267,20 +287,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
-                          #mem_update_pkt;
-                   System [DispString _ "CSR Write\n"];
-                   LETA _
-                     :  Void
-                     <- commitCSRWrites
-                          name
-                          Xlen_over_8
-                          #pc
-                          (#decoder_pkt @% "fst" @% "compressed?")
-                          (#cfg_pkt)
-                          (rd (#exec_context_pkt @% "fst" @% "inst"))
-                          (rs1 (#exec_context_pkt @% "fst" @% "inst"))
-                          (imm (#exec_context_pkt @% "fst" @% "inst"))
-                          (#exec_update_pkt @% "fst");
+                          #csr_update_pkt;
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv
