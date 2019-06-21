@@ -39,8 +39,8 @@ Section pt_walker.
     Variable mxr: Bool @# ty.
     Variable sum: Bool @# ty.
     Variable mode: PrivMode @# ty.
-    Variable access_type: VmAccessType @# ty.
     Variable satp_ppn: PAddr @# ty.
+    Variable access_type: VmAccessType @# ty.
     Variable vAddr: VAddr @# ty.
 
     Definition PteFlags
