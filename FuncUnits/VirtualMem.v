@@ -201,7 +201,7 @@ Section pt_walker.
               :  Maybe Data
               <- pMemRead (mem_read_index + currentLevel) mode (acc @% "snd" @% "data");
             System [
-              DispString _ "[translatePteLoop] ===================================: ";
+              DispString _ "[translatePteLoop] ===================================\n ";
               DispString _ "[translatePteLoop] pte: ";
               DispHex (#read_result @% "data");
               DispString _ "\n";
@@ -236,7 +236,7 @@ Section pt_walker.
         => LETA acc_result <- acc;
         translatePteLoop currentLevel #acc_result) (seq 0 maxPageLevels)
       (Ret (STRUCT { "fst" ::= $$ false ;
-                     "snd" ::= Valid (satp_ppn << (Const ty (natToWord 4 LgPageSizeLgPageSize)))}));
+                     "snd" ::= Valid (satp_ppn << (Const ty (natToWord 4 LgPageSize)))}));
       System [
         DispString _ "[pte_translate] the resulting paddr: ";
         DispHex (#result @% "snd");
