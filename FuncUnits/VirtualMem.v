@@ -84,9 +84,9 @@ Section pt_walker.
         Local Notation flags := (pte @% "flags").
         Local Notation pointer := (pte @% "pointer").
   
-        Local Definition isLeaf : Bool ## ty :=
-          RetE (flags @% "R" || flags @% "X").
-  
+        Local Definition isNode : Bool ## ty :=
+          RetE !(flags @% "R" || flags @% "X").
+
         Local Definition isValidEntry : Bool ## ty :=
         LETC cond1 <- satp_select
              (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
@@ -98,8 +98,10 @@ Section pt_walker.
         Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
         Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
   
-        Local Definition getVpnOffset: Bit VpnWidth ## ty :=
-          RetE (satp_select
+        (* TODO REVERT TO LET EXPRESSION WHEN DONE *)
+        (* Local Definition getVpnOffset: Bit VpnWidth ## ty := *)
+        Local Definition getVpnOffset: Bit VpnWidth @# ty :=
+          (satp_select
             (fun x
               => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 2 - currentLevel) * vm_mode_vpn_size x)%nat) &
                 (ZeroExtendTruncLsb _
@@ -140,22 +142,38 @@ Section pt_walker.
                           })
                     }.
         
+        Local Definition isNodeValid
+          :  Bool ## ty
+          := RetE
+               ((flags @% "V") &&
+                (flags @% "R" || (!(flags @% "W")))).
+
+        Local Definition isLeafValid
+          :  Bool ## ty
+          := LETE align : Bool <- checkAlign;
+             RetE
+               ((flags @% "V") &&
+                pte_grant  &&
+                #align &&
+                !pte_access_dirty).
+(*
         Local Definition isLeafValid: Bool ## ty :=
           RetE (!pte_access_dirty && pte_grant).
-    
+ *)   
         Definition translatePteLeaf: Maybe PAddr ## ty :=
           LETE leafValid: Bool <- isLeafValid;
           LETE isCheckAlign: Bool <- checkAlign;
           LETE offset: PAddr <- getVAddrRest;
           LETC retVal: Maybe PAddr <- STRUCT { "valid" ::= #leafValid && #isCheckAlign ;
-                                               "data" ::= (ZeroExtendTruncLsb PAddrSz (pte @% "pointer") + #offset) } ;
+                                               "data" ::= ((ZeroExtendTruncLsb PAddrSz (pte @% "pointer") << (Const ty (natToWord 4 LgPageSize))) + #offset) } ;
           RetE #retVal.
     
         Definition translatePte: Pair Bool (Maybe PAddr) ## ty :=
           LETE validEntry : Bool <- isValidEntry;
-          LETE leaf : Bool <- isLeaf;
+          LETE nodeValid : Bool <- isNodeValid;
+          LETE node : Bool <- isNode;
           LETE leafVal: Maybe PAddr <- translatePteLeaf;
-          LETE vpnOffset <- getVpnOffset;
+          LETC vpnOffset <- getVpnOffset;
           SystemE [
             DispString _ ("[translatePte] current level: " ++ natToHexStr currentLevel ++ "\n");
             DispString _ "[translatePte] vpn: ";
@@ -181,11 +199,26 @@ Section pt_walker.
             DispHex (pte @% "pointer");
             DispString _ "\n"
           ];
-          LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= $$ true ;
-                                                   "data" ::= ((ZeroExtendTruncLsb PAddrSz (pte @% "pointer") +
+          LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= #nodeValid;
+                                                   "data" ::= (((ZeroExtendTruncLsb PAddrSz (pte @% "pointer") << (Const ty (natToWord 4 LgPageSize))) +
                                                                ZeroExtendTruncLsb PAddrSz #vpnOffset)) } ;
-          LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
-          LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
+          SystemE [
+            DispString _ "[translatePte] is node: ";
+            DispHex #node;
+            DispString _ "\n";
+            DispString _ "[translatePte] leaf value: ";
+            DispHex #leafVal;
+            DispString _ "\n";
+            DispString _ "[translatePte] node value: ";
+            DispHex #nonLeafVal;
+            DispString _ "\n"
+          ];
+          LETC retVal
+            :  Maybe PAddr
+            <- IF #node
+                 then #nonLeafVal
+                 else #leafVal;
+          LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || !#node) ;
                                                              "snd" ::= #retVal } ;
           RetE #finalVal.
         End pte.
@@ -225,9 +258,24 @@ Section pt_walker.
                                           [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48] 0.
 
     Definition pt_walker: ActionT ty (Maybe PAddr) :=
+      LET offset
+        :  PAddr
+        <- ZeroExtendTruncLsb PAddrSz (getVpnOffset 0);
       System [
         DispString _ "[pt_walker] satp ppn: ";
         DispHex satp_ppn;
+        DispString _ "\n";
+        DispString _ "[pt_walker] vpn offset 0: ";
+        DispHex (ZeroExtendTruncLsb PAddrSz (getVpnOffset 0));
+        DispString _ "\n";
+        DispString _ "[pt_walker] vpn offset 1: ";
+        DispHex (ZeroExtendTruncLsb PAddrSz (getVpnOffset 1));
+        DispString _ "\n";
+        DispString _ "[pt_walker] vpn offset 2: ";
+        DispHex (ZeroExtendTruncLsb PAddrSz (getVpnOffset 2));
+        DispString _ "\n";
+        DispString _ "[pt_walker] vpn offset 2: ";
+        DispHex (ZeroExtendTruncLsb PAddrSz (getVpnOffset 3));
         DispString _ "\n"
         ];
       LETA result: Pair Bool (Maybe PAddr)
@@ -236,7 +284,10 @@ Section pt_walker.
         => LETA acc_result <- acc;
         translatePteLoop currentLevel #acc_result) (seq 0 maxPageLevels)
       (Ret (STRUCT { "fst" ::= $$ false ;
-                     "snd" ::= Valid (satp_ppn << (Const ty (natToWord 4 LgPageSize)))}));
+                     "snd"
+                       ::= Valid
+                             ((satp_ppn << (Const ty (natToWord 4 LgPageSize))) +
+                              #offset)}));
       System [
         DispString _ "[pte_translate] the resulting paddr: ";
         DispHex (#result @% "snd");
