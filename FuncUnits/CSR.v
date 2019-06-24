@@ -802,7 +802,7 @@ Section CsrInterface.
 
   (* Returns true if an exception occurs *)
   Definition commitCSRWrite
-    (tvm : Bit 1 @# ty)
+    (tvm : Bool @# ty)
     (upd_pkt : FieldUpd @# ty)
     (rd_index : RegId @# ty)
     (rs1_index : RegId @# ty)
@@ -816,7 +816,7 @@ Section CsrInterface.
              csr_params))
          then
            (* 3.1.6.4 *)
-           If upd_pkt @% "cfg" @% "mode" == $SupervisorMode && tvm == $1
+           If upd_pkt @% "cfg" @% "mode" == $SupervisorMode && tvm
              then 
                Ret $$true
              else
@@ -853,7 +853,6 @@ Section CsrInterface.
 
   (* Returns true iff an exception occurs *)
   Definition commitCSRWrites
-    (tvm : Bit 1 @# ty)
     (pc : VAddr @# ty)
     (compressed : Bool @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
@@ -874,12 +873,11 @@ Section CsrInterface.
                 ::= #warlStateField;
               "cfg" ::= cfg_pkt
             } : FieldUpd @# ty;
-       LETA error0 <- commitCSRWrite tvm #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-       LETA error1 <- commitCSRWrite tvm #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+       LETA error0 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+       LETA error1 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
        Ret (#error0 || #error1).
 
   Definition CsrUnit
-    (tvm : Bit 1 @# ty)
     (pc : VAddr @# ty)
     (inst : Inst @# ty)
     (compressed : Bool @# ty)
@@ -891,7 +889,7 @@ Section CsrInterface.
     :  ActionT ty (PktWithException ExecUpdPkt)
     := LETA error
          :  Bool
-         <- commitCSRWrites tvm pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
+         <- commitCSRWrites pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
        Ret
          (mkPktWithException
            update_pkt

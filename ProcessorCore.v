@@ -258,11 +258,9 @@ Section Params.
                        DispString _ "\n"
                      ];
                    System [DispString _ "CSR Write\n"];
-                   Read tvm : Bit 1 <- ^"tvm";
                    LETA csr_update_pkt
                      <- CsrUnit
                           name
-                          #tvm
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")

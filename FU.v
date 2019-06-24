@@ -200,6 +200,7 @@ Section Params.
     STRUCT_TYPE {
         "xlen"        :: XlenValue;
         "mode"        :: PrivMode;
+        "tvm"         :: Bool;
         "extensions"  :: Extensions;
         "instMisalignedException?" :: Bool ;
         "memMisalignedException?"  :: Bool ;

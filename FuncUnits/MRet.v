@@ -162,11 +162,19 @@ Section mret.
     := {|
          fuName := "fence";
          fuFunc
-           := fun _
-                => RetE
+           := fun in_pkt : Maybe Inst ## ty
+                => LETE inst : Maybe Inst <- in_pkt;
+                   RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt;
-                        "snd" ::= Invalid
+                        "snd"
+                          ::= IF #inst @% "valid"
+                                then
+                                  Valid (STRUCT {
+                                    "exception" ::= $IllegalInst;
+                                    "value" ::= ZeroExtendTruncLsb Xlen (#inst @% "data")
+                                  } : FullException @# ty)
+                                else Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts
            := [
@@ -178,7 +186,7 @@ Section mret.
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (Const ty (natToWord 0 0));
+                  inputXform  := fun _ _ => RetE Invalid;
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
@@ -194,7 +202,14 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (Const ty (natToWord 0 0));
+                  inputXform
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) (gcpin : ExecContextPkt ## ty)
+                         => LETE gcp : ExecContextPkt <- gcpin;
+                            (RetE
+                              (IF cfg_pkt @% "tvm"
+                                then Valid (#gcp @% "inst")
+                                else @Invalid ty Inst
+                                ) :  Maybe Inst ## ty);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints

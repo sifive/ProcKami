@@ -58,6 +58,7 @@ Section config_reader.
                 #init_extensions
                   @%["RV32I" <- $$false]
                   @%["RV64I" <- $$true];
+       Read tvm : Bit 1 <- ^"tvm";
        System
          [
            DispString _ "Start\n";
@@ -75,6 +76,7 @@ Section config_reader.
          (STRUCT {
             "xlen"       ::= #xlen;
             "mode"       ::= #mode;
+            "tvm"        ::= (#tvm == $1);
             "extensions" ::= #extensions;
             "instMisalignedException?" ::= $$false ;
             "memMisalignedException?"  ::= $$false ;
