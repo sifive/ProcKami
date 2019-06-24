@@ -85,7 +85,7 @@ Section mem_unit.
                   then Valid #mpp
                   else Invalid
               else Valid mode;
-       If #transMode @% "valid"
+       If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
            LETA paddr
              :  Maybe (Bit (mem_params_addr_size mem_params))

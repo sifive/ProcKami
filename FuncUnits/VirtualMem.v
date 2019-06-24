@@ -173,6 +173,14 @@ Section pt_walker.
         (If acc @% "snd" @% "valid"
           then (
             LETA read_result: Maybe Data <- pMemRead (mem_read_index + currentLevel) mode (acc @% "snd" @% "data");
+            System [
+              DispString _ "[translatePteLoop] pte: ";
+              DispHex (#read_result @% "data");
+              DispString _ "\n";
+              DispString _ "[translatePteLoop] pte address: ";
+              DispHex (acc @% "snd" @% "data");
+              DispString _ "\n"
+            ];
             If #read_result @% "valid"
             then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
             else Ret #doneInvalid
@@ -201,6 +209,11 @@ Section pt_walker.
         translatePteLoop currentLevel #acc_result) (seq 0 maxPageLevels)
       (Ret (STRUCT { "fst" ::= $$ false ;
                      "snd" ::= Valid satp_ppn }));
+      System [
+        DispString _ "[pte_translate] the resulting paddr: ";
+        DispHex (#result @% "snd");
+        DispString _ "\n"
+      ];
       Ret (#result @% "snd").
   End VirtMem.
 
