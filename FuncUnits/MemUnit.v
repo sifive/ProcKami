@@ -94,7 +94,7 @@ Section mem_unit.
                   (#mxr == $1)
                   (#sum == $1)
                   (#transMode @% "data")
-                  (unsafeTruncLsb (mem_params_addr_size mem_params) #satp_ppn)
+                  (unsafeTruncLsb (mem_params_addr_size mem_params) (#satp_ppn << Const ty (natToWord 4 LgPageSize)))
                   access_type
                   vaddr;
            Ret
@@ -105,38 +105,7 @@ Section mem_unit.
            Ret (pMemTranslate vaddr)
          as result;
        Ret #result.
-(*
-    := If mode == $MachineMode
-         then
-           (* See 3.1.9 *)
-           Read mprv : Bit 1 <- ^"mprv";
-           If #mprv == $1
-             then 
-               Read mpp : PrivMode <- ^"mpp";
-               pt_walker
-                 3 (* initial walker mem read index. *)
-                 #mpp
-                 access_type
-                 vaddr
-             else
-               Ret (pMemTranslate vaddr)
-             as result;
-           Ret #result
-         else
-           Read satp_mode : Bit 4 <- ^"satp_mode";
-           If #satp_mode == $SatpModeBare
-             then Ret (pMemTranslate vaddr)
-             else 
-               pt_walker
-                 3 (* initial walker mem read index. *)
-                 mode
-                 access_type
-                 vaddr
-             as result;
-           Ret #result
-         as result;
-       Ret #result.
-*)
+
   Local Definition memFetchAux
     (exception : Exception @# ty)
     (vaddr : VAddr @# ty)
