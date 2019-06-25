@@ -96,7 +96,7 @@ Section pt_walker.
         RetE !(#cond1 || #cond2 || #cond3).
         
         Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
-        Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
+        Definition wordOfShiftAmt n := Const ty (natToWord 10 n).
         Definition ppnToPAddr sz (x: Bit sz @# ty) := ZeroExtendTruncLsb PAddrSz x << (Const ty (natToWord 4 LgPageSize)).
   
         Local Definition getVpnOffset: PAddr ## ty :=
@@ -106,16 +106,35 @@ Section pt_walker.
                 (ZeroExtendTruncLsb _
                   ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
           
+        Definition list_sum : list nat -> nat := fold_right plus 0.
+
+        Fixpoint list_take (A : Type) (xs : list A) (n : nat) {struct n} : list A
+          := match n with
+               | O => nil
+               | S m => match xs with
+                          | nil => nil
+                          | y0 :: ys => y0 :: (list_take ys m)
+                          end
+               end.
+
         Local Definition getVAddrRest: PAddr ## ty :=
-          let shiftAmt x := wordOfShiftAmt (currentLevel * vm_mode_vpn_size x) in
-          RetE (ZeroExtendTruncLsb _
-            (satp_select
-              (fun x => ((vAddr << shiftAmt x) >> shiftAmt x)))).
+          RetE
+            (ZeroExtendTruncLsb PAddrSz
+              (satp_select
+                (fun x
+                  => let shiftAmt x
+                       := wordOfVAddrShifter
+                            (((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x) + LgPageSize)%nat in
+                     let mask := ~($$(wones Xlen) << (shiftAmt x)) in
+                     (vAddr & mask)))).
           
         Local Definition checkAlign: Bool ## ty :=
-          let shiftAmt x := wordOfShiftAmt ((currentLevel + 1) * vm_mode_vpn_size x) in
-          RetE ((pte @% "pointer" << (satp_select shiftAmt)) == $0).
-  
+          RetE
+            (satp_select
+              (fun x
+                => let index := ((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x)%nat in
+                   (unsafeTruncLsb index (pte @% "pointer")) == $0)).
+
         Definition pte_access_dirty: Bool @# ty
           := !(flags @% "A") || ((access_type == $VmAccessSAmo) && (!(flags @% "D"))).
 
@@ -157,31 +176,6 @@ Section pt_walker.
           LETE leaf : Bool <- isLeaf;
           LETE leafVal: Maybe PAddr <- translatePteLeaf;
           LETE vpnOffset <- getVpnOffset;
-          SystemE [
-            DispString _ ("[translatePte] current level: " ++ natToHexStr currentLevel ++ "\n");
-            DispString _ "[translatePte] vpn: ";
-            DispHex vpn;
-            DispString _ "\n";
-            (* DispString _ ("[translatePte] number of vpn fields: " ++ natToHexStr (length (vm_mode_sizes x)) ++ "\n"); *)
-            DispString _ "[translatePte] vpn 0: ";
-            DispHex (satp_select (fun x => vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 0) * vm_mode_vpn_size x)%nat));
-            DispString _ "\n";
-            DispString _ "[translatePte] vpn 1: ";
-            DispHex (satp_select (fun x => (vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1) * vm_mode_vpn_size x)%nat)));
-            DispString _ "\n";
-            DispString _ "[translatePte] vpn 2: ";
-            DispHex (satp_select (fun x => (vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 2) * vm_mode_vpn_size x)%nat)));
-            DispString _ "\n";
-            DispString _ "[translatePte] vpn 3: ";
-            DispHex (satp_select (fun x => (vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 3) * vm_mode_vpn_size x)%nat)));
-            DispString _ "\n";
-            DispString _ "[translatePte] vpn offset: ";
-            DispHex #vpnOffset;
-            DispString _ "\n";
-            DispString _ "[translatePte] pte pointer: ";
-            DispHex (pte @% "pointer");
-            DispString _ "\n"
-          ];
           LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= #validEntry;
                                                    "data" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset) } ;
           SystemE [
@@ -209,15 +203,6 @@ Section pt_walker.
         (If acc @% "snd" @% "valid"
           then (
             LETA read_result: Maybe Data <- pMemRead (mem_read_index + currentLevel) mode (acc @% "snd" @% "data");
-            System [
-              DispString _ "[translatePteLoop] ===================================\n ";
-              DispString _ "[translatePteLoop] pte: ";
-              DispHex (#read_result @% "data");
-              DispString _ "\n";
-              DispString _ "[translatePteLoop] pte address: ";
-              DispHex (acc @% "snd" @% "data");
-              DispString _ "\n"
-            ];
             If #read_result @% "valid"
             then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
             else Ret #doneInvalid
@@ -235,11 +220,6 @@ Section pt_walker.
 
     Definition pt_walker: ActionT ty (Maybe PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
-      System [
-        DispString _ "[pt_walker] satp ppn: ";
-        DispHex satp_ppn;
-        DispString _ "\n"
-        ];
       LETA result: Pair Bool (Maybe PAddr)
       <- fold_left
       (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat)
