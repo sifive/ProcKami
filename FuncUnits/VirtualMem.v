@@ -106,17 +106,6 @@ Section pt_walker.
                 (ZeroExtendTruncLsb _
                   ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
           
-        Definition list_sum : list nat -> nat := fold_right plus 0.
-
-        Fixpoint list_take (A : Type) (xs : list A) (n : nat) {struct n} : list A
-          := match n with
-               | O => nil
-               | S m => match xs with
-                          | nil => nil
-                          | y0 :: ys => y0 :: (list_take ys m)
-                          end
-               end.
-
         Local Definition getVAddrRest: PAddr ## ty :=
           RetE
             (ZeroExtendTruncLsb PAddrSz
