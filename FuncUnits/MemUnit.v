@@ -94,7 +94,7 @@ Section mem_unit.
                   (#mxr == $1)
                   (#sum == $1)
                   (#transMode @% "data")
-                  (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr #satp_ppn))
+                  (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr mem_params (ZeroExtendTruncLsb 44 #satp_ppn)))
                   access_type
                   vaddr;
            Ret

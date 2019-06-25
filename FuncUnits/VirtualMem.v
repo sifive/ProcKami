@@ -97,7 +97,7 @@ Section pt_walker.
         
         Definition wordOfVAddrShifter n := Const ty (natToWord 5 n).
         Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
-        Definition ppnToPAddr ty sz (x: Bit sz @# ty) := ZeroExtendTruncLsb PAddrSz x << (Const ty (natToWord 4 LgPageSize)).
+        Definition ppnToPAddr sz (x: Bit sz @# ty) := ZeroExtendTruncLsb PAddrSz x << (Const ty (natToWord 4 LgPageSize)).
   
         Local Definition getVpnOffset: PAddr ## ty :=
           RetE (satp_select
