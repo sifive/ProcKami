@@ -17,7 +17,7 @@ Section mem_unit.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Variable vm_params : VmParamsType.
+  (* Variable vm_params : VmParamsType. *)
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -54,7 +54,7 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -67,37 +67,42 @@ Section mem_unit.
 
   Definition memTranslate
     (mode : PrivMode @# ty)
-    (access_type : Bit VmAccessWidth @# ty)
+    (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe PAddr)
-    := If mode == $MachineMode
+    := Read mpp : PrivMode <- ^"mpp";
+       Read mprv : Bit 1 <- ^"mprv";
+       Read satp_mode : Bit 4 <- ^"satp_mode";
+       Read mxr : Bit 1 <- ^"mxr";
+       Read sum : Bit 1 <- ^"sum";
+       Read satp_ppn : Bit 44 <- ^"satp_ppn";
+       LET transMode
+         :  Maybe PrivMode
+         <- IF mode == $MachineMode
+              then
+                (* See 3.1.9 *)
+                IF #mprv == $1
+                  then Valid #mpp
+                  else Invalid
+              else Valid mode;
+       If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
-           (* See 3.1.9 *)
-           Read mprv : Bit 1 <- ^"mprv";
-           If #mprv == $1
-             then 
-               Read mpp : PrivMode <- ^"mpp";
-               pt_walker
-                 3 (* initial walker mem read index. *)
-                 #mpp
-                 access_type
-                 vaddr
-             else
-               Ret (pMemTranslate vaddr)
-             as result;
-           Ret #result
+           LETA paddr
+             :  Maybe (Bit (mem_params_addr_size mem_params))
+             <- pt_walker
+                  #satp_mode
+                  (#mxr == $1)
+                  (#sum == $1)
+                  (#transMode @% "data")
+                  (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr mem_params (ZeroExtendTruncLsb 44 #satp_ppn)))
+                  access_type
+                  vaddr;
+           Ret
+             (IF #paddr @% "valid"
+                then (Valid (SignExtendTruncLsb PAddrSz (#paddr @% "data")) : Maybe PAddr @# ty)
+                else Invalid)
          else
-           Read satp_mode : Bit 4 <- ^"satp_mode";
-           If #satp_mode == $SatpModeBare
-             then Ret (pMemTranslate vaddr)
-             else 
-               pt_walker
-                 3 (* initial walker mem read index. *)
-                 mode
-                 access_type
-                 vaddr
-             as result;
-           Ret #result
+           Ret (pMemTranslate vaddr)
          as result;
        Ret #result.
 
