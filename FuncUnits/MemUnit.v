@@ -94,7 +94,7 @@ Section mem_unit.
                   (#mxr == $1)
                   (#sum == $1)
                   (#transMode @% "data")
-                  (unsafeTruncLsb (mem_params_addr_size mem_params) (#satp_ppn << Const ty (natToWord 4 LgPageSize)))
+                  (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr #satp_ppn))
                   access_type
                   vaddr;
            Ret
