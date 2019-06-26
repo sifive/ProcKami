@@ -729,6 +729,66 @@ Section CsrInterface.
                          ]
                   |}
                 ]
+         |};
+         {|
+           csrName  := ^"mvendorid";
+           csrAddr  := CsrIdWidth 'h"f11";
+           csrViews := repeatCSRView 2 [ @csrFieldAny ^"mvendorid" (Bit 32) None ]
+         |};
+         {|
+           csrName := ^"marchid";
+           csrAddr := CsrIdWidth 'h"f12";
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewFields  := [ @csrFieldAny ^"marchid" (Bit 32) None ]
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewFields  := [ @csrFieldAny ^"marchid" (Bit 64) None ]
+                  |}
+                ]
+         |};
+         {|
+           csrName := ^"mimpid";
+           csrAddr := CsrIdWidth 'h"f13";
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewFields  := [ @csrFieldAny ^"marchid" (Bit 32) None ]
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewFields  := [ @csrFieldAny ^"marchid" (Bit 64) None ]
+                  |}
+                ]
+         |};
+         {|
+           csrName := ^"mhartid";
+           csrAddr := CsrIdWidth 'h"f14";
+           csrViews
+             := [
+                  {|
+                    csrViewContext := $1;
+                    csrViewFields  := [ @csrFieldAny ^"mhartid" (Bit 32) None ]
+                  |};
+                  {|
+                    csrViewContext := $2;
+                    csrViewFields  := [ @csrFieldAny ^"mhartid" (Bit 64) None ]
+                  |}
+                ]
+         |};
+         {|
+           csrName  := ^"mcycle";
+           csrAddr  := CsrIdWidth 'h"b00";
+           csrViews := repeatCSRView 2 [ @csrFieldAny ^"mcycle" (Bit 64) None ]
+         |};
+         {|
+           csrName  := ^"minstret";
+           csrAddr  := CsrIdWidth 'h"b02";
+           csrViews := repeatCSRView 2 [ @csrFieldAny ^"minstret" (Bit 64) None ]
          |}
        ].
 

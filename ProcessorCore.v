@@ -84,6 +84,11 @@ Section Params.
               Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"mtval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
+              Register ^"mvendorid"        : Bit 32 <- ConstBit (wzero 32) with
+              Register ^"marchid"          : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"mimpid"           : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"mhartid"          : Bit Xlen <- ConstBit (wzero Xlen) with
+
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
@@ -116,6 +121,10 @@ Section Params.
               Register ^"ucause_interrupt" : Bool <- ConstBool false with
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
+
+              (* preformance monitor registers *)
+              Register ^"mcycle"           : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"minstret"         : Bit 64 <- ConstBit (wzero 64) with
 
               (* memory protection registers. *)
               Register ^"pmp0cfg"
@@ -287,6 +296,10 @@ Section Params.
                           #csr_update_pkt;
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
+                   Retv with
+              Rule ^"mcycle"
+                := Read mcycle : Bit 64 <- ^"mcycle";
+                   Write ^"mcycle" : Bit 64 <- #mcycle + $1;
                    Retv
          }.
 
