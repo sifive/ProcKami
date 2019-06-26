@@ -225,6 +225,7 @@ Section exts.
              MRet      Xlen_over_8 Rlen_over_8 _;
              ECall     Xlen_over_8 Rlen_over_8 _;
              Fence     Xlen_over_8 Rlen_over_8 _;
+             EBreak    Xlen_over_8 Rlen_over_8 _;
 
              (* RVI logical instructions. *)
              Add       Xlen_over_8 Rlen_over_8 _;

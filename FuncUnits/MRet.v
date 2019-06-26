@@ -217,6 +217,47 @@ Section mret.
               ]
        |}.
 
+  Definition EBreak : @FUEntry ty
+    := {|
+         fuName := "ebreak";
+         fuFunc
+           := (fun in_pkt : Inst ## ty
+               => LETE inst : Inst <- in_pkt;
+                  LETC exception
+                    <- Valid (STRUCT {
+                          "exception" ::= Const ty (natToWord 4 Breakpoint);
+                          "value"     ::= ZeroExtendTruncLsb Xlen #inst
+                        } : FullException @# ty);
+                  RetE
+                    (STRUCT {
+                       "fst" ::= noUpdPkt;
+                       "snd" ::= #exception
+                     } : PktWithException ExecUpdPkt @# ty));
+         fuInsts
+           := [
+                {|
+                  instName   := "ebreak";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0000000");
+                         fieldVal rs2Field ('b"00001");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform 
+                    := fun _ (gcpin : ExecContextPkt ## ty)
+                         => LETE gcp : ExecContextPkt <- gcpin;
+                            RetE (#gcp @% "inst");
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
+                |}
+              ]
+       |}.
   Close Scope kami_expr.
 
 End mret.
