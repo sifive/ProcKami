@@ -375,22 +375,22 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldNoReg "reserved0" (Bit 11) (getDefaultConst _);
-                           @csrFieldAny ^"tvm" (Bit 1) None;
-                           @csrFieldAny ^"mxr" (Bit 1) None;
-                           @csrFieldAny ^"sum" (Bit 1) None;
-                           @csrFieldAny ^"mprv" (Bit 1) None;
+                           @csrFieldAny ^"tvm" Bool None;
+                           @csrFieldAny ^"mxr" Bool None;
+                           @csrFieldAny ^"sum" Bool None;
+                           @csrFieldAny ^"mprv" Bool None;
                            @csrFieldNoReg "reserved1" (Bit 4) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
                            @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
-                           @csrFieldAny ^"mpie" (Bit 1) None;
-                           @csrFieldNoReg ^"hpie" (Bit 1) (getDefaultConst _);
-                           @csrFieldAny ^"spie" (Bit 1) None;
-                           @csrFieldAny ^"upie" (Bit 1) None;
-                           @csrFieldAny ^"mie" (Bit 1) None;
-                           @csrFieldNoReg ^"hie" (Bit 1) (getDefaultConst _);
-                           @csrFieldAny ^"sie" (Bit 1) None;
-                           @csrFieldAny ^"uie" (Bit 1) None
+                           @csrFieldAny ^"mpie" Bool None;
+                           @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
+                           @csrFieldAny ^"spie" Bool None;
+                           @csrFieldAny ^"upie" Bool None;
+                           @csrFieldAny ^"mie" Bool None;
+                           @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
+                           @csrFieldAny ^"sie" Bool None;
+                           @csrFieldAny ^"uie" Bool None
                          ]
                   |};
                   {|
@@ -401,22 +401,22 @@ Section CsrInterface.
                            xlField ^"s";
                            xlField ^"u";
                            @csrFieldNoReg "reserved1" (Bit 11) (getDefaultConst _);
-                           @csrFieldAny ^"tvm" (Bit 1) None;
-                           @csrFieldAny ^"mxr" (Bit 1) None;
-                           @csrFieldAny ^"sum" (Bit 1) None;
-                           @csrFieldAny ^"mprv" (Bit 1) None;
+                           @csrFieldAny ^"tvm" Bool None;
+                           @csrFieldAny ^"mxr" Bool None;
+                           @csrFieldAny ^"sum" Bool None;
+                           @csrFieldAny ^"mprv" Bool None;
                            @csrFieldNoReg "reserved2" (Bit 4) (getDefaultConst _);
                            @csrFieldAny ^"mpp" (Bit 2) None;
                            @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
-                           @csrFieldAny ^"mpie" (Bit 1) None;
-                           @csrFieldNoReg ^"hpie" (Bit 1) (getDefaultConst _);
-                           @csrFieldAny ^"spie" (Bit 1) None;
-                           @csrFieldAny ^"upie" (Bit 1) None;
-                           @csrFieldAny ^"mie" (Bit 1) None;
-                           @csrFieldNoReg ^"hie" (Bit 1) (getDefaultConst _);
-                           @csrFieldAny ^"sie" (Bit 1) None;
-                           @csrFieldAny ^"uie" (Bit 1) None
+                           @csrFieldAny ^"mpie" Bool None;
+                           @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
+                           @csrFieldAny ^"spie" Bool None;
+                           @csrFieldAny ^"upie" Bool None;
+                           @csrFieldAny ^"mie" Bool None;
+                           @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
+                           @csrFieldAny ^"sie" Bool None;
+                           @csrFieldAny ^"uie" Bool None
                          ]
                   |}
                 ]
@@ -495,7 +495,7 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldAny ^"mcause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"mcause_interrupt" Bool None;
                            @csrFieldAny ^"mcause_code" (Bit 31) None
                          ]
                   |};
@@ -503,7 +503,7 @@ Section CsrInterface.
                     csrViewContext := $2;
                     csrViewFields
                       := [
-                           @csrFieldAny ^"mcause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"mcause_interrupt" Bool None;
                            @csrFieldAny ^"mcause_code" (Bit 63) None
                          ]
                   |}
@@ -540,16 +540,16 @@ Section CsrInterface.
                     csrViewFields
                       := [
                            @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
-                           @csrFieldAny ^"mxr" (Bit 1) None;
-                           @csrFieldAny ^"sum" (Bit 1) None;
+                           @csrFieldAny ^"mxr" Bool None;
+                           @csrFieldAny ^"sum" Bool None;
                            @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
                            @csrFieldNoReg "reserved2" (Bit 2) (getDefaultConst _);
-                           @csrFieldAny ^"spie" (Bit 1) None;
-                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldAny ^"spie" Bool None;
+                           @csrFieldAny ^"upie" Bool None;
                            @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                           @csrFieldAny ^"sie" (Bit 1) None;
-                           @csrFieldAny ^"uie" (Bit 1) None
+                           @csrFieldAny ^"sie" Bool None;
+                           @csrFieldAny ^"uie" Bool None
                          ]
                   |};
                   {|
@@ -559,16 +559,16 @@ Section CsrInterface.
                            @csrFieldNoReg "reserved0" (Bit 30) (getDefaultConst _);
                            xlField ^"u";
                            @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
-                           @csrFieldAny ^"mxr" (Bit 1) None;
-                           @csrFieldAny ^"sum" (Bit 1) None;
+                           @csrFieldAny ^"mxr" Bool None;
+                           @csrFieldAny ^"sum" Bool None;
                            @csrFieldNoReg "reserved2" (Bit 9) (getDefaultConst _);
                            @csrFieldAny ^"spp" (Bit 1) None;
                            @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                           @csrFieldAny ^"spie" (Bit 1) None;
-                           @csrFieldAny ^"upie" (Bit 1) None;
+                           @csrFieldAny ^"spie" Bool None;
+                           @csrFieldAny ^"upie" Bool None;
                            @csrFieldNoReg "reserved4" (Bit 2) (getDefaultConst _);
-                           @csrFieldAny ^"sie" (Bit 1) None;
-                           @csrFieldAny ^"uie" (Bit 1) None
+                           @csrFieldAny ^"sie" Bool None;
+                           @csrFieldAny ^"uie" Bool None
                          ]
                   |}
                 ]
@@ -670,7 +670,7 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldAny ^"scause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"scause_interrupt" Bool None;
                            @csrFieldAny ^"scause_code" (Bit 31) None
                          ]
                   |};
@@ -678,7 +678,7 @@ Section CsrInterface.
                     csrViewContext := $2;
                     csrViewFields
                       := [
-                           @csrFieldAny ^"scause_interrupt" (Bit 1) None;
+                           @csrFieldAny ^"scause_interrupt" Bool None;
                            @csrFieldAny ^"scause_code" (Bit 63) None
                          ]
                   |}
@@ -714,7 +714,7 @@ Section CsrInterface.
                     csrViewContext := $1;
                     csrViewFields
                       := [
-                           @csrFieldAny ^"satp_mode" (Bit 1) None;
+                           @csrFieldAny ^"satp_mode" Bool None;
                            @csrFieldAny ^"satp_asid" (Bit 9) None;
                            @csrFieldAny ^"satp_ppn" (Bit 22) None
                          ]

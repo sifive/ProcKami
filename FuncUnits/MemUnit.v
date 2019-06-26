@@ -71,17 +71,17 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe PAddr)
     := Read mpp : PrivMode <- ^"mpp";
-       Read mprv : Bit 1 <- ^"mprv";
+       Read mprv : Bool <- ^"mprv";
        Read satp_mode : Bit 4 <- ^"satp_mode";
-       Read mxr : Bit 1 <- ^"mxr";
-       Read sum : Bit 1 <- ^"sum";
+       Read mxr : Bool <- ^"mxr";
+       Read sum : Bool <- ^"sum";
        Read satp_ppn : Bit 44 <- ^"satp_ppn";
        LET transMode
          :  Maybe PrivMode
          <- IF mode == $MachineMode
               then
                 (* See 3.1.9 *)
-                IF #mprv == $1
+                IF #mprv
                   then Valid #mpp
                   else Invalid
               else Valid mode;
@@ -91,8 +91,8 @@ Section mem_unit.
              :  Maybe (Bit (mem_params_addr_size mem_params))
              <- pt_walker
                   #satp_mode
-                  (#mxr == $1)
-                  (#sum == $1)
+                  #mxr
+                  #sum
                   (#transMode @% "data")
                   (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr mem_params (ZeroExtendTruncLsb 44 #satp_ppn)))
                   access_type

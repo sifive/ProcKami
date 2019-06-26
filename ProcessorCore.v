@@ -72,32 +72,32 @@ Section Params.
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
               Register ^"medeleg"          : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"mprv"             : Bit 1 <- $0 with
+              Register ^"mprv"             : Bool <- ConstBool false with
               Register ^"mpp"              : Bit 2 <- ConstBit (wzero 2) with
-              Register ^"mpie"             : Bit 1 <- $0 with
-              Register ^"mie"              : Bit 1 <- $0 with
+              Register ^"mpie"             : Bool <- ConstBool false with
+              Register ^"mie"              : Bool <- ConstBool false with
               Register ^"mtvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"mtvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
               Register ^"mscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"mepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"mcause_interrupt" : Bit 1 <- $0 with
+              Register ^"mcause_interrupt" : Bool <- ConstBool false with
               Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"mtval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"tvm"              : Bit 1 <- $0 with
-              Register ^"mxr"              : Bit 1 <- $0 with
-              Register ^"sum"              : Bit 1 <- $0 with
-              Register ^"spp"              : Bit 1 <- $0 with
-              Register ^"spie"             : Bit 1 <- $0 with
-              Register ^"sie"              : Bit 1 <- $0 with
+              Register ^"tvm"              : Bool <- ConstBool false with
+              Register ^"mxr"              : Bool <- ConstBool false with
+              Register ^"sum"              : Bool <- ConstBool false with
+              Register ^"spp"              : Bit 1 <- ConstBit (wzero 1) with
+              Register ^"spie"             : Bool <- ConstBool false with
+              Register ^"sie"              : Bool <- ConstBool false with
               Register ^"stvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"stvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
               Register ^"sscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"sepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"scause_interrupt" : Bit 1 <- $0 with
+              Register ^"scause_interrupt" : Bool <- ConstBool false with
               Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"stval"            : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"satp_mode"        : Bit 4 <- ConstBit (wzero 4) with
@@ -107,13 +107,13 @@ Section Params.
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
               Register ^"upp"              : Bit 0 <- ConstBit WO with (* Should be Bit 0, but this results in a system verilog error. 3.1.7 *)
-              Register ^"upie"             : Bit 1 <- $0 with
-              Register ^"uie"              : Bit 1 <- $0 with
+              Register ^"upie"             : Bool <- ConstBool false with
+              Register ^"uie"              : Bool <- ConstBool false with
               Register ^"utvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
               Register ^"utvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
               Register ^"uscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"uepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"ucause_interrupt" : Bit 1 <- $0 with
+              Register ^"ucause_interrupt" : Bool <- ConstBool false with
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
