@@ -202,11 +202,7 @@ Section CsrInterface.
     (data : csrViewKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
-(*
-    := (unpack CsrValue
-         (ZeroExtendTruncLsb CsrValueWidth
-           (pack data))).
-*)
+
   Definition csrViewDefaultWriteXform
     (fields : list CSRField)
     (data : CsrValue @# ty)
@@ -263,23 +259,6 @@ Section CsrInterface.
            := fun _ _ => id
        |}.
 
-  Fixpoint repeatCSRView
-    (n : nat)
-    (fields : list CSRField)
-    (readXform : csrViewKind fields @# ty -> CsrValue @# ty)
-    (writeXform : CsrValue @# ty -> csrViewKind fields @# ty)
-    :  list CSRView
-    := match n with
-         | 0 => []
-         | S k
-           => ({|
-                 csrViewContext    := $n;
-                 csrViewFields     := fields;
-                 csrViewReadXform  := readXform;
-                 csrViewWriteXform := writeXform
-               |} :: repeatCSRView k readXform writeXform)
-         end.
-
   Definition xlField
     (prefix : string)
     :  CSRField
@@ -312,6 +291,36 @@ Section CsrInterface.
          csrFieldXform
            := fun _ curr_value _
                 => curr_value
+       |}.
+
+  Fixpoint repeatCSRView
+    (n : nat)
+    (fields : list CSRField)
+    (readXform : csrViewKind fields @# ty -> CsrValue @# ty)
+    (writeXform : CsrValue @# ty -> csrViewKind fields @# ty)
+    :  list CSRView
+    := match n with
+         | 0 => []
+         | S k
+           => ({|
+                 csrViewContext    := $n;
+                 csrViewFields     := fields;
+                 csrViewReadXform  := readXform;
+                 csrViewWriteXform := writeXform
+               |} :: repeatCSRView k readXform writeXform)
+         end.
+
+  Definition nilCSR
+    (name : string)
+    (addr : word CsrIdWidth)
+    :  CSR
+    := {|
+         csrName := name;
+         csrAddr := addr;
+         csrViews
+           := repeatCSRView 2
+                (@csrViewDefaultReadXform [])
+                (@csrViewDefaultWriteXform [])
        |}.
 
   Definition CSRs
@@ -911,7 +920,7 @@ Section CsrInterface.
            csrName  := ^"mcycle";
            csrAddr  := CsrIdWidth 'h"b00";
            csrViews
-             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) None ] in
+             := let fields := [ @csrFieldAny ^"cycle" (Bit 64) None ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields)
@@ -920,21 +929,46 @@ Section CsrInterface.
            csrName  := ^"minstret";
            csrAddr  := CsrIdWidth 'h"b02";
            csrViews
-             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) None ] in
+             := let fields := [ @csrFieldAny ^"instret" (Bit 64) None ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields)
          |};
+         nilCSR ^"mhpmcounter3" (CsrIdWidth 'h"b03");
+         nilCSR ^"mhpmcounter4" (CsrIdWidth 'h"b04");
+         nilCSR ^"mhpmcounter5" (CsrIdWidth 'h"b05");
+         nilCSR ^"mhpmcounter6" (CsrIdWidth 'h"b06");
+         nilCSR ^"mhpmcounter7" (CsrIdWidth 'h"b07");
+         nilCSR ^"mhpmcounter8" (CsrIdWidth 'h"b08");
+         nilCSR ^"mhpmcounter9" (CsrIdWidth 'h"b09");
+         nilCSR ^"mhpmcounter10" (CsrIdWidth 'h"b0a");
+         nilCSR ^"mhpmcounter11" (CsrIdWidth 'h"b0b");
+         nilCSR ^"mhpmcounter12" (CsrIdWidth 'h"b0c");
+         nilCSR ^"mhpmcounter13" (CsrIdWidth 'h"b0d");
+         nilCSR ^"mhpmcounter14" (CsrIdWidth 'h"b03");
+         nilCSR ^"mhpmcounter15" (CsrIdWidth 'h"b0f");
+         nilCSR ^"mhpmcounter16" (CsrIdWidth 'h"b10");
+         nilCSR ^"mhpmcounter17" (CsrIdWidth 'h"b11");
+         nilCSR ^"mhpmcounter18" (CsrIdWidth 'h"b12");
+         nilCSR ^"mhpmcounter19" (CsrIdWidth 'h"b13");
+         nilCSR ^"mhpmcounter20" (CsrIdWidth 'h"b14");
+         nilCSR ^"mhpmcounter21" (CsrIdWidth 'h"b15");
+         nilCSR ^"mhpmcounter22" (CsrIdWidth 'h"b16");
+         nilCSR ^"mhpmcounter23" (CsrIdWidth 'h"b17");
+         nilCSR ^"mhpmcounter24" (CsrIdWidth 'h"b18");
+         nilCSR ^"mhpmcounter25" (CsrIdWidth 'h"b19");
+         nilCSR ^"mhpmcounter26" (CsrIdWidth 'h"b1a");
+         nilCSR ^"mhpmcounter27" (CsrIdWidth 'h"b1b");
+         nilCSR ^"mhpmcounter28" (CsrIdWidth 'h"b1c");
+         nilCSR ^"mhpmcounter29" (CsrIdWidth 'h"b1d");
+         nilCSR ^"mhpmcounter30" (CsrIdWidth 'h"b1e");
+         nilCSR ^"mhpmcounter31" (CsrIdWidth 'h"b1f");
          {|
            csrName  := ^"mcycleh";
            csrAddr  := CsrIdWidth 'h"b80";
            csrViews
              := [
-                  let fields
-                    := [
-                         @csrFieldAny ^"mcycleh" (Bit 32) None;
-                         @csrFieldNoReg "reserved" (Bit 32) (getDefaultConst _)
-                       ] in
+                  let fields := [ @csrFieldAny ^"cycle" (Bit 64) None ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
@@ -955,11 +989,7 @@ Section CsrInterface.
            csrAddr  := CsrIdWidth 'h"b82";
            csrViews
              := [
-                  let fields
-                    := [
-                         @csrFieldAny ^"minstreth" (Bit 32) None;
-                         @csrFieldNoReg "reserved" (Bit 32) (getDefaultConst _)
-                       ] in
+                  let fields := [ @csrFieldAny ^"instret" (Bit 64) None ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
@@ -974,7 +1004,36 @@ Section CsrInterface.
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
                 ]
-         |}
+         |};
+         nilCSR ^"mhpmevent3" (CsrIdWidth 'h"323");
+         nilCSR ^"mhpmevent4" (CsrIdWidth 'h"324");
+         nilCSR ^"mhpmevent5" (CsrIdWidth 'h"325");
+         nilCSR ^"mhpmevent6" (CsrIdWidth 'h"326");
+         nilCSR ^"mhpmevent7" (CsrIdWidth 'h"327");
+         nilCSR ^"mhpmevent8" (CsrIdWidth 'h"328");
+         nilCSR ^"mhpmevent9" (CsrIdWidth 'h"329");
+         nilCSR ^"mhpmevent10" (CsrIdWidth 'h"32a");
+         nilCSR ^"mhpmevent11" (CsrIdWidth 'h"32b");
+         nilCSR ^"mhpmevent12" (CsrIdWidth 'h"32c");
+         nilCSR ^"mhpmevent13" (CsrIdWidth 'h"32d");
+         nilCSR ^"mhpmevent14" (CsrIdWidth 'h"323");
+         nilCSR ^"mhpmevent15" (CsrIdWidth 'h"32f");
+         nilCSR ^"mhpmevent16" (CsrIdWidth 'h"330");
+         nilCSR ^"mhpmevent17" (CsrIdWidth 'h"331");
+         nilCSR ^"mhpmevent18" (CsrIdWidth 'h"332");
+         nilCSR ^"mhpmevent19" (CsrIdWidth 'h"333");
+         nilCSR ^"mhpmevent20" (CsrIdWidth 'h"334");
+         nilCSR ^"mhpmevent21" (CsrIdWidth 'h"335");
+         nilCSR ^"mhpmevent22" (CsrIdWidth 'h"336");
+         nilCSR ^"mhpmevent23" (CsrIdWidth 'h"337");
+         nilCSR ^"mhpmevent24" (CsrIdWidth 'h"338");
+         nilCSR ^"mhpmevent25" (CsrIdWidth 'h"339");
+         nilCSR ^"mhpmevent26" (CsrIdWidth 'h"33a");
+         nilCSR ^"mhpmevent27" (CsrIdWidth 'h"33b");
+         nilCSR ^"mhpmevent28" (CsrIdWidth 'h"33c");
+         nilCSR ^"mhpmevent29" (CsrIdWidth 'h"33d");
+         nilCSR ^"mhpmevent30" (CsrIdWidth 'h"33e");
+         nilCSR ^"mhpmevent31" (CsrIdWidth 'h"33f")
        ].
 
   Close Scope local_scope.
@@ -1053,7 +1112,8 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (val : Maybe RoutedReg @# ty)
-    :  ActionT ty Bool
+    (* :  ActionT ty Bool *)
+    :  ActionT ty (Maybe (Bit CsrUpdateCodeWidth))
     := If val @% "valid" &&
          (utila_any
            (map
@@ -1063,7 +1123,8 @@ Section CsrInterface.
            (* 3.1.6.4 *)
            If upd_pkt @% "cfg" @% "mode" == $SupervisorMode && tvm
              then 
-               Ret $$true
+               (* Ret $$true *)
+               Ret Invalid
              else
                LETA csr_val
                  :  Maybe CsrValue
@@ -1078,25 +1139,36 @@ Section CsrInterface.
                     (fun params => csr_params_write_enable params rs1_index)
                     $$false
                  then 
-                   writeCSR upd_pkt csr_index 
-                     (utila_lookup_table_default
-                       csr_params
-                       (fun params => csr_params_tag params == val @% "data" @% "tag")
-                       (fun params
-                         => csr_params_write_value
-                              params
-                              (#csr_val @% "data")
-                              (ZeroExtendTruncLsb CsrValueWidth (val @% "data" @% "data")))
-                       $0);
-               Ret $$false
+                   LETA _
+                     <- writeCSR upd_pkt csr_index 
+                          (utila_lookup_table_default
+                            csr_params
+                            (fun params => csr_params_tag params == val @% "data" @% "tag")
+                            (fun params
+                              => csr_params_write_value
+                                   params
+                                   (#csr_val @% "data")
+                                   (ZeroExtendTruncLsb CsrValueWidth (val @% "data" @% "data")))
+                            $0);
+                   Ret
+                     (Valid
+                       (Switch csr_index Retn Bit CsrUpdateCodeWidth With {
+                          $$(CsrIdWidth 'h"b00") ::= ($CsrUpdateCodeMCycle : Bit CsrUpdateCodeWidth @# ty);
+                          $$(CsrIdWidth 'h"b02") ::= ($CsrUpdateCodeMInstRet : Bit CsrUpdateCodeWidth @# ty)
+                        }))
+                 else
+                   Ret (Valid ($CsrUpdateCodeNone : Bit CsrUpdateCodeWidth @# ty))
+                 as result;
+               (* Ret $$false *)
+               Ret #result
              as result;
            Ret #result
          else
-           Ret $$false
+           (* Ret $$false *)
+           Ret (Valid ($CsrUpdateCodeNone : Bit CsrUpdateCodeWidth @# ty))
          as result;
        Ret #result.
 
-  (* Returns true iff an exception occurs *)
   Definition commitCSRWrites
     (pc : VAddr @# ty)
     (compressed : Bool @# ty)
@@ -1105,7 +1177,8 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    :  ActionT ty Bool
+    (* :  ActionT ty Bool *)
+    :  ActionT ty (Maybe (Bit CsrUpdateCodeWidth))
     := LET warlStateField
          <- (STRUCT {
                "pc" ::= pc;
@@ -1118,9 +1191,14 @@ Section CsrInterface.
                 ::= #warlStateField;
               "cfg" ::= cfg_pkt
             } : FieldUpd @# ty;
-       LETA error0 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-       LETA error1 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
-       Ret (#error0 || #error1).
+       (* NOTE: only one CSR write can occur per instruction *)
+       LETA result0 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+       LETA result1 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+       (* Ret (#error0 || #error1). *)
+       Ret
+         (utila_opt_pkt
+           (#result0 @% "data" | #result1 @% "data")
+           (#result0 @% "valid" && #result1 @% "valid")).
 
   Definition CsrUnit
     (pc : VAddr @# ty)
@@ -1131,25 +1209,32 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (update_pkt : PktWithException ExecUpdPkt @# ty)
-    :  ActionT ty (PktWithException ExecUpdPkt)
-    := LETA error
-         :  Bool
+    :  ActionT ty (Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt))
+    := LETA result
+    (* := LETA error *)
+         (* :  Bool *)
+         :  Maybe (Bit CsrUpdateCodeWidth)
          <- commitCSRWrites pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
        Ret
-         (mkPktWithException
-           update_pkt
-           (STRUCT {
-              "fst" ::= update_pkt @% "fst";
-              "snd"
-                ::= IF #error
-                      then 
-                        Valid
-                          (STRUCT {
-                            "exception" ::= ($IllegalInst : Exception @# ty);
-                            "value" ::= (ZeroExtendTruncLsb Xlen inst : ExceptionInfo @# ty)
-                           } : FullException @# ty)
-                      else Invalid
-            } : PktWithException ExecUpdPkt @# ty)).
+         (STRUCT {
+           "fst" ::= #result @% "data";
+           "snd"
+             ::= mkPktWithException
+                   update_pkt
+                   (STRUCT {
+                      "fst" ::= update_pkt @% "fst";
+                      "snd"
+                        (* ::= IF #error *)
+                        ::= IF !(#result @% "valid")
+                              then 
+                                Valid
+                                  (STRUCT {
+                                    "exception" ::= ($IllegalInst : Exception @# ty);
+                                    "value" ::= (ZeroExtendTruncLsb Xlen inst : ExceptionInfo @# ty)
+                                   } : FullException @# ty)
+                              else Invalid
+                    } : PktWithException ExecUpdPkt @# ty)
+           } : Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt) @# ty).
          
 
   Close Scope kami_expr.

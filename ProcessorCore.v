@@ -24,6 +24,7 @@ Require Import FuncUnits.MemUnit.
 Require Import RegWriter.
 Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.
+Require Import Counter.
 Require Import ProcessorUtils.
 
 Section Params.
@@ -48,6 +49,7 @@ Section Params.
   Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
+  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
@@ -126,8 +128,9 @@ Section Params.
               Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* preformance monitor registers *)
-              Register ^"mcycle"           : Bit 64 <- ConstBit (wzero 64) with
-              Register ^"minstret"         : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"cycle"           : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"instret"         : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"mcountinhibit"   : Bit 32 <- ConstBit (wzero 32) with
 
               (* memory protection registers. *)
               Register ^"pmp0cfg"
@@ -254,6 +257,7 @@ Section Params.
                        DispHex #exec_update_pkt;
                        DispString _ "\n"
                      ];
+                   (* NOTE: must be before CSR writes - see 3.1.16 *)
                    LETA mem_update_pkt
                      <- MemUnit name mem_params
                           (* ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"] *)
@@ -270,6 +274,7 @@ Section Params.
                      ];
                    System [DispString _ "CSR Write\n"];
                    LETA csr_update_pkt
+                     :  Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt)
                      <- CsrUnit
                           name
                           Clen_over_8
@@ -297,13 +302,16 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
-                          #csr_update_pkt;
+                          (#csr_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
+                   LETA _
+                     <- inc_mcycle name
+                          (#csr_update_pkt @% "fst");
+                   LETA _
+                     <- inc_instret name
+                          (#exec_context_pkt @% "snd" @% "valid")
+                          (#csr_update_pkt @% "fst");
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
-                   Retv with
-              Rule ^"mcycle"
-                := Read mcycle : Bit 64 <- ^"mcycle";
-                   Write ^"mcycle" : Bit 64 <- #mcycle + $1;
                    Retv
          }.
 

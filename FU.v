@@ -387,6 +387,11 @@ Section Params.
   Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
     ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
 
+  Definition CsrUpdateCodeWidth := 2.
+  Definition CsrUpdateCodeNone := 0.
+  Definition CsrUpdateCodeMCycle := 1.
+  Definition CsrUpdateCodeMInstRet := 2.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     
