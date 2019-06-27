@@ -11,10 +11,13 @@ Import ListNotations.
 
 Section zicsr.
   Variable Xlen_over_8 : nat.
+  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation CsrValueWidth := (Clen_over_8 * 8).
+  Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).

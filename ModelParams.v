@@ -172,6 +172,8 @@ Section exts.
 
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
+  Local Definition Clen_over_8 : nat := 8.
+
   (* TODO: determine the correct way to specify the physical address size. *)
   Local Definition PAddrSz_over_8 : nat := 8.
   Local Definition PAddrSz : nat := 64.
@@ -273,7 +275,7 @@ Section exts.
              FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 fpu_params_double _;
 
              (* RV Zicsr instructions. *)
-             Zicsr     Xlen_over_8 Rlen_over_8 _
+             Zicsr     Xlen_over_8 Clen_over_8 Rlen_over_8 _
            ].
 
       Local Definition param_filter_insts
@@ -315,6 +317,7 @@ Section exts.
          "proc_core"
          Xlen_over_8
          Flen_over_8
+         Clen_over_8
          Rlen_over_8
          mem_params_default
          (* (Some (54'h"8000")) *)

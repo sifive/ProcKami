@@ -32,6 +32,7 @@ Section Params.
 
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable pmp_addr_ub : option (word 54).
@@ -39,8 +40,10 @@ Section Params.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
+  Local Notation CsrValueWidth := (Clen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -84,6 +87,11 @@ Section Params.
               Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"mtval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
+              Register ^"mvendorid"        : Bit 32 <- ConstBit (wzero 32) with
+              Register ^"marchid"          : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"mimpid"           : Bit Xlen <- ConstBit (wzero Xlen) with
+              Register ^"mhartid"          : Bit Xlen <- ConstBit (wzero Xlen) with
+
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
@@ -116,6 +124,10 @@ Section Params.
               Register ^"ucause_interrupt" : Bool <- ConstBool false with
               Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
               Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
+
+              (* preformance monitor registers *)
+              Register ^"mcycle"           : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"minstret"         : Bit 64 <- ConstBit (wzero 64) with
 
               (* memory protection registers. *)
               Register ^"pmp0cfg"
@@ -260,6 +272,7 @@ Section Params.
                    LETA csr_update_pkt
                      <- CsrUnit
                           name
+                          Clen_over_8
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")
@@ -287,6 +300,10 @@ Section Params.
                           #csr_update_pkt;
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
+                   Retv with
+              Rule ^"mcycle"
+                := Read mcycle : Bit 64 <- ^"mcycle";
+                   Write ^"mcycle" : Bit 64 <- #mcycle + $1;
                    Retv
          }.
 
