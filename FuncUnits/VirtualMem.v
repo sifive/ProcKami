@@ -213,7 +213,7 @@ Section pt_walker.
       <- fold_left
       (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat)
         => LETA acc_result <- acc;
-        translatePteLoop currentLevel #acc_result) (seq 1 maxPageLevels)
+        translatePteLoop currentLevel #acc_result) (seq 1 (maxPageLevels - 1))
       (Ret (STRUCT { "fst" ::= $$ false ;
                      "snd" ::= Valid (satp_ppn + #vpnOffset)}));
       System [
