@@ -76,11 +76,6 @@ Definition InstPageFault      := 12.
 Definition LoadPageFault      := 13.
 Definition SAmoPageFault      := 15.
 
-(* TODO: Verify *)
-Definition Clen_over_8 : nat := 8.
-Definition CsrValueWidth : nat := Clen_over_8 * 8.
-Definition CsrValue : Kind := Bit CsrValueWidth.
-
 Definition FrmWidth : nat := 3.
 Definition FrmValue : Kind := Bit FrmWidth.
 Definition FflagsWidth : nat := 5.
@@ -151,6 +146,7 @@ Section Params.
   
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable PAddrSz : nat. (* physical address size *)
   Variable expWidthMinus2: nat.
@@ -160,8 +156,10 @@ Section Params.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
+  Local Notation CsrValueWidth := (Clen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
   Local Notation PAddr := (Bit PAddrSz).
+  Local Notation CsrValue := (Bit CsrValueWidth).
 
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
@@ -407,7 +405,15 @@ Section Params.
     Definition fmt := inst$[fst fmtField: snd fmtField].
     Definition rs3 := inst$[fst rs3Field: snd rs3Field].
     Definition fcsr_frm (fcsr : CsrValue @# ty)
-      := fcsr $[fst fcsr_frmField: snd fcsr_frmField].
+      := ZeroExtendTruncLsb CsrValueWidth
+           (ZeroExtendTruncMsb
+             ((fst fcsr_frmField) + 1 - (snd fcsr_frmField))%nat
+             (ZeroExtendTruncLsb
+               (fst fcsr_frmField + 1)%nat
+               fcsr)).
+(*
+  (fcsr $[fst fcsr_frmField: snd fcsr_frmField]).
+*)
 
   End Fields.
 

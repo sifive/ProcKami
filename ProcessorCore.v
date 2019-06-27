@@ -32,6 +32,7 @@ Section Params.
 
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable pmp_addr_ub : option (word 54).
@@ -39,8 +40,10 @@ Section Params.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
+  Local Notation CsrValueWidth := (Clen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -269,6 +272,7 @@ Section Params.
                    LETA csr_update_pkt
                      <- CsrUnit
                           name
+                          Clen_over_8
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")
