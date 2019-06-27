@@ -194,7 +194,7 @@ Section pmp.
                                    else $0;
                                  #acc @% "data"]
                       } : pmp_entry_apply_acc_kind (Bit (size k)) @# ty))
-              (range 0 16)
+              (seq 0 16)
               (Ret (unpack (pmp_entry_apply_acc_kind (Bit (size k))) $0));
        Ret
          (STRUCT {
