@@ -191,7 +191,7 @@ Section pt_walker.
         else 
         (If acc @% "snd" @% "valid"
           then (
-            LETA read_result: Maybe Data <- pMemRead (mem_read_index + currentLevel) mode (acc @% "snd" @% "data");
+            LETA read_result: Maybe Data <- pMemRead (mem_read_index + (currentLevel-1)) mode (acc @% "snd" @% "data");
             If #read_result @% "valid"
             then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
             else Ret #doneInvalid
