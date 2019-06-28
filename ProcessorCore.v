@@ -77,6 +77,7 @@ Section Params.
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
               Register ^"medeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"mideleg"          : Bit 12 <- ConstBit (wzero 12) with
               Register ^"mprv"             : Bool <- ConstBool false with
               Register ^"mpp"              : Bit 2 <- ConstBit (wzero 2) with
               Register ^"mpie"             : Bool <- ConstBool false with
@@ -93,6 +94,16 @@ Section Params.
               Register ^"marchid"          : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"mimpid"           : Bit Xlen <- ConstBit (wzero Xlen) with
               Register ^"mhartid"          : Bit Xlen <- ConstBit (wzero Xlen) with
+
+              Register ^"usip"             : Bool <- ConstBool false with
+              Register ^"ssip"             : Bool <- ConstBool false with
+              Register ^"msip"             : Bool <- ConstBool false with
+              Register ^"utip"             : Bool <- ConstBool false with
+              Register ^"stip"             : Bool <- ConstBool false with
+              Register ^"mtip"             : Bool <- ConstBool false with
+              Register ^"ueip"             : Bool <- ConstBool false with
+              Register ^"seip"             : Bool <- ConstBool false with
+              Register ^"meip"             : Bool <- ConstBool false with
 
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
@@ -128,8 +139,9 @@ Section Params.
               Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
               (* preformance monitor registers *)
-              Register ^"cycle"           : Bit 64 <- ConstBit (wzero 64) with
-              Register ^"instret"         : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"mcounteren"      : Bit 32 <- ConstBit (wzero 32) with
+              Register ^"mcycle"          : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"minstret"        : Bit 64 <- ConstBit (wzero 64) with
               Register ^"mcountinhibit"   : Bit 32 <- ConstBit (wzero 32) with
 
               (* memory protection registers. *)
@@ -273,11 +285,13 @@ Section Params.
                        DispString _ "\n"
                      ];
                    System [DispString _ "CSR Write\n"];
+                   LETA counteren <- read_counteren name _;
                    LETA csr_update_pkt
                      :  Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt)
                      <- CsrUnit
                           name
                           Clen_over_8
+                          #counteren
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")
