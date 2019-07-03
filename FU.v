@@ -392,6 +392,14 @@ Section Params.
   Definition CsrUpdateCodeMCycle := 1.
   Definition CsrUpdateCodeMInstRet := 2.
 
+  Definition CounterEnType
+    := STRUCT_TYPE {
+         "hpm_flags" :: Bit 29;
+         "IR" :: Bool;
+         "TM" :: Bool;
+         "CY" :: Bool
+       }.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     

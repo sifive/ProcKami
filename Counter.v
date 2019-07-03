@@ -39,8 +39,8 @@ Section counter.
     := LETA inhibit_reg : InhibitRegType <- read_inhibit_reg;
        If !(#inhibit_reg @% "CY") && (csr_update_code != $CsrUpdateCodeMCycle)
          then 
-           Read mcycle <- ^"cycle";
-           Write ^"cycle" : Bit 64 <- #mcycle + $1;
+           Read mcycle <- ^"mcycle";
+           Write ^"mcycle" : Bit 64 <- #mcycle + $1;
            Retv;
        Retv.
 
@@ -53,8 +53,8 @@ Section counter.
           !exception &&
           (csr_update_code != $CsrUpdateCodeMCycle)
          then 
-           Read instret_reg <- ^"instret";
-           Write ^"instret" : Bit 64 <- #instret_reg + $1;
+           Read instret_reg <- ^"minstret";
+           Write ^"minstret" : Bit 64 <- #instret_reg + $1;
            Retv;
        Retv.
 

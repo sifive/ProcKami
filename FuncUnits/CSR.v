@@ -42,6 +42,19 @@ Section CsrInterface.
 
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
 
+  Open Scope kami_expr.
+
+  Open Scope kami_action.
+
+  Local Definition CsrAccessPkt
+    := STRUCT_TYPE {
+         "xlen"       :: Bit 2;
+         "mode"       :: PrivMode;
+         "mcounteren" :: CounterEnType;
+         "scounteren" :: CounterEnType;
+         "tvm"        :: Bool
+       }.
+
   Record CSRField
     := {
          csrFieldName : string;
@@ -71,14 +84,15 @@ Section CsrInterface.
          csrViewContext    : Bit 2 @# ty;
          csrViewFields     : list CSRField;
          csrViewReadXform  : csrViewKind csrViewFields @# ty -> CsrValue @# ty;
-         csrViewWriteXform : CsrValue @# ty -> csrViewKind csrViewFields @# ty
+         csrViewWriteXform : csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
        }.
 
   Record CSR :=
     {
-      csrName : string;
-      csrAddr : word CsrIdWidth;
-      csrViews : list CSRView
+      csrName   : string;
+      csrAddr   : word CsrIdWidth;
+      csrViews  : list CSRView;
+      csrAccess : CsrAccessPkt @# ty -> Bool @# ty
     }.
 
   Definition csrViewMayStruct
@@ -92,10 +106,6 @@ Section CsrInterface.
                      (nth_Fin (csrViewFields view) i))
          (fun j => csrFieldName (nth_Fin (csrViewFields view) j)).
 
-  Open Scope kami_expr.
-
-  Open Scope kami_action.
-
   Definition csrViewReadWrite
     (view : CSRView)
     (upd_pkt : FieldUpd @# ty)
@@ -108,7 +118,7 @@ Section CsrInterface.
          then
            LET input_value
              :  csrViewKind (csrViewFields view)
-             <- csrViewWriteXform view (req @% "data");
+             <- csrViewWriteXform view #csr_value (req @% "data");
            LET write_value
              :  csrViewKind (csrViewFields view)
              <- BuildStruct 
@@ -158,6 +168,12 @@ Section CsrInterface.
 
   Local Definition satpCsrName : string := ^"satp".
 
+  Definition read_counteren
+    (name : string)
+    :  ActionT ty CounterEnType
+    := Read counteren : Bit 32 <- name;
+       Ret (unpack CounterEnType #counteren).
+
   Close Scope local_scope.
 
   Definition csrReadWrite
@@ -197,14 +213,15 @@ Section CsrInterface.
                      (csrViews csr_entry)))
            entries).
 
-  Definition csrViewDefaultReadXform
+  Local Definition csrViewDefaultReadXform
     (fields : list CSRField)
     (data : csrViewKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
 
-  Definition csrViewDefaultWriteXform
+  Local Definition csrViewDefaultWriteXform
     (fields : list CSRField)
+    (_ : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
     := unpack
@@ -213,21 +230,26 @@ Section CsrInterface.
            (size (csrViewKind fields))
            (pack data)).
 
-  Definition csrViewUpperReadXform
+  Local Definition csrViewUpperReadXform
     (fields : list CSRField)
     (data : csrViewKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
-         (ZeroExtendTruncMsb 32
-           (pack data)).
+         (ZeroExtendTruncMsb 32 (pack data)).
 
-  Definition csrViewUpperWriteXform
+  Local Definition csrViewUpperWriteXform
     (fields : list CSRField)
+    (curr_value : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
-    := @csrViewDefaultWriteXform fields
-         (data << (Const ty (natToWord 5 32))).
+    := unpack (csrViewKind fields)
+         (ZeroExtendTruncLsb
+           (size (csrViewKind fields))
+           (((ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 data)) << (Const ty (natToWord 5 32))) &
+            (ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 (pack curr_value))))).
 
-  Definition csrFieldNoReg
+  Local Open Scope local_scope.
+
+  Local Definition csrFieldNoReg
     (name : string)
     (k : Kind)
     (default: ConstT k)
@@ -242,24 +264,35 @@ Section CsrInterface.
            := fun _ _ _ => Const ty default;
        |}.
 
-  Local Open Scope local_scope.
-
-  Definition csrFieldAny
+  Local Definition csrFieldAny
     (name : string)
     (k : Kind)
-    (default : option (ConstT k))
     :  CSRField
     := {| 
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldDefaultValue := default;
+         csrFieldDefaultValue := None;
          csrFieldIsValid
            := fun _ _ _ => $$true;
          csrFieldXform
            := fun _ _ => id
        |}.
 
-  Definition xlField
+  Local Definition csrFieldReadOnly
+    (name : string)
+    (k : Kind)
+    :  CSRField
+    := {|
+         csrFieldName := name;
+         csrFieldKind := k;
+         csrFieldDefaultValue := None;
+         csrFieldIsValid
+           := fun _ _ _ => $$false;
+         csrFieldXform
+           := fun _ _ => id
+       |}.
+
+  Local Definition xlField
     (prefix : string)
     :  CSRField
     := {|
@@ -274,7 +307,7 @@ Section CsrInterface.
                 => curr_value
        |}.
 
-  Definition tvecField
+  Local Definition tvecField
     (prefix : string)
     (width : nat)
     :  CSRField
@@ -293,11 +326,37 @@ Section CsrInterface.
                 => curr_value
        |}.
 
+  Local Definition accessAny
+    (_ : CsrAccessPkt @# ty)
+    := $$true.
+
+  Local Definition accessMModeOnly 
+    (context : CsrAccessPkt @# ty)
+    := context @% "mode" == $MachineMode.
+
+  Local Definition accessSMode
+    (context : CsrAccessPkt @# ty)
+    := context @% "mode" == $MachineMode ||
+       context @% "mode" == $SupervisorMode.
+
+  Local Definition accessCounter
+    (name : string)
+    (context : CsrAccessPkt @# ty)
+    := Switch context @% "mode" Retn Bool With {
+         ($MachineMode : PrivMode @# ty)
+           ::= $$true;
+         ($SupervisorMode : PrivMode @# ty)
+           ::= struct_get_field_default (context @% "mcounteren") name $$false;
+         ($UserMode : PrivMode @# ty)
+           ::= (struct_get_field_default (context @% "mcounteren") name $$false) &&
+               (struct_get_field_default (context @% "scounteren") name $$false)
+       }.
+
   Fixpoint repeatCSRView
     (n : nat)
     (fields : list CSRField)
     (readXform : csrViewKind fields @# ty -> CsrValue @# ty)
-    (writeXform : CsrValue @# ty -> csrViewKind fields @# ty)
+    (writeXform : csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
     :  list CSRView
     := match n with
          | 0 => []
@@ -313,6 +372,7 @@ Section CsrInterface.
   Definition nilCSR
     (name : string)
     (addr : word CsrIdWidth)
+    (access : CsrAccessPkt @# ty -> Bool @# ty)
     :  CSR
     := {|
          csrName := name;
@@ -320,12 +380,170 @@ Section CsrInterface.
          csrViews
            := repeatCSRView 2
                 (@csrViewDefaultReadXform [])
-                (@csrViewDefaultWriteXform [])
+                (@csrViewDefaultWriteXform []);
+         csrAccess := access
+       |}.
+
+  Local Definition simpleCSR
+    (name : string)
+    (addr : word CsrIdWidth)
+    (width : nat)
+    (access : CsrAccessPkt @# ty -> Bool @# ty)
+    :  CSR
+    := {|
+         csrName := name;
+         csrAddr := addr;
+         csrViews
+           := let fields := [ @csrFieldAny name (Bit width) ] in
+              repeatCSRView 2
+                (@csrViewDefaultReadXform fields)
+                (@csrViewDefaultWriteXform fields);
+         csrAccess := access
        |}.
 
   Definition CSRs
     :  list CSR
     := [
+         {|
+           csrName := ^"ustatus";
+           csrAddr := natToWord CsrIdWidth 0;
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldNoReg "reserved0" (Bit 27) (getDefaultConst _);
+                       @csrFieldAny ^"upie" Bool;
+                       @csrFieldNoReg "reserved1" (Bit 3) (getDefaultConst _);
+                       @csrFieldAny ^"uie" Bool
+                     ] in
+                repeatCSRView 2
+                  (@csrViewDefaultReadXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessAny
+         |};
+         nilCSR ^"uie" (CsrIdWidth 'h"4") accessAny;
+         {|
+           csrName := ^"utvec";
+           csrAddr := natToWord CsrIdWidth 5;
+           csrViews
+             := let fields := [ @csrFieldAny ^"utvec_mode" (Bit 2) ] in
+                repeatCSRView 2
+                  (@csrViewDefaultReadXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"uscratch";
+           csrAddr := CsrIdWidth 'h"40";
+           csrViews
+             := [
+                  let fields := [ @csrFieldAny ^"uscratch" (Bit 32) ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields := [ @csrFieldAny ^"uscratch" (Bit 64) ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"uepc";
+           csrAddr := CsrIdWidth 'h"41";
+           csrViews
+             := [
+                  let fields := [ @csrFieldAny ^"uepc" (Bit 32) ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields := [ @csrFieldAny ^"uepc" (Bit 64) ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"ucause";
+           csrAddr := CsrIdWidth 'h"42";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny ^"ucause_interrupt" Bool;
+                         @csrFieldAny ^"ucause_code" (Bit 31)
+                       ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields
+                    := [
+                         @csrFieldAny ^"ucause_interrupt" Bool;
+                         @csrFieldAny ^"ucause_code" (Bit 63)
+                       ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"utval";
+           csrAddr := CsrIdWidth 'h"43";
+           csrViews
+             := [
+                  let fields := [ @csrFieldAny ^"utval" (Bit 32) ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields := [ @csrFieldAny ^"utval" (Bit 64) ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"uip";
+           csrAddr := CsrIdWidth 'h"44";
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldAny ^"ueip" Bool;
+                       @csrFieldNoReg ^"reserved0" (Bit 3) (getDefaultConst _);
+                       @csrFieldAny ^"utip" Bool;
+                       @csrFieldNoReg ^"reserved1" (Bit 3) (getDefaultConst _);
+                       @csrFieldAny ^"usip" Bool
+                     ] in
+                repeatCSRView 2
+                  (@csrViewDefaultReadXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
+         |};
          {|
            csrName := ^"fflagsG";
            csrAddr := natToWord CsrIdWidth 1;
@@ -333,11 +551,12 @@ Section CsrInterface.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 27) (getDefaultConst _);
-                       @csrFieldAny ^"fflags" (Bit 5) None
+                       @csrFieldAny ^"fflags" (Bit 5)
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessAny
          |};
          {|
            csrName := ^"frmG";
@@ -346,11 +565,12 @@ Section CsrInterface.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 29) (getDefaultConst _);
-                       @csrFieldAny ^"frm" (Bit 3) None
+                       @csrFieldAny ^"frm" (Bit 3)
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessAny
          |};
          {|
            csrName := ^"fcsrG";
@@ -359,12 +579,35 @@ Section CsrInterface.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 24) (getDefaultConst _);
-                       @csrFieldAny ^"frm" (Bit 3) None;
-                       @csrFieldAny ^"fflags" (Bit 5) None
+                       @csrFieldAny ^"frm" (Bit 3);
+                       @csrFieldAny ^"fflags" (Bit 5)
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessAny
+         |};
+         simpleCSR ^"cycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
+         simpleCSR ^"instret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
+         {|
+           csrName := ^"cycleh";
+           csrAddr := CsrIdWidth 'h"c80";
+           csrViews
+             := let fields := [ @csrFieldReadOnly ^"mcycle" (Bit 64) ] in
+                repeatCSRView 2
+                  (@csrViewUpperReadXform fields)
+                  (@csrViewUpperWriteXform fields);
+           csrAccess := accessAny
+         |};
+         {|
+           csrName := ^"instreth";
+           csrAddr := CsrIdWidth 'h"c82";
+           csrViews
+             := let fields := [ @csrFieldReadOnly ^"minstret" (Bit 64) ] in
+                repeatCSRView 2
+                  (@csrViewUpperReadXform fields)
+                  (@csrViewUpperWriteXform fields);
+           csrAccess := accessAny
          |};
          {|
            csrName := ^"misa";
@@ -399,7 +642,8 @@ Section CsrInterface.
                     csrViewReadXform  := @csrViewDefaultReadXform fields;
                     csrViewWriteXform := @csrViewDefaultWriteXform fields
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"medeleg";
@@ -409,7 +653,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16) None
+                         @csrFieldAny ^"medeleg" (Bit 16)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -420,7 +664,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16) None
+                         @csrFieldAny ^"medeleg" (Bit 16)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -428,8 +672,40 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
+         {|
+           csrName := ^"mideleg";
+           csrAddr := CsrIdWidth 'h"303";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldNoReg "reserved" (Bit 20) (getDefaultConst _);
+                         @csrFieldAny ^"mideleg" (Bit 12)
+                       ] in
+                  {|
+                    csrViewContext := $1;
+                    csrViewFields  := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields
+                    := [
+                         @csrFieldNoReg "reserved" (Bit 52) (getDefaultConst _);
+                         @csrFieldAny ^"mideleg" (Bit 12)
+                       ] in
+                  {|
+                    csrViewContext := $2;
+                    csrViewFields  := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessMModeOnly
+         |};
+         nilCSR ^"mie" (CsrIdWidth 'h"304") accessMModeOnly;
          {|
            csrName := ^"mstatus";
            csrAddr := CsrIdWidth 'h"300";
@@ -438,22 +714,22 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved0" (Bit 11) (getDefaultConst _);
-                         @csrFieldAny ^"tvm" Bool None;
-                         @csrFieldAny ^"mxr" Bool None;
-                         @csrFieldAny ^"sum" Bool None;
-                         @csrFieldAny ^"mprv" Bool None;
+                         @csrFieldAny ^"tvm" Bool;
+                         @csrFieldAny ^"mxr" Bool;
+                         @csrFieldAny ^"sum" Bool;
+                         @csrFieldAny ^"mprv" Bool;
                          @csrFieldNoReg "reserved1" (Bit 4) (getDefaultConst _);
-                         @csrFieldAny ^"mpp" (Bit 2) None;
+                         @csrFieldAny ^"mpp" (Bit 2);
                          @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1) None;
-                         @csrFieldAny ^"mpie" Bool None;
+                         @csrFieldAny ^"spp" (Bit 1);
+                         @csrFieldAny ^"mpie" Bool;
                          @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool None;
-                         @csrFieldAny ^"upie" Bool None;
-                         @csrFieldAny ^"mie" Bool None;
+                         @csrFieldAny ^"spie" Bool;
+                         @csrFieldAny ^"upie" Bool;
+                         @csrFieldAny ^"mie" Bool;
                          @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool None;
-                         @csrFieldAny ^"uie" Bool None
+                         @csrFieldAny ^"sie" Bool;
+                         @csrFieldAny ^"uie" Bool
                        ] in
                   {|
                     csrViewContext := $1;
@@ -467,22 +743,22 @@ Section CsrInterface.
                          xlField ^"s";
                          xlField ^"u";
                          @csrFieldNoReg "reserved1" (Bit 11) (getDefaultConst _);
-                         @csrFieldAny ^"tvm" Bool None;
-                         @csrFieldAny ^"mxr" Bool None;
-                         @csrFieldAny ^"sum" Bool None;
-                         @csrFieldAny ^"mprv" Bool None;
+                         @csrFieldAny ^"tvm" Bool;
+                         @csrFieldAny ^"mxr" Bool;
+                         @csrFieldAny ^"sum" Bool;
+                         @csrFieldAny ^"mprv" Bool;
                          @csrFieldNoReg "reserved2" (Bit 4) (getDefaultConst _);
-                         @csrFieldAny ^"mpp" (Bit 2) None;
+                         @csrFieldAny ^"mpp" (Bit 2);
                          @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1) None;
-                         @csrFieldAny ^"mpie" Bool None;
+                         @csrFieldAny ^"spp" (Bit 1);
+                         @csrFieldAny ^"mpie" Bool;
                          @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool None;
-                         @csrFieldAny ^"upie" Bool None;
-                         @csrFieldAny ^"mie" Bool None;
+                         @csrFieldAny ^"spie" Bool;
+                         @csrFieldAny ^"upie" Bool;
+                         @csrFieldAny ^"mie" Bool;
                          @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool None;
-                         @csrFieldAny ^"uie" Bool None
+                         @csrFieldAny ^"sie" Bool;
+                         @csrFieldAny ^"uie" Bool
                        ] in
                   {|
                     csrViewContext := $2;
@@ -490,7 +766,8 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mtvec";
@@ -500,7 +777,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @tvecField ^"m" 30;
-                         @csrFieldAny ^"mtvec_mode" (Bit 2) None
+                         @csrFieldAny ^"mtvec_mode" (Bit 2)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -511,7 +788,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @tvecField ^"m" 62;
-                         @csrFieldAny ^"mtvec_mode" (Bit 2) None
+                         @csrFieldAny ^"mtvec_mode" (Bit 2)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -519,49 +796,53 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
+         simpleCSR ^"mcounteren" (CsrIdWidth 'h"306") 32 accessMModeOnly;
          {|
            csrName := ^"mscratch";
            csrAddr := CsrIdWidth 'h"340";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mscratch" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"mscratch" (Bit 32) ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mscratch" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"mscratch" (Bit 64) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mepc";
            csrAddr := CsrIdWidth 'h"341";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mepc" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"mepc" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mepc" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"mepc" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mcause";
@@ -570,8 +851,8 @@ Section CsrInterface.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"mcause_interrupt" Bool None;
-                         @csrFieldAny ^"mcause_code" (Bit 31) None
+                         @csrFieldAny ^"mcause_interrupt" Bool;
+                         @csrFieldAny ^"mcause_code" (Bit 31)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -581,8 +862,8 @@ Section CsrInterface.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"mcause_interrupt" Bool None;
-                         @csrFieldAny ^"mcause_code" (Bit 63) None
+                         @csrFieldAny ^"mcause_interrupt" Bool;
+                         @csrFieldAny ^"mcause_code" (Bit 63)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -590,29 +871,207 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mtval";
            csrAddr := CsrIdWidth 'h"343";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mtval" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"mtval" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mtval" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"mtval" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
+         {|
+           csrName := ^"mip";
+           csrAddr := CsrIdWidth 'h"344";
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldReadOnly ^"meip" Bool;
+                       @csrFieldNoReg ^"reserved0" Bool (getDefaultConst _);
+                       @csrFieldAny ^"seip" Bool;
+                       @csrFieldAny ^"ueip" Bool;
+                       @csrFieldReadOnly ^"mtip" Bool;
+                       @csrFieldNoReg ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldAny ^"stip" Bool;
+                       @csrFieldAny ^"utip" Bool;
+                       @csrFieldReadOnly ^"msip" Bool;
+                       @csrFieldNoReg ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldAny ^"ssip" Bool;
+                       @csrFieldAny ^"usip" Bool
+                     ] in
+                repeatCSRView 2
+                  (@csrViewDefaultReadXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
+         |};
+         {|
+           csrName := ^"pmpcfg0";
+           csrAddr := CsrIdWidth 'h"3a0";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp3cfg" (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp7cfg" (Bit 8);
+                         @csrFieldAny ^"pmp6cfg" (Bit 8);
+                         @csrFieldAny ^"pmp5cfg" (Bit 8);
+                         @csrFieldAny ^"pmp4cfg" (Bit 8);
+                         @csrFieldAny ^"pmp3cfg" (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessMModeOnly
+         |};
+         {|
+           csrName := ^"pmpcfg1";
+           csrAddr := CsrIdWidth 'h"3a1";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp3cfg" (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := [];
+                    csrViewReadXform  := (@csrViewDefaultReadXform []);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform [])
+                  |}
+                ];
+           csrAccess
+             := fun context
+                  => context @% "xlen" == $1 &&
+                     context @% "mode" == $MachineMode
+         |};
+         {|
+           csrName := ^"pmpcfg2";
+           csrAddr := CsrIdWidth 'h"3a2";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp11cfg" (Bit 8);
+                         @csrFieldAny ^"pmp10cfg" (Bit 8);
+                         @csrFieldAny ^"pmp9cfg" (Bit 8);
+                         @csrFieldAny ^"pmp8cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp15cfg" (Bit 8);
+                         @csrFieldAny ^"pmp14cfg" (Bit 8);
+                         @csrFieldAny ^"pmp13cfg" (Bit 8);
+                         @csrFieldAny ^"pmp12cfg" (Bit 8);
+                         @csrFieldAny ^"pmp11cfg" (Bit 8);
+                         @csrFieldAny ^"pmp10cfg" (Bit 8);
+                         @csrFieldAny ^"pmp9cfg" (Bit 8);
+                         @csrFieldAny ^"pmp8cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |}
+                ];
+           csrAccess := accessMModeOnly
+         |};
+         {|
+           csrName := ^"pmpcfg1";
+           csrAddr := CsrIdWidth 'h"3a3";
+           csrViews
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny ^"pmp15cfg" (Bit 8);
+                         @csrFieldAny ^"pmp14cfg" (Bit 8);
+                         @csrFieldAny ^"pmp13cfg" (Bit 8);
+                         @csrFieldAny ^"pmp12cfg" (Bit 8)
+                       ] in
+                  {|
+                    csrViewContext    := $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
+                  |};
+                  {|
+                    csrViewContext    := $2;
+                    csrViewFields     := [];
+                    csrViewReadXform  := (@csrViewDefaultReadXform []);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform [])
+                  |}
+                ];
+           csrAccess
+             := fun context
+                  => context @% "xlen" == $1 &&
+                     context @% "mode" == $MachineMode
+         |};
+         simpleCSR ^"pmpaddr0" (CsrIdWidth 'h"3b0") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr1" (CsrIdWidth 'h"3b1") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr2" (CsrIdWidth 'h"3b2") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr3" (CsrIdWidth 'h"3b3") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr4" (CsrIdWidth 'h"3b4") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr5" (CsrIdWidth 'h"3b5") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr6" (CsrIdWidth 'h"3b6") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr7" (CsrIdWidth 'h"3b7") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr8" (CsrIdWidth 'h"3b8") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr9" (CsrIdWidth 'h"3b9") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr10" (CsrIdWidth 'h"3ba") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr11" (CsrIdWidth 'h"3bb") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr12" (CsrIdWidth 'h"3bc") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr13" (CsrIdWidth 'h"3bd") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr14" (CsrIdWidth 'h"3be") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr15" (CsrIdWidth 'h"3bf") 54 accessMModeOnly;
          {|
            csrName := ^"sstatus";
            csrAddr := CsrIdWidth 'h"100";
@@ -621,16 +1080,16 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
-                         @csrFieldAny ^"mxr" Bool None;
-                         @csrFieldAny ^"sum" Bool None;
+                         @csrFieldAny ^"mxr" Bool;
+                         @csrFieldAny ^"sum" Bool;
                          @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1) None;
+                         @csrFieldAny ^"spp" (Bit 1);
                          @csrFieldNoReg "reserved2" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool None;
-                         @csrFieldAny ^"upie" Bool None;
+                         @csrFieldAny ^"spie" Bool;
+                         @csrFieldAny ^"upie" Bool;
                          @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool None;
-                         @csrFieldAny ^"uie" Bool None
+                         @csrFieldAny ^"sie" Bool;
+                         @csrFieldAny ^"uie" Bool
                        ] in
                   {|
                     csrViewContext := $1;
@@ -643,16 +1102,16 @@ Section CsrInterface.
                          @csrFieldNoReg "reserved0" (Bit 30) (getDefaultConst _);
                          xlField ^"u";
                          @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
-                         @csrFieldAny ^"mxr" Bool None;
-                         @csrFieldAny ^"sum" Bool None;
+                         @csrFieldAny ^"mxr" Bool;
+                         @csrFieldAny ^"sum" Bool;
                          @csrFieldNoReg "reserved2" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1) None;
+                         @csrFieldAny ^"spp" (Bit 1);
                          @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool None;
-                         @csrFieldAny ^"upie" Bool None;
+                         @csrFieldAny ^"spie" Bool;
+                         @csrFieldAny ^"upie" Bool;
                          @csrFieldNoReg "reserved4" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool None;
-                         @csrFieldAny ^"uie" Bool None
+                         @csrFieldAny ^"sie" Bool;
+                         @csrFieldAny ^"uie" Bool
                        ] in
                   {|
                     csrViewContext := $2;
@@ -660,7 +1119,8 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := ^"sedeleg";
@@ -670,7 +1130,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16) None
+                         @csrFieldAny ^"medeleg" (Bit 16)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -681,7 +1141,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16) None
+                         @csrFieldAny ^"medeleg" (Bit 16)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -689,7 +1149,8 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := ^"stvec";
@@ -699,7 +1160,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @tvecField ^"s" 30;
-                         @csrFieldAny ^"stvec_mode" (Bit 2) None
+                         @csrFieldAny ^"stvec_mode" (Bit 2)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -710,7 +1171,7 @@ Section CsrInterface.
                   let fields
                     := [
                          @tvecField ^"s" 62;
-                         @csrFieldAny ^"stvec_mode" (Bit 2) None
+                         @csrFieldAny ^"stvec_mode" (Bit 2)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -718,49 +1179,53 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
+         simpleCSR ^"scounteren" (CsrIdWidth 'h"106") 32 accessSMode;
          {|
            csrName := ^"sscratch";
            csrAddr := CsrIdWidth 'h"140";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"sscratch" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"sscratch" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"sscratch" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"sscratch" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := ^"sepc";
            csrAddr := CsrIdWidth 'h"141";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"sepc" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"sepc" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"sepc" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"sepc" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := ^"scause";
@@ -769,8 +1234,8 @@ Section CsrInterface.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"scause_interrupt" Bool None;
-                         @csrFieldAny ^"scause_code" (Bit 31) None
+                         @csrFieldAny ^"scause_interrupt" Bool;
+                         @csrFieldAny ^"scause_code" (Bit 31)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -780,8 +1245,8 @@ Section CsrInterface.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"scause_interrupt" Bool None;
-                         @csrFieldAny ^"scause_code" (Bit 63) None
+                         @csrFieldAny ^"scause_interrupt" Bool;
+                         @csrFieldAny ^"scause_code" (Bit 63)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -789,28 +1254,30 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := ^"stval";
            csrAddr := CsrIdWidth 'h"143";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"stval" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"stval" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"stval" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"stval" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName := satpCsrName;
@@ -819,9 +1286,9 @@ Section CsrInterface.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"satp_mode" Bool None;
-                         @csrFieldAny ^"satp_asid" (Bit 9) None;
-                         @csrFieldAny ^"satp_ppn" (Bit 22) None
+                         @csrFieldAny ^"satp_mode" (Bit 1);
+                         @csrFieldAny ^"satp_asid" (Bit 9);
+                         @csrFieldAny ^"satp_ppn" (Bit 22)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -831,9 +1298,9 @@ Section CsrInterface.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"satp_mode" (Bit 4) None;
-                         @csrFieldAny ^"satp_asid" (Bit 16) None;
-                         @csrFieldAny ^"satp_ppn" (Bit 44) None
+                         @csrFieldAny ^"satp_mode" (Bit 4);
+                         @csrFieldAny ^"satp_asid" (Bit 16);
+                         @csrFieldAny ^"satp_ppn" (Bit 44)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -841,199 +1308,184 @@ Section CsrInterface.
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessSMode
          |};
          {|
            csrName  := ^"mvendorid";
            csrAddr  := CsrIdWidth 'h"f11";
            csrViews
              := let fields
-                  := [ @csrFieldAny ^"mvendorid" (Bit 32) None ] in
+                  := [ @csrFieldAny ^"mvendorid" (Bit 32) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"marchid";
            csrAddr := CsrIdWidth 'h"f12";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mimpid";
            csrAddr := CsrIdWidth 'h"f13";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName := ^"mhartid";
            csrAddr := CsrIdWidth 'h"f14";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mhartid" (Bit 32) None ] in
+                  let fields := [ @csrFieldAny ^"mhartid" (Bit 32) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mhartid" (Bit 64) None ] in
+                  let fields := [ @csrFieldAny ^"mhartid" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
-                ]
+                ];
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName  := ^"mcycle";
            csrAddr  := CsrIdWidth 'h"b00";
            csrViews
-             := let fields := [ @csrFieldAny ^"cycle" (Bit 64) None ] in
+             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName  := ^"minstret";
            csrAddr  := CsrIdWidth 'h"b02";
            csrViews
-             := let fields := [ @csrFieldAny ^"instret" (Bit 64) None ] in
+             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
-                  (@csrViewDefaultWriteXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
          |};
-         nilCSR ^"mhpmcounter3" (CsrIdWidth 'h"b03");
-         nilCSR ^"mhpmcounter4" (CsrIdWidth 'h"b04");
-         nilCSR ^"mhpmcounter5" (CsrIdWidth 'h"b05");
-         nilCSR ^"mhpmcounter6" (CsrIdWidth 'h"b06");
-         nilCSR ^"mhpmcounter7" (CsrIdWidth 'h"b07");
-         nilCSR ^"mhpmcounter8" (CsrIdWidth 'h"b08");
-         nilCSR ^"mhpmcounter9" (CsrIdWidth 'h"b09");
-         nilCSR ^"mhpmcounter10" (CsrIdWidth 'h"b0a");
-         nilCSR ^"mhpmcounter11" (CsrIdWidth 'h"b0b");
-         nilCSR ^"mhpmcounter12" (CsrIdWidth 'h"b0c");
-         nilCSR ^"mhpmcounter13" (CsrIdWidth 'h"b0d");
-         nilCSR ^"mhpmcounter14" (CsrIdWidth 'h"b03");
-         nilCSR ^"mhpmcounter15" (CsrIdWidth 'h"b0f");
-         nilCSR ^"mhpmcounter16" (CsrIdWidth 'h"b10");
-         nilCSR ^"mhpmcounter17" (CsrIdWidth 'h"b11");
-         nilCSR ^"mhpmcounter18" (CsrIdWidth 'h"b12");
-         nilCSR ^"mhpmcounter19" (CsrIdWidth 'h"b13");
-         nilCSR ^"mhpmcounter20" (CsrIdWidth 'h"b14");
-         nilCSR ^"mhpmcounter21" (CsrIdWidth 'h"b15");
-         nilCSR ^"mhpmcounter22" (CsrIdWidth 'h"b16");
-         nilCSR ^"mhpmcounter23" (CsrIdWidth 'h"b17");
-         nilCSR ^"mhpmcounter24" (CsrIdWidth 'h"b18");
-         nilCSR ^"mhpmcounter25" (CsrIdWidth 'h"b19");
-         nilCSR ^"mhpmcounter26" (CsrIdWidth 'h"b1a");
-         nilCSR ^"mhpmcounter27" (CsrIdWidth 'h"b1b");
-         nilCSR ^"mhpmcounter28" (CsrIdWidth 'h"b1c");
-         nilCSR ^"mhpmcounter29" (CsrIdWidth 'h"b1d");
-         nilCSR ^"mhpmcounter30" (CsrIdWidth 'h"b1e");
-         nilCSR ^"mhpmcounter31" (CsrIdWidth 'h"b1f");
+         nilCSR ^"mhpmcounter3" (CsrIdWidth 'h"b03") accessMModeOnly;
+         nilCSR ^"mhpmcounter4" (CsrIdWidth 'h"b04") accessMModeOnly;
+         nilCSR ^"mhpmcounter5" (CsrIdWidth 'h"b05") accessMModeOnly;
+         nilCSR ^"mhpmcounter6" (CsrIdWidth 'h"b06") accessMModeOnly;
+         nilCSR ^"mhpmcounter7" (CsrIdWidth 'h"b07") accessMModeOnly;
+         nilCSR ^"mhpmcounter8" (CsrIdWidth 'h"b08") accessMModeOnly;
+         nilCSR ^"mhpmcounter9" (CsrIdWidth 'h"b09") accessMModeOnly;
+         nilCSR ^"mhpmcounter10" (CsrIdWidth 'h"b0a") accessMModeOnly;
+         nilCSR ^"mhpmcounter11" (CsrIdWidth 'h"b0b") accessMModeOnly;
+         nilCSR ^"mhpmcounter12" (CsrIdWidth 'h"b0c") accessMModeOnly;
+         nilCSR ^"mhpmcounter13" (CsrIdWidth 'h"b0d") accessMModeOnly;
+         nilCSR ^"mhpmcounter14" (CsrIdWidth 'h"b03") accessMModeOnly;
+         nilCSR ^"mhpmcounter15" (CsrIdWidth 'h"b0f") accessMModeOnly;
+         nilCSR ^"mhpmcounter16" (CsrIdWidth 'h"b10") accessMModeOnly;
+         nilCSR ^"mhpmcounter17" (CsrIdWidth 'h"b11") accessMModeOnly;
+         nilCSR ^"mhpmcounter18" (CsrIdWidth 'h"b12") accessMModeOnly;
+         nilCSR ^"mhpmcounter19" (CsrIdWidth 'h"b13") accessMModeOnly;
+         nilCSR ^"mhpmcounter20" (CsrIdWidth 'h"b14") accessMModeOnly;
+         nilCSR ^"mhpmcounter21" (CsrIdWidth 'h"b15") accessMModeOnly;
+         nilCSR ^"mhpmcounter22" (CsrIdWidth 'h"b16") accessMModeOnly;
+         nilCSR ^"mhpmcounter23" (CsrIdWidth 'h"b17") accessMModeOnly;
+         nilCSR ^"mhpmcounter24" (CsrIdWidth 'h"b18") accessMModeOnly;
+         nilCSR ^"mhpmcounter25" (CsrIdWidth 'h"b19") accessMModeOnly;
+         nilCSR ^"mhpmcounter26" (CsrIdWidth 'h"b1a") accessMModeOnly;
+         nilCSR ^"mhpmcounter27" (CsrIdWidth 'h"b1b") accessMModeOnly;
+         nilCSR ^"mhpmcounter28" (CsrIdWidth 'h"b1c") accessMModeOnly;
+         nilCSR ^"mhpmcounter29" (CsrIdWidth 'h"b1d") accessMModeOnly;
+         nilCSR ^"mhpmcounter30" (CsrIdWidth 'h"b1e") accessMModeOnly;
+         nilCSR ^"mhpmcounter31" (CsrIdWidth 'h"b1f") accessMModeOnly;
          {|
            csrName  := ^"mcycleh";
            csrAddr  := CsrIdWidth 'h"b80";
            csrViews
-             := [
-                  let fields := [ @csrFieldAny ^"cycle" (Bit 64) None ] in
-                  {|
-                    csrViewContext    := $1;
-                    csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewUpperReadXform fields);
-                    csrViewWriteXform := (@csrViewUpperWriteXform fields)
-                  |};
-                  let fields := [ @csrFieldNoReg "not_available" Void (getDefaultConst _) ] in
-                  {|
-                    csrViewContext    := $2;
-                    csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
-                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
-                  |}
-                ]
+             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) ] in
+                repeatCSRView 2
+                  (@csrViewUpperReadXform fields)
+                  (@csrViewUpperWriteXform fields);
+           csrAccess := accessMModeOnly
          |};
          {|
            csrName  := ^"minstreth";
            csrAddr  := CsrIdWidth 'h"b82";
            csrViews
-             := [
-                  let fields := [ @csrFieldAny ^"instret" (Bit 64) None ] in
-                  {|
-                    csrViewContext    := $1;
-                    csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
-                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
-                  |};
-                  let fields := [ @csrFieldNoReg "not_available" Void (getDefaultConst _) ] in
-                  {|
-                    csrViewContext    := $2;
-                    csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
-                    csrViewWriteXform := (@csrViewDefaultWriteXform fields)
-                  |}
-                ]
+             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) ] in
+                repeatCSRView 2
+                  (@csrViewUpperReadXform fields)
+                  (@csrViewUpperWriteXform fields);
+           csrAccess := accessMModeOnly
          |};
-         nilCSR ^"mhpmevent3" (CsrIdWidth 'h"323");
-         nilCSR ^"mhpmevent4" (CsrIdWidth 'h"324");
-         nilCSR ^"mhpmevent5" (CsrIdWidth 'h"325");
-         nilCSR ^"mhpmevent6" (CsrIdWidth 'h"326");
-         nilCSR ^"mhpmevent7" (CsrIdWidth 'h"327");
-         nilCSR ^"mhpmevent8" (CsrIdWidth 'h"328");
-         nilCSR ^"mhpmevent9" (CsrIdWidth 'h"329");
-         nilCSR ^"mhpmevent10" (CsrIdWidth 'h"32a");
-         nilCSR ^"mhpmevent11" (CsrIdWidth 'h"32b");
-         nilCSR ^"mhpmevent12" (CsrIdWidth 'h"32c");
-         nilCSR ^"mhpmevent13" (CsrIdWidth 'h"32d");
-         nilCSR ^"mhpmevent14" (CsrIdWidth 'h"323");
-         nilCSR ^"mhpmevent15" (CsrIdWidth 'h"32f");
-         nilCSR ^"mhpmevent16" (CsrIdWidth 'h"330");
-         nilCSR ^"mhpmevent17" (CsrIdWidth 'h"331");
-         nilCSR ^"mhpmevent18" (CsrIdWidth 'h"332");
-         nilCSR ^"mhpmevent19" (CsrIdWidth 'h"333");
-         nilCSR ^"mhpmevent20" (CsrIdWidth 'h"334");
-         nilCSR ^"mhpmevent21" (CsrIdWidth 'h"335");
-         nilCSR ^"mhpmevent22" (CsrIdWidth 'h"336");
-         nilCSR ^"mhpmevent23" (CsrIdWidth 'h"337");
-         nilCSR ^"mhpmevent24" (CsrIdWidth 'h"338");
-         nilCSR ^"mhpmevent25" (CsrIdWidth 'h"339");
-         nilCSR ^"mhpmevent26" (CsrIdWidth 'h"33a");
-         nilCSR ^"mhpmevent27" (CsrIdWidth 'h"33b");
-         nilCSR ^"mhpmevent28" (CsrIdWidth 'h"33c");
-         nilCSR ^"mhpmevent29" (CsrIdWidth 'h"33d");
-         nilCSR ^"mhpmevent30" (CsrIdWidth 'h"33e");
-         nilCSR ^"mhpmevent31" (CsrIdWidth 'h"33f")
+         nilCSR ^"mhpmevent3" (CsrIdWidth 'h"323") accessMModeOnly;
+         nilCSR ^"mhpmevent4" (CsrIdWidth 'h"324") accessMModeOnly;
+         nilCSR ^"mhpmevent5" (CsrIdWidth 'h"325") accessMModeOnly;
+         nilCSR ^"mhpmevent6" (CsrIdWidth 'h"326") accessMModeOnly;
+         nilCSR ^"mhpmevent7" (CsrIdWidth 'h"327") accessMModeOnly;
+         nilCSR ^"mhpmevent8" (CsrIdWidth 'h"328") accessMModeOnly;
+         nilCSR ^"mhpmevent9" (CsrIdWidth 'h"329") accessMModeOnly;
+         nilCSR ^"mhpmevent10" (CsrIdWidth 'h"32a") accessMModeOnly;
+         nilCSR ^"mhpmevent11" (CsrIdWidth 'h"32b") accessMModeOnly;
+         nilCSR ^"mhpmevent12" (CsrIdWidth 'h"32c") accessMModeOnly;
+         nilCSR ^"mhpmevent13" (CsrIdWidth 'h"32d") accessMModeOnly;
+         nilCSR ^"mhpmevent14" (CsrIdWidth 'h"323") accessMModeOnly;
+         nilCSR ^"mhpmevent15" (CsrIdWidth 'h"32f") accessMModeOnly;
+         nilCSR ^"mhpmevent16" (CsrIdWidth 'h"330") accessMModeOnly;
+         nilCSR ^"mhpmevent17" (CsrIdWidth 'h"331") accessMModeOnly;
+         nilCSR ^"mhpmevent18" (CsrIdWidth 'h"332") accessMModeOnly;
+         nilCSR ^"mhpmevent19" (CsrIdWidth 'h"333") accessMModeOnly;
+         nilCSR ^"mhpmevent20" (CsrIdWidth 'h"334") accessMModeOnly;
+         nilCSR ^"mhpmevent21" (CsrIdWidth 'h"335") accessMModeOnly;
+         nilCSR ^"mhpmevent22" (CsrIdWidth 'h"336") accessMModeOnly;
+         nilCSR ^"mhpmevent23" (CsrIdWidth 'h"337") accessMModeOnly;
+         nilCSR ^"mhpmevent24" (CsrIdWidth 'h"338") accessMModeOnly;
+         nilCSR ^"mhpmevent25" (CsrIdWidth 'h"339") accessMModeOnly;
+         nilCSR ^"mhpmevent26" (CsrIdWidth 'h"33a") accessMModeOnly;
+         nilCSR ^"mhpmevent27" (CsrIdWidth 'h"33b") accessMModeOnly;
+         nilCSR ^"mhpmevent28" (CsrIdWidth 'h"33c") accessMModeOnly;
+         nilCSR ^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
+         nilCSR ^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
+         nilCSR ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly
        ].
 
   Close Scope local_scope.
@@ -1106,7 +1558,10 @@ Section CsrInterface.
 
   (* Returns true if an exception occurs *)
   Definition commitCSRWrite
+    (mode : PrivMode @# ty)
     (tvm : Bool @# ty)
+    (mcounteren : CounterEnType @# ty)
+    (scounteren : CounterEnType @# ty)
     (upd_pkt : FieldUpd @# ty)
     (rd_index : RegId @# ty)
     (rs1_index : RegId @# ty)
@@ -1114,23 +1569,54 @@ Section CsrInterface.
     (val : Maybe RoutedReg @# ty)
     (* :  ActionT ty Bool *)
     :  ActionT ty (Maybe (Bit CsrUpdateCodeWidth))
-    := If val @% "valid" &&
+    := System [
+         DispString _ "[commitCSRWrite]\n"
+       ];
+       If val @% "valid" &&
          (utila_any
            (map
              (fun params => csr_params_tag params == val @% "data" @% "tag")
              csr_params))
          then
+           System [
+             DispString _ "[commitCSRWrite] routed reg request received\n"
+           ];
            (* 3.1.6.4 *)
-           If upd_pkt @% "cfg" @% "mode" == $SupervisorMode && tvm
+           If !(utila_lookup_table_default
+                 CSRs
+                 (fun csr => $$(csrAddr csr) == csr_index)
+                 (fun csr
+                   => csrAccess csr
+                        (STRUCT {
+                          "xlen"       ::= upd_pkt @% "cfg" @% "xlen";
+                          "mode"       ::= mode;
+                          "mcounteren" ::= mcounteren;
+                          "scounteren" ::= scounteren;
+                          "tvm"        ::= tvm
+                         } : CsrAccessPkt @# ty))
+                 $$false)
              then 
                (* Ret $$true *)
+               System [
+                 DispString _ "[commitCSRWrite] none of the csrs have index: \n";
+                 DispHex csr_index;
+                 DispString _ "\n"
+               ];
                Ret Invalid
              else
                LETA csr_val
                  :  Maybe CsrValue
                  <- readCSR upd_pkt csr_index;
+               System [
+                 DispString _ "[commitCSRWrite] read csr value: \n";
+                 DispHex #csr_val;
+                 DispString _ "\n"
+               ];
                If rd_index != $0
                  then 
+                   System [
+                     DispString _ "[commitCSRWrite] writing to rd (rd index != 0): \n"
+                   ];
                    reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
                      (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
                If utila_lookup_table_default
@@ -1139,6 +1625,11 @@ Section CsrInterface.
                     (fun params => csr_params_write_enable params rs1_index)
                     $$false
                  then 
+                   System [
+                     DispString _ "[commitCSRWrite] writing to csr: \n";
+                     DispHex csr_index;
+                     DispString _ "\n"
+                   ];
                    LETA _
                      <- writeCSR upd_pkt csr_index 
                           (utila_lookup_table_default
@@ -1157,6 +1648,9 @@ Section CsrInterface.
                           $$(CsrIdWidth 'h"b02") ::= ($CsrUpdateCodeMInstRet : Bit CsrUpdateCodeWidth @# ty)
                         }))
                  else
+                   System [
+                     DispString _ "[commitCSRWrite] not writing to any csr.\n"
+                   ];
                    Ret (Valid ($CsrUpdateCodeNone : Bit CsrUpdateCodeWidth @# ty))
                  as result;
                (* Ret $$false *)
@@ -1170,6 +1664,8 @@ Section CsrInterface.
        Ret #result.
 
   Definition commitCSRWrites
+    (mcounteren : CounterEnType @# ty)
+    (scounteren : CounterEnType @# ty)
     (pc : VAddr @# ty)
     (compressed : Bool @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
@@ -1192,8 +1688,8 @@ Section CsrInterface.
               "cfg" ::= cfg_pkt
             } : FieldUpd @# ty;
        (* NOTE: only one CSR write can occur per instruction *)
-       LETA result0 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-       LETA result1 <- commitCSRWrite (cfg_pkt @% "tvm") #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+       LETA result0 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+       LETA result1 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
        (* Ret (#error0 || #error1). *)
        Ret
          (utila_opt_pkt
@@ -1201,6 +1697,8 @@ Section CsrInterface.
            (#result0 @% "valid" && #result1 @% "valid")).
 
   Definition CsrUnit
+    (mcounteren : CounterEnType @# ty)
+    (scounteren : CounterEnType @# ty)
     (pc : VAddr @# ty)
     (inst : Inst @# ty)
     (compressed : Bool @# ty)
@@ -1214,7 +1712,7 @@ Section CsrInterface.
     (* := LETA error *)
          (* :  Bool *)
          :  Maybe (Bit CsrUpdateCodeWidth)
-         <- commitCSRWrites pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
+         <- commitCSRWrites mcounteren scounteren pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
        Ret
          (STRUCT {
            "fst" ::= #result @% "data";
