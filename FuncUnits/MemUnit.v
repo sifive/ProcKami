@@ -44,9 +44,15 @@ Section mem_unit.
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
+(*
   Local Notation pMemFetch := (@pMemFetch name Rlen_over_8 mem_params ty).
   Local Notation pMemRead := (@pMemRead name Rlen_over_8 mem_params ty).
   Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
+*)
+  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
+
   Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 mem_params ty).
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 mem_params ty).
 

@@ -29,7 +29,8 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation pMemRead := (pMemRead name Rlen_over_8 mem_params).
+  (* Local Notation pMemRead := (pMemRead name Rlen_over_8 mem_params). *)
+  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 mem_params).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -167,17 +168,6 @@ Section pt_walker.
           LETE vpnOffset <- getVpnOffset;
           LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= #validEntry;
                                                    "data" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset) } ;
-          SystemE [
-            DispString _ "[translatePte] is leaf: ";
-            DispHex #leaf;
-            DispString _ "\n";
-            DispString _ "[translatePte] leaf value: ";
-            DispHex #leafVal;
-            DispString _ "\n";
-            DispString _ "[translatePte] node value: ";
-            DispHex #nonLeafVal;
-            DispString _ "\n"
-          ];
           LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
           LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
                                                              "snd" ::= #retVal } ;
@@ -192,6 +182,11 @@ Section pt_walker.
         (If acc @% "snd" @% "valid"
           then (
             LETA read_result: Maybe Data <- pMemRead (mem_read_index + (currentLevel-1)) mode (acc @% "snd" @% "data");
+            System [
+              DispString _ "[translatePteLoop] page table entry: ";
+              DispHex #read_result;
+              DispString _ "\n"
+            ];
             If #read_result @% "valid"
             then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
             else Ret #doneInvalid
@@ -213,6 +208,11 @@ Section pt_walker.
       <- fold_left
       (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat)
         => LETA acc_result <- acc;
+        System [
+          DispString _ "[pt_walker] acc: ";
+          DispHex #acc_result;
+          DispString _ "\n"
+        ];
         translatePteLoop currentLevel #acc_result) (seq 1 (maxPageLevels - 1))
       (Ret (STRUCT { "fst" ::= $$ false ;
                      "snd" ::= Valid (satp_ppn + #vpnOffset)}));

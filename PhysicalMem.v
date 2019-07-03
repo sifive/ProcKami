@@ -22,9 +22,14 @@ Section pmem.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
+(*
   Local Notation pmp_check_execute := (@pmp_check_execute name mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name mem_params ty).
+*)
+  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
+  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -36,7 +41,8 @@ Section pmem.
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
        LETA pmp_result
          :  Bool
-         <- pmp_check_execute mode addr (addr + $4);
+         (* <- pmp_check_execute mode addr (addr + $4); *)
+         <- pmp_check_execute mode addr $4;
        System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " HERE" :: DispHex (pack #result) :: DispString _ " THERE \n" :: nil);
        Ret utila_opt_pkt (pack #result) #pmp_result.
 
@@ -47,7 +53,8 @@ Section pmem.
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
        LETA pmp_result
          :  Bool
-         <- pmp_check_read mode addr (addr + $Rlen_over_8);
+         (* <- pmp_check_read mode addr (addr + $Rlen_over_8); *)
+         <- pmp_check_read mode addr $Rlen_over_8;
        System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result :: DispString _ "\n" :: nil);
        Ret utila_opt_pkt (pack #result) #pmp_result.
 
@@ -62,7 +69,8 @@ Section pmem.
             } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
        LETA pmp_result
          :  Bool
-         <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8);
+         (* <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8); *)
+         <- pmp_check_write mode (pkt @% "addr") $Rlen_over_8;
        If #pmp_result
          then (Call ^"writeMem"(#writeRq: _); Retv);
        Ret

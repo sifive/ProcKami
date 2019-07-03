@@ -140,13 +140,14 @@ Section Params.
 
               (* preformance monitor registers *)
               Register ^"mcounteren"      : Bit 32 <- ConstBit (wzero 32) with
+              Register ^"scounteren"      : Bit 32 <- ConstBit (wzero 32) with
               Register ^"mcycle"          : Bit 64 <- ConstBit (wzero 64) with
               Register ^"minstret"        : Bit 64 <- ConstBit (wzero 64) with
               Register ^"mcountinhibit"   : Bit 32 <- ConstBit (wzero 32) with
 
               (* memory protection registers. *)
-              Register ^"pmp0cfg"
-                :  Bit 8
+              Register ^"pmp0cfg" : Bit 8 <- ConstBit (wzero 8) with
+(*
                 <- match pmp_addr_ub with
                      | Some _
                        => ConstBit ('b"10001111") (* grant read write privileges within address range [0, pmp_addr_ub]. *)
@@ -154,6 +155,7 @@ Section Params.
                      | _
                        => ConstBit (wzero 8)
                      end with
+*)
               Register ^"pmp1cfg" : Bit 8 <- ConstBit (wzero 8) with
               Register ^"pmp2cfg" : Bit 8 <- ConstBit (wzero 8) with
               Register ^"pmp3cfg" : Bit 8 <- ConstBit (wzero 8) with
@@ -168,7 +170,8 @@ Section Params.
               Register ^"pmp12cfg" : Bit 8 <- ConstBit (wzero 8) with
               Register ^"pmp13cfg" : Bit 8 <- ConstBit (wzero 8) with
               Register ^"pmp14cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp15cfg"
+              Register ^"pmp15cfg" : Bit 8 <- ConstBit (wzero 8) with
+(*
                 :  Bit 8
                 <- match pmp_addr_ub with
                      | Some _
@@ -176,14 +179,16 @@ Section Params.
                      | _
                        => ConstBit (wzero 8)
                      end with
-              Register ^"pmpaddr0"
-                :  Bit 54
+*)
+              Register ^"pmpaddr0" : Bit 54 <- ConstBit (wzero 54) with
+(*
                 <- match pmp_addr_ub with
                      | Some addr
                        => ConstBit addr
                      | _
                        => ConstBit (wzero 54)
                      end with
+*)
               Register ^"pmpaddr1" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr2" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr3" : Bit 54 <- ConstBit (wzero 54) with
@@ -198,7 +203,8 @@ Section Params.
               Register ^"pmpaddr12" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr13" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr15"
+              Register ^"pmpaddr15" : Bit 54 <- ConstBit (wzero 54) with
+(*
                 :  Bit 54
                 <- match pmp_addr_ub with
                      | Some _
@@ -208,7 +214,7 @@ Section Params.
                      | _
                        => ConstBit (wzero 54)
                      end with
-
+*)
               Rule ^"pipeline"
                 := LETA cfg_pkt <- readConfig name _ supportedExts;
                    Read pc : VAddr <- ^"pc";
@@ -285,13 +291,15 @@ Section Params.
                        DispString _ "\n"
                      ];
                    System [DispString _ "CSR Write\n"];
-                   LETA counteren <- read_counteren name _;
+                   LETA mcounteren <- read_counteren _ ^"mcounteren";
+                   LETA scounteren <- read_counteren _ ^"scounteren";
                    LETA csr_update_pkt
                      :  Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt)
                      <- CsrUnit
                           name
                           Clen_over_8
-                          #counteren
+                          #mcounteren
+                          #scounteren
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")
