@@ -47,34 +47,58 @@ Section pmem.
     :  ActionT ty k
     := LETA result
          :  Maybe k
-         <- utila_acts_find_pkt
-              (map
-                (fun region
-                  => System [
-                       DispString _ "[mem_region_apply] region addr: ";
-                       DispHex (mem_region_addr region);
-                       DispString _ "\n";
-                       DispString _ ("[mem_region_apply] region width: " ++ natToHexStr (mem_region_width region) ++ "\n")
-                     ];
-                     If mem_region_match region paddr
-                       then 
-                         System [
-                           DispString _ "[mem_region_apply] matched region\n"
-                         ];
-                         LETA result : k <- f region;
-                         Ret (Valid #result : Maybe k @# ty)
-                       else
-                         System [
-                           DispString _ "[mem_region_apply] region does not match.\n"
-                         ];
-                         Ret (@Invalid ty k : Maybe k @# ty)
-                       as result;
-                     Ret #result)
-                mem_regions);
+         <- fold_right
+              (fun region acc_act
+                => LETA acc : Maybe k <- acc_act;
+                   If #acc @% "valid" || !(mem_region_match region paddr)
+                     then Ret #acc
+                     else
+                       LETA result : k <- f region;
+                       Ret (Valid #result : Maybe k @# ty)
+                     as result;
+                   Ret #result)
+              (Ret Invalid)
+              mem_regions;
        Ret
          (IF #result @% "valid"
            then #result @% "data"
            else default).
+
+  Definition pMemFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+    : ActionT ty Data
+    := Call result
+         : Array Rlen_over_8 (Bit 8)
+         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
+       Ret (pack #result).
+
+  Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+    : ActionT ty Data
+    := Call result
+         : Array Rlen_over_8 (Bit 8)
+         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
+       Ret (pack #result).
+
+  Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+    : ActionT ty Void
+    := LET writeRq
+        :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
+        <- (STRUCT {
+              "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
+              "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
+              "mask" ::= pkt @% "mask"
+            } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
+       Call ^"writeMem"(#writeRq: _);
+       Retv.
+
+  Definition pMemDevice
+    := {|
+           mem_device_fetch := pMemFetch 1;
+           mem_device_read  := pMemRead;
+           mem_device_write
+             := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                  => LETA _ : Void <- pMemWrite mode pkt;
+                     Ret $MemUpdateCodeNone
+       |}.
 
   Definition mem_region_fetch
     (mode : PrivMode @# ty)
@@ -188,42 +212,6 @@ Section pmem.
              } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
          as result;
        Ret #result.
-
-  Definition pMemFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty Data
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       Ret (pack #result).
-
-  Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty Data
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       Ret (pack #result).
-
-  Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-    : ActionT ty Void
-    := LET writeRq
-        :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
-        <- (STRUCT {
-              "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
-              "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
-              "mask" ::= pkt @% "mask"
-            } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       Call ^"writeMem"(#writeRq: _);
-       Retv.
-
-  Definition pMemDevice
-    := {|
-           mem_device_fetch := pMemFetch 1;
-           mem_device_read  := pMemRead;
-           mem_device_write
-             := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                  => LETA _ : Void <- pMemWrite mode pkt;
-                     Ret $MemUpdateCodeNone
-       |}.
 
   Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)

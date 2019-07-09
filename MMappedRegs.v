@@ -1,0 +1,99 @@
+(* This module defines the memory mapped register interface. *)
+Require Import Kami.All.
+Require Import FU.
+Require Import RegWriter.
+Require Import StdLibKami.RegStruct.
+Require Import StdLibKami.RegMapper.
+Require Import List.
+Import ListNotations.
+
+Section mmapped.
+  Variable name: string.
+  Variable Xlen_over_8 : nat.
+  Variable Rlen_over_8 : nat.
+  Variable ty : Kind -> Type.
+
+  Local Definition lgGranuleSize : nat := Nat.log2_up 64. (* log2 number of bits per granule. *)
+  Local Definition lgMaskSz : nat := 0. (* log2 number of granules per entry. *)
+  Local Definition realAddrSz : nat := 2. (* number of registers. *)
+
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Local Notation GroupReg := (GroupReg lgMaskSz realAddrSz).
+  Local Notation GroupReg_Gen := (GroupReg_Gen ty lgMaskSz realAddrSz).
+  Local Notation RegMapT := (RegMapT lgGranuleSize lgMaskSz realAddrSz).
+  Local Notation FullRegMapT := (FullRegMapT lgGranuleSize lgMaskSz realAddrSz).
+
+  Local Notation maskSz := (pow2 lgMaskSz).
+  Local Notation granuleSz := (pow2 lgGranuleSize).
+  Local Notation dataSz := (maskSz * granuleSz).
+
+  Local Definition mmapped_regs
+    :  list GroupReg
+    := [
+         {|
+           gr_addr := $0%word;
+           gr_kind := Bit 64;
+           gr_name := ^"mtime"
+         |};
+         {|
+           gr_addr := $1%word;
+           gr_kind := Bit 64;
+           gr_name := ^"mtimecmp"
+         |}
+       ].
+
+  Open Scope kami_expr.
+  Open Scope kami_action.
+
+  Definition MmappedReq
+    := STRUCT_TYPE {
+         "isRd" :: Bool;
+         "addr" :: Bit realAddrSz;
+         "data" :: Bit dataSz
+       }.
+
+  Local Definition readWriteMMappedReg
+    (request : MmappedReq @# ty)
+    :  ActionT ty (Bit 64)
+    := LET rq_info
+         :  RegMapT
+         <- STRUCT {
+              "addr" ::= request @% "addr";
+              "mask" ::= $1;
+              "data" ::= request @% "data"
+            } : RegMapT @# ty;
+       LET rq
+         :  FullRegMapT
+         <- STRUCT {
+              "isRd" ::= request @% "isRd";
+              "info" ::= #rq_info
+            } : FullRegMapT @# ty;
+       LETA result
+         <- readWriteGranules_GroupReg (Valid #rq) mmapped_regs;
+       Ret (ZeroExtendTruncLsb 64 #result).
+
+  Definition mmapped_read
+    (addr : Bit realAddrSz @# ty) 
+    :  ActionT ty (Bit 64)
+    := readWriteMMappedReg
+         (STRUCT {
+            "isRd" ::= $$true;
+            "addr" ::= addr;
+            "data" ::= $0
+          }).
+
+  Definition mmapped_write
+    (addr : Bit realAddrSz @# ty)
+    (data : Bit dataSz @# ty)
+    :  ActionT ty (Bit 64)
+    := readWriteMMappedReg
+         (STRUCT {
+            "isRd" ::= $$false;
+            "addr" ::= addr;
+            "data" ::= data
+          }).
+
+  Close Scope kami_action.
+  Close Scope kami_expr.
+
+End mmapped.
