@@ -58,19 +58,21 @@ Section Mem.
       := LETE gcp
            :  ExecContextPkt
            <- gcpin;
+         LETC maskedMem
+           :  MaskedMem
+           <- STRUCT {
+                "data" ::= (#gcp @% "reg2" : Data @# ty);
+                "mask"
+                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                       : Array Rlen_over_8 Bool @# ty)
+              } : MaskedMem @# ty;
          LETC ret
            :  MemInputAddrType
            <- STRUCT {
                   "base"     ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
                   "offset"   ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"));
                   "numZeros" ::= $size;
-                  "data"
-                    ::= (STRUCT {
-                          "data" ::= (#gcp @% "reg2" : Data @# ty);
-                          "mask"
-                            ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
-                                 : Array Rlen_over_8 Bool @# ty)
-                        } : MaskedMem @# ty);
+                  "data" ::= #maskedMem;
                   "aq" ::= $$ false;
                   "rl" ::= $$ false;
                   "memMisalignedException?" ::= cfg @% "memMisalignedException?";

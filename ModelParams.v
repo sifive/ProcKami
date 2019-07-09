@@ -34,7 +34,9 @@ Require Import FuncUnits.Fpu.FRound.
 Require Import FuncUnits.Zicsr.
 Require Import FuncUnits.MRet.
 
-(* I. configuration parameters. *)
+(* I. device parameters *)
+
+(* II. configuration parameters. *)
 
 Definition fpu_params_single
   := {|
@@ -71,7 +73,7 @@ Definition mem_params_default
        mem_params_granularity := 20  (* TODO fix *)
      |}.
 
-(* II. Processor extension table entries. *)
+(* III. Processor extension table entries. *)
 
 Record param_entry
   := {
@@ -215,7 +217,7 @@ Section exts.
            param_ext_set "C"
          }%kami_init.
 
-    (* III. Select and tailor function units. *)
+    (* IV. Select and tailor function units. *)
     Section func_units.
 
       Local Notation FUEntry   := (FUEntry Xlen_over_8 Rlen_over_8).
@@ -310,7 +312,7 @@ Section exts.
 
   End ty.
 
-  (* IV. the model generator. *)
+  (* V. the model generator. *)
 
   Definition generate_model
     := @processor

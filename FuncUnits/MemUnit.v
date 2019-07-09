@@ -17,7 +17,6 @@ Section mem_unit.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  (* Variable vm_params : VmParamsType. *)
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -40,15 +39,10 @@ Section mem_unit.
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
-  Local Notation defMemRet := (defMemRet Xlen_over_8 Rlen_over_8 ty).
+  Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
-(*
-  Local Notation pMemFetch := (@pMemFetch name Rlen_over_8 mem_params ty).
-  Local Notation pMemRead := (@pMemRead name Rlen_over_8 mem_params ty).
-  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
-*)
   Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
@@ -60,7 +54,14 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3).
+
+  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
+  Variable mem_regions : list MemRegion.
+
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3 mem_regions).
+  Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -122,7 +123,6 @@ Section mem_unit.
        }).
 
   Definition memFetch
-    (index : nat)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
@@ -133,7 +133,7 @@ Section mem_unit.
          then
            LETA inst
              :  Maybe Data
-             <- pMemFetch index mode (#paddr @% "data");
+             <- mem_region_fetch mode (#paddr @% "data");
            Ret
              (STRUCT {
                 "fst" ::= #inst @% "data";
@@ -151,13 +151,51 @@ Section mem_unit.
          as result;
        Ret #result.
 
+  Local Definition mem_unit_exec_pkt
+    (code : Bit MemUpdateCodeWidth @# ty)
+    (memRet : MemRet @# ty)
+    (exception : Maybe FullException @# ty)
+    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    := LET memRet
+         :  PktWithException MemRet
+         <- STRUCT {
+               "fst" ::= memRet;
+               "snd" ::= exception
+             } : PktWithException MemRet @# ty;
+       Ret (STRUCT {
+         "fst" ::= code;
+         "snd" ::= #memRet
+       } : Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet) @# ty).
+
+  Local Definition mem_unit_exec_pkt_def
+    (exception : Maybe FullException @# ty)
+    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    := mem_unit_exec_pkt
+         $MemUpdateCodeNone
+         $$(getDefaultConst MemRet)
+         exception.
+
+  Local Definition mem_unit_exec_pkt_err
+    (vaddr : VAddr @# ty)
+    (is_write : Bool @# ty)
+    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    := mem_unit_exec_pkt_def
+         (Valid (STRUCT {
+           "exception"
+             ::= (IF is_write
+                   then $SAmoPageFault
+                   else $LoadPageFault
+                   : Exception @# ty);
+           "value" ::= vaddr
+         } : FullException @# ty)).
+
   Definition mem_unit_exec
     (mode : PrivMode @# ty)
     (addr : VAddr @# ty)
     (func_unit_id : FuncUnitId @# ty)
     (inst_id : InstId @# ty)
     (input_pkt : MemUnitInput @# ty)
-    :  ActionT ty (PktWithException MemRet)
+    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
     := (* I. does the instruction perform a memory operation? *)
        LETA mis_op
          :  Maybe Bool
@@ -196,10 +234,10 @@ Section mem_unit.
                (* IV. read the current value and place reservation *)
                LETA mread_result
                  :  Maybe Data
-                 <- pMemRead 2 mode (#mpaddr @% "data");
+                 <- mem_region_read 2 mode (#mpaddr @% "data");
                LETA read_reservation_result
                  :  Array Rlen_over_8 Bool
-                 <- pMemReadReservation (#mpaddr @% "data");
+                 <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "data"));
                (* V. did the read fail? *)
                If #mread_result @% "valid"
                  then 
@@ -231,74 +269,60 @@ Section mem_unit.
                        (* VII. write to memory. *)
                        LET write_mask
                          :  Array Rlen_over_8 Bool
-                         <- IF #mwrite_value @% "data" @% "isWr"
-                              then #mwrite_value @% "data" @% "mask"
-                              else $$(ConstArray (fun (_ : Fin.t Rlen_over_8) => false));
+                         <- #mwrite_value @% "data" @% "mask";
                        LETA write_result
-                         :  Maybe FullException
-                         <- pMemWrite mode
-                              (STRUCT {
-                                 "addr" ::= (#mpaddr @% "data" : PAddr @# ty);
-                                 "data" ::= (#mwrite_value @% "data" @% "data" : Data @# ty);
-                                 "mask" ::= (#write_mask : Array Rlen_over_8 Bool @# ty)
-                               } : MemWrite @# ty);
+                         :  PktWithException (Bit MemUpdateCodeWidth)
+                         <- mem_region_write mode
+                              (#mpaddr @% "data")
+                              (#mwrite_value @% "data" @% "data" : Data @# ty)
+                              (#write_mask : Array Rlen_over_8 Bool @# ty);
                        Ret #write_result
                      else
-                       Ret Invalid
-                     as write_exception;
-                   If #write_exception @% "valid"
-                     then
-                       System [
-                         DispString _ "[mem_unit_exec] the memory write operation threw an exception.\n"
-                       ];
-                       Retv;
+                       Ret (STRUCT {
+                         "fst" ::= $MemUpdateCodeNone;
+                         "snd" ::= Invalid
+                       } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
+                     as write_result;
+                   System [
+                     DispString _ "[mem_unit_exec] write result:\n";
+                     DispHex #write_result;
+                     DispString _ "\n"
+                   ];
                    If #mwrite_value @% "data" @% "isLrSc"
                      then pMemWriteReservation
                             (#mpaddr @% "data")
                             (#mwrite_value @% "data" @% "mask")
                             (#mwrite_value @% "data" @% "reservation");
-                   LET result
+                   LET memRet
                      :  MemRet
                      <- STRUCT {
                           "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
                           "tag"  ::= #mwrite_value @% "data" @% "tag";
                           "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
                         } : MemRet @# ty;
-                   LET ret_value
-                     :  PktWithException MemRet
-                     <- STRUCT {
-                          "fst" ::= #result;
-                          "snd" ::= #write_exception
-                        } : PktWithException MemRet @# ty;
-                   Ret #ret_value
+                   mem_unit_exec_pkt
+                     (#write_result @% "fst")
+                     (#memRet)
+                     (#write_result @% "snd")
                  else 
                    System [
                      DispString _ "[mem_unit_exec] the memory read operation threw an exception.\n"
                    ];
-                   Ret defMemRet
+                   (mem_unit_exec_pkt_err addr (#mis_write @% "data"))
                  as result;
                Ret #result
              else
                System [
                  DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
                ];
-               Ret
-                 (STRUCT {
-                   "fst" ::= $$(getDefaultConst MemRet);
-                   "snd"
-                     ::= (Valid (STRUCT {
-                            "exception"
-                              ::= (IF #mis_write @% "data"
-                                    then $SAmoPageFault
-                                    else $LoadPageFault
-                                    : Exception @# ty);
-                            "value" ::= addr
-                          }) : Maybe FullException @# ty)
-                  })
+               (mem_unit_exec_pkt_err addr (#mis_write @% "data"))
              as result;
            Ret #result
          else
-           Ret defMemRet
+           System [
+             DispString _ "[mem_unit_exec] the instruction does not perform an memory operations.\n"
+           ];
+           (mem_unit_exec_pkt_def Invalid)
          as result;
        Ret #result.
 
@@ -308,10 +332,10 @@ Section mem_unit.
              (decoder_pkt : DecoderPkt @# ty)
              (exec_context_pkt : ExecContextPkt @# ty)
              (opt_exec_update_pkt : PktWithException ExecUpdPkt @# ty)
-    :  ActionT ty (PktWithException ExecUpdPkt)
+    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException ExecUpdPkt))
     := LET exec_update_pkt: ExecUpdPkt <- opt_exec_update_pkt @% "fst";
        LETA memRet
-         :  PktWithException MemRet
+         :  Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet)
          <- mem_unit_exec
               mode
               (xlen_sign_extend Xlen xlen
@@ -324,21 +348,25 @@ Section mem_unit.
                  "reg_data" ::= exec_context_pkt @% "reg2"
                  } : MemUnitInput @# ty);
        LET val1 <- (STRUCT {
-                        "tag"  ::= #memRet @% "fst" @% "tag";
-                        "data" ::= (#memRet @% "fst" @% "data" : Bit Rlen @# ty)
+                        "tag"  ::= #memRet @% "snd" @% "fst" @% "tag";
+                        "data" ::= (#memRet @% "snd" @% "fst" @% "data" : Bit Rlen @# ty)
                       } : RoutedReg @# ty);
        Ret
-         (mkPktWithException
-            opt_exec_update_pkt
-            (STRUCT {
-                 "fst"
-                 ::= (ITE
-                        (#memRet @% "fst" @% "writeReg?")
-                        (#exec_update_pkt
-                           @%["val1" <- Valid #val1])
-                        (#exec_update_pkt));
-                 "snd" ::= #memRet @% "snd"
-               } : PktWithException ExecUpdPkt @# ty)).
+         (STRUCT {
+            "fst" ::= #memRet @% "fst";
+            "snd"
+              ::= mkPktWithException
+                    opt_exec_update_pkt
+                    (STRUCT {
+                         "fst"
+                         ::= (ITE
+                                (#memRet @% "snd" @% "fst" @% "writeReg?")
+                                (#exec_update_pkt
+                                   @%["val1" <- Valid #val1])
+                                (#exec_update_pkt));
+                         "snd" ::= #memRet @% "snd" @% "snd"
+                       } : PktWithException ExecUpdPkt @# ty)
+          } : Pair (Bit MemUpdateCodeWidth) (PktWithException ExecUpdPkt) @# ty).
 
   Close Scope kami_expr.
   Close Scope kami_action.

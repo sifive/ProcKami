@@ -401,6 +401,23 @@ Section CsrInterface.
          csrAccess := access
        |}.
 
+  Local Definition readonlyCSR
+    (name : string)
+    (addr : word CsrIdWidth)
+    (width : nat)
+    (access : CsrAccessPkt @# ty -> Bool @# ty)
+    :  CSR
+    := {|
+         csrName := name;
+         csrAddr := addr;
+         csrViews
+           := let fields := [ @csrFieldReadOnly name (Bit width) ] in
+              repeatCSRView 2
+                (@csrViewDefaultReadXform fields)
+                (@csrViewDefaultWriteXform fields);
+         csrAccess := access
+       |}.
+
   Definition CSRs
     :  list CSR
     := [
@@ -588,6 +605,7 @@ Section CsrInterface.
            csrAccess := accessAny
          |};
          simpleCSR ^"cycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
+         readonlyCSR ^"time" (CsrIdWidth 'h"c01") 64 accessAny;
          simpleCSR ^"instret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
          {|
            csrName := ^"cycleh";
@@ -1567,7 +1585,6 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (val : Maybe RoutedReg @# ty)
-    (* :  ActionT ty Bool *)
     :  ActionT ty (Maybe (Bit CsrUpdateCodeWidth))
     := System [
          DispString _ "[commitCSRWrite]\n"
@@ -1596,7 +1613,6 @@ Section CsrInterface.
                          } : CsrAccessPkt @# ty))
                  $$false)
              then 
-               (* Ret $$true *)
                System [
                  DispString _ "[commitCSRWrite] none of the csrs have index: \n";
                  DispHex csr_index;
@@ -1653,12 +1669,10 @@ Section CsrInterface.
                    ];
                    Ret (Valid ($CsrUpdateCodeNone : Bit CsrUpdateCodeWidth @# ty))
                  as result;
-               (* Ret $$false *)
                Ret #result
              as result;
            Ret #result
          else
-           (* Ret $$false *)
            Ret (Valid ($CsrUpdateCodeNone : Bit CsrUpdateCodeWidth @# ty))
          as result;
        Ret #result.
@@ -1673,7 +1687,6 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    (* :  ActionT ty Bool *)
     :  ActionT ty (Maybe (Bit CsrUpdateCodeWidth))
     := LET warlStateField
          <- (STRUCT {
@@ -1690,7 +1703,6 @@ Section CsrInterface.
        (* NOTE: only one CSR write can occur per instruction *)
        LETA result0 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
        LETA result1 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
-       (* Ret (#error0 || #error1). *)
        Ret
          (utila_opt_pkt
            (#result0 @% "data" | #result1 @% "data")
@@ -1709,8 +1721,6 @@ Section CsrInterface.
     (update_pkt : PktWithException ExecUpdPkt @# ty)
     :  ActionT ty (Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt))
     := LETA result
-    (* := LETA error *)
-         (* :  Bool *)
          :  Maybe (Bit CsrUpdateCodeWidth)
          <- commitCSRWrites mcounteren scounteren pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
        Ret
@@ -1722,7 +1732,6 @@ Section CsrInterface.
                    (STRUCT {
                       "fst" ::= update_pkt @% "fst";
                       "snd"
-                        (* ::= IF #error *)
                         ::= IF !(#result @% "valid")
                               then 
                                 Valid

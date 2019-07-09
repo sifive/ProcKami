@@ -29,8 +29,11 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  (* Local Notation pMemRead := (pMemRead name Rlen_over_8 mem_params). *)
-  Local Notation pMemRead := (pMemRead name Xlen_over_8 Rlen_over_8 mem_params).
+
+  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
+  Variable mem_regions : list MemRegion.
+
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -181,7 +184,7 @@ Section pt_walker.
         else 
         (If acc @% "snd" @% "valid"
           then (
-            LETA read_result: Maybe Data <- pMemRead (mem_read_index + (currentLevel-1)) mode (acc @% "snd" @% "data");
+            LETA read_result: Maybe Data <- mem_region_read (mem_read_index + (currentLevel-1)) mode (acc @% "snd" @% "data");
             System [
               DispString _ "[translatePteLoop] page table entry: ";
               DispHex #read_result;

@@ -22,44 +22,189 @@ Section pmem.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
-(*
-  Local Notation pmp_check_execute := (@pmp_check_execute name mem_params ty).
-  Local Notation pmp_check_read := (@pmp_check_read name mem_params ty).
-  Local Notation pmp_check_write := (@pmp_check_write name mem_params ty).
-*)
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
+  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
+
+  Variable mem_regions : list MemRegion.
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
+  Local Definition mem_region_match
+    (region : MemRegion)
+    (paddr : PAddr @# ty)
+    :  Bool @# ty
+    := (mem_region_addr region <= paddr) &&
+       (paddr < (mem_region_addr region + $(mem_region_width region))).
+
+  Local Definition mem_region_apply
+    (k : Kind)
+    (paddr : PAddr @# ty)
+    (f : MemRegion -> ActionT ty k)
+    (default : k @# ty)
+    :  ActionT ty k
+    := LETA result
+         :  Maybe k
+         <- utila_acts_find_pkt
+              (map
+                (fun region
+                  => System [
+                       DispString _ "[mem_region_apply] region addr: ";
+                       DispHex (mem_region_addr region);
+                       DispString _ "\n";
+                       DispString _ ("[mem_region_apply] region width: " ++ natToHexStr (mem_region_width region) ++ "\n")
+                     ];
+                     If mem_region_match region paddr
+                       then 
+                         System [
+                           DispString _ "[mem_region_apply] matched region\n"
+                         ];
+                         LETA result : k <- f region;
+                         Ret (Valid #result : Maybe k @# ty)
+                       else
+                         System [
+                           DispString _ "[mem_region_apply] region does not match.\n"
+                         ];
+                         Ret (@Invalid ty k : Maybe k @# ty)
+                       as result;
+                     Ret #result)
+                mem_regions);
+       Ret
+         (IF #result @% "valid"
+           then #result @% "data"
+           else default).
+
+  Definition mem_region_fetch
+    (mode : PrivMode @# ty)
+    (addr : PAddr @# ty)
+    :  ActionT ty (Maybe Data)
+    := LETA pmp_result
+         :  Bool
+         <- pmp_check_execute mode addr $Rlen_over_8;
+       If #pmp_result
+         then
+           mem_region_apply addr
+             (fun region
+               => System [
+                    DispString _ "[mem_region_fetch] region addr: ";
+                    DispHex (mem_region_addr region);
+                    DispString _ "\n";
+                    DispString _ "[mem_region_fetch] device addr: ";
+                    DispHex (addr - (mem_region_addr region));
+                    DispString _ "\n"
+                  ];
+                  mem_device_fetch
+                    (mem_region_device region)
+                    mode
+                    (addr - (mem_region_addr region)))
+             $0
+         else Ret $0
+         as result;
+       System [
+         DispString _ "[mem_region_fetch] mode: ";
+         DispHex mode;
+         DispString _ "\n";
+         DispString _ "[mem_region_fetch] addr: ";
+         DispHex addr;
+         DispString _ "\n";
+         DispString _ "[mem_region_fetch] pmp result: ";
+         DispHex #pmp_result;
+         DispString _ "\n";
+         DispString _ "[mem_region_fetch] result: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
+       Ret (utila_opt_pkt #result #pmp_result).
+
+  Definition mem_region_read
+    (index : nat)
+    (mode : PrivMode @# ty)
+    (addr : PAddr @# ty)
+    :  ActionT ty (Maybe Data)
+    := LETA pmp_result
+         :  Bool
+         <- pmp_check_read mode addr $Rlen_over_8;
+       If #pmp_result
+         then
+           mem_region_apply addr
+             (fun region
+               => mem_device_read
+                    (mem_region_device region)
+                    index
+                    mode
+                    (addr - (mem_region_addr region)))
+             $0
+         else Ret $0
+         as result;
+       System [
+         DispString _ ("[mem_region_read] index: " ++ natToHexStr index ++ "\n");
+         DispString _ "[mem_region_read] region addr: ";
+         DispHex addr;
+         DispString _ "\n";
+         DispString _ "[mem_region_read] pmp result: ";
+         DispHex #pmp_result;
+         DispString _ "\n"
+       ];
+       Ret (utila_opt_pkt #result #pmp_result).
+
+  Definition mem_region_write
+    (mode : PrivMode @# ty)
+    (addr : PAddr @# ty)
+    (data : Data @# ty)
+    (mask : Array Rlen_over_8 Bool @# ty) (* TODO generalize mask size? *)
+    :  ActionT ty (PktWithException (Bit MemUpdateCodeWidth))
+    := LETA pmp_result
+         :  Bool
+         <- pmp_check_write mode addr $Rlen_over_8;
+       If #pmp_result
+         then
+           LETA code
+             : Bit MemUpdateCodeWidth
+             <- mem_region_apply addr
+                  (fun region
+                    => mem_device_write (mem_region_device region) mode
+                         (STRUCT {
+                            "addr" ::= (addr - (mem_region_addr region));
+                            "data" ::= data;
+                            "mask" ::= mask
+                          } : MemWrite @# ty))
+                  $MemUpdateCodeNone;
+           Ret (STRUCT {
+               "fst" ::= #code;
+               "snd" ::= Invalid
+             } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
+         else
+           LET exception
+             :  Maybe FullException
+             <- Valid (STRUCT {
+                  "exception" ::= ($SAmoAccessFault : Exception @# ty);
+                  "value"     ::= $0
+                } : FullException @# ty);
+           Ret (STRUCT {
+               "fst" ::= $MemUpdateCodeNone;
+               "snd" ::= #exception
+             } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
+         as result;
+       Ret #result.
+
   Definition pMemFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty (Maybe Data)
+    : ActionT ty Data
     := Call result
          : Array Rlen_over_8 (Bit 8)
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       LETA pmp_result
-         :  Bool
-         (* <- pmp_check_execute mode addr (addr + $4); *)
-         <- pmp_check_execute mode addr $4;
-       System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " HERE" :: DispHex (pack #result) :: DispString _ " THERE \n" :: nil);
-       Ret utila_opt_pkt (pack #result) #pmp_result.
+       Ret (pack #result).
 
   Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty (Maybe Data)
+    : ActionT ty Data
     := Call result
          : Array Rlen_over_8 (Bit 8)
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       LETA pmp_result
-         :  Bool
-         (* <- pmp_check_read mode addr (addr + $Rlen_over_8); *)
-         <- pmp_check_read mode addr $Rlen_over_8;
-       System (DispString _ "READ MEM: " :: DispHex addr :: DispString _ " " :: DispHex #result :: DispString _ "\n" :: nil);
-       Ret utila_opt_pkt (pack #result) #pmp_result.
+       Ret (pack #result).
 
   Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-    : ActionT ty (Maybe FullException)
+    : ActionT ty Void
     := LET writeRq
         :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
         <- (STRUCT {
@@ -67,21 +212,18 @@ Section pmem.
               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
               "mask" ::= pkt @% "mask"
             } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       LETA pmp_result
-         :  Bool
-         (* <- pmp_check_write mode (pkt @% "addr") ((pkt @% "addr") + $Rlen_over_8); *)
-         <- pmp_check_write mode (pkt @% "addr") $Rlen_over_8;
-       If #pmp_result
-         then (Call ^"writeMem"(#writeRq: _); Retv);
-       Ret
-         (IF #pmp_result
-           then Invalid
-           else
-             Valid
-               (STRUCT {
-                  "exception" ::= ($SAmoAccessFault : Exception @# ty);
-                  "value"     ::= $0
-                } : FullException @# ty)).
+       Call ^"writeMem"(#writeRq: _);
+       Retv.
+
+  Definition pMemDevice
+    := {|
+           mem_device_fetch := pMemFetch 1;
+           mem_device_read  := pMemRead;
+           mem_device_write
+             := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                  => LETA _ : Void <- pMemWrite mode pkt;
+                     Ret $MemUpdateCodeNone
+       |}.
 
   Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)

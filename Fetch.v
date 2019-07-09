@@ -14,6 +14,8 @@ Section fetch.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
+  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddr := (Bit PAddrSz).
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
@@ -21,7 +23,10 @@ Section fetch.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
+
+  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
+  Variable mem_regions : list MemRegion.
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
 
   Open Scope kami_expr.
 
@@ -31,15 +36,17 @@ Section fetch.
     (pc: VAddr @# ty)
     := (LETA instException
           :  PktWithException Data
-          <- memFetch 1 mode (xlen_sign_extend Xlen xlen pc);
+          <- memFetch mode (xlen_sign_extend Xlen xlen pc);
+        LET result
+          :  FetchPkt
+          <- STRUCT {
+               "pc" ::= xlen_sign_extend Xlen xlen pc ;
+               "inst" ::= unsafeTruncLsb InstSz (#instException @% "fst")
+             } : FetchPkt @# ty;
         LET retVal
           :  PktWithException FetchPkt
           <- STRUCT {
-               "fst"
-                 ::= (STRUCT {
-                       "pc" ::= xlen_sign_extend Xlen xlen pc ;
-                       "inst" ::= unsafeTruncLsb InstSz (#instException @% "fst")
-                     } : FetchPkt @# ty);
+               "fst" ::= #result;
                "snd" ::= #instException @% "snd"
              } : PktWithException FetchPkt @# ty;
           Ret #retVal)%kami_action.

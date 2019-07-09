@@ -377,13 +377,6 @@ Section Params.
        "aq" ::= $$ false ;
        "rl" ::= $$ false }).
 
-  Definition defMemRet: PktWithException MemRet @# ty :=
-    STRUCT {
-        "fst" ::= STRUCT { "writeReg?" ::= $$ false ;
-                           "tag" ::= $ 0 ;
-                           "data" ::= $ 0 } ;
-        "snd" ::= Invalid }.
-
   Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
     ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
 
@@ -391,6 +384,11 @@ Section Params.
   Definition CsrUpdateCodeNone := 0.
   Definition CsrUpdateCodeMCycle := 1.
   Definition CsrUpdateCodeMInstRet := 2.
+
+  Definition MemUpdateCodeWidth := 2.
+  Definition MemUpdateCodeNone := 0.
+  Definition MemUpdateCodeTime := 1.
+  Definition MemUpdateCodeTimeCmp := 2.
 
   Definition CounterEnType
     := STRUCT_TYPE {
@@ -474,5 +472,22 @@ Section Params.
              else $2).
 
   End XlenInterface.
+
+  Record MemDevice
+    := {
+         mem_device_fetch
+           : PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
+         mem_device_read
+           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data; (* NOTE multiple reads may occur in a given clock cycle. index = 2 is a call from memUnit. Up to 3 calls may come from the page table walker - index = 3,4,5 *)
+         mem_device_write
+           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty (Bit MemUpdateCodeWidth)
+       }.
+
+  Record MemRegion
+    := {
+         mem_region_addr  : PAddr @# ty;
+         mem_region_width : nat;
+         mem_region_device : MemDevice
+       }.
 
 End Params.
