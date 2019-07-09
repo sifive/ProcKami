@@ -92,12 +92,12 @@ Section pmem.
 
   Definition pMemDevice
     := {|
-           mem_device_fetch := pMemFetch 1;
-           mem_device_read  := pMemRead;
-           mem_device_write
-             := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                  => LETA _ : Void <- pMemWrite mode pkt;
-                     Ret $MemUpdateCodeNone
+         mem_device_fetch := pMemFetch 1;
+         mem_device_read  := pMemRead;
+         mem_device_write
+           := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                => LETA _ : Void <- pMemWrite mode pkt;
+                   Ret $MemUpdateCodeNone
        |}.
 
   Definition mem_region_fetch

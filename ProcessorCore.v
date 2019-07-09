@@ -28,6 +28,7 @@ Require Import Counter.
 Require Import ProcessorUtils.
 Require Import Timer.
 Require Import PhysicalMem.
+Require Import MMappedRegs.
 
 Section Params.
   Variable name: string.
@@ -56,6 +57,7 @@ Section Params.
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
   Local Notation pMemDevice := (pMemDevice name Rlen_over_8 mem_params).
+  Local Notation mMappedRegDevice := (mMappedRegDevice name Rlen_over_8 mem_params).
   
   Section model.
     Local Open Scope kami_action.
@@ -66,6 +68,11 @@ Section Params.
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
+           {|
+             mem_region_addr := $0; (* TODO hardcode here? *)
+             mem_region_width := 16; (* 2 * num memory mapped regs *)
+             mem_region_device := (mMappedRegDevice ty)
+           |};
            {|
              mem_region_addr := ($1 << $$(natToWord 6 31)); (* start at 80000000 *)
              mem_region_width := (pow2 lgMemSz);

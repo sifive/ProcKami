@@ -1,6 +1,10 @@
 (* This module defines the timer update and comparison actions. *)
 Require Import Kami.All.
 Require Import FU.
+Require Import StdLibKami.RegStruct.
+Require Import StdLibKami.RegMapper.
+Require Import List.
+Import ListNotations.
 
 Section timer.
   Variable name : string.
@@ -38,13 +42,7 @@ Section timer.
            Retv
          as result;
        Retv.
-(*
-  Definition timeMemDevice
-    := {|
-         mem_device_fetch
-           := 
-       |}.
-*)
+
   Close Scope kami_action.
   Close Scope kami_expr.
 End timer.
