@@ -1719,30 +1719,32 @@ Section CsrInterface.
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
     (update_pkt : PktWithException ExecUpdPkt @# ty)
-    :  ActionT ty (Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt))
-    := LETA result
-         :  Maybe (Bit CsrUpdateCodeWidth)
-         <- commitCSRWrites mcounteren scounteren pc compressed cfg_pkt rd_index rs1_index csr_index (update_pkt @% "fst");
-       Ret
-         (STRUCT {
-           "fst" ::= #result @% "data";
-           "snd"
-             ::= mkPktWithException
-                   update_pkt
-                   (STRUCT {
-                      "fst" ::= update_pkt @% "fst";
-                      "snd"
-                        ::= IF !(#result @% "valid")
-                              then 
-                                Valid
-                                  (STRUCT {
-                                    "exception" ::= ($IllegalInst : Exception @# ty);
-                                    "value" ::= (ZeroExtendTruncLsb Xlen inst : ExceptionInfo @# ty)
-                                   } : FullException @# ty)
-                              else Invalid
-                    } : PktWithException ExecUpdPkt @# ty)
-           } : Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt) @# ty).
-         
+    :  ActionT ty (PktWithException (Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt))
+    := bindException
+         (update_pkt @% "fst")
+         (update_pkt @% "snd")
+         (fun update_pkt : ExecUpdPkt @# ty
+           => LETA code
+                :  Maybe (Bit CsrUpdateCodeWidth)
+                <- commitCSRWrites mcounteren scounteren pc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
+              LET data
+                :  Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt
+                <- STRUCT {
+                     "fst" ::= #code @% "data";
+                     "snd" ::= update_pkt
+                   } : Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt @# ty;
+              LET exception
+                :  Maybe FullException
+                <- IF #code @% "valid"
+                     then Invalid
+                     else Valid (STRUCT {
+                              "exception" ::= $IllegalInst;
+                              "value" ::= ZeroExtendTruncLsb Xlen inst
+                            } : FullException @# ty);
+              Ret (STRUCT {
+                  "fst" ::= #data;
+                  "snd" ::= #exception
+                } : PktWithException (Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt) @# ty)).
 
   Close Scope kami_expr.
 

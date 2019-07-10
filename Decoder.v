@@ -264,31 +264,43 @@ Section decoder.
 
     Variable CompInstDb: list CompInstEntry.
     
-    Definition decoder := decode_full CompInstDb.
+    Definition decoder
+      (xlen : XlenValue @# ty)
+      (exts_pkt : Extensions @# ty)
+      (fetch_pkt : FetchPkt @# ty)
+      :  PktWithException DecoderPkt ## ty
+      := LETE decoder_pkt
+           :  Maybe DecoderPkt
+           <- decode_full CompInstDb xlen exts_pkt fetch_pkt;
+         LETC exception
+           :  Maybe FullException
+           <- IF #decoder_pkt @% "valid"
+                then Invalid
+                else Valid (STRUCT {
+                         "exception" ::= $IllegalInst;
+                         "value" ::= $0
+                       } : FullException @# ty);
+         RetE (STRUCT {
+             "fst" ::= #decoder_pkt @% "data";
+             "snd" ::= #exception
+           } : PktWithException DecoderPkt @# ty).
+
+    Local Open Scope kami_action.
 
     Definition decoderWithException
-               (xlen : XlenValue @# ty)
-               (exts_pkt : Extensions @# ty)
-               (fetch_struct : PktWithException FetchPkt ## ty): PktWithException DecoderPkt ## ty
-      := LETE fetch
-         :  PktWithException FetchPkt
-                             <- fetch_struct;
-           LETE decoder_pkt
-           :  Maybe DecoderPkt
-                    <- decoder xlen exts_pkt (#fetch @% "fst");
-           RetE
-             (mkPktWithException 
-                (#fetch)
-                (STRUCT {
-                     "fst" ::= #decoder_pkt @% "data" ;
-                     "snd"
-                     ::= IF #decoder_pkt @% "valid"
-                     then Invalid
-                     else Valid ((STRUCT {
-                                      "exception" ::= $IllegalInst;
-                                      "value"     ::= ($0: ExceptionInfo @# ty)
-                                 }): FullException @# ty)
-                   } : PktWithException DecoderPkt @# ty)).
-    Local Close Scope kami_expr.
+      (xlen : XlenValue @# ty)
+      (exts_pkt : Extensions @# ty)
+      (fetch_pkt : PktWithException FetchPkt @# ty)
+      :  ActionT ty (PktWithException DecoderPkt)
+      := bindException
+           (fetch_pkt @% "fst")
+           (fetch_pkt @% "snd")
+           (fun fetch_pkt : FetchPkt @# ty
+              => convertLetExprSyntax_ActionT
+                   (decoder xlen exts_pkt fetch_pkt)).
+
+    Close Scope kami_action.
+
+    Close Scope kami_expr.
   End Decoder.
 End decoder.

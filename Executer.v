@@ -36,40 +36,49 @@ Section Executor.
   Local Open Scope kami_expr.
 
   Definition exec
-             (trans_pkt : InputTransPkt @# ty)
-    :  Maybe (PktWithException ExecUpdPkt) ## ty
-    := inst_db_get_pkt
-         (fun func_unit func_unit_id tagged_inst
-            => outputXform (snd tagged_inst)
-                 (fuFunc func_unit
-                    (RetE
-                       (unpack
-                          (fuInputK func_unit)
-                          (unsafeTruncLsb
-                             (size (fuInputK func_unit))
-                             (trans_pkt @% "inp"))))))
-         (trans_pkt @% "funcUnitTag")
-         (trans_pkt @% "instTag").
+    (trans_pkt : InputTransPkt @# ty)
+    :  PktWithException ExecUpdPkt ## ty
+    := LETE update_pkt
+         :  Maybe (PktWithException ExecUpdPkt)
+         <- inst_db_get_pkt
+              (fun func_unit func_unit_id tagged_inst
+                 => outputXform (snd tagged_inst)
+                      (fuFunc func_unit
+                         (RetE
+                            (unpack
+                               (fuInputK func_unit)
+                               (unsafeTruncLsb
+                                  (size (fuInputK func_unit))
+                                  (trans_pkt @% "inp"))))))
+              (trans_pkt @% "funcUnitTag")
+              (trans_pkt @% "instTag");
+       LETC exception
+         :  Maybe FullException
+         <- IF #update_pkt @% "valid"
+              then #update_pkt @% "data" @% "snd"
+              else
+                Valid (STRUCT {
+                  "exception" ::= $IllegalInst;
+                  "value" ::= $0 (* TODO *)
+                } : FullException @# ty);
+       RetE (STRUCT {
+           "fst" ::= #update_pkt @% "data" @% "fst";
+           "snd" ::= #exception
+         } : PktWithException ExecUpdPkt @# ty).
+
+  Local Open Scope kami_action.
 
   Definition execWithException
-             (trans_pkt : PktWithException InputTransPkt @# ty)
-    :  PktWithException ExecUpdPkt ## ty
-    := LETE exec_update_pkt <- exec (trans_pkt @% "fst");
-         RetE
-           (mkPktWithException
-              trans_pkt
-              (STRUCT {
-                   "fst" ::= (#exec_update_pkt @% "data" @% "fst");
-                   "snd"
-                   ::= ITE
-                         (#exec_update_pkt @% "valid")
-                         (#exec_update_pkt @% "data" @% "snd")
-                         (Valid
-                            (STRUCT {
-                                 "exception" ::= ($IllegalInst : Exception @# ty);
-                                 "value"     ::= $$(getDefaultConst ExceptionInfo)
-                               } : FullException @# ty))
-                 } : PktWithException ExecUpdPkt @# ty)).
+    (trans_pkt : PktWithException InputTransPkt @# ty)
+    :  ActionT ty (PktWithException ExecUpdPkt)
+    := bindException
+         (trans_pkt @% "fst")
+         (trans_pkt @% "snd")
+         (fun trans_pkt : InputTransPkt @# ty
+           => convertLetExprSyntax_ActionT
+                (exec trans_pkt)).
+
+  Close Scope kami_action.
 
   Local Close Scope kami_expr.
 End Executor.

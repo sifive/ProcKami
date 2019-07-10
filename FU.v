@@ -363,10 +363,25 @@ Section Params.
   Definition VmAccessSAmo := 2.
 
   Local Open Scope kami_expr.
-  Definition mkPktWithException k1 (pkt1: PktWithException k1 @# ty) k2 (pkt2: PktWithException k2 @# ty) :=
-    (IF (pkt1 @% "snd" @% "valid")
-     then pkt2@%["snd" <- pkt1 @% "snd"]
-     else pkt2).
+  Local Open Scope kami_action.
+
+  Definition bindException
+    (input_kind output_kind : Kind)
+    (input : input_kind @# ty)
+    (exception : Maybe FullException @# ty)
+    (act : input_kind @# ty -> ActionT ty (PktWithException output_kind))
+    :  ActionT ty (PktWithException output_kind)
+    := If exception @% "valid"
+         then
+           Ret (STRUCT {
+               "fst" ::= $$(getDefaultConst output_kind);
+               "snd" ::= exception
+             } : PktWithException output_kind @# ty)
+         else act input
+         as output;
+       Ret #output.
+
+  Close Scope kami_action.
 
   Definition noUpdPkt: ExecUpdPkt @# ty :=
     (STRUCT {

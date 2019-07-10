@@ -163,19 +163,18 @@ Section reg_reader.
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : PktWithException DecoderPkt @# ty)
     :  ActionT ty (PktWithException ExecContextPkt)
-    := LETA exec_context_pkt
-         <- reg_reader
-              cfg_pkt
-              ((decoder_pkt @% "fst") : DecoderPkt @# ty);
-       Ret
-         (mkPktWithException
-           decoder_pkt
-           (STRUCT {
-             "fst" ::= (#exec_context_pkt);
-             "snd" ::= @Invalid ty FullException
-           } : PktWithException ExecContextPkt @# ty)).
+    := bindException
+         (decoder_pkt @% "fst")
+         (decoder_pkt @% "snd")
+         (fun decoder_pkt : DecoderPkt @# ty
+           => LETA exec_context_pkt
+                :  ExecContextPkt
+                <- reg_reader cfg_pkt decoder_pkt;
+              Ret (STRUCT {
+                  "fst" ::= #exec_context_pkt;
+                  "snd" ::= Invalid
+                } : PktWithException ExecContextPkt @# ty)).
 
   Close Scope kami_action.
   Close Scope kami_expr.
-
 End reg_reader.

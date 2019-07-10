@@ -34,7 +34,7 @@ Section FUInputTrans.
       (cfg_pkt : ContextCfgPkt @# ty)
       (decoder_pkt : DecoderPkt @# ty)
       (exec_context_pkt : ExecContextPkt @# ty)
-    :  Maybe InputTransPkt ## ty
+    :  PktWithException InputTransPkt ## ty
     := LETE opt_args_pkt
          <- inst_db_get_pkt
               (fun _ _ tagged_inst
@@ -49,37 +49,40 @@ Section FUInputTrans.
                          (pack (#args_pkt))))
               (decoder_pkt @% "funcUnitTag")
               (decoder_pkt @% "instTag");
-       utila_expr_opt_pkt
-         (STRUCT {
-            "funcUnitTag" ::= (decoder_pkt @% "funcUnitTag");
-            "instTag"     ::= (decoder_pkt @% "instTag");
-            "inp"         ::= (#opt_args_pkt @% "data")
-          } : InputTransPkt @# ty)
-         ((#opt_args_pkt) @% "valid").
+       LETC inputTransPkt
+         :  InputTransPkt
+         <- STRUCT {
+              "funcUnitTag" ::= (decoder_pkt @% "funcUnitTag");
+              "instTag"     ::= (decoder_pkt @% "instTag");
+              "inp"         ::= (#opt_args_pkt @% "data")
+            } : InputTransPkt @# ty;
+       LETC exception
+         :  Maybe FullException
+         <- IF #opt_args_pkt @% "valid"
+              then Invalid
+              else Valid (STRUCT {
+                       "exception" ::= $IllegalInst;
+                       "value" ::= $0 (* TODO *)
+                     } : FullException @# ty);
+       RetE (STRUCT {
+           "fst" ::= #inputTransPkt;
+           "snd" ::= #exception
+         } : PktWithException InputTransPkt @# ty).
+
+  Local Open Scope kami_action.
 
   Definition transWithException
-             (cfg_pkt : ContextCfgPkt @# ty)
-             (decoder_pkt : DecoderPkt @# ty)
-             (exec_context_pkt : PktWithException ExecContextPkt @# ty)
-    :  PktWithException InputTransPkt ## ty
-    := LETE opt_trans_pkt
-            <- createInputXForm cfg_pkt decoder_pkt
-            (exec_context_pkt @% "fst" : ExecContextPkt @# ty);
-         RetE
-           (mkPktWithException
-              exec_context_pkt
-              (STRUCT {
-                   "fst" ::= (#opt_trans_pkt @% "data");
-                   "snd"
-                   ::= ITE
-                         (#opt_trans_pkt @% "valid")
-                         (@Invalid ty FullException)
-                         (Valid
-                            (STRUCT {
-                                 "exception" ::= ($IllegalInst : Exception @# ty);
-                                 "value"     ::= $$(getDefaultConst ExceptionInfo)
-                               } : FullException @# ty))
-                 } : PktWithException InputTransPkt @# ty)).
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (decoder_pkt : DecoderPkt @# ty)
+    (exec_context_pkt : PktWithException ExecContextPkt @# ty)
+    :  ActionT ty (PktWithException InputTransPkt)
+    := bindException
+         (exec_context_pkt @% "fst")
+         (exec_context_pkt @% "snd")
+         (fun exec_context_pkt : ExecContextPkt @# ty
+           => convertLetExprSyntax_ActionT
+                (createInputXForm cfg_pkt decoder_pkt exec_context_pkt)).
 
-  Local Close Scope kami_expr.
+  Close Scope kami_action.
+  Close Scope kami_expr.
 End FUInputTrans.

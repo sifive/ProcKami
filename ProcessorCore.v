@@ -52,6 +52,7 @@ Section Params.
   Local Notation PAddrSz := (mem_params_addr_size mem_params).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
+  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
@@ -65,6 +66,9 @@ Section Params.
 
     Variable func_units : forall ty, list (FUEntry ty).
     Variable supportedExts : ConstT (Extensions).
+
+    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
+    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
@@ -215,7 +219,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 mem_params (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") (#pc);
+                     <- fetch name Xlen_over_8 mem_params (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -223,9 +227,8 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA decoder_pkt
-                     <- convertLetExprSyntax_ActionT
-                          (decoderWithException (func_units _) (CompInstDb _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "extensions")
-                            (RetE (#fetch_pkt)));
+                     :  PktWithException DecoderPkt
+                     <- decoderWithException (func_units _) (CompInstDb _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "extensions") #fetch_pkt;
                    System
                      [
                        DispString _ "Decode:\n";
@@ -234,9 +237,8 @@ Section Params.
                      ];
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
-                     <- readerWithException name Flen_over_8
-                          #cfg_pkt
-                          #decoder_pkt;
+                     :  PktWithException ExecContextPkt
+                     <- readerWithException name Flen_over_8 #cfg_pkt #decoder_pkt;
                    System
                      [
                        DispString _ "Reg Reader:\n";
@@ -245,43 +247,23 @@ Section Params.
                      ];
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
-                     <- convertLetExprSyntax_ActionT
-                          (transWithException
-                            #cfg_pkt
-                            (#decoder_pkt @% "fst")
-                            (#exec_context_pkt));
+                     :  PktWithException InputTransPkt
+                     <- transWithException #cfg_pkt (#decoder_pkt @% "fst") #exec_context_pkt;
                    System [DispString _ "Executor\n"];
                    LETA exec_update_pkt
-                     <- convertLetExprSyntax_ActionT
-                          (execWithException (#trans_pkt));
+                     :  PktWithException ExecUpdPkt
+                     <- execWithException #trans_pkt;
                    System
                      [
                        DispString _ "New Reg Vals\n";
                        DispHex #exec_update_pkt;
                        DispString _ "\n"
                      ];
-                   (* NOTE: must be before CSR writes - see 3.1.16 *)
-                   LETA mem_update_pkt
-                     :  Pair (Bit MemUpdateCodeWidth) (PktWithException ExecUpdPkt)
-                     <- MemUnit name mem_params
-                          (mem_regions _)
-                          (* ["mem"; "amo32"; "amo64"; "lrsc32"; "lrsc64"] *)
-                          (#cfg_pkt @% "xlen")
-                          (#cfg_pkt @% "mode")
-                          (#decoder_pkt @% "fst")
-                          (#exec_context_pkt @% "fst")
-                          (#exec_update_pkt);
-                   System
-                     [
-                       DispString _ "Memory Unit:\n";
-                       DispHex #mem_update_pkt;    
-                       DispString _ "\n"
-                     ];
                    System [DispString _ "CSR Write\n"];
                    LETA mcounteren <- read_counteren _ ^"mcounteren";
                    LETA scounteren <- read_counteren _ ^"scounteren";
                    LETA csr_update_pkt
-                     :  Pair (Bit CsrUpdateCodeWidth) (PktWithException ExecUpdPkt)
+                     :  PktWithException (Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt)
                      <- CsrUnit
                           name
                           Clen_over_8
@@ -290,15 +272,31 @@ Section Params.
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#decoder_pkt @% "fst" @% "compressed?")
-                          (#cfg_pkt)
+                          #cfg_pkt
                           (rd (#exec_context_pkt @% "fst" @% "inst"))
                           (rs1 (#exec_context_pkt @% "fst" @% "inst"))
                           (imm (#exec_context_pkt @% "fst" @% "inst"))
-                          (#mem_update_pkt @% "snd");
+                          #exec_update_pkt;
                    System
                      [
                        DispString _ "CSR Unit:\n";
                        DispHex #csr_update_pkt;    
+                       DispString _ "\n"
+                     ];
+                   LETA mem_update_pkt
+                     :  PktWithException (Pair (Bit MemUpdateCodeWidth) ExecUpdPkt)
+                     <- MemUnit name mem_params
+                          (mem_regions _)
+                          (#cfg_pkt @% "xlen")
+                          (#cfg_pkt @% "mode")
+                          (#decoder_pkt @% "fst")
+                          (#exec_context_pkt @% "fst")
+                          (#exec_update_pkt @% "fst")
+                          (#csr_update_pkt @% "snd");
+                   System
+                     [
+                       DispString _ "Memory Unit:\n";
+                       DispHex #mem_update_pkt;    
                        DispString _ "\n"
                      ];
                    System [DispString _ "Reg Write\n"];
@@ -311,19 +309,20 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
-                          (#csr_update_pkt @% "snd");
+                          (#mem_update_pkt @% "fst" @% "snd")
+                          (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
                    LETA _
                      <- inc_mcycle name
-                          (#csr_update_pkt @% "fst");
+                          (#csr_update_pkt @% "fst" @% "fst");
                    LETA _
                      <- inc_instret name
-                          (#exec_context_pkt @% "snd" @% "valid")
-                          (#csr_update_pkt @% "fst");
+                          (#mem_update_pkt @% "snd" @% "valid")
+                          (#csr_update_pkt @% "fst" @% "fst");
                    Read time : Bit 64 <- ^"mtime";
-                   LETA _ <- time_update name (#mem_update_pkt @% "fst") #time;
+                   LETA _ <- time_update name (#mem_update_pkt @% "fst" @% "fst") #time;
                    Read timecmp : Bit 64 <- ^"mtimecmp";
-                   LETA _ <- time_cmp name (#mem_update_pkt @% "fst") #time #timecmp;
+                   LETA _ <- time_cmp name (#mem_update_pkt @% "fst" @% "fst") #time #timecmp;
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv
          }.

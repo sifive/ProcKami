@@ -155,21 +155,21 @@ Section mem_unit.
     (code : Bit MemUpdateCodeWidth @# ty)
     (memRet : MemRet @# ty)
     (exception : Maybe FullException @# ty)
-    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
-    := LET memRet
-         :  PktWithException MemRet
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
+    := LET data
+         :  Pair (Bit MemUpdateCodeWidth) MemRet
          <- STRUCT {
-               "fst" ::= memRet;
-               "snd" ::= exception
-             } : PktWithException MemRet @# ty;
+              "fst" ::= code;
+              "snd" ::= memRet
+            } : Pair (Bit MemUpdateCodeWidth) MemRet @# ty;
        Ret (STRUCT {
-         "fst" ::= code;
-         "snd" ::= #memRet
-       } : Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet) @# ty).
+           "fst" ::= #data;
+           "snd" ::= exception
+         } : PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet) @# ty).
 
   Local Definition mem_unit_exec_pkt_def
     (exception : Maybe FullException @# ty)
-    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
     := mem_unit_exec_pkt
          $MemUpdateCodeNone
          $$(getDefaultConst MemRet)
@@ -178,7 +178,7 @@ Section mem_unit.
   Local Definition mem_unit_exec_pkt_err
     (vaddr : VAddr @# ty)
     (is_write : Bool @# ty)
-    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
     := mem_unit_exec_pkt_def
          (Valid (STRUCT {
            "exception"
@@ -195,7 +195,7 @@ Section mem_unit.
     (func_unit_id : FuncUnitId @# ty)
     (inst_id : InstId @# ty)
     (input_pkt : MemUnitInput @# ty)
-    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet))
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
     := (* I. does the instruction perform a memory operation? *)
        LETA mis_op
          :  Maybe Bool
@@ -327,46 +327,52 @@ Section mem_unit.
        Ret #result.
 
   Definition MemUnit
-             (xlen : XlenValue @# ty)
-             (mode : PrivMode @# ty)
-             (decoder_pkt : DecoderPkt @# ty)
-             (exec_context_pkt : ExecContextPkt @# ty)
-             (opt_exec_update_pkt : PktWithException ExecUpdPkt @# ty)
-    :  ActionT ty (Pair (Bit MemUpdateCodeWidth) (PktWithException ExecUpdPkt))
-    := LET exec_update_pkt: ExecUpdPkt <- opt_exec_update_pkt @% "fst";
-       LETA memRet
-         :  Pair (Bit MemUpdateCodeWidth) (PktWithException MemRet)
-         <- mem_unit_exec
-              mode
-              (xlen_sign_extend Xlen xlen
-                (#exec_update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
-              (decoder_pkt @% "funcUnitTag")
-              (decoder_pkt @% "instTag")
-              (STRUCT {
-                 "aq"       ::= #exec_update_pkt @% "aq";
-                 "rl"       ::= #exec_update_pkt @% "rl";
-                 "reg_data" ::= exec_context_pkt @% "reg2"
-                 } : MemUnitInput @# ty);
-       LET val1 <- (STRUCT {
-                        "tag"  ::= #memRet @% "snd" @% "fst" @% "tag";
-                        "data" ::= (#memRet @% "snd" @% "fst" @% "data" : Bit Rlen @# ty)
-                      } : RoutedReg @# ty);
-       Ret
-         (STRUCT {
-            "fst" ::= #memRet @% "fst";
-            "snd"
-              ::= mkPktWithException
-                    opt_exec_update_pkt
-                    (STRUCT {
-                         "fst"
-                         ::= (ITE
-                                (#memRet @% "snd" @% "fst" @% "writeReg?")
-                                (#exec_update_pkt
-                                   @%["val1" <- Valid #val1])
-                                (#exec_update_pkt));
-                         "snd" ::= #memRet @% "snd" @% "snd"
-                       } : PktWithException ExecUpdPkt @# ty)
-          } : Pair (Bit MemUpdateCodeWidth) (PktWithException ExecUpdPkt) @# ty).
+    (xlen : XlenValue @# ty)
+    (mode : PrivMode @# ty)
+    (decoder_pkt : DecoderPkt @# ty)
+    (exec_context_pkt : ExecContextPkt @# ty)
+    (update_pkt : ExecUpdPkt @# ty)
+    (exception : Maybe FullException @# ty)
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) ExecUpdPkt))
+    := bindException update_pkt exception
+         (fun update_pkt : ExecUpdPkt @# ty
+           => LET memUnitInput
+                :  MemUnitInput
+                <- STRUCT {
+                     "aq"       ::= update_pkt @% "aq";
+                     "rl"       ::= update_pkt @% "rl";
+                     "reg_data" ::= exec_context_pkt @% "reg2"
+                     } : MemUnitInput @# ty;
+              LETA memRet
+                :  PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet)
+                <- mem_unit_exec
+                     mode
+                     (xlen_sign_extend Xlen xlen
+                       (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
+                     (decoder_pkt @% "funcUnitTag")
+                     (decoder_pkt @% "instTag")
+                     #memUnitInput;
+              LET val1
+                :  RoutedReg
+                <- STRUCT {
+                     "tag"  ::= #memRet @% "fst" @% "snd" @% "tag";
+                     "data" ::= #memRet @% "fst" @% "snd" @% "data"
+                   } : RoutedReg @# ty;
+              LET mem_update_pkt
+                :  ExecUpdPkt
+                <- IF #memRet @% "fst" @% "snd" @% "writeReg?"
+                     then update_pkt @%["val1" <- Valid #val1]
+                     else update_pkt;
+              LET data
+                :  Pair (Bit MemUpdateCodeWidth) ExecUpdPkt
+                <- STRUCT {
+                     "fst" ::= #memRet @% "fst" @% "fst";
+                     "snd" ::= #mem_update_pkt
+                   } : Pair (Bit MemUpdateCodeWidth) ExecUpdPkt @# ty;
+              Ret (STRUCT {
+                  "fst" ::= #data;
+                  "snd" ::= #memRet @% "snd"
+                } : PktWithException (Pair (Bit MemUpdateCodeWidth) ExecUpdPkt) @# ty)).
 
   Close Scope kami_expr.
   Close Scope kami_action.

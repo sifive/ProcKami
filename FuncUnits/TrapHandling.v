@@ -1,4 +1,8 @@
-(* This module implements trap handling and mode changes. *)
+(*
+  This module implements trap handling and mode changes. 
+
+  TODO: verify that the exception priorities outlined in table 3.7 are respected.
+*)
 Require Import Kami.All.
 Require Import FU.
 Require Import RegWriter.
@@ -23,6 +27,7 @@ Section trap_handling.
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
+  Local Notation FullException := (FullException Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
   Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
@@ -196,12 +201,13 @@ Section trap_handling.
     (inst: Inst @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt  @# ty)
-    (cxt: PktWithException ExecUpdPkt @# ty)
+    (update_pkt : ExecUpdPkt @# ty)
+    (exception : Maybe FullException @# ty)
     :  ActionT ty Void
-    := LET val1: Maybe RoutedReg <- cxt @% "fst" @% "val1";
-       LET val2: Maybe RoutedReg <- cxt @% "fst" @% "val2";
+    := LET val1: Maybe RoutedReg <- update_pkt @% "val1";
+       LET val2: Maybe RoutedReg <- update_pkt @% "val2";
        LET reg_index : RegId <- rd inst;
-       LET exception_code : Exception <- cxt @% "snd" @% "data" @% "exception";
+       LET exception_code : Exception <- exception @% "data" @% "exception";
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
        System [
@@ -218,7 +224,7 @@ Section trap_handling.
          DispHex (unsafeTruncLsb 1 (#medeleg >> #exception_code));
          DispString _ "\n"
        ];
-       If (cxt @% "snd" @% "valid")
+       If (exception @% "valid")
          then
            If delegated #medeleg #exception_code &&
               (cfg_pkt @% "mode" == $SupervisorMode ||
@@ -232,7 +238,7 @@ Section trap_handling.
                  (cfg_pkt @% "mode")
                  pc
                  (#exception_code)
-                 (cxt @% "snd" @% "data" @% "value")
+                 (exception @% "data" @% "value")
              else
                (If delegated #sedeleg #exception_code &&
                    cfg_pkt @% "mode" == $UserMode
@@ -245,7 +251,7 @@ Section trap_handling.
                       (cfg_pkt @% "mode")
                       pc
                       (#exception_code)
-                      (cxt @% "snd" @% "data" @% "value")
+                      (exception @% "data" @% "value")
                   else (* by default we trap to machine mode 3.1.13 *)
                     System [
                       DispString _ "[commit] trapping exception using machine mode handler.\n"
@@ -255,14 +261,14 @@ Section trap_handling.
                       (cfg_pkt @% "mode")
                       pc
                       (#exception_code)
-                      (cxt @% "snd" @% "data" @% "value");
+                      (exception @% "data" @% "value");
                   Retv);
              Retv
          else (
             LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
             LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
-            LET opt_val1 <- cxt @% "fst" @% "val1";
-            LET opt_val2 <- cxt @% "fst" @% "val2";
+            LET opt_val1 <- update_pkt @% "val1";
+            LET opt_val2 <- update_pkt @% "val2";
             Read mepc : VAddr <- ^"mepc";
             Read sepc : VAddr <- ^"sepc";
             Read uepc : VAddr <- ^"uepc";
