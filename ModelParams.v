@@ -174,7 +174,7 @@ Section exts.
 
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
 
-  Local Definition Clen_over_8 : nat := 8.
+  Local Definition Clen_over_8 : nat := Xlen_over_8. (* 8. *)
 
   (* TODO: determine the correct way to specify the physical address size. *)
   Local Definition PAddrSz_over_8 : nat := 8.

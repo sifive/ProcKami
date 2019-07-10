@@ -70,7 +70,7 @@ Section mem_unit.
   Definition pMemTranslate
     (vaddr : VAddr @# ty)
     :  Maybe PAddr @# ty
-    := Valid (SignExtendTruncLsb PAddrSz vaddr).
+    := Valid (ZeroExtendTruncLsb PAddrSz vaddr).
 
   Definition memTranslate
     (mode : PrivMode @# ty)
@@ -106,7 +106,7 @@ Section mem_unit.
                   vaddr;
            Ret
              (IF #paddr @% "valid"
-                then (Valid (SignExtendTruncLsb PAddrSz (#paddr @% "data")) : Maybe PAddr @# ty)
+                then (Valid (ZeroExtendTruncLsb PAddrSz (#paddr @% "data")) : Maybe PAddr @# ty)
                 else Invalid)
          else
            Ret (pMemTranslate vaddr)
