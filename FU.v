@@ -490,10 +490,8 @@ Section Params.
 
   Record MemDevice
     := {
-         mem_device_fetch
-           : PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
          mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data; (* NOTE multiple reads may occur in a given clock cycle. index = 2 is a call from memUnit. Up to 3 calls may come from the page table walker - index = 3,4,5 *)
+           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
          mem_device_write
            : PrivMode @# ty -> MemWrite @# ty -> ActionT ty (Bit MemUpdateCodeWidth)
        }.

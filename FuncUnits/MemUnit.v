@@ -43,7 +43,6 @@ Section mem_unit.
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
-  Local Notation pMemFetch := (@pMemFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
 
@@ -59,7 +58,6 @@ Section mem_unit.
   Variable mem_regions : list MemRegion.
 
   Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3 mem_regions).
-  Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
 
@@ -133,7 +131,7 @@ Section mem_unit.
          then
            LETA inst
              :  Maybe Data
-             <- mem_region_fetch mode (#paddr @% "data");
+             <- mem_region_read 1 mode (#paddr @% "data");
            Ret
              (STRUCT {
                 "fst" ::= #inst @% "data";

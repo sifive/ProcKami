@@ -101,10 +101,6 @@ Section mmapped.
   Definition mMappedRegDevice
     :  MemDevice
     := {|
-         mem_device_fetch
-           := fun _ addr
-                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb realAddrSz addr);
-                   Ret (ZeroExtendTruncLsb Rlen #result);
          mem_device_read
            := fun _ _ addr
                 => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb realAddrSz addr);

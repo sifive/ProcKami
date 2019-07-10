@@ -64,13 +64,6 @@ Section pmem.
            then #result @% "data"
            else default).
 
-  Definition pMemFetch (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty Data
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       Ret (pack #result).
-
   Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
     : ActionT ty Data
     := Call result
@@ -92,55 +85,12 @@ Section pmem.
 
   Definition pMemDevice
     := {|
-         mem_device_fetch := pMemFetch 1;
-         mem_device_read  := pMemRead;
+         mem_device_read := pMemRead;
          mem_device_write
            := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
                 => LETA _ : Void <- pMemWrite mode pkt;
                    Ret $MemUpdateCodeNone
        |}.
-
-  Definition mem_region_fetch
-    (mode : PrivMode @# ty)
-    (addr : PAddr @# ty)
-    :  ActionT ty (Maybe Data)
-    := LETA pmp_result
-         :  Bool
-         <- pmp_check_execute mode addr $Rlen_over_8;
-       If #pmp_result
-         then
-           mem_region_apply addr
-             (fun region
-               => System [
-                    DispString _ "[mem_region_fetch] region addr: ";
-                    DispHex (mem_region_addr region);
-                    DispString _ "\n";
-                    DispString _ "[mem_region_fetch] device addr: ";
-                    DispHex (addr - (mem_region_addr region));
-                    DispString _ "\n"
-                  ];
-                  mem_device_fetch
-                    (mem_region_device region)
-                    mode
-                    (addr - (mem_region_addr region)))
-             $0
-         else Ret $0
-         as result;
-       System [
-         DispString _ "[mem_region_fetch] mode: ";
-         DispHex mode;
-         DispString _ "\n";
-         DispString _ "[mem_region_fetch] addr: ";
-         DispHex addr;
-         DispString _ "\n";
-         DispString _ "[mem_region_fetch] pmp result: ";
-         DispHex #pmp_result;
-         DispString _ "\n";
-         DispString _ "[mem_region_fetch] result: ";
-         DispHex #result;
-         DispString _ "\n"
-       ];
-       Ret (utila_opt_pkt #result #pmp_result).
 
   Definition mem_region_read
     (index : nat)
@@ -162,15 +112,6 @@ Section pmem.
              $0
          else Ret $0
          as result;
-       System [
-         DispString _ ("[mem_region_read] index: " ++ natToHexStr index ++ "\n");
-         DispString _ "[mem_region_read] region addr: ";
-         DispHex addr;
-         DispString _ "\n";
-         DispString _ "[mem_region_read] pmp result: ";
-         DispHex #pmp_result;
-         DispString _ "\n"
-       ];
        Ret (utila_opt_pkt #result #pmp_result).
 
   Definition mem_region_write
