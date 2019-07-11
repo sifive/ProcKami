@@ -179,10 +179,25 @@ Section mret.
          fuInsts
            := [
                 {|
+                  instName   := "fence.i";
+                  extensions := ["Zifencei"];
+                  uniqId
+                    := [
+                         fieldVal funct3Field ('b"001");
+                         fieldVal opcodeField ('b"00011");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform  := fun _ _ => RetE Invalid;
+                  outputXform := id;
+                  optMemXform := None;
+                  instHints   := falseHints
+                |};
+                {|
                   instName   := "fence";
                   extensions := ["RV32I"; "RV64I"];
                   uniqId
                     := [
+                         fieldVal funct3Field ('b"000");
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
