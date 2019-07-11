@@ -76,6 +76,18 @@ Definition InstPageFault      := 12.
 Definition LoadPageFault      := 13.
 Definition SAmoPageFault      := 15.
 
+Definition Interrupt := (Bit 4).
+
+Definition IntrptU      := 0.
+Definition IntrptS      := 1.
+Definition IntrptM      := 3.
+Definition IntrptUTimer := 4.
+Definition IntrptSTimer := 5.
+Definition IntrptMTimer := 7.
+Definition IntrptUExt   := 8.
+Definition IntrptSExt   := 9.
+Definition IntrptMExt   := 11.
+
 Definition FrmWidth : nat := 3.
 Definition FrmValue : Kind := Bit FrmWidth.
 Definition FflagsWidth : nat := 5.

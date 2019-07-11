@@ -127,10 +127,20 @@ Section Params.
               Register ^"ueip"             : Bool <- ConstBool false with
               Register ^"seip"             : Bool <- ConstBool false with
               Register ^"meip"             : Bool <- ConstBool false with
+              Register ^"usie"             : Bool <- ConstBool false with
+              Register ^"ssie"             : Bool <- ConstBool false with
+              Register ^"msie"             : Bool <- ConstBool false with
+              Register ^"utie"             : Bool <- ConstBool false with
+              Register ^"stie"             : Bool <- ConstBool false with
+              Register ^"mtie"             : Bool <- ConstBool false with
+              Register ^"ueie"             : Bool <- ConstBool false with
+              Register ^"seie"             : Bool <- ConstBool false with
+              Register ^"meie"             : Bool <- ConstBool false with
 
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"sideleg"          : Bit 16 <- ConstBit (wzero 16) with
               Register ^"tvm"              : Bool <- ConstBool false with
               Register ^"mxr"              : Bool <- ConstBool false with
               Register ^"sum"              : Bool <- ConstBool false with
@@ -324,7 +334,12 @@ Section Params.
                    Read timecmp : Bit 64 <- ^"mtimecmp";
                    LETA _ <- time_cmp name (#mem_update_pkt @% "fst" @% "fst") #time #timecmp;
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
-                   Retv
+                   Retv with
+              Rule ^"interrupts"
+                := Read mode : PrivMode <- ^"mode";
+                   Read pc : VAddr <- ^"pc";
+                   LETA xlen : XlenValue <- readXlen name #mode;
+                   interruptAction name Xlen_over_8 #xlen #mode #pc
          }.
 
     Definition intRegFile

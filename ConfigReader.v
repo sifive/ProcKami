@@ -20,10 +20,10 @@ Section config_reader.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition readConfig
-    :  ActionT ty ContextCfgPkt
-    := Read mode : PrivMode <- ^"mode";
-       Read mxl : XlenValue <- ^"mxl";
+  Definition readXlen
+    (mode : PrivMode @# ty)
+    :  ActionT ty XlenValue
+    := Read mxl : XlenValue <- ^"mxl";
        Read sxl : XlenValue <- ^"sxl";
        Read uxl : XlenValue <- ^"uxl";
        System [
@@ -37,13 +37,17 @@ Section config_reader.
            DispHex #uxl;
            DispString _ "\n"
        ];
-       LET xlen
+       Ret
+         (IF mode == $MachineMode
+           then #mxl
+           else IF mode == $SupervisorMode then #sxl else #uxl).
+
+  Definition readConfig
+    :  ActionT ty ContextCfgPkt
+    := Read mode : PrivMode <- ^"mode";
+       LETA xlen
          :  XlenValue
-       <- ITE (#mode == $MachineMode)
-            #mxl
-            (ITE (#mode == $SupervisorMode)
-              #sxl
-              #uxl);
+         <- readXlen #mode;
        LET init_extensions
          :  Extensions
          <- $$ supportedExts;
