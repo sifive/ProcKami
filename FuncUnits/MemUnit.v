@@ -58,6 +58,7 @@ Section mem_unit.
   Variable mem_regions : list MemRegion.
 
   Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3 mem_regions).
+  Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
 
@@ -127,11 +128,16 @@ Section mem_unit.
     := LETA paddr
          :  Maybe PAddr
          <- memTranslate mode $VmAccessInst vaddr;
+       System [
+         DispString _ "[memFetch] paddr: ";
+         DispHex #paddr;
+         DispString _ "\n"
+       ];
        If #paddr @% "valid"
          then
            LETA inst
              :  Maybe Data
-             <- mem_region_read 1 mode (#paddr @% "data");
+             <- mem_region_fetch mode (#paddr @% "data");
            Ret
              (STRUCT {
                 "fst" ::= #inst @% "data";

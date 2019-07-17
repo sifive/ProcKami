@@ -102,6 +102,7 @@ Section reg_reader.
   Definition reg_reader
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : DecoderPkt @# ty)
+    (compressed : Bool @# ty)
     :  ActionT ty ExecContextPkt
     := LET raw_inst
          :  Inst
@@ -156,12 +157,13 @@ Section reg_reader.
               "fflags"      ::= #fflags_val;
               "frm"         ::= #frm_val;
               "inst"        ::= #raw_inst;
-              "compressed?" ::= (decoder_pkt @% "compressed?" : Bool @# ty)
+              "compressed?" ::= compressed
             } : ExecContextPkt @# ty).
 
   Definition readerWithException
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : PktWithException DecoderPkt @# ty)
+    (compressed : Bool @# ty)
     :  ActionT ty (PktWithException ExecContextPkt)
     := bindException
          (decoder_pkt @% "fst")
@@ -169,7 +171,7 @@ Section reg_reader.
          (fun decoder_pkt : DecoderPkt @# ty
            => LETA exec_context_pkt
                 :  ExecContextPkt
-                <- reg_reader cfg_pkt decoder_pkt;
+                <- reg_reader cfg_pkt decoder_pkt compressed;
               Ret (STRUCT {
                   "fst" ::= #exec_context_pkt;
                   "snd" ::= Invalid

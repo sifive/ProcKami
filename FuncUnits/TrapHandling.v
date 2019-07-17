@@ -62,7 +62,8 @@ Section trap_handling.
             xlen_sign_extend Xlen xlen #tvec_base << (Const _ (natToWord 2 2));
        LET addr_offset
          :  VAddr
-         <- xlen_sign_extend Xlen xlen (exception @% "exception");
+            (* 3.1.7 *)
+         <- xlen_sign_extend Xlen xlen (exception @% "exception") << (Const _ (natToWord 2 2));
        System [
          DispString _ "[trapAction]\n";
          DispString _ "  tvec_mode: ";
@@ -165,12 +166,22 @@ Section trap_handling.
          <- ^(prefix ++ "pp");
        Write ^(prefix ++ "ie") <- #pie;
        Write ^"mode" : PrivMode <- ZeroExtendTruncLsb 2 #pp;
-       Write ^(prefix ++ "pie") : Bool <- #ie; (* 4.1.1 conflict with 3.1.7? *)
+       Write ^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
        Write ^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width (Const ty (natToWord 2 UserMode));
        System [
-         DispString _ "[Register Writer.retAction]\n"
+         DispString _ "[Register Writer.retAction]\n";
+         DispString _ ("[retAction] prefix: " ++ prefix ++ "\n");
+         DispString _ "[retAction] ie: ";
+         DispBinary #ie;
+         DispString _ "\n";
+         DispString _ "[retAction] pie: ";
+         DispBinary #pie;
+         DispString _ "\n";
+         DispString _ "[retAction] pp: ";
+         DispBinary #pp;
+         DispString _ "\n"
        ];
        Retv.
 
@@ -290,7 +301,14 @@ Section trap_handling.
     :  ActionT ty Bool
     := Read pending : Bool <- (name ++ "p");
        Read enabled : Bool <- (name ++ "e");
-       Ret (#pending && #enabled).
+       (* Ret (#pending && #enabled). *)
+       LET result : Bool <- #pending && #enabled;
+       System [
+         DispString _ ("[intrpt_pending] name: " ++ name ++ " result: ");
+         DispBinary #result;
+         DispString _ "\n"
+       ];
+       Ret #result.
 
   Definition interruptAction
     (xlen : XlenValue @# ty)
@@ -326,6 +344,11 @@ Section trap_handling.
               "exception" ::= #code @% "data" @% "snd";
               "value" ::= $0
             } : FullException @# ty;
+       System [
+         DispString _ "[interruptAction] detected interrupt: ";
+         DispHex #exception;
+         DispString _ "\n"
+       ];
        Read mideleg : Bit 16 <- ^"mideleg";
        Read sideleg : Bit 16 <- ^"sideleg";
        (* 3.1.6.1 and 3.1.9 *)

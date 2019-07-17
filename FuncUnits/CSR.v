@@ -723,7 +723,30 @@ Section CsrInterface.
                 ];
            csrAccess := accessMModeOnly
          |};
-         nilCSR ^"mie" (CsrIdWidth 'h"304") accessMModeOnly;
+         {|
+           csrName := ^"mie";
+           csrAddr := CsrIdWidth 'h"304";
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldReadOnly ^"meie" Bool;
+                       @csrFieldNoReg ^"reserved0" Bool (getDefaultConst _);
+                       @csrFieldAny ^"seie" Bool;
+                       @csrFieldAny ^"ueie" Bool;
+                       @csrFieldReadOnly ^"mtie" Bool;
+                       @csrFieldNoReg ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldAny ^"stie" Bool;
+                       @csrFieldAny ^"utie" Bool;
+                       @csrFieldReadOnly ^"msie" Bool;
+                       @csrFieldNoReg ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldAny ^"ssie" Bool;
+                       @csrFieldAny ^"usie" Bool
+                     ] in
+                repeatCSRView 2
+                  (@csrViewDefaultReadXform fields)
+                  (@csrViewDefaultWriteXform fields);
+           csrAccess := accessMModeOnly
+         |};
          {|
            csrName := ^"mstatus";
            csrAddr := CsrIdWidth 'h"300";

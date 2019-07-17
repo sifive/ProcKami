@@ -248,7 +248,7 @@ Section Params.
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      :  PktWithException ExecContextPkt
-                     <- readerWithException name Flen_over_8 #cfg_pkt #decoder_pkt;
+                     <- readerWithException name Flen_over_8 #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
                    System
                      [
                        DispString _ "Reg Reader:\n";
@@ -281,7 +281,7 @@ Section Params.
                           #scounteren
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
-                          (#decoder_pkt @% "fst" @% "compressed?")
+                          (#fetch_pkt @% "fst" @% "compressed?")
                           #cfg_pkt
                           (rd (#exec_context_pkt @% "fst" @% "inst"))
                           (rs1 (#exec_context_pkt @% "fst" @% "inst"))

@@ -49,8 +49,7 @@ Section decoder.
                                "funcUnitTag" :: FuncUnitId;
                                "instTag"     :: InstId;
                                "pc"          :: VAddr;
-                               "inst"        :: Inst;
-                               "compressed?" :: Bool}.
+                               "inst"        :: Inst }.
 
   Definition FuncUnitInputWidth :=
     fold_left
@@ -214,27 +213,21 @@ Section decoder.
                (bit_string : Inst @# ty)
       :  Maybe DecoderPktInternal ## ty
       := LETC prefix
-             :  CompInst
-             <- bit_string $[15:0];
+           :  CompInst
+           <- bit_string $[15:0];
          LETE opt_uncomp_inst
-         :  Maybe Inst
-                  <- decompress comp_inst_db exts_pkt #prefix;
-(*
-           SystemE (DispString _ "Decompressed Inst: " ::
-                    DispHex #opt_uncomp_inst ::
-                    DispString _ "\n" ::
-                    nil);
-*)
-           (decode exts_pkt
-                   (ITE ((#opt_uncomp_inst) @% "valid")
-                        ((#opt_uncomp_inst) @% "data")
-                        bit_string)).
+           :  Maybe Inst
+           <- decompress comp_inst_db exts_pkt #prefix;
+         (decode exts_pkt
+           (ITE ((#opt_uncomp_inst) @% "valid")
+                ((#opt_uncomp_inst) @% "data")
+                bit_string)).
     
     (*
       Returns true iff the given 32 bit string starts with an
       uncompressed instruction prefix.
      *)
-    Definition decode_decompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
+    (* Definition decode_decompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)). *)
 
     (*
       Accepts a fetch packet and decodes the RISC-V instruction encoded
@@ -256,11 +249,11 @@ Section decoder.
                     "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                     "instTag"     ::= #decoder_pkt @% "instTag" ;
                     "pc"          ::= xlen_sign_extend Xlen xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
-                    "inst"        ::= #decoder_pkt @% "inst";
-                    "compressed?" ::= !(decode_decompressed #raw_inst)
+                    "inst"        ::= #decoder_pkt @% "inst"
+                    (* "compressed?" ::= !(decode_decompressed #raw_inst) *)
                   } : DecoderPkt @# ty) ;
            (utila_expr_opt_pkt #decoder_ext_pkt
-                               (#opt_decoder_pkt @% "valid")).
+             (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).
 
     Variable CompInstDb: list CompInstEntry.
     

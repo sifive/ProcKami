@@ -30,27 +30,54 @@ Section fetch.
 
   Open Scope kami_expr.
 
+  Definition fetch_decompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
+
+  Open Scope kami_action.
+
   Definition fetch
     (xlen : XlenValue @# ty)
     (mode : PrivMode @# ty)
     (pc: VAddr @# ty)
-    := (LETA instException
-          :  PktWithException Data
-          <- memFetch mode (xlen_sign_extend Xlen xlen pc);
-        LET result
-          :  FetchPkt
-          <- STRUCT {
-               "pc" ::= xlen_sign_extend Xlen xlen pc ;
-               "inst" ::= unsafeTruncLsb InstSz (#instException @% "fst")
-             } : FetchPkt @# ty;
-        LET retVal
-          :  PktWithException FetchPkt
-          <- STRUCT {
-               "fst" ::= #result;
-               "snd" ::= #instException @% "snd"
-             } : PktWithException FetchPkt @# ty;
-          Ret #retVal)%kami_action.
+    := LETA lower
+         :  PktWithException Data
+         <- memFetch mode (xlen_sign_extend Xlen xlen pc);
+       If #lower @% "snd" @% "valid"
+         then
+           LET result
+             :  PktWithException FetchPkt
+             <- STRUCT {
+                  "fst" ::= $$(getDefaultConst FetchPkt);
+                  "snd" ::= #lower @% "snd"
+                } : PktWithException FetchPkt @# ty;
+           Ret #result
+         else
+           LET decompressed
+             :  Bool
+             <- fetch_decompressed (unsafeTruncLsb InstSz (#lower @% "fst"));
+           If #decompressed
+             then memFetch mode (xlen_sign_extend Xlen xlen (pc + $2))
+             else Ret $$(getDefaultConst (PktWithException Data))
+             as upper;
+           LET fetch_pkt
+             :  FetchPkt
+             <- STRUCT {
+                  "pc" ::= xlen_sign_extend Xlen xlen pc;
+                  "inst"
+                    ::= (unsafeTruncLsb InstSz (#lower @% "fst") |
+                         (unsafeTruncLsb InstSz (#upper @% "fst") << ($16:Bit 5 @# ty)));
+                  "compressed?" ::= !#decompressed
+                } : FetchPkt @# ty;
+           LET result
+             :  PktWithException FetchPkt
+             <- STRUCT {
+                  "fst" ::= #fetch_pkt;
+                  "snd" ::= #upper @% "snd"
+                } : PktWithException FetchPkt @# ty;
+           Ret #result
+         as result;
+       Ret #result.
 
+  Close Scope kami_action.
   Close Scope kami_expr.
 
 End fetch.

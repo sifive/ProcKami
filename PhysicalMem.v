@@ -92,6 +92,27 @@ Section pmem.
                    Ret $MemUpdateCodeNone
        |}.
 
+  Definition mem_region_fetch
+    (mode : PrivMode @# ty)
+    (addr : PAddr @# ty)
+    :  ActionT ty (Maybe Data)
+    := LETA pmp_result
+         :  Bool
+         <- pmp_check_execute mode addr $Rlen_over_8;
+       If #pmp_result
+         then
+           mem_region_apply addr
+             (fun region
+               => mem_device_read
+                    (mem_region_device region)
+                    1 (* Note: the first read method is reserved for fetch instructions. *)
+                    mode
+                    (addr - (mem_region_addr region)))
+             $0
+         else Ret $0
+         as result;
+       Ret (utila_opt_pkt #result #pmp_result).
+
   Definition mem_region_read
     (index : nat)
     (mode : PrivMode @# ty)
