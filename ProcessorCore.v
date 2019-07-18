@@ -90,7 +90,6 @@ Section Params.
       := MODULE {
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              (* Register ^"pc"               : VAddr <- ConstBit (wzero Xlen) with *)
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
 
               (* floating point registers *)
@@ -160,7 +159,7 @@ Section Params.
 
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
-              Register ^"upp"              : Bit 0 <- ConstBit WO with (* Should be Bit 0, but this results in a system verilog error. 3.1.7 *)
+              Register ^"upp"              : Bit 0 <- ConstBit WO with
               Register ^"upie"             : Bool <- ConstBool false with
               Register ^"uie"              : Bool <- ConstBool false with
               Register ^"utvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
@@ -178,7 +177,9 @@ Section Params.
               Register ^"scounteren"      : Bit 32 <- ConstBit (wzero 32) with
               Register ^"mcycle"          : Bit 64 <- ConstBit (wzero 64) with
               Register ^"minstret"        : Bit 64 <- ConstBit (wzero 64) with
-              Register ^"mcountinhibit"   : Bit 32 <- ConstBit (wzero 32) with
+              Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
+              Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
+              Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
 
               (* memory protection registers. *)
               Register ^"pmp0cfg" : Bit 8 <- ConstBit (wzero 8) with
@@ -214,6 +215,43 @@ Section Params.
               Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr15" : Bit 54 <- ConstBit (wzero 54) with
 
+              Rule ^"trap_interrupt"
+                := Read mode : PrivMode <- ^"mode";
+                   Read pc : VAddr <- ^"pc";
+                   LETA xlen : XlenValue <- readXlen name #mode;
+                   System [DispString _ "[trap_interrupt]\n"];
+                   interruptAction name Xlen_over_8 #xlen #mode #pc with
+              Rule ^"set_time_interrupt"
+                := Read mtime : Bit 64 <- ^"mtime";
+                   Read mtimecmp : Bit 64 <- ^"mtimecmp";
+                   If #mtime > #mtimecmp
+                     then
+                       Write ^"mtip" : Bool <- $$true;
+                       Retv;
+                   System [DispString _ "[set_time_interrupt]\n"];
+                   Retv with
+              Rule ^"inc_time"
+                := Read mtime : Bit 64 <- ^"mtime";
+                   Write ^"mtime" : Bit 64 <- #mtime + $1;
+                   System [DispString _ "[inc_time]\n"];
+                   Retv with
+              Rule ^"inc_mcycle"
+                := Read mcountinhibit_cy : Bool <- ^"mcountinhibit_cy";
+                   If #mcountinhibit_cy
+                     then
+                       Read mcycle : Bit 64 <- ^"mcycle";
+                       Write ^"mcycle" : Bit 64 <- #mcycle + $1;
+                       Retv;
+                   System [DispString _ "[inc_mcycle]\n"];
+                   Retv with
+              Rule ^"set_ext_interrupt"
+                := Call meip : Bool <- ^"ext_interrupt_pending" ();
+                   If #meip
+                     then
+                       Write ^"meip" : Bool <- $$true;
+                       Retv;
+                   System [DispString _ "[set_ext_interrupt]\n"];
+                   Retv with
               Rule ^"pipeline"
                 := LETA cfg_pkt <- readConfig name _ supportedExts;
                    Read pc : VAddr <- ^"pc";
@@ -322,24 +360,8 @@ Section Params.
                           (#mem_update_pkt @% "fst" @% "snd")
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
-                   LETA _
-                     <- inc_mcycle name
-                          (#csr_update_pkt @% "fst" @% "fst");
-                   LETA _
-                     <- inc_instret name
-                          (#mem_update_pkt @% "snd" @% "valid")
-                          (#csr_update_pkt @% "fst" @% "fst");
-                   Read time : Bit 64 <- ^"mtime";
-                   LETA _ <- time_update name (#mem_update_pkt @% "fst" @% "fst") #time;
-                   Read timecmp : Bit 64 <- ^"mtimecmp";
-                   LETA _ <- time_cmp name (#mem_update_pkt @% "fst" @% "fst") #time #timecmp;
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
-                   Retv with
-              Rule ^"interrupts"
-                := Read mode : PrivMode <- ^"mode";
-                   Read pc : VAddr <- ^"pc";
-                   LETA xlen : XlenValue <- readXlen name #mode;
-                   interruptAction name Xlen_over_8 #xlen #mode #pc
+                   Retv
          }.
 
     Definition intRegFile
@@ -390,20 +412,28 @@ Section Params.
          (Bit 8)
          (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
 
+    Definition io_device
+      :  BaseModule
+      := MODULE {
+           Method ^"ext_interrupt_pending" () : Bool
+             := Ret $$false
+         }.
+
     Definition processor
       :  Mod 
       := createHideMod
            (fold_right
              ConcatMod
              processorCore
-             (map
-               (fun m => Base (BaseRegFile m)) 
-               [   
-                 intRegFile; 
-                 floatRegFile; 
-                 memRegFile;
-                 memReservationRegFile
-               ])) 
+             (Base io_device ::
+               (map
+                 (fun m => Base (BaseRegFile m)) 
+                 [   
+                   intRegFile; 
+                   floatRegFile; 
+                   memRegFile;
+                   memReservationRegFile
+                 ]))) 
            [   
              ^"read_reg_1"; 
              ^"read_reg_2"; 

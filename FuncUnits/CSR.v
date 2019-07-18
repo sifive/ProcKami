@@ -298,7 +298,7 @@ Section CsrInterface.
     := {|
          csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
-         csrFieldDefaultValue := None; (* TODO *)
+         csrFieldDefaultValue := None;
          csrFieldIsValid
            := fun _ _ x
                 => x == $1 || x == $2;
