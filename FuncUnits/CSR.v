@@ -604,9 +604,9 @@ Section CsrInterface.
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
          |};
-         simpleCSR ^"cycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
-         readonlyCSR ^"time" (CsrIdWidth 'h"c01") 64 accessAny;
-         simpleCSR ^"instret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
+         simpleCSR ^"mcycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
+         readonlyCSR ^"mtime" (CsrIdWidth 'h"c01") 64 accessAny;
+         simpleCSR ^"minstret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
          {|
            csrName := ^"cycleh";
            csrAddr := CsrIdWidth 'h"c80";
