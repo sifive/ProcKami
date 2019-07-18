@@ -15,6 +15,7 @@ Definition coreExts
   :  list string
   := [
        "Zicsr";
+       "Zifencei"; 
        "M";
        "A";
        "F";
