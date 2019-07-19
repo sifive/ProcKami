@@ -248,6 +248,7 @@ Section Params.
                 := Call meip : Bool <- ^"ext_interrupt_pending" ();
                    If #meip
                      then
+                       System [DispString _ "[set_ext_interrupt] detected an external interrupt\n"];
                        Write ^"meip" : Bool <- $$true;
                        Retv;
                    System [DispString _ "[set_ext_interrupt]\n"];
@@ -412,28 +413,20 @@ Section Params.
          (Bit 8)
          (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
 
-    Definition io_device
-      :  BaseModule
-      := MODULE {
-           Method ^"ext_interrupt_pending" () : Bool
-             := Ret $$false
-         }.
-
     Definition processor
       :  Mod 
       := createHideMod
            (fold_right
              ConcatMod
              processorCore
-             (Base io_device ::
-               (map
-                 (fun m => Base (BaseRegFile m)) 
-                 [   
-                   intRegFile; 
-                   floatRegFile; 
-                   memRegFile;
-                   memReservationRegFile
-                 ]))) 
+             (map
+               (fun m => Base (BaseRegFile m)) 
+               [   
+                 intRegFile; 
+                 floatRegFile; 
+                 memRegFile;
+                 memReservationRegFile
+               ]))
            [   
              ^"read_reg_1"; 
              ^"read_reg_2"; 
