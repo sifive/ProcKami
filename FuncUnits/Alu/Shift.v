@@ -56,8 +56,29 @@ Section Alu.
                         "xlen" ::= #x @% "xlen";
                         "res" ::= #res
                       } : ShiftOutputType @# _));
-         fuInsts := {| instName     := "slli" ; 
-                       extensions   := "RV32I" :: "RV64I" :: nil;
+         fuInsts := 
+                    {| instName     := "slli32" ; 
+                       extensions   := "RV32I" :: nil;
+                       uniqId       := fieldVal instSizeField ('b"11") ::
+                                                fieldVal opcodeField ('b"00100") ::
+                                                fieldVal funct3Field ('b"001") ::
+                                                fieldVal funct7Field ('b"0000000") ::
+                                                nil ;
+                       inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                                                     RetE ((STRUCT {
+                                                              "xlen" ::= cfg_pkt @% "xlen";
+                                                              "right?" ::= $$ false ;
+                                                              "arith?" ::= $$ false ;
+                                                              "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1");
+                                                              "arg2" ::= unsafeTruncLsb 6 (imm (#gcp @% "inst"))
+                                                           }): ShiftInputType @# _)) ;
+                       outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
+                                                            RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
+                       optMemXform  := None ;
+                       instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
+                    |} ::
+                    {| instName     := "slli64" ; 
+                       extensions   := "RV64I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"001") ::
