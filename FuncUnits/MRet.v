@@ -157,7 +157,6 @@ Section mret.
               ]
        |}.
 
-  (* TODO: Currently, we ignore fence instructions. *)
   Definition Fence : @FUEntry ty
     := {|
          fuName := "fence";
@@ -273,6 +272,55 @@ Section mret.
                 |}
               ]
        |}.
+
+  Definition Wfi : @FUEntry ty
+    := {|
+         fuName := "wfi";
+         fuFunc
+           := fun trap_expr : Bool ## ty
+                => LETE trap : Bool <- trap_expr;
+                   SystemE [
+                     DispString _ "[wfi]\n"
+                   ];
+                   LETC exception
+                     :  Maybe FullException
+                     <- Valid (STRUCT {
+                          "exception" ::= $IllegalInst;
+                          "value" ::= $0 (* ZeroExtendTruncLsb Xlen $$(32'h"10500073") *) (* the wfi instruction code. *)
+                        } : FullException @# ty);
+                   RetE
+                     (STRUCT {
+                        "fst" ::= noUpdPkt;
+                        "snd"
+                          ::= IF #trap
+                                then #exception
+                                else Invalid
+                      } : PktWithException ExecUpdPkt @# ty);
+         fuInsts
+           := [
+                {|
+                  instName := "wfi";
+                  extensions := ["RV32I"; "RV64I"];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0001000");
+                         fieldVal rs2Field ('b"00101");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+                  inputXform
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) _
+                         => RetE (cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
+                  outputXform := id; 
+                  optMemXform := None;
+                  instHints   := falseHints
+                |}
+              ]
+       |}.
+
   Close Scope kami_expr.
 
 End mret.

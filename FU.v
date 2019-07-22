@@ -212,6 +212,7 @@ Section Params.
         "xlen"        :: XlenValue;
         "mode"        :: PrivMode;
         "tvm"         :: Bool;
+        "tw"          :: Bool;
         "extensions"  :: Extensions;
         "instMisalignedException?" :: Bool ;
         "memMisalignedException?"  :: Bool ;

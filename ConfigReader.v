@@ -63,6 +63,7 @@ Section config_reader.
                   @%["RV32I" <- $$false]
                   @%["RV64I" <- $$true];
        Read tvm : Bool <- ^"tvm";
+       Read tw : Bool <- ^"tw";
        System
          [
            DispString _ "Start\n";
@@ -81,6 +82,7 @@ Section config_reader.
             "xlen"       ::= #xlen;
             "mode"       ::= #mode;
             "tvm"        ::= #tvm;
+            "tw"         ::= #tw;
             "extensions" ::= #extensions;
             "instMisalignedException?" ::= $$false ;
             "memMisalignedException?"  ::= $$false ;

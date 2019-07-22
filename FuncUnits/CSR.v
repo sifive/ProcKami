@@ -754,7 +754,8 @@ Section CsrInterface.
              := [
                   let fields
                     := [
-                         @csrFieldNoReg "reserved0" (Bit 11) (getDefaultConst _);
+                         @csrFieldNoReg "reserved0" (Bit 10) (getDefaultConst _);
+                         @csrFieldAny ^"tw" Bool;
                          @csrFieldAny ^"tvm" Bool;
                          @csrFieldAny ^"mxr" Bool;
                          @csrFieldAny ^"sum" Bool;
@@ -783,7 +784,8 @@ Section CsrInterface.
                          @csrFieldNoReg "reserved0" (Bit 28) (getDefaultConst _);
                          xlField ^"s";
                          xlField ^"u";
-                         @csrFieldNoReg "reserved1" (Bit 11) (getDefaultConst _);
+                         @csrFieldNoReg "reserved1" (Bit 10) (getDefaultConst _);
+                         @csrFieldAny ^"tw" Bool;
                          @csrFieldAny ^"tvm" Bool;
                          @csrFieldAny ^"mxr" Bool;
                          @csrFieldAny ^"sum" Bool;

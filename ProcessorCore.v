@@ -26,7 +26,6 @@ Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.
 Require Import Counter.
 Require Import ProcessorUtils.
-Require Import Timer.
 Require Import PhysicalMem.
 Require Import MMappedRegs.
 
@@ -140,6 +139,7 @@ Section Params.
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
               Register ^"sideleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"tw"               : Bool <- ConstBool false with
               Register ^"tvm"              : Bool <- ConstBool false with
               Register ^"mxr"              : Bool <- ConstBool false with
               Register ^"sum"              : Bool <- ConstBool false with
@@ -258,9 +258,8 @@ Section Params.
                    Read pc : VAddr <- ^"pc";
                    System
                      [
-                       DispString _ ("[add] Xlen: " ++ natToHexStr Xlen ++ " Rlen: " ++ natToHexStr Rlen ++ "\n");
-                       DispString _ " [add] xlen: ";
-                       DispDecimal (#cfg_pkt @% "xlen");
+                       DispString _ "config: ";
+                       DispHex #cfg_pkt;
                        DispString _ "\n";
                        DispString _ "PC: ";
                        DispHex #pc;

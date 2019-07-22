@@ -230,6 +230,7 @@ Section exts.
              ECall     Xlen_over_8 Rlen_over_8 _;
              Fence     Xlen_over_8 Rlen_over_8 _;
              EBreak    Xlen_over_8 Rlen_over_8 _;
+             Wfi       Xlen_over_8 Rlen_over_8 _;
 
              (* RVI logical instructions. *)
              Add       Xlen_over_8 Rlen_over_8 _;
