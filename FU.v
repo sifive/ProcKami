@@ -368,7 +368,7 @@ Section Params.
 
   Definition vm_mode_sv48
     := {| vm_mode_vpn_size := 9 ;
-          vm_mode_shift_num := 3 ;
+          vm_mode_shift_num := 4 ;
           vm_mode_sizes := [17 ; 9; 9; 9 ];
           vm_mode_mode := $SatpModeSv48 |}.
 

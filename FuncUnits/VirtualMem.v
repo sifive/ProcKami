@@ -24,7 +24,7 @@ Section pt_walker.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
@@ -33,7 +33,7 @@ Section pt_walker.
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
 
-  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -202,8 +202,10 @@ Section pt_walker.
         Ret #result.
     End oneIteration.
 
+    Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
+
     Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
-                                          [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48] 0.
+                                           vmModes 0.
 
     Definition pt_walker: ActionT ty (Maybe PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
@@ -220,7 +222,7 @@ Section pt_walker.
       (Ret (STRUCT { "fst" ::= $$ false ;
                      "snd" ::= Valid (satp_ppn + #vpnOffset)}));
       System [
-        DispString _ "[pte_translate] the resulting paddr: ";
+        DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");
         DispString _ "\n"
       ];

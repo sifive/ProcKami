@@ -24,7 +24,7 @@ Section mem_unit.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
@@ -40,14 +40,14 @@ Section mem_unit.
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
-  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 ty).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
+  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 ty).
+  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 ty).
 
-  Local Notation pMemReadReservation := (@pMemReadReservation name Rlen_over_8 mem_params ty).
-  Local Notation pMemWriteReservation := (@pMemWriteReservation name Rlen_over_8 mem_params ty).
+  Local Notation pMemReadReservation := (@pMemReadReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Variable func_units : list FUEntry.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
@@ -57,10 +57,10 @@ Section mem_unit.
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
 
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 3 mem_regions).
-  Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
-  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
-  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty 3 mem_regions).
+  Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -94,13 +94,13 @@ Section mem_unit.
        If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
            LETA paddr
-             :  Maybe (Bit (mem_params_addr_size mem_params))
+             :  Maybe PAddr
              <- pt_walker
                   #satp_mode
                   #mxr
                   #sum
                   (#transMode @% "data")
-                  (unsafeTruncLsb (mem_params_addr_size mem_params) (ppnToPAddr mem_params (ZeroExtendTruncLsb 44 #satp_ppn)))
+                  (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
                   access_type
                   vaddr;
            Ret
@@ -179,7 +179,21 @@ Section mem_unit.
          $$(getDefaultConst MemRet)
          exception.
 
-  Local Definition mem_unit_exec_pkt_err
+  Local Definition mem_unit_exec_pkt_access_fault
+    (vaddr : VAddr @# ty)
+    (is_write : Bool @# ty)
+    :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
+    := mem_unit_exec_pkt_def
+         (Valid (STRUCT {
+           "exception"
+             ::= (IF is_write
+                   then $SAmoAccessFault
+                   else $LoadAccessFault
+                   : Exception @# ty);
+           "value" ::= vaddr
+         } : FullException @# ty)).
+
+  Local Definition mem_unit_exec_pkt_page_fault
     (vaddr : VAddr @# ty)
     (is_write : Bool @# ty)
     :  ActionT ty (PktWithException (Pair (Bit MemUpdateCodeWidth) MemRet))
@@ -239,13 +253,14 @@ Section mem_unit.
                LETA mread_result
                  :  Maybe Data
                  <- mem_region_read 2 mode (#mpaddr @% "data");
+               (* TODO: should we place reservations on failed reads? *)
                LETA read_reservation_result
                  :  Array Rlen_over_8 Bool
                  <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "data"));
                (* V. did the read fail? *)
                If #mread_result @% "valid"
                  then 
-                   (* VI. apply the memory transform to compute the write value *)
+                   (* VI. apply the memory transform to compute the wrie value *)
                    LETA mwrite_value
                      :  Maybe MemoryOutput
                      <- convertLetExprSyntax_ActionT
@@ -312,14 +327,14 @@ Section mem_unit.
                    System [
                      DispString _ "[mem_unit_exec] the memory read operation threw an exception.\n"
                    ];
-                   (mem_unit_exec_pkt_err addr (#mis_write @% "data"))
+                   (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
                  as result;
                Ret #result
              else
                System [
                  DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
                ];
-               (mem_unit_exec_pkt_err addr (#mis_write @% "data"))
+               (mem_unit_exec_pkt_page_fault addr (#mis_write @% "data"))
              as result;
            Ret #result
          else

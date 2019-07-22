@@ -96,7 +96,7 @@ Section mret.
                             RetE
                               (STRUCT {
                                  "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= cfg_pkt @% "tsr"
+                                 "snd" ::= cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tsr"
                                } : Pair Inst Bool @# ty);
                   outputXform := id;
                   optMemXform := None;

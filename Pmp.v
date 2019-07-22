@@ -18,7 +18,7 @@ Section pmp.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation PAddr := (Bit PAddrSz).
 

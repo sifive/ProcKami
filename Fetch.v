@@ -14,7 +14,7 @@ Section fetch.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
@@ -26,7 +26,7 @@ Section fetch.
 
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Open Scope kami_expr.
 

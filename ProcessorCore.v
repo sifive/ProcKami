@@ -48,7 +48,7 @@ Section Params.
   Local Notation VAddr := (Bit Xlen).
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -56,8 +56,8 @@ Section Params.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
-  Local Notation pMemDevice := (pMemDevice name Rlen_over_8 mem_params).
-  Local Notation mMappedRegDevice := (mMappedRegDevice name Rlen_over_8 mem_params).
+  Local Notation pMemDevice := (pMemDevice name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation mMappedRegDevice := (mMappedRegDevice name Xlen_over_8 Rlen_over_8).
   
   Section model.
     Local Open Scope kami_action.
@@ -268,7 +268,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 mem_params (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
+                     <- fetch name Xlen_over_8 (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";

@@ -16,15 +16,15 @@ Section pmem.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
+  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 ty).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
+  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 ty).
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
 
   Variable mem_regions : list MemRegion.
@@ -43,26 +43,36 @@ Section pmem.
     (k : Kind)
     (paddr : PAddr @# ty)
     (f : MemRegion -> ActionT ty k)
-    (default : k @# ty)
-    :  ActionT ty k
-    := LETA result
-         :  Maybe k
-         <- fold_right
-              (fun region acc_act
-                => LETA acc : Maybe k <- acc_act;
-                   If #acc @% "valid" || !(mem_region_match region paddr)
-                     then Ret #acc
-                     else
-                       LETA result : k <- f region;
-                       Ret (Valid #result : Maybe k @# ty)
-                     as result;
-                   Ret #result)
-              (Ret Invalid)
-              mem_regions;
-       Ret
-         (IF #result @% "valid"
-           then #result @% "data"
-           else default).
+    :  ActionT ty (Maybe k)
+    := fold_right
+         (fun region acc_act
+           => LETA acc : Maybe k <- acc_act;
+              System [
+                DispString _ "[mem_region_apply] paddr: ";
+                DispHex paddr;
+                DispString _ "\n";
+                DispString _ "[mem_region_apply] region start: ";
+                DispHex (mem_region_addr region);
+                DispString _ "\n";
+                DispString _ "[mem_region_apply] region width: ";
+                DispHex (Const ty (natToWord 32 (mem_region_width region)));
+                DispString _ "\n";
+                DispString _ "[mem_region_apply] region end: ";
+                DispHex (mem_region_addr region + $(mem_region_width region));
+                DispString _ "\n"
+              ];
+              If #acc @% "valid" || !(mem_region_match region paddr)
+                then
+                  System [DispString _ "[mem_region_apply] did not match.\n"];
+                  Ret #acc
+                else
+                  System [DispString _ "[mem_region_apply] matched.\n"];
+                  LETA result : k <- f region;
+                  Ret (Valid #result : Maybe k @# ty)
+                as result;
+              Ret #result)
+         (Ret Invalid)
+         mem_regions.
 
   Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
     : ActionT ty Data
@@ -108,10 +118,9 @@ Section pmem.
                     1 (* Note: the first read method is reserved for fetch instructions. *)
                     mode
                     (addr - (mem_region_addr region)))
-             $0
-         else Ret $0
+         else Ret Invalid
          as result;
-       Ret (utila_opt_pkt #result #pmp_result).
+       Ret #result.
 
   Definition mem_region_read
     (index : nat)
@@ -130,10 +139,9 @@ Section pmem.
                     index
                     mode
                     (addr - (mem_region_addr region)))
-             $0
-         else Ret $0
+         else Ret Invalid
          as result;
-       Ret (utila_opt_pkt #result #pmp_result).
+       Ret #result.
 
   Definition mem_region_write
     (mode : PrivMode @# ty)
@@ -147,7 +155,7 @@ Section pmem.
        If #pmp_result
          then
            LETA code
-             : Bit MemUpdateCodeWidth
+             : Maybe (Bit MemUpdateCodeWidth)
              <- mem_region_apply addr
                   (fun region
                     => mem_device_write (mem_region_device region) mode
@@ -155,17 +163,23 @@ Section pmem.
                             "addr" ::= (addr - (mem_region_addr region));
                             "data" ::= data;
                             "mask" ::= mask
-                          } : MemWrite @# ty))
-                  $MemUpdateCodeNone;
+                          } : MemWrite @# ty));
            Ret (STRUCT {
-               "fst" ::= #code;
-               "snd" ::= Invalid
+               "fst" ::= #code @% "data";
+               "snd"
+                 ::= IF #code @% "valid"
+                       then
+                         Valid (STRUCT {
+                           "exception" ::= $SAmoAccessFault;
+                           "value" ::= $0
+                         } : FullException @# ty)
+                       else Invalid
              } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
          else
            LET exception
              :  Maybe FullException
              <- Valid (STRUCT {
-                  "exception" ::= ($SAmoAccessFault : Exception @# ty);
+                  "exception" ::= $SAmoPageFault;
                   "value"     ::= $0
                 } : FullException @# ty);
            Ret (STRUCT {
