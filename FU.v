@@ -233,7 +233,9 @@ Section Params.
         "memBitMask" :: DataMask ;
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
-        "rl"         :: Bool }.
+        "rl"         :: Bool ;
+        "fence.i"    :: Bool
+      }.
 
   Definition MemoryInput := STRUCT_TYPE {
                                 "aq" :: Bool ;
@@ -405,7 +407,8 @@ Section Params.
        "memBitMask" ::= $$ (getDefaultConst DataMask) ;
        "taken?" ::= $$ false ;
        "aq" ::= $$ false ;
-       "rl" ::= $$ false }).
+       "rl" ::= $$ false ;
+       "fence.i" ::= $$ false}).
 
   Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
     ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.

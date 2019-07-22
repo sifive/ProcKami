@@ -6,6 +6,7 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import RegWriter.
+Require Import Stale.
 Import ListNotations.
 
 Section trap_handling.
@@ -13,6 +14,7 @@ Section trap_handling.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable Flen_over_8: nat.
+  Variable lgMemSz: nat.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -31,6 +33,7 @@ Section trap_handling.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
   Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
+  Local Notation memSz := (pow2 lgMemSz).
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
@@ -233,7 +236,9 @@ Section trap_handling.
                             Retv);
                     Retv);
             Retv);
-       Retv.
+             Retv.
+
+  Local Definition flush := (@flush name ty memSz).
 
   Definition commit
     (pc: VAddr @# ty)
@@ -293,7 +298,9 @@ Section trap_handling.
                        (ITE (exec_context_pkt @% "compressed?")
                          (pc + $2)
                          (pc + $4)))));
-            Retv); 
+            Retv);
+             (* Flush stale tracking register if we're commiting a fence *)
+            LETA _ <- (If (update_pkt @% "fence.i") then flush; Retv);
        Retv.
 
   Definition intrpt_pending
