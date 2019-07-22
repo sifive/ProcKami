@@ -30,8 +30,8 @@ Section mret.
     := {|
          fuName := "mret";
          fuFunc
-           := fun ret_code_pkt : Bit 7 ## ty
-                => LETE ret_code : Bit 7 <- ret_code_pkt;
+           := fun in_pkt_expr : Pair Inst Bool ## ty
+                => LETE in_pkt : Pair Inst Bool <- in_pkt_expr;
                    RetE
                      (STRUCT {
                         "fst"
@@ -39,9 +39,16 @@ Section mret.
                                 @%["val1"
                                     <- (Valid (STRUCT {
                                          "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
-                                         "data" ::= ZeroExtendTruncLsb Rlen #ret_code
+                                         "data" ::= ZeroExtendTruncLsb Rlen (funct7 (#in_pkt @% "fst"))
                                         }))]);
-                        "snd" ::= Invalid
+                        "snd"
+                          ::= IF #in_pkt @% "snd"
+                                then
+                                  Valid (STRUCT {
+                                    "exception" ::= $IllegalInst;
+                                    "value" ::= ZeroExtendTruncLsb Xlen (#in_pkt @% "fst")
+                                  } : FullException @# ty)
+                                else Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts
            := [
@@ -59,9 +66,13 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun _ context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
-                            RetE (funct7 (#context_pkt @% "inst"));
+                            RetE
+                              (STRUCT {
+                                 "fst" ::= #context_pkt @% "inst";
+                                 "snd" ::= $$false
+                               } : Pair Inst Bool @# ty);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
@@ -80,9 +91,13 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun cfg_pkt context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
-                            RetE (funct7 (#context_pkt @% "inst"));
+                            RetE
+                              (STRUCT {
+                                 "fst" ::= #context_pkt @% "inst";
+                                 "snd" ::= cfg_pkt @% "tsr"
+                               } : Pair Inst Bool @# ty);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints
@@ -101,9 +116,13 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun _ context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
-                            RetE (funct7 (#context_pkt @% "inst"));
+                            RetE
+                              (STRUCT {
+                                 "fst" ::= #context_pkt @% "inst";
+                                 "snd" ::= $$false
+                               } : Pair Inst Bool @# ty);
                   outputXform := id;
                   optMemXform := None;
                   instHints   := falseHints

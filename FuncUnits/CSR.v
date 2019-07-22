@@ -754,7 +754,8 @@ Section CsrInterface.
              := [
                   let fields
                     := [
-                         @csrFieldNoReg "reserved0" (Bit 10) (getDefaultConst _);
+                         @csrFieldNoReg "reserved0" (Bit 9) (getDefaultConst _);
+                         @csrFieldAny ^"tsr" Bool;
                          @csrFieldAny ^"tw" Bool;
                          @csrFieldAny ^"tvm" Bool;
                          @csrFieldAny ^"mxr" Bool;
@@ -784,7 +785,8 @@ Section CsrInterface.
                          @csrFieldNoReg "reserved0" (Bit 28) (getDefaultConst _);
                          xlField ^"s";
                          xlField ^"u";
-                         @csrFieldNoReg "reserved1" (Bit 10) (getDefaultConst _);
+                         @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
+                         @csrFieldAny ^"tsr" Bool;
                          @csrFieldAny ^"tw" Bool;
                          @csrFieldAny ^"tvm" Bool;
                          @csrFieldAny ^"mxr" Bool;
@@ -1352,7 +1354,10 @@ Section CsrInterface.
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
                 ];
-           csrAccess := accessSMode
+           csrAccess
+             := fun context : CsrAccessPkt @# ty
+                  => context @% "mode" == $MachineMode ||
+                     (context @% "mode" == $SupervisorMode && !(context @% "tvm"))
          |};
          {|
            csrName  := ^"mvendorid";

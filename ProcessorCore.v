@@ -139,6 +139,7 @@ Section Params.
               Register ^"sxl"              : XlenValue <- initXlen with
               Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
               Register ^"sideleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"tsr"              : Bool <- ConstBool false with
               Register ^"tw"               : Bool <- ConstBool false with
               Register ^"tvm"              : Bool <- ConstBool false with
               Register ^"mxr"              : Bool <- ConstBool false with

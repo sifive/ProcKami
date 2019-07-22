@@ -211,6 +211,7 @@ Section Params.
     STRUCT_TYPE {
         "xlen"        :: XlenValue;
         "mode"        :: PrivMode;
+        "tsr"         :: Bool;
         "tvm"         :: Bool;
         "tw"          :: Bool;
         "extensions"  :: Extensions;

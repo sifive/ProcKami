@@ -62,6 +62,7 @@ Section config_reader.
                 #init_extensions
                   @%["RV32I" <- $$false]
                   @%["RV64I" <- $$true];
+       Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";
        System
@@ -81,6 +82,7 @@ Section config_reader.
          (STRUCT {
             "xlen"       ::= #xlen;
             "mode"       ::= #mode;
+            "tsr"        ::= #tsr;
             "tvm"        ::= #tvm;
             "tw"         ::= #tw;
             "extensions" ::= #extensions;
