@@ -38,8 +38,8 @@ Section pmem.
     (region : MemRegion)
     (paddr : PAddr @# ty)
     :  Bool @# ty
-    := (mem_region_addr region <= paddr) &&
-       (paddr < (mem_region_addr region + $(mem_region_width region))).
+    := ($(mem_region_addr region) <= paddr) &&
+       (paddr < $(mem_region_addr region + mem_region_width region)).
 
   Local Definition mem_region_apply
     (k : Kind)
@@ -54,13 +54,13 @@ Section pmem.
                 DispHex paddr;
                 DispString _ "\n";
                 DispString _ "[mem_region_apply] region start: ";
-                DispHex (mem_region_addr region);
+                DispHex (Const _ (natToWord PAddrSz (mem_region_addr region)));
                 DispString _ "\n";
                 DispString _ "[mem_region_apply] region width: ";
-                DispHex (Const ty (natToWord 32 (mem_region_width region)));
+                DispHex (Const ty (natToWord 32 (mem_region_width region))); (* TODO: why is 32 hardcoded here *)
                 DispString _ "\n";
                 DispString _ "[mem_region_apply] region end: ";
-                DispHex (mem_region_addr region + $(mem_region_width region));
+                DispHex (Const _ (natToWord PAddrSz (mem_region_addr region + mem_region_width region)));
                 DispString _ "\n"
               ];
               If #acc @% "valid" || !(mem_region_match region paddr)
@@ -128,7 +128,8 @@ Section pmem.
          mem_device_write
            := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
                 => LETA _ <- pMemWrite mode pkt;
-                   Ret $$false
+                   Ret $$false;
+         mmio_meths := None
        |}.
 
   Definition mem_region_read
@@ -142,7 +143,7 @@ Section pmem.
                 (mem_region_device region)
                 index
                 mode
-                (addr - (mem_region_addr region))).
+                (addr - $(mem_region_addr region))).
 
   Definition mem_region_write
     (mode : PrivMode @# ty)
@@ -154,7 +155,7 @@ Section pmem.
          (fun region
            => mem_device_write (mem_region_device region) mode
                 (STRUCT {
-                   "addr" ::= (addr - (mem_region_addr region));
+                   "addr" ::= (addr - $(mem_region_addr region));
                    "data" ::= data;
                    "mask" ::= mask
                  } : MemWrite @# ty)).

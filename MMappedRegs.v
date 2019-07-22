@@ -106,13 +106,14 @@ Section mmapped.
            := fun _ _ addr
                 => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb realAddrSz addr);
                    Ret (ZeroExtendTruncLsb Rlen #result);
-         mem_device_write
+          mem_device_write
            := fun _ write_pkt
                 => LET addr : Bit realAddrSz <- unsafeTruncLsb realAddrSz (write_pkt @% "addr");
                    LETA _
                      <- mmapped_write #addr
                           (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret $$false
+                   Ret $$false;
+          mmio_meths := None
        |}.
 
   Close Scope kami_action.

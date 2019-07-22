@@ -506,19 +506,71 @@ Section Params.
 
   End XlenInterface.
 
+  Record MMIOMeths
+    := {
+        mmio_read_meths : list string;
+        mmio_write_meths : list string;
+      }.
+
   Record MemDevice
     := {
          mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
+         : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
          mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
-       }.
-
+           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool;
+         mmio_meths
+         : option MMIOMeths (* if you're specifying a non-MMIO device,
+                               or don't know what that means, just use
+                               None here *)
+      }.
+  
   Record MemRegion
     := {
-         mem_region_addr  : PAddr @# ty;
+        (* TODO: we should maybe change these to Z if we want to
+           compute them *)
+         mem_region_addr  : nat;
          mem_region_width : nat;
-         mem_region_device : MemDevice
-       }.
+         mem_region_device : MemDevice;
+      }.
 
+  (* TODO: this might be hard to prove with the large numbers involved *)
+  Inductive wfMemRegion (r: MemRegion): Prop :=
+  | memRgnInBounds:
+      (mem_region_addr r >= 0)%nat ->
+      (mem_region_addr r + mem_region_width r < pow2 PAddrSz)%nat ->
+      wfMemRegion r.
+
+  Inductive regions_nonoverlapping: MemRegion -> MemRegion -> Prop :=
+  | noOverlap: forall r r',
+      (mem_region_addr r + mem_region_width r < mem_region_addr r')%nat -> (* r doesn't reach r' start *)
+      (mem_region_addr r' + mem_region_width r' < mem_region_addr r)%nat -> (* r' doesn't reach r start *)
+      regions_nonoverlapping r r'.
+
+  Inductive wfMemRegions: list MemRegion -> Prop :=
+  | noRegionsWf: wfMemRegions []
+  | consRegionWf r rs: wfMemRegions rs ->
+                        wfMemRegion r ->
+                        List.Forall (fun r' => regions_nonoverlapping r' r) rs ->
+                        wfMemRegions (r :: rs).
+
+  Definition regionLe (r r': MemRegion): bool :=
+    (Nat.leb (mem_region_addr r) (mem_region_addr r'))%nat.
+
+  Local Notation "x <=? y" := (regionLe x y) : region_scope.
+  Open Scope region_scope.
+  
+  (* From Coq stdlib and instantiated to regions *)
+  Fixpoint sortRegions l1 l2 :=
+    let fix aux l2 :=
+        match l1, l2 with
+        | [], _ => l2
+        | _, [] => l1
+        | a1::l1', a2::l2' =>
+          if a1 <=? a2 then a1 :: sortRegions l1' l2 else a2 :: aux l2'
+        end
+    in aux l2.
+
+  (* Definition fillRegions (regions: list region) (M: MemDevice) (top: nat): list region := *)
+  (*   match regions with *)
+  (*   | nil =>  *)
 End Params.
