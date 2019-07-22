@@ -508,7 +508,7 @@ Section Params.
          mem_device_read
            : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
          mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty (Bit MemUpdateCodeWidth)
+           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
        }.
 
   Record MemRegion

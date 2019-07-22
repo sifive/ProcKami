@@ -112,13 +112,7 @@ Section mmapped.
                    LETA _
                      <- mmapped_write #addr
                           (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret
-                     (Switch #addr Retn Bit MemUpdateCodeWidth With {
-                        ($0 : Bit realAddrSz @# ty)
-                          ::= ($MemUpdateCodeTime : Bit MemUpdateCodeWidth @# ty);
-                        ($1 : Bit realAddrSz @# ty)
-                          ::= ($MemUpdateCodeTimeCmp : Bit MemUpdateCodeWidth @# ty)
-                      })
+                   Ret $$false
        |}.
 
   Close Scope kami_action.

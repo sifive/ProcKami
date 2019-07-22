@@ -98,8 +98,7 @@ Section pmem.
          mem_device_read := pMemRead;
          mem_device_write
            := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                => LETA _ : Void <- pMemWrite mode pkt;
-                   Ret $MemUpdateCodeNone
+                => Ret $$false
        |}.
 
   Definition mem_region_fetch
@@ -148,14 +147,14 @@ Section pmem.
     (addr : PAddr @# ty)
     (data : Data @# ty)
     (mask : Array Rlen_over_8 Bool @# ty) (* TODO generalize mask size? *)
-    :  ActionT ty (PktWithException (Bit MemUpdateCodeWidth))
+    :  ActionT ty (Maybe FullException)
     := LETA pmp_result
          :  Bool
          <- pmp_check_write mode addr $Rlen_over_8;
        If #pmp_result
          then
            LETA code
-             : Maybe (Bit MemUpdateCodeWidth)
+             : Maybe Bool
              <- mem_region_apply addr
                   (fun region
                     => mem_device_write (mem_region_device region) mode
@@ -164,28 +163,20 @@ Section pmem.
                             "data" ::= data;
                             "mask" ::= mask
                           } : MemWrite @# ty));
-           Ret (STRUCT {
-               "fst" ::= #code @% "data";
-               "snd"
-                 ::= IF #code @% "valid"
-                       then
-                         Valid (STRUCT {
-                           "exception" ::= $SAmoAccessFault;
-                           "value" ::= $0
-                         } : FullException @# ty)
-                       else Invalid
-             } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
+           Ret 
+             (IF !(#code @% "valid") || (#code @% "data")
+               then
+                 Valid (STRUCT {
+                   "exception" ::= $SAmoAccessFault;
+                   "value" ::= $0
+                 } : FullException @# ty)
+               else Invalid)
          else
-           LET exception
-             :  Maybe FullException
-             <- Valid (STRUCT {
-                  "exception" ::= $SAmoPageFault;
-                  "value"     ::= $0
-                } : FullException @# ty);
-           Ret (STRUCT {
-               "fst" ::= $MemUpdateCodeNone;
-               "snd" ::= #exception
-             } : PktWithException (Bit MemUpdateCodeWidth) @# ty)
+           Ret
+             (Valid (STRUCT {
+                "exception" ::= $SAmoPageFault;
+                "value"     ::= $0
+              } : FullException @# ty))
          as result;
        Ret #result.
 

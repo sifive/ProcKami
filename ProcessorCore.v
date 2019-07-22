@@ -333,7 +333,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     :  PktWithException (Pair (Bit MemUpdateCodeWidth) ExecUpdPkt)
+                     :  PktWithException ExecUpdPkt
                      <- MemUnit name mem_params
                           (mem_regions _)
                           (#cfg_pkt @% "xlen")
@@ -358,7 +358,7 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
-                          (#mem_update_pkt @% "fst" @% "snd")
+                          (#mem_update_pkt @% "fst")
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
