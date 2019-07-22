@@ -4,6 +4,7 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import Pmp.
+Require Import Stale.
 
 Section pmem.
   Variable name: string.
@@ -22,6 +23,7 @@ Section pmem.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation memSz := (pow2 lgMemSz).
   Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 mem_params ty).
   Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 mem_params ty).
@@ -69,7 +71,12 @@ Section pmem.
     := Call result
          : Array Rlen_over_8 (Bit 8)
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       Ret (pack #result).
+         Ret (pack #result).
+
+  Local Definition markStale {ty} := (@markStale name ty memSz).
+  Local Definition markStaleMask {ty} {Rlen_over_8} := (@markStaleMask name ty memSz Rlen_over_8).
+  Local Definition staleP {ty} := (@staleP name ty memSz).
+  Local Definition flush {ty} := (@flush name ty memSz).
 
   Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
     : ActionT ty Void
@@ -79,9 +86,14 @@ Section pmem.
               "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
               "mask" ::= pkt @% "mask"
-            } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       Call ^"writeMem"(#writeRq: _);
-       Retv.
+             } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
+         (* Perform the write *)
+         Call ^"writeMem"(#writeRq: _);
+         
+         (* Mark as stale all the bytes written to*)
+         LET waddr: _ <- (pkt @% "addr");
+         LET start: _ <- SignExtendTruncLsb (Nat.log2_up memSz) #waddr;
+         markStaleMask #start (pkt @% "mask").
 
   Definition pMemDevice
     := {|

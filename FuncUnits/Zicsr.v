@@ -70,7 +70,8 @@ Section zicsr.
                        "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
-                       "rl"         ::= $$false
+                       "rl"         ::= $$false;
+                       "fence.i"    ::= $$false
                      } : ExecUpdPkt @# ty);
         RetE
           ((STRUCT {

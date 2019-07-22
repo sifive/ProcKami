@@ -28,11 +28,14 @@ Require Import Counter.
 Require Import ProcessorUtils.
 Require Import PhysicalMem.
 Require Import MMappedRegs.
+Require Import Stale.
 
 Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
 
+  (* ^ The width of a general purpose, "x", register for
+     this processor, divided by 8 *)
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Clen_over_8: nat.
@@ -41,6 +44,9 @@ Section Params.
   Variable pmp_addr_ub : option (word 54).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
+  (* The width of a general purpose, "x", register for this
+     processor. This also determine the size of, say, the virtual
+     address space. *)
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation CsrValueWidth := (Clen_over_8 * 8).
@@ -48,7 +54,9 @@ Section Params.
   Local Notation VAddr := (Bit Xlen).
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation memSz := (pow2 lgMemSz).
   Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddr := (Bit PAddrSz).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -81,9 +89,16 @@ Section Params.
              mem_region_width := (pow2 lgMemSz);
              mem_region_device := (pMemDevice ty)
            |}
-         ].
+        ].
 
     Local Open Scope list.
+
+    Local Definition memTranslate {ty} mode := (@memTranslate name Xlen_over_8 _ mem_params _ (mem_regions ty) mode $VmAccessInst).
+
+    Local Definition markStale {ty} := (@markStale name ty memSz).
+    Local Definition staleP {ty} := (@staleP name ty memSz).
+    Local Definition flush {ty} := (@flush name ty memSz).
+
     Definition processorCore 
       :  BaseModule
       := MODULE {
@@ -215,6 +230,11 @@ Section Params.
               Register ^"pmpaddr13" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr15" : Bit 54 <- ConstBit (wzero 54) with
+                  
+              (* Stale memory execution exception register *)
+              Register ^"exception" : Bool <- ConstBool false with
+              Register ^"stales": Array memSz Bool <- ConstArray (fun _ => ConstBool false) with
+                  
 
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
@@ -354,6 +374,7 @@ Section Params.
                      <- commit
                           name
                           Flen_over_8
+                          memSz
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
@@ -362,7 +383,30 @@ Section Params.
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
-                   Retv
+                   Retv with
+                       
+              Rule ^"interrupts"
+                := Read mode : PrivMode <- ^"mode";
+                   Read pc : VAddr <- ^"pc";
+                   LETA xlen : XlenValue <- readXlen name #mode;
+                   interruptAction name Xlen_over_8 #xlen #mode #pc with
+                       
+              Rule ^"haltOnException"
+                   :=
+                     (* If we are about to execute a stale memory
+                      region, flip the exception register and call the
+                      exception method *)
+                     Read mode : PrivMode <- ^"mode";
+                     Read pc : VAddr <- ^"pc";
+                     LETA pcPaddr  :  Maybe PAddr <- memTranslate #mode #pc;
+                     If #pcPaddr @% "valid" then 
+                     (LETA stale: Bool <- staleP (SignExtendTruncLsb (Nat.log2_up memSz) (#pcPaddr @% "data": _));
+                      If #stale then (Write ^"exception" <- $$ true;
+                                      Retv);
+                      Retv);
+                     Read exc: Bool <- ^"exception";
+                     If #exc then (Call ^"exception" (); Retv);
+                     Retv
          }.
 
     Definition intRegFile
@@ -409,8 +453,8 @@ Section Params.
          (^"mem_reg_file")
          (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
          (^"writeMem")
-         (pow2 lgMemSz)
-         (Bit 8)
+         (pow2 lgMemSz) (* rfIdxNum: nat *)
+         (Bit 8) (* rfData: Kind *)
          (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
 
     Definition processor

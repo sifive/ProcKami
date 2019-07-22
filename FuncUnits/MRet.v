@@ -206,7 +206,9 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform  := fun _ _ => RetE Invalid;
-                  outputXform := id;
+                  outputXform := fun (upkt: PktWithException ExecUpdPkt ## ty) =>
+                                   LETE u: (PktWithException ExecUpdPkt) <- upkt;
+                                   RetE (#u @%["fst" <- ((#u @% "fst") @%["fence.i" <- $$ true])]);
                   optMemXform := None;
                   instHints   := falseHints
                 |};
