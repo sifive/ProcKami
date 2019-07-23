@@ -407,7 +407,7 @@ Section Params.
          true
          Rlen_over_8
          (^"mem_reg_file")
-         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
+         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
          (^"writeMem")
          (pow2 lgMemSz)
          (Bit 8)
@@ -435,11 +435,12 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"readMem1"; (* fetch read mem *)
-             ^"readMem2";
-             ^"readMem3"; (* page table walker read mem call *)
+             ^"readMem1"; (* fetch *)
+             ^"readMem2"; (* fetch *)
+             ^"readMem3"; (* load instructions *)
              ^"readMem4"; (* page table walker read mem call *)
              ^"readMem5"; (* page table walker read mem call *)
+             ^"readMem6"; (* page table walker read mem call *)
              ^"readMemReservation";
              ^"writeMem";
              ^"writeMemReservation"

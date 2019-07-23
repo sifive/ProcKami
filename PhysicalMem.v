@@ -79,6 +79,15 @@ Section pmem.
     := Call result
          : Array Rlen_over_8 (Bit 8)
          <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
+       System [
+         DispString _ ("[pMemRead] index: " ++ natToHexStr index ++ "\n");
+         DispString _ "[pMemRead] addr: ";
+         DispHex addr;
+         DispString _ "\n";
+         DispString _ "[pMemRead] result: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
        Ret (pack #result).
 
   Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
@@ -90,6 +99,14 @@ Section pmem.
               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
               "mask" ::= pkt @% "mask"
             } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
+       System [
+         DispString _ "[pMemWrite] pkt: ";
+         DispHex pkt;
+         DispString _ "\n";
+         DispString _ "[pMemWrite] writeRq: ";
+         DispHex #writeRq;
+         DispString _ "\n"
+       ];
        Call ^"writeMem"(#writeRq: _);
        Retv.
 
@@ -98,87 +115,37 @@ Section pmem.
          mem_device_read := pMemRead;
          mem_device_write
            := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                => Ret $$false
+                => LETA _ <- pMemWrite mode pkt;
+                   Ret $$false
        |}.
-
-  Definition mem_region_fetch
-    (mode : PrivMode @# ty)
-    (addr : PAddr @# ty)
-    :  ActionT ty (Maybe Data)
-    := LETA pmp_result
-         :  Bool
-         <- pmp_check_execute mode addr $Rlen_over_8;
-       If #pmp_result
-         then
-           mem_region_apply addr
-             (fun region
-               => mem_device_read
-                    (mem_region_device region)
-                    1 (* Note: the first read method is reserved for fetch instructions. *)
-                    mode
-                    (addr - (mem_region_addr region)))
-         else Ret Invalid
-         as result;
-       Ret #result.
 
   Definition mem_region_read
     (index : nat)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
     :  ActionT ty (Maybe Data)
-    := LETA pmp_result
-         :  Bool
-         <- pmp_check_read mode addr $Rlen_over_8;
-       If #pmp_result
-         then
-           mem_region_apply addr
-             (fun region
-               => mem_device_read
-                    (mem_region_device region)
-                    index
-                    mode
-                    (addr - (mem_region_addr region)))
-         else Ret Invalid
-         as result;
-       Ret #result.
+    := mem_region_apply addr
+         (fun region
+           => mem_device_read
+                (mem_region_device region)
+                index
+                mode
+                (addr - (mem_region_addr region))).
 
   Definition mem_region_write
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
     (data : Data @# ty)
     (mask : Array Rlen_over_8 Bool @# ty) (* TODO generalize mask size? *)
-    :  ActionT ty (Maybe FullException)
-    := LETA pmp_result
-         :  Bool
-         <- pmp_check_write mode addr $Rlen_over_8;
-       If #pmp_result
-         then
-           LETA code
-             : Maybe Bool
-             <- mem_region_apply addr
-                  (fun region
-                    => mem_device_write (mem_region_device region) mode
-                         (STRUCT {
-                            "addr" ::= (addr - (mem_region_addr region));
-                            "data" ::= data;
-                            "mask" ::= mask
-                          } : MemWrite @# ty));
-           Ret 
-             (IF !(#code @% "valid") || (#code @% "data")
-               then
-                 Valid (STRUCT {
-                   "exception" ::= $SAmoAccessFault;
-                   "value" ::= $0
-                 } : FullException @# ty)
-               else Invalid)
-         else
-           Ret
-             (Valid (STRUCT {
-                "exception" ::= $SAmoPageFault;
-                "value"     ::= $0
-              } : FullException @# ty))
-         as result;
-       Ret #result.
+    :  ActionT ty (Maybe Bool)
+    := mem_region_apply addr
+         (fun region
+           => mem_device_write (mem_region_device region) mode
+                (STRUCT {
+                   "addr" ::= (addr - (mem_region_addr region));
+                   "data" ::= data;
+                   "mask" ::= mask
+                 } : MemWrite @# ty)).
 
   Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)

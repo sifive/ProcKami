@@ -57,10 +57,15 @@ Section mem_unit.
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
 
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty 3 mem_regions).
+(*
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty 4 mem_regions).
   Local Notation mem_region_fetch := (@mem_region_fetch name Xlen_over_8 Rlen_over_8 ty mem_regions).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty mem_regions).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 ty mem_regions).
+*)
+  Local Notation pt_walker := (@pt_walker Xlen_over_8 Rlen_over_8 ty 4 mem_regions).
+  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation mem_region_write := (@mem_region_write Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -112,16 +117,8 @@ Section mem_unit.
          as result;
        Ret #result.
 
-  Local Definition memFetchAux
-    (exception : Exception @# ty)
-    (vaddr : VAddr @# ty)
-    :  Maybe FullException @# ty
-    := Valid (STRUCT {
-         "exception" ::= exception;
-         "value" ::= vaddr
-       }).
-
   Definition memFetch
+    (index : nat)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
@@ -137,20 +134,37 @@ Section mem_unit.
          then
            LETA inst
              :  Maybe Data
-             <- mem_region_fetch mode (#paddr @% "data");
-           Ret
-             (STRUCT {
-                "fst" ::= #inst @% "data";
-                "snd"
-                  ::= IF #inst @% "valid"
-                        then Invalid
-                        else memFetchAux ($InstAccessFault) vaddr
-              } : PktWithException Data @# ty)
+             <- mem_region_read index mode (#paddr @% "data");
+           If #inst @% "valid"
+             then
+               Ret (STRUCT {
+                   "fst" ::= #inst @% "data";
+                   "snd" ::= Invalid
+                 } : PktWithException Data @# ty)
+             else
+               LET exception
+                 :  Maybe FullException
+                 <- Valid (STRUCT {
+                        "exception" ::= $InstAccessFault;
+                        "value" ::= vaddr
+                      } : FullException @# ty);
+               Ret (STRUCT {
+                   "fst" ::= $0;
+                   "snd" ::= #exception
+                 } : PktWithException Data @# ty)
+             as result;
+           Ret #result
          else
+           LET exception
+             :  Maybe FullException
+             <- Valid (STRUCT {
+                    "exception" ::= $InstPageFault;
+                    "value" ::= vaddr
+                  } : FullException @# ty);
            Ret
              (STRUCT {
                 "fst" ::= $0;
-                "snd" ::= memFetchAux ($InstPageFault) vaddr
+                "snd" ::= #exception
               } : PktWithException Data @# ty)
          as result;
        Ret #result.
@@ -208,6 +222,17 @@ Section mem_unit.
     (input_pkt : MemUnitInput @# ty)
     :  ActionT ty (PktWithException MemRet)
     := (* I. does the instruction perform a memory operation? *)
+       System [
+         DispString _ "[mem_unit_exec] input pkt:\n";
+         DispHex input_pkt;
+         DispString _ "\n";
+         DispString _ "[mem_unit_exec] functional unit ID:\n";
+         DispHex func_unit_id;
+         DispString _ "\n";
+         DispString _ "[mem_unit_exec] inst ID:\n";
+         DispHex inst_id;
+         DispString _ "\n"
+       ];
        LETA mis_op
          :  Maybe Bool
          <- convertLetExprSyntax_ActionT
@@ -245,7 +270,7 @@ Section mem_unit.
                (* IV. read the current value and place reservation *)
                LETA mread_result
                  :  Maybe Data
-                 <- mem_region_read 2 mode (#mpaddr @% "data");
+                 <- mem_region_read 3 mode (#mpaddr @% "data");
                (* TODO: should we place reservations on failed reads? *)
                LETA read_reservation_result
                  :  Array Rlen_over_8 Bool
@@ -283,12 +308,20 @@ Section mem_unit.
                          :  Array Rlen_over_8 Bool
                          <- #mwrite_value @% "data" @% "mask";
                        LETA write_result
-                         :  Maybe FullException
+                         (* :  Maybe FullException *)
+                         :  Maybe Bool
                          <- mem_region_write mode
                               (#mpaddr @% "data")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)
                               (#write_mask : Array Rlen_over_8 Bool @# ty);
-                       Ret #write_result
+                       Ret (* #write_result *)
+                         (IF #write_result @% "data"
+                           then
+                             Valid (STRUCT {
+                                 "exception" ::= $SAmoAccessFault;
+                                 "value" ::= $0
+                               } : FullException @# ty)
+                           else Invalid)
                      else Ret Invalid
                      as write_result;
                    System [
@@ -329,6 +362,11 @@ Section mem_unit.
            ];
            (mem_unit_exec_pkt_def Invalid)
          as result;
+         System [
+           DispString _ "[mem_unit_exec] result:\n";
+           DispHex #result;
+           DispString _ "\n"
+         ];
        Ret #result.
 
   Definition MemUnit
