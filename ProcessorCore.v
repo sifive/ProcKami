@@ -391,7 +391,7 @@ Section Params.
                    LETA xlen : XlenValue <- readXlen name #mode;
                    interruptAction name Xlen_over_8 #xlen #mode #pc with
                        
-              Rule ^"haltOnException"
+              Rule ^"exceptionOnStaleExec"
                    :=
                      (* If we are about to execute a stale memory
                       region, flip the exception register and call the
@@ -400,12 +400,11 @@ Section Params.
                      Read pc : VAddr <- ^"pc";
                      LETA pcPaddr  :  Maybe PAddr <- memTranslate #mode #pc;
                      If #pcPaddr @% "valid" then 
-                     (LETA stale: Bool <- staleP (SignExtendTruncLsb (Nat.log2_up memSz) (#pcPaddr @% "data": _));
-                      If #stale then (Write ^"exception" <- $$ true;
-                                      Retv);
-                      Retv);
-                     Read exc: Bool <- ^"exception";
-                     If #exc then (Call ^"exception" (); Retv);
+                       (LETA stale: Bool <- staleP (SignExtendTruncLsb (Nat.log2_up memSz) (#pcPaddr @% "data": _));
+                        Write ^"exception" <- #stale;
+                        Retv);
+                     Read exc : Bool <- ^"exception";
+                     Call ^"exception" (#exc: Bool);
                      Retv
          }.
 
