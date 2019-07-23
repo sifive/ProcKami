@@ -55,7 +55,7 @@ Section Params.
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation memSz := (pow2 lgMemSz).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
@@ -64,8 +64,8 @@ Section Params.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
-  Local Notation pMemDevice := (pMemDevice name Rlen_over_8 mem_params).
-  Local Notation mMappedRegDevice := (mMappedRegDevice name Rlen_over_8 mem_params).
+  Local Notation pMemDevice := (pMemDevice name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation mMappedRegDevice := (mMappedRegDevice name Xlen_over_8 Rlen_over_8).
   
   Section model.
     Local Open Scope kami_action.
@@ -93,7 +93,7 @@ Section Params.
 
     Local Open Scope list.
 
-    Local Definition memTranslate {ty} mode := (@memTranslate name Xlen_over_8 _ mem_params _ (mem_regions ty) mode $VmAccessInst).
+    Local Definition memTranslate {ty} mode := (@memTranslate name Xlen_over_8 _ _ (mem_regions ty) mode $VmAccessInst).
 
     Local Definition markStale {ty} := (@markStale name ty memSz).
     Local Definition staleP {ty} := (@staleP name ty memSz).
@@ -288,7 +288,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 mem_params (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
+                     <- fetch name Xlen_over_8 (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -353,7 +353,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA mem_update_pkt
-                     :  PktWithException (Pair (Bit MemUpdateCodeWidth) ExecUpdPkt)
+                     :  PktWithException ExecUpdPkt
                      <- MemUnit name mem_params
                           (mem_regions _)
                           (#cfg_pkt @% "xlen")
@@ -379,18 +379,11 @@ Section Params.
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
                           (#exec_context_pkt @% "fst")
-                          (#mem_update_pkt @% "fst" @% "snd")
+                          (#mem_update_pkt @% "fst")
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv with
-                       
-              Rule ^"interrupts"
-                := Read mode : PrivMode <- ^"mode";
-                   Read pc : VAddr <- ^"pc";
-                   LETA xlen : XlenValue <- readXlen name #mode;
-                   interruptAction name Xlen_over_8 #xlen #mode #pc with
-                       
               Rule ^"haltOnException"
                    :=
                      (* If we are about to execute a stale memory
@@ -451,7 +444,7 @@ Section Params.
          true
          Rlen_over_8
          (^"mem_reg_file")
-         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
+         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
          (^"writeMem")
          (pow2 lgMemSz) (* rfIdxNum: nat *)
          (Bit 8) (* rfData: Kind *)
@@ -479,11 +472,12 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"readMem1"; (* fetch read mem *)
-             ^"readMem2";
-             ^"readMem3"; (* page table walker read mem call *)
+             ^"readMem1"; (* fetch *)
+             ^"readMem2"; (* fetch *)
+             ^"readMem3"; (* load instructions *)
              ^"readMem4"; (* page table walker read mem call *)
              ^"readMem5"; (* page table walker read mem call *)
+             ^"readMem6"; (* page table walker read mem call *)
              ^"readMemReservation";
              ^"writeMem";
              ^"writeMemReservation"

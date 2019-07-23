@@ -20,12 +20,13 @@ Section mmapped.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation GroupReg := (GroupReg lgMaskSz realAddrSz).
   Local Notation GroupReg_Gen := (GroupReg_Gen ty lgMaskSz realAddrSz).
   Local Notation RegMapT := (RegMapT lgGranuleSize lgMaskSz realAddrSz).
   Local Notation FullRegMapT := (FullRegMapT lgGranuleSize lgMaskSz realAddrSz).
 
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation MemDevice := (MemDevice Rlen_over_8 PAddrSz ty).
 
   Local Notation maskSz := (pow2 lgMaskSz).
@@ -111,13 +112,7 @@ Section mmapped.
                    LETA _
                      <- mmapped_write #addr
                           (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret
-                     (Switch #addr Retn Bit MemUpdateCodeWidth With {
-                        ($0 : Bit realAddrSz @# ty)
-                          ::= ($MemUpdateCodeTime : Bit MemUpdateCodeWidth @# ty);
-                        ($1 : Bit realAddrSz @# ty)
-                          ::= ($MemUpdateCodeTimeCmp : Bit MemUpdateCodeWidth @# ty)
-                      })
+                   Ret $$false
        |}.
 
   Close Scope kami_action.

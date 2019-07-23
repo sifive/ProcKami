@@ -370,7 +370,7 @@ Section Params.
 
   Definition vm_mode_sv48
     := {| vm_mode_vpn_size := 9 ;
-          vm_mode_shift_num := 3 ;
+          vm_mode_shift_num := 4 ;
           vm_mode_sizes := [17 ; 9; 9; 9 ];
           vm_mode_mode := $SatpModeSv48 |}.
 
@@ -511,7 +511,7 @@ Section Params.
          mem_device_read
            : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
          mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty (Bit MemUpdateCodeWidth)
+           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
        }.
 
   Record MemRegion

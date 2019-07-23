@@ -299,8 +299,8 @@ Section trap_handling.
                          (pc + $2)
                          (pc + $4)))));
             Retv);
-             (* Flush stale tracking register if we're commiting a fence *)
-            LETA _ <- (If (update_pkt @% "fence.i") then flush; Retv);
+       (* Flush stale tracking register if we're commiting a fence *)
+       LETA _ <- (If (update_pkt @% "fence.i") then flush; Retv);
        Retv.
 
   Definition intrpt_pending
@@ -308,14 +308,7 @@ Section trap_handling.
     :  ActionT ty Bool
     := Read pending : Bool <- (name ++ "p");
        Read enabled : Bool <- (name ++ "e");
-       (* Ret (#pending && #enabled). *)
-       LET result : Bool <- #pending && #enabled;
-       System [
-         DispString _ ("[intrpt_pending] name: " ++ name ++ " result: ");
-         DispBinary #result;
-         DispString _ "\n"
-       ];
-       Ret #result.
+       Ret (#pending && #enabled).
 
   Definition interruptAction
     (xlen : XlenValue @# ty)

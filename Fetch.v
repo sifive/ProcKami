@@ -14,7 +14,7 @@ Section fetch.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation PAddrSz := (mem_params_addr_size mem_params).
+  Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
@@ -26,7 +26,7 @@ Section fetch.
 
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty mem_regions).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Open Scope kami_expr.
 
@@ -38,43 +38,66 @@ Section fetch.
     (xlen : XlenValue @# ty)
     (mode : PrivMode @# ty)
     (pc: VAddr @# ty)
-    := LETA lower
+    :  ActionT ty (PktWithException FetchPkt)
+    := LETA inst_lower
          :  PktWithException Data
-         <- memFetch mode (xlen_sign_extend Xlen xlen pc);
-       If #lower @% "snd" @% "valid"
+         <- memFetch 1 mode (xlen_sign_extend Xlen xlen pc);
+       If #inst_lower @% "snd" @% "valid"
          then
+           System [
+             DispString _ "[fetch] error reading lower 16 bits\n"
+           ];
            LET result
              :  PktWithException FetchPkt
              <- STRUCT {
                   "fst" ::= $$(getDefaultConst FetchPkt);
-                  "snd" ::= #lower @% "snd"
+                  "snd" ::= #inst_lower @% "snd"
                 } : PktWithException FetchPkt @# ty;
            Ret #result
          else
            LET decompressed
              :  Bool
-             <- fetch_decompressed (unsafeTruncLsb InstSz (#lower @% "fst"));
+             <- fetch_decompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
            If #decompressed
-             then memFetch mode (xlen_sign_extend Xlen xlen (pc + $2))
-             else Ret $$(getDefaultConst (PktWithException Data))
-             as upper;
+             then memFetch 2 mode (xlen_sign_extend Xlen xlen (pc + $2))
+             else
+               Ret (STRUCT {
+                   "fst" ::= $0;
+                   "snd" ::= Invalid
+                 } : PktWithException Data @# ty)
+             as inst_upper;
            LET fetch_pkt
              :  FetchPkt
              <- STRUCT {
                   "pc" ::= xlen_sign_extend Xlen xlen pc;
                   "inst"
-                    ::= (unsafeTruncLsb InstSz (#lower @% "fst") |
-                         (unsafeTruncLsb InstSz (#upper @% "fst") << ($16:Bit 5 @# ty)));
+                    ::= (zero_extend_trunc 16 InstSz (#inst_lower @% "fst") |
+                         (IF #decompressed
+                            then 
+                              ((zero_extend_trunc 16 InstSz (#inst_upper @% "fst")) <<
+                               (* ($16 : Bit (Nat.log2_up 16) @# ty)) *)
+                               ($16 : Bit 32 @# ty))
+                            else $0));
                   "compressed?" ::= !#decompressed
                 } : FetchPkt @# ty;
-           LET result
-             :  PktWithException FetchPkt
-             <- STRUCT {
-                  "fst" ::= #fetch_pkt;
-                  "snd" ::= #upper @% "snd"
-                } : PktWithException FetchPkt @# ty;
-           Ret #result
+           System [
+             DispString _ "[fetch] lower bits: ";
+             DispHex (zero_extend_trunc 16 InstSz (#inst_lower @% "fst"));
+             DispString _ "\n";
+             DispString _ "[fetch] upper bits: ";
+             DispHex ((zero_extend_trunc 16 InstSz (#inst_upper @% "fst")) << ($16 : Bit 32 @# ty));
+             DispString _ "\n"
+           ];
+           Ret (STRUCT {
+               "fst" ::= #fetch_pkt;
+               "snd" ::= #inst_upper @% "snd"
+             } : PktWithException FetchPkt @# ty)
          as result;
+       System [
+         DispString _ "[fetch] result: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
        Ret #result.
 
   Close Scope kami_action.
