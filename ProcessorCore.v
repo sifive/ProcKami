@@ -332,7 +332,6 @@ Section Params.
                    LETA mcounteren <- read_counteren _ ^"mcounteren";
                    LETA scounteren <- read_counteren _ ^"scounteren";
                    LETA csr_update_pkt
-                     (* :  PktWithException (Pair (Bit CsrUpdateCodeWidth) ExecUpdPkt) *)
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
