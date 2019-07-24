@@ -11,13 +11,13 @@ Section params.
   Local Open Scope kami_expr.
   
     Definition markStale (u: (Bit (lgMemSz)) @# ty): ActionT ty Void :=
-      Read cur <- ^"stales";
+      Read cur : Array memSz Bool <- ^"stales";
       LET new <- #cur@[u <- $$ true];
       Write ^"stales" <- #new;
       Retv.
 
     Definition staleP (a: (Bit (lgMemSz)) @# ty): ActionT ty Bool :=
-      Read cur <- ^"stales";
+      Read cur : Array memSz Bool <- ^"stales";
       LET stalep <- #cur@[a];
       Ret #stalep.
 
@@ -29,7 +29,7 @@ Section params.
       (fix markMult (n: nat) :=
         match n with
         | 0 => (markStale start)
-        | S n' => (LET nth: Bool <- mask@[$n'];
+        | S n' => (LET nth: Bool <- mask@[$n' : Bit (Nat.log2_up Rlen_over_8) @# ty];
                     If #nth then (LETA _: _ <- (markStale (start + $n'));
                                     markMult n') 
                                     else markMult n'; Retv)
