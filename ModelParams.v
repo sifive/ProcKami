@@ -92,55 +92,46 @@ Local Definition param_entries
   := [
        {|
          param_entry_name   := "RV32I";
-         param_entry_confls := ["RV64I"];
          param_entry_xlen   := Some 4;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "RV64I";
-         param_entry_confls := ["RV32I"];
          param_entry_xlen   := Some 8;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "Zifencei";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "Zicsr";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "M";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "A";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
        |};
        {|
          param_entry_name   := "F";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := Some 4;
        |};
        {|
          param_entry_name   := "D";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := Some 8;
        |};
        {|
          param_entry_name   := "C";
-         param_entry_confls := [];
          param_entry_xlen   := None;
          param_entry_flen   := None;
        |}
@@ -148,24 +139,29 @@ Local Definition param_entries
 
 Section exts.
 
-  (* The names of the enabled extensions. *)
-  Variable exts : list string.
+  (* The names of the supported extensions. *)
+  Variable supportedExts : list (string * bool).
 
-  (* The enabled extension entries. *)
+  Local Definition supportedExtNames
+    :  list string
+    := map fst supportedExts.
+
+  (* The supported extension entries. *)
   Local Definition entries
     :  list param_entry
     := filter
-         (fun entry => strings_in exts (param_entry_name entry))
+         (fun entry => strings_in supportedExtNames (param_entry_name entry))
          param_entries.
 
   (*
-    Accepts a list of enabled extensions and an extension entry
+    Accepts a list of supported extensions and an extension entry
     and returns true iff the entry's extension can be enabled.
   *)
+(*
   Local Definition param_entry_valid (entry : param_entry)
     :  bool
-    := negb (strings_any_in exts (param_entry_confls entry)).
-
+    := negb (strings_any_in supportedExts (param_entry_confls entry)).
+*)
   (*
     Accepts a list of extensions and returns the smallest compatible
     value for Xlen or None if there is a conflict.
@@ -187,22 +183,18 @@ Section exts.
     Variable ty : Kind -> Type.
 
     Open Scope kami_expr.
-
-    (*
-      Accepts a list of extensions and returns true iff they are
-      valid - i.e. all of the extension names are valid and none
-      of the given extensions conflict.
-    *)
+(*
     Local Definition param_ext_set (ext : string)
       := existT
            (fun a : Attribute Kind => ConstT (snd a))
            (ext, Bool)
-           (ConstBool (strings_in exts ext)).
+           (match find (fun supportedExt => String.eqb (fst supportedExt) ext) supportedExts with
+              | [] => ConstBool false
+              | Some supportedExt
+                => ConstBool (snd supportedExt)
+              end).
 
-    (*
-      Accepts a list of extensions and returns a struct listing the
-      given extensions.
-    *)
+    (* The initial extensions state. *)
     Local Definition param_exts
       :  ConstT (Extensions)
       := STRUCT_CONST {
@@ -216,7 +208,7 @@ Section exts.
            param_ext_set "D";
            param_ext_set "C"
          }%kami_init.
-
+*)
     (* IV. Select and tailor function units. *)
     Section func_units.
 
@@ -285,7 +277,7 @@ Section exts.
         (fuInputK fuOutputK : Kind)
         :  list (InstEntry ty fuInputK fuOutputK) ->
            list (InstEntry ty fuInputK fuOutputK)
-        := filter (fun inst => strings_any_in exts (extensions inst)).
+        := filter (fun inst => strings_any_in supportedExtNames (extensions inst)).
 
       (*
         Accepts a functional unit and removes all of the instruction
@@ -326,7 +318,8 @@ Section exts.
          (* (Some (54'h"8000")) *)
          (* (Some (wones 54)) *)
          param_func_units
-         param_exts.
+         supportedExts
+         (* param_exts *).
 
   Close Scope kami_expr.
 

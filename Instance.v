@@ -12,18 +12,18 @@ Require Import PeanoNat.
 Import Nat.
 
 Definition coreExts
-  :  list string
+  :  list (string * bool)
   := [
-       "Zicsr";
-       "Zifencei"; 
-       "M";
-       "A";
-       "F";
-       "D";
-       "C"
+       ("Zicsr", true);
+       ("Zifencei", true); 
+       ("M", true);
+       ("A", true);
+       ("F", true);
+       ("D", true);
+       ("C", true)
      ].
 
-Definition model (base : string) : Mod := generate_model (base :: coreExts).
+Definition model (base : string) : Mod := generate_model ((base, true) :: coreExts).
 
 Definition model32
   :  RtlModule

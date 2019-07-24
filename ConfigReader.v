@@ -15,7 +15,7 @@ Section config_reader.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
 
-  Variable supportedExts: ConstT Extensions.
+  Variable supportedExts: list (string * bool).
   
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -42,15 +42,49 @@ Section config_reader.
            then #mxl
            else IF mode == $SupervisorMode then #sxl else #uxl).
 
+  Local Definition readExtensions
+    :  ActionT ty Extensions
+    := let default := Ret $$(getDefaultConst Extensions) in
+       Kind_rect
+         (fun _ => ActionT ty Extensions)
+         default
+         (fun _ => default)
+         (nat_rect
+           (fun n => (t n -> Kind) -> (t n -> ActionT ty Extensions) -> (t n -> string) -> ActionT ty Extensions)
+           (fun _ _ _ => default)
+           (fun n _ get_kind _ get_name
+             => struct_foldr ty get_kind get_name
+                  (fun _ name _ acc_act
+                    => if existsb (fun ext => String.eqb name (fst ext)) supportedExts
+                         then
+                           Read enabled : Bool <- ^name;
+                           System [
+                             DispString _ ("[readExtensions] reading extension register " ++ name ++ " enabled?: ");
+                             DispBinary #enabled;
+                             DispString _ "\n"
+                           ];
+                           LETA acc : Extensions <- acc_act;
+                           Ret
+                             (match struct_set_field #acc name #enabled with
+                                | Some result
+                                  => result
+                                | None
+                                  => #acc
+                                end)
+                         else acc_act)
+                  (Ret $$(getDefaultConst Extensions))))
+         (fun _ _ _ => default)
+         Extensions.
+
   Definition readConfig
     :  ActionT ty ContextCfgPkt
     := Read mode : PrivMode <- ^"mode";
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
-       LET init_extensions
+       LETA init_extensions
          :  Extensions
-         <- $$ supportedExts;
+         <- readExtensions;
        LET extensions
          :  Extensions
          <- IF #xlen == $1

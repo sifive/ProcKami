@@ -72,10 +72,21 @@ Section Params.
     Local Open Scope kami_expr.
 
     Variable func_units : forall ty, list (FUEntry ty).
-    Variable supportedExts : ConstT (Extensions).
+    Variable supportedExts : list (string * bool).
+    (* Variable initialExts : ConstT (Extensions). *)
 
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
+
+    Local Definition ext_reg (name : string)
+      :  ModuleElt
+      := MERegister
+           (match find (fun ext => String.eqb name (fst ext)) supportedExts with
+             | None
+               => (^name, existT RegInitValT (SyntaxKind (Bit 0)) None)
+             | Some ext
+               => (^name, existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool (snd ext)))))
+             end).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
@@ -102,6 +113,34 @@ Section Params.
     Definition processorCore 
       :  BaseModule
       := MODULE {
+              (* extension registers *)
+              ext_reg "A" with
+              ext_reg "B" with
+              ext_reg "C" with
+              ext_reg "D" with
+              ext_reg "E" with
+              ext_reg "F" with
+              ext_reg "G" with
+              ext_reg "H" with
+              ext_reg "I" with
+              ext_reg "J" with
+              ext_reg "K" with
+              ext_reg "L" with
+              ext_reg "M" with
+              ext_reg "N" with
+              ext_reg "O" with
+              ext_reg "P" with
+              ext_reg "Q" with
+              ext_reg "R" with
+              ext_reg "S" with
+              ext_reg "T" with
+              ext_reg "U" with
+              ext_reg "V" with
+              ext_reg "W" with
+              ext_reg "X" with
+              ext_reg "Y" with
+              ext_reg "Z" with
+
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
@@ -233,7 +272,8 @@ Section Params.
                   
               (* Stale memory execution exception register *)
               Register ^"exception" : Bool <- ConstBool false with
-              Register ^"stales": Array memSz Bool <- ConstArray (fun _ => ConstBool false) with
+              (* Register ^"stales": Array memSz Bool <- ConstArray (fun _ => ConstBool false) with *)
+              Register ^"stales": Array 0 Bool <- ConstArray (fun _ => ConstBool false) with
                   
 
               Rule ^"trap_interrupt"
