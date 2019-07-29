@@ -66,6 +66,7 @@ Section Mem.
     Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation scXform := (@scXform Xlen_over_8 Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
   
 
     Definition Mem: @FUEntry ty :=
@@ -89,7 +90,7 @@ Section Mem.
                    RetE #ret;
          fuInsts :=
            {| instName     := "lb" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -100,7 +101,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
            {| instName     := "lh" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -111,7 +112,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
            {| instName     := "lw" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -122,7 +123,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
            {| instName     := "lbu" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -133,7 +134,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
            {| instName     := "lhu" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -144,7 +145,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
            {| instName     := "sb" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
@@ -155,7 +156,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "sh" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
@@ -166,7 +167,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "sw" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
@@ -177,7 +178,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "lwu" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -188,7 +189,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
            |} ::
            {| instName     := "ld" ;
-              xlens        := Some (Xlen64 :: nil);
+              xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
@@ -199,7 +200,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
            |} ::
            {| instName     := "sd" ;
-              xlens        := Some (Xlen64 :: nil);
+              xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
@@ -210,7 +211,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "flw";
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
@@ -224,7 +225,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasFrd := true|>
            |} ::
            {| instName     := "fsw";
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
@@ -235,7 +236,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
            |} ::
            {| instName     := "fld";
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
@@ -246,7 +247,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasFrd := true|>
            |} ::
            {| instName     := "fsd";
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "D" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::

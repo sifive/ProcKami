@@ -24,6 +24,7 @@ Section Alu.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition LogicalType := STRUCT_TYPE {"op" :: Bit 2 ; "arg1" :: Bit Xlen ; "arg2" :: Bit Xlen}.
     Definition XorOp := 0.
@@ -42,7 +43,7 @@ Section Alu.
                                          then ((#x @% "arg1") | (#x @% "arg2"))
                                          else ((#x @% "arg1") & (#x @% "arg2"))))) ;
          fuInsts := {| instName     := "xori" ; 
-                       xlens        := None;
+                       xlens        := xlens_all;
                        extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -58,7 +59,7 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "ori" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -74,7 +75,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "andi" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -90,7 +91,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "xor" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -107,7 +108,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "or" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -125,7 +126,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "and" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::

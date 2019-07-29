@@ -420,7 +420,7 @@ Section Params.
 
   Record InstEntry ik ok :=
     { instName     : string ;
-      xlens        : option (list nat) ;
+      xlens        : list nat ;
       extensions   : list string ;
       uniqId       : UniqId ;        
       inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;

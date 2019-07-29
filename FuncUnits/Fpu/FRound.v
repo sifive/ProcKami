@@ -51,6 +51,7 @@ Section Fpu.
   Local Notation fp_get_float  := (@fp_get_float ty).
   Local Notation csr           := (@csr ty Rlen_over_8).
   Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
   Local Definition double_Flen := double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1).
@@ -71,7 +72,7 @@ Section Fpu.
            := [
                 {|
                   instName   := "fcvt.d.s";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["D"];
                   uniqId
                     := [
@@ -143,7 +144,7 @@ Section Fpu.
            := [
                 {|
                   instName   := "fcvt.s.d";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["D"];
                   uniqId
                     := [

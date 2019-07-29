@@ -239,10 +239,7 @@ Section exts.
         := filter
              (fun inst
                => andb
-                    (match xlens inst with
-                      | None => true
-                      | Some xlens => existsb (fun xlen => Nat.leb xlen max_xlen) xlens
-                      end)
+                    (existsb (fun xlen => Nat.leb xlen max_xlen) (xlens inst))
                     (strings_any_in supported_ext_names (extensions inst))).
 
       (*

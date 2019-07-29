@@ -23,6 +23,7 @@ Section Alu.
     Variable ty: Kind -> Type.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition ShiftInputType
       := STRUCT_TYPE { 
@@ -61,7 +62,7 @@ Section Alu.
                       } : ShiftOutputType @# _));
          fuInsts := 
                     {| instName     := "slli32" ; 
-                       xlens        := Some (Xlen32 :: nil);
+                       xlens        :=  (Xlen32 :: nil);
                        extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -82,7 +83,7 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                     {| instName     := "slli64" ; 
-                       xlens        := Some (Xlen64 :: nil);
+                       xlens        :=  (Xlen64 :: nil);
                        extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -103,7 +104,7 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "srli" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -124,7 +125,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srai" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -145,7 +146,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sll" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -166,7 +167,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srl" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -187,7 +188,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sra" ;  
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -208,7 +209,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "slliw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -229,7 +230,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srliw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
@@ -250,7 +251,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraiw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
@@ -272,7 +273,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sllw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -293,7 +294,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srlw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -314,7 +315,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::

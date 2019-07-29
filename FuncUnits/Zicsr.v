@@ -26,6 +26,7 @@ Section zicsr.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Variable ty : Kind -> Type.
   Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition ZicsrOpWidth : nat := 2.
   Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
@@ -85,7 +86,7 @@ Section zicsr.
         := [
             {|
               instName   := "csrrw";
-              xlens      := None;
+              xlens      := xlens_all;
               extensions := ["Zicsr"];
               uniqId
               := [
@@ -112,7 +113,7 @@ Section zicsr.
             |};
               {|
                 instName   := "csrrs";
-                xlens      := None;
+                xlens      := xlens_all;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -139,7 +140,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrc";
-                xlens      := None;
+                xlens      := xlens_all;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -166,7 +167,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrwi";
-                xlens      := None;
+                xlens      := xlens_all;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -193,7 +194,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrsi";
-                xlens      := None;
+                xlens      := xlens_all;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -220,7 +221,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrci";
-                xlens      := None;
+                xlens      := xlens_all;
                 extensions := ["Zicsr"];
                 uniqId
                 := [

@@ -68,6 +68,7 @@ Section Mem.
     Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation scXform := (@scXform Xlen_over_8 Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
   
     Definition Amo64: @FUEntry ty :=
       {| fuName := "amo64" ;
@@ -88,7 +89,7 @@ Section Mem.
                                RetE #ret ) ;
          fuInsts :=
            {| instName     := "amoswap.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -100,7 +101,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoadd.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -112,7 +113,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoxor.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -124,7 +125,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoand.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -136,7 +137,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoor.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -148,7 +149,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomin.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -160,7 +161,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomax.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -172,7 +173,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amominu.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -184,7 +185,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomaxu.d" ;
-              xlens        := Some [Xlen64];
+              xlens        :=  [Xlen64];
               extensions   := ["I"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::

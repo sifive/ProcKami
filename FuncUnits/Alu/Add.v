@@ -23,6 +23,7 @@ Section Alu.
     Variable ty: Kind -> Type.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition AddInputType
       := STRUCT_TYPE {
@@ -51,7 +52,7 @@ Section Alu.
                                     "res" ::= #res
                                   } : AddOutputType @# ty)) ;
          fuInsts := {| instName     := "addi" ;
-                       xlens        := None;
+                       xlens        := xlens_all;
                        extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
@@ -68,7 +69,7 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "slti" ;
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -87,7 +88,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sltiu" ;
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
@@ -108,7 +109,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "add" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -126,7 +127,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sub" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -144,7 +145,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "slt" ;
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -163,7 +164,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sltu" ;
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
@@ -184,7 +185,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "addiw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
@@ -210,7 +211,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "addw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -228,7 +229,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "subw" ; 
-                          xlens        := Some (Xlen64 :: nil);
+                          xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
@@ -246,7 +247,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "lui" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
@@ -277,7 +278,7 @@ Section Alu.
                           instHints    := falseHints<|hasRd := true|>
                        |} ::
                        {| instName     := "auipc" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::

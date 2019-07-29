@@ -24,6 +24,7 @@ Section Alu.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition MultInputType
       := STRUCT_TYPE {
@@ -71,7 +72,7 @@ Section Alu.
           :=
              {|             
                instName   := "mul";
-               xlens      := None;
+               xlens      := xlens_all;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -98,7 +99,7 @@ Section Alu.
              |} ::
              {|
                instName   := "mulh";
-               xlens      := None;
+               xlens      := xlens_all;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -125,7 +126,7 @@ Section Alu.
              |} ::
              {|
                instName   := "mulhsu";
-               xlens      := None;
+               xlens      := xlens_all;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -152,7 +153,7 @@ Section Alu.
              |} ::
              {|
                instName   := "mulhu";
-               xlens      := None;
+               xlens      := xlens_all;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -179,7 +180,7 @@ Section Alu.
              |} ::
              {|
                instName   := "mulw";
-               xlens      := Some (Xlen64 :: nil);
+               xlens      :=  (Xlen64 :: nil);
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::

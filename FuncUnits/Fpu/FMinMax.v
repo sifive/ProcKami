@@ -61,6 +61,7 @@ Section Fpu.
   Local Notation csr_invalid_mask := (@csr_invalid_mask ty).
   Local Notation csr              := (@csr ty Rlen_over_8).
   Local Notation rounding_mode    := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -182,7 +183,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fmin" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -199,7 +200,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fmax" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [

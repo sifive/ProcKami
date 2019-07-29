@@ -59,6 +59,7 @@ Section Fpu.
   Local Notation fp_get_float  := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
   Local Notation csr           := (@csr ty Rlen_over_8).
   Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Open Scope kami_expr.
 
@@ -128,7 +129,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fcvt.w" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -145,7 +146,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fcvt.wu" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -184,7 +185,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fcvt.l" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -201,7 +202,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fcvt.lu" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -271,7 +272,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append (append "fcvt" suffix) ".w";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts_32;
                   uniqId
                     := [
@@ -298,7 +299,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".wu";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts_32;
                   uniqId
                     := [
@@ -343,7 +344,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append (append "fcvt" suffix) ".l";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts_64;
                   uniqId
                     := [
@@ -370,7 +371,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append (append "fcvt" suffix) ".lu";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts_64;
                   uniqId
                     := [

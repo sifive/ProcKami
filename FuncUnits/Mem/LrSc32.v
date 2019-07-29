@@ -66,6 +66,7 @@ Section Mem.
     Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation scXform := (@scXform Xlen_over_8 Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
   
     Definition LrSc32: @FUEntry ty :=
       {| fuName := "lrsc32" ;
@@ -86,7 +87,7 @@ Section Mem.
                                RetE #ret ) ;
          fuInsts :=
            {| instName     := "lr.w" ;
-              xlens        := None;
+              xlens        := xlens_all;
               extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -100,7 +101,7 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
               {| instName     := "sc.w" ;
-                 xlens        := None;
+                 xlens        := xlens_all;
                  extensions   := "I" :: nil;
                  uniqId       := fieldVal instSizeField ('b"11") ::
                                           fieldVal opcodeField ('b"01011") ::

@@ -25,6 +25,7 @@ Section mret.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Local Open Scope kami_expr.
 
@@ -56,7 +57,7 @@ Section mret.
            := [
                 {|
                   instName   := "mret";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -82,7 +83,7 @@ Section mret.
                 |};
                 {|
                   instName   := "sret";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -108,7 +109,7 @@ Section mret.
                 |};
                 {|
                   instName   := "uret";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -163,7 +164,7 @@ Section mret.
            := [
                 {|
                   instName   := "ecall";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -204,7 +205,7 @@ Section mret.
            := [
                 {|
                   instName   := "fence.i";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["Zifencei"];
                   uniqId
                     := [
@@ -221,7 +222,7 @@ Section mret.
                 |};
                 {|
                   instName   := "fence";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -236,7 +237,7 @@ Section mret.
                 |};
                 {|
                   instName   := "sfence";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -281,7 +282,7 @@ Section mret.
            := [
                 {|
                   instName   := "ebreak";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [
@@ -331,7 +332,7 @@ Section mret.
            := [
                 {|
                   instName := "wfi";
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := ["I"];
                   uniqId
                     := [

@@ -156,16 +156,12 @@ Section decoder.
                (inst : InstEntry sem_input_kind sem_output_kind)
                (xlen : XlenValue @# ty)
       :  Bool ## ty
-      := match xlens inst with
-           | None => RetE $$true
-           | Some xlens
-             => RetE
-                  (utila_any
-                    (map
-                      (fun supported_xlen : nat
-                        => xlen == $supported_xlen)
-                      xlens))
-           end.
+      := RetE
+           (utila_any
+             (map
+               (fun supported_xlen : nat
+                 => xlen == $supported_xlen)
+               (xlens inst))).
 
     Definition decode_match_enabled_exts
                (sem_input_kind sem_output_kind : Kind)

@@ -58,6 +58,7 @@ Section Fpu.
   Local Notation NFToBit := (NFToBit ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_extract_float := (@fp_extract_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
   Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -133,7 +134,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fsgnj" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -150,7 +151,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fsgnjn" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [
@@ -167,7 +168,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fsgnjx" suffix;
-                  xlens      := None;
+                  xlens      := xlens_all;
                   extensions := exts;
                   uniqId
                     := [

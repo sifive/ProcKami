@@ -23,6 +23,7 @@ Section Alu.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition JumpInputType :=
       STRUCT_TYPE {
@@ -109,7 +110,7 @@ Section Alu.
            fuInsts
              := {|
                   instName     := "jal" ; 
-                  xlens        := None;
+                  xlens        := xlens_all;
                   extensions   := "I" :: nil;
                   uniqId       := fieldVal instSizeField ('b"11") ::
                                   fieldVal opcodeField ('b"11011") ::
@@ -142,7 +143,7 @@ Section Alu.
                   instHints    := falseHints<|hasRd := true|>
                 |} ::
                 {| instName     := "jalr" ; 
-                   xlens        := None;
+                   xlens        := xlens_all;
                    extensions   := "I" :: nil;
                    uniqId       := fieldVal instSizeField ('b"11") ::
                                    fieldVal opcodeField ('b"11001") ::

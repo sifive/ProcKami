@@ -24,6 +24,7 @@ Section Alu.
 
     Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
+    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition BranchInputType :=
       STRUCT_TYPE {
@@ -141,7 +142,7 @@ Section Alu.
                                RetE #retVal
                    ) ; (* lt unsigned inv *)
          fuInsts := {| instName     := "beq" ; 
-                       xlens        := None;
+                       xlens        := xlens_all;
                        extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"11000") ::
@@ -152,7 +153,7 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                     |} ::
                        {| instName     := "bne" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -163,7 +164,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "blt" ;  
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -174,7 +175,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bge" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -185,7 +186,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bltu" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
@@ -196,7 +197,7 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bgeu" ; 
-                          xlens        := None;
+                          xlens        := xlens_all;
                           extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
