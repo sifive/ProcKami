@@ -178,29 +178,39 @@ Section pt_walker.
           RetE #finalVal.
         End pte.
 
-      Definition translatePteLoop (acc: Pair Bool (Maybe PAddr) @# ty): ActionT ty (Pair Bool (Maybe PAddr)) :=
-        LET doneInvalid : Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= $$ true; "snd" ::= Invalid };
-        If acc @% "fst"
-        then Ret acc
-        else 
-        (If acc @% "snd" @% "valid"
-          then (
-            LETA read_result: Maybe Data <- mem_region_read (mem_read_index + (currentLevel-1)) mode (acc @% "snd" @% "data");
-            System [
-              DispString _ "[translatePteLoop] page table entry: ";
-              DispHex #read_result;
-              DispString _ "\n"
-            ];
-            If #read_result @% "valid"
-            then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
-            else Ret #doneInvalid
-            as result;
-            Ret #result
-            ) else Ret #doneInvalid
-          as result;
-          Ret #result)
-        as result;
-        Ret #result.
+      Definition translatePteLoop
+        (access_type : VmAccessType @# ty)
+        (* (acc: Pair Bool (Maybe PAddr) @# ty) *)
+        (acc: Pair Bool (Maybe PktWithException PAddr) @# ty)
+        (* :  ActionT ty (Pair Bool (Maybe PAddr)) := *)
+        :  ActionT ty (Pair Bool (PktWithException PAddr))
+        := If acc @% "fst"
+             then Ret acc
+             else 
+               (If acc @% "snd" @% "snd" @% "valid"
+                 then
+                   Ret acc @%["fst" <- $$true]
+                 else (
+                   LETA pmp_result: Bool
+                     <- 
+                   LETA read_result: Maybe Data
+                     <- mem_region_read (mem_read_index + (currentLevel-1)) mode
+                          (acc @% "snd" @% "data");
+                   System [
+                     DispString _ "[translatePteLoop] page table entry: ";
+                     DispHex #read_result;
+                     DispString _ "\n"
+                   ];
+                   If #read_result @% "valid"
+                   then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
+                   else Ret #doneInvalid
+                   as result;
+                   Ret #result
+                   )
+                 as result;
+                 Ret #result)
+             as result;
+           Ret #result.
     End oneIteration.
 
     Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
@@ -208,20 +218,33 @@ Section pt_walker.
     Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
                                            vmModes 0.
 
-    Definition pt_walker: ActionT ty (Maybe PAddr) :=
+    Definition pt_walker
+      (access_type : VmAccessType @# ty)
+      (* :  ActionT ty (Maybe PAddr) := *)
+      :  ActionT ty (PktWithException PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
-      LETA result: Pair Bool (Maybe PAddr)
-      <- fold_left
-      (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat)
-        => LETA acc_result <- acc;
-        System [
-          DispString _ "[pt_walker] acc: ";
-          DispHex #acc_result;
-          DispString _ "\n"
-        ];
-        translatePteLoop currentLevel #acc_result) (seq 1 (maxPageLevels - 1))
-      (Ret (STRUCT { "fst" ::= $$ false ;
-                     "snd" ::= Valid (satp_ppn + #vpnOffset)}));
+      LET init : PktWithException PAddr
+        <- STRUCT {
+             "fst" ::= satp_ppn + #vpnOffset;
+             "snd" ::= Invalid
+           } : PktWithException PAddr @# ty;
+      (* LETA result: Pair Bool (Maybe PAddr) *)
+      LETA result: Pair Bool (PktWithException PAddr)
+        <- fold_left
+             (* (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat) *)
+             (fun (acc : ActionT ty (Pair Bool (PktWithException PAddr))) (currentLevel : nat)
+               => LETA acc_result <- acc;
+               System [
+                 DispString _ "[pt_walker] acc: ";
+                 DispHex #acc_result;
+                 DispString _ "\n"
+               ];
+               translatePteLoop access_type currentLevel #acc_result)
+             (seq 1 (maxPageLevels - 1))
+             (Ret (STRUCT {
+               "fst" ::= $$ false ;
+               (* "snd" ::= Valid (satp_ppn + #vpnOffset)})); *)
+               "snd" ::= #init}));
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");
