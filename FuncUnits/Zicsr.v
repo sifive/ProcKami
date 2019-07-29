@@ -13,6 +13,7 @@ Section zicsr.
   Variable Xlen_over_8 : nat.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -22,8 +23,9 @@ Section zicsr.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Variable ty : Kind -> Type.
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
 
   Definition ZicsrOpWidth : nat := 2.
   Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
@@ -83,6 +85,7 @@ Section zicsr.
         := [
             {|
               instName   := "csrrw";
+              xlens      := None;
               extensions := ["Zicsr"];
               uniqId
               := [
@@ -109,6 +112,7 @@ Section zicsr.
             |};
               {|
                 instName   := "csrrs";
+                xlens      := None;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -135,6 +139,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrc";
+                xlens      := None;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -161,6 +166,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrwi";
+                xlens      := None;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -187,6 +193,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrsi";
+                xlens      := None;
                 extensions := ["Zicsr"];
                 uniqId
                 := [
@@ -213,6 +220,7 @@ Section zicsr.
               |};
               {|
                 instName   := "csrrci";
+                xlens      := None;
                 extensions := ["Zicsr"];
                 uniqId
                 := [

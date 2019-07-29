@@ -4,6 +4,7 @@
   in generating the model's Verilog.
 *)
 Require Import Kami.All.
+Require Import FU.
 Require Import ProcessorCore.
 Require Import List.
 Import ListNotations.
@@ -14,6 +15,7 @@ Import Nat.
 Definition coreExts
   :  list (string * bool)
   := [
+       ("I", true);
        ("Zicsr", true);
        ("Zifencei", true); 
        ("M", true);
@@ -23,18 +25,18 @@ Definition coreExts
        ("C", true)
      ].
 
-Definition model (base : string) : Mod := generate_model ((base, true) :: coreExts).
+Definition model (xlen : nat) : Mod := generate_model xlen coreExts.
 
 Definition model32
   :  RtlModule
-  := getRtlSafe (model "RV32I").
+  := getRtlSafe (model Xlen32).
 
 Definition model64
   :  RtlModule
-  := getRtlSafe (model "RV64I").
+  := getRtlSafe (model Xlen64).
 
-Definition kami_model32 := snd (separateModRemove (model "RV32I")).
-Definition kami_model64 := snd (separateModRemove (model "RV64I")).
+Definition kami_model32 := snd (separateModRemove (model Xlen32)).
+Definition kami_model64 := snd (separateModRemove (model Xlen64)).
 
 Separate Extraction
 

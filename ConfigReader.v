@@ -7,6 +7,7 @@ Section config_reader.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable ty: Kind -> Type.
   
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -14,8 +15,9 @@ Section config_reader.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-
-  Variable supportedExts: list (string * bool).
+  Local Notation supported_exts := (supported_exts supported_ext_names).
+  Local Notation Extensions := (Extensions supported_ext_names ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
   
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -44,37 +46,23 @@ Section config_reader.
 
   Local Definition readExtensions
     :  ActionT ty Extensions
-    := let default := Ret $$(getDefaultConst Extensions) in
-       Kind_rect
-         (fun _ => ActionT ty Extensions)
-         default
-         (fun _ => default)
-         (nat_rect
-           (fun n => (t n -> Kind) -> (t n -> ActionT ty Extensions) -> (t n -> string) -> ActionT ty Extensions)
-           (fun _ _ _ => default)
-           (fun n _ get_kind _ get_name
-             => struct_foldr ty get_kind get_name
-                  (fun _ name _ acc_act
-                    => if existsb (fun ext => String.eqb name (fst ext)) supportedExts
-                         then
-                           Read enabled : Bool <- ^name;
-                           System [
-                             DispString _ ("[readExtensions] reading extension register " ++ name ++ " enabled?: ");
-                             DispBinary #enabled;
-                             DispString _ "\n"
-                           ];
-                           LETA acc : Extensions <- acc_act;
-                           Ret
-                             (match struct_set_field #acc name #enabled with
-                                | Some result
-                                  => result
-                                | None
-                                  => #acc
-                                end)
-                         else acc_act)
-                  (Ret $$(getDefaultConst Extensions))))
-         (fun _ _ _ => default)
-         Extensions.
+    := fold_right
+         (fun ext acc_act
+           => let name : string := ext_name ext in
+              let field_name : string := ext_misa_field_name ext in
+              LETA acc : Extensions <- acc_act;
+              Read enabled : Bool <- ^field_name;
+              System [
+                DispString _ ("[readExtensions] reading extension register " ++ ^field_name ++ " for " ++ name ++ " enabled?: ");
+                DispBinary #enabled;
+                DispString _ "\n";
+                DispString _ "[readExtensions] acc: ";
+                DispHex (Extensions_set #acc "M" $$true);
+                DispString _ "\n"
+              ];
+              Ret (Extensions_set #acc name #enabled))
+         (Ret $$(getDefaultConst Extensions))
+         supported_exts.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
@@ -82,20 +70,9 @@ Section config_reader.
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
-       LETA init_extensions
+       LETA extensions
          :  Extensions
          <- readExtensions;
-       LET extensions
-         :  Extensions
-         <- IF #xlen == $1
-              then
-                #init_extensions
-                  @%["RV32I" <- $$true]
-                  @%["RV64I" <- $$false]
-              else
-                #init_extensions
-                  @%["RV32I" <- $$false]
-                  @%["RV64I" <- $$true];
        Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";

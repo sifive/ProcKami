@@ -5,6 +5,7 @@ Require Import List.
 Section Alu.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -15,11 +16,13 @@ Section Alu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Local Notation intRegTag := (intRegTag Xlen_over_8 Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
+
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
 
     Definition ShiftInputType
       := STRUCT_TYPE { 
@@ -58,7 +61,8 @@ Section Alu.
                       } : ShiftOutputType @# _));
          fuInsts := 
                     {| instName     := "slli32" ; 
-                       extensions   := "RV32I" :: nil;
+                       xlens        := Some (Xlen32 :: nil);
+                       extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"001") ::
@@ -78,7 +82,8 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                     {| instName     := "slli64" ; 
-                       extensions   := "RV64I" :: nil;
+                       xlens        := Some (Xlen64 :: nil);
+                       extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"001") ::
@@ -98,7 +103,8 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "srli" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -118,7 +124,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srai" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -138,7 +145,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sll" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"001") ::
@@ -158,7 +166,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srl" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I":: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -178,7 +187,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sra" ;  
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -198,7 +208,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "slliw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
                                                    fieldVal funct3Field ('b"001") ::
@@ -218,7 +229,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srliw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00110") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -238,7 +250,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraiw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
                                fieldVal opcodeField ('b"00110") ::
@@ -259,7 +272,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sllw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"001") ::
@@ -279,7 +293,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srlw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"101") ::
@@ -299,7 +314,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraw" ; 
-                          extensions   := "RV64I" :: nil;
+                          xlens        := Some (Xlen64 :: nil);
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"101") ::

@@ -9,6 +9,7 @@ Section reg_reader.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable Flen_over_8: nat.
   Variable ty: Kind -> Type.
 
@@ -21,8 +22,9 @@ Section reg_reader.
   Local Notation FieldUpd := (FieldUpd Xlen_over_8).
   Local Notation WarlStateField := (@WarlStateField Xlen_over_8).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
+  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
@@ -31,10 +33,10 @@ Section reg_reader.
 
   Variable func_units : list FUEntry.
 
-  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 ty func_units).
+  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
 
   Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
     

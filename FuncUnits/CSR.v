@@ -21,11 +21,13 @@ Section CsrInterface.
   Variable Xlen_over_8: nat.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0) : local_scope.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
+  Local Notation supported_exts := (supported_exts supported_ext_names).
   Local Notation CsrValueWidth := (Clen_over_8 * 8).
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation Data := (Bit Rlen).
@@ -33,7 +35,7 @@ Section CsrInterface.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8).
+  Local Notation FieldUpd := (FieldUpd Xlen_over_8 supported_ext_names ty).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation WarlStateField := (WarlStateField Xlen_over_8).
@@ -41,6 +43,8 @@ Section CsrInterface.
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
 
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
+
 
   Open Scope kami_expr.
 
@@ -291,6 +295,13 @@ Section CsrInterface.
          csrFieldXform
            := fun _ _ => id
        |}.
+
+  Local Definition extField
+    (name : string)
+    :  CSRField
+    := if existsb (fun ext => String.eqb name (ext_misa_field_name ext)) supported_exts
+         then csrFieldAny ^name Bool
+         else csrFieldNoReg "reserved" false.
 
   Local Definition xlField
     (prefix : string)
@@ -631,7 +642,36 @@ Section CsrInterface.
            csrName := ^"misa";
            csrAddr := CsrIdWidth 'h"301";
            csrViews
-             := [
+             := let ext_fields
+                  := [
+                       extField "Z";
+                       extField "Y";
+                       extField "X";
+                       extField "W";
+                       extField "V";
+                       extField "U";
+                       extField "T";
+                       extField "S";
+                       extField "R";
+                       extField "Q";
+                       extField "P";
+                       extField "O";
+                       extField "N";
+                       extField "M";
+                       extField "L";
+                       extField "K";
+                       extField "J";
+                       extField "I";
+                       extField "H";
+                       extField "G";
+                       extField "F";
+                       extField "E";
+                       extField "D";
+                       extField "C";
+                       extField "B";
+                       extField "A"
+                     ] in
+                [
                   let fields
                     := [
                          xlField ^"m";
@@ -639,7 +679,7 @@ Section CsrInterface.
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] in
+                       ] (* ++ ext_fields *) in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
@@ -653,7 +693,7 @@ Section CsrInterface.
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] in
+                       ] (* ++ ext_fields *) in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;

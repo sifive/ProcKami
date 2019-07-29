@@ -5,6 +5,7 @@ Section Mem.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -15,7 +16,7 @@ Section Mem.
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MaskedMem := (MaskedMem Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
 
   Notation Data := (Bit Rlen).
   Notation VAddr := (Bit Xlen).
@@ -23,6 +24,8 @@ Section Mem.
 
   Section Ty.
     Variable ty: Kind -> Type.
+
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
@@ -46,7 +49,7 @@ Section Mem.
 
     Local Notation storeXform := (@storeXform Rlen_over_8 ty).
 
-    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 ty).
+    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
 
     Local Notation amoTag := (@amoTag Xlen_over_8 Rlen_over_8 ty).
 
@@ -83,7 +86,8 @@ Section Mem.
                                RetE #ret ) ;
          fuInsts :=
            {| instName     := "amoswap.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -94,7 +98,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoadd.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -105,7 +110,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoxor.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -116,7 +122,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoand.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -127,7 +134,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoor.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -138,7 +146,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomin.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -149,7 +158,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomax.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -160,7 +170,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amominu.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -171,7 +182,8 @@ Section Mem.
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomaxu.w" ;
-              extensions   := "RV32I" :: "RV64I" :: nil;
+              xlens        := None;
+              extensions   := "I" :: nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::

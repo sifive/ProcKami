@@ -17,6 +17,7 @@ Section mem_unit.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
+  Variable supported_ext_names : list string.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -27,7 +28,7 @@ Section mem_unit.
   Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
@@ -50,9 +51,9 @@ Section mem_unit.
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Variable func_units : list FUEntry.
-  Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 ty func_units).
-  Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 ty func_units).
+  Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
 
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.

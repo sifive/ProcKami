@@ -42,16 +42,48 @@ Definition RegId := Bit RegIdWidth.
 Definition CsrIdWidth := 12.
 Definition CsrId := Bit CsrIdWidth.
 
-Definition Extensions := STRUCT_TYPE {
-                             "RV32I"    :: Bool ;
-                             "RV64I"    :: Bool ;
-                             "Zifencei" :: Bool ;
-                             "Zicsr"    :: Bool ;
-                             "M"    :: Bool ;
-                             "A"    :: Bool ;
-                             "F"    :: Bool ;
-                             "D"    :: Bool ;
-                             "C"    :: Bool }.
+Record ExtensionInfo
+  := {
+       ext_name            : string;
+       ext_misa_field_name : string
+     }.
+
+Definition ExtensionInfos
+  :  list ExtensionInfo
+  := [
+       {|
+         ext_name            := "A";
+         ext_misa_field_name := "A"
+       |};
+       {|
+         ext_name            := "C";
+         ext_misa_field_name := "C"
+       |};
+       {|
+         ext_name            := "D";
+         ext_misa_field_name := "D"
+       |};
+       {|
+         ext_name            := "F";
+         ext_misa_field_name := "F"
+       |};
+       {|
+         ext_name            := "I";
+         ext_misa_field_name := "I"
+       |};
+       {|
+         ext_name            := "M";
+         ext_misa_field_name := "M"
+       |};
+       {|
+         ext_name            := "Zicsr";
+         ext_misa_field_name := "Z"
+       |};
+       {|
+         ext_name            := "Zifencei";
+         ext_misa_field_name := "Z"
+       |}
+     ].
 
 Definition PrivMode := (Bit 2).
 Definition MachineMode    := 3.
@@ -149,6 +181,8 @@ Definition falseHints :=
 
 Definition XlenWidth : nat := 2.
 Definition XlenValue : Kind := Bit XlenWidth.
+Definition Xlen32 := 1.
+Definition Xlen64 := 2.
 
 Section Params.
   Variable name: string.
@@ -161,6 +195,7 @@ Section Params.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable PAddrSz : nat. (* physical address size *)
+  Variable supported_ext_names : list string.
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
@@ -189,6 +224,89 @@ Section Params.
                                   "value" :: ExceptionInfo }.
 
   Definition PktWithException k := Pair k (Maybe FullException).
+
+  Definition supported_exts
+    :  list ExtensionInfo
+    := filter
+         (fun ext => existsb (String.eqb (ext_name ext)) supported_ext_names)
+         ExtensionInfos.
+
+  Definition supported_ext_states
+    :  list (string * Kind)
+    := map (fun ext => (ext_name ext, Bool)) supported_exts.
+
+  Local Open Scope kami_expr.
+
+  Definition ExtensionsInterface
+    :  {k : Kind &
+         ((k @# ty -> string -> Bool @# ty -> k @# ty) *
+          (k @# ty -> string -> Bool @# ty))}%type
+    := existT
+         (fun k
+           => (k @# ty -> string -> Bool @# ty -> k @# ty) *
+              (k @# ty -> string -> Bool @# ty))%type
+         (getStruct supported_ext_states)
+         (list_rect
+           (fun states
+             => (getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
+                (getStruct states @# ty -> string -> Bool @# ty))%type
+           ((fun exts _ _ => exts),
+            (fun _ _ => $$false))
+           (fun state states _
+             => ((fun exts name value
+                   => let get_kind index := snd (nth_Fin (state :: states) index) in
+                      let get_name index := fst (nth_Fin (state :: states) index) in
+                      BuildStruct
+                        get_kind
+                        get_name
+                        (fun index
+                          => if String.eqb name (get_name index)
+                               then (* (value : get_kind index @# ty) *)
+                                 match Kind_dec Bool (get_kind index) with
+                                   | left H
+                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
+                                   | right _
+                                     => $$(getDefaultConst (get_kind index)) (* impossible case *)
+                                   end
+                               else (ReadStruct exts index : get_kind index @# ty))),
+                 (fun exts name
+                   => struct_get_field_default exts name $$false)))
+(*
+                   => let mfield := Syntax.struct_get_field_aux exts name in
+                      match mfield with
+                        | None => $$false
+                        | Some field
+                          => match field with
+                               | existT k value
+                                 => match Kind_dec k Bool with
+                                      | left H
+                                        => eq_rect k (fun k => k @# ty) value Bool H
+                                      | right _
+                                        => $$false
+                                      end
+                               end
+                        end)))
+*)
+           supported_ext_states).
+
+  Close Scope kami_expr.
+
+  Definition Extensions
+    :  Kind
+    := projT1 ExtensionsInterface.
+
+  Definition Extensions_set
+    (exts : Extensions @# ty)
+    (name : string)
+    (value : Bool @# ty)
+    :  Extensions @# ty
+    := fst (projT2 ExtensionsInterface) exts name value.
+
+  Definition Extensions_get
+    (exts : Extensions @# ty)
+    (name : string)
+    :  Bool @# ty
+    := snd (projT2 ExtensionsInterface) exts name.
 
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
@@ -292,12 +410,17 @@ Section Params.
       "cfg" :: ContextCfgPkt
     }.
 
-  Record CompInstEntry := { req_exts: list (list string);
-                            comp_inst_id: UniqId;
-                            decompressFn: (CompInst @# ty) -> (Inst ## ty) }.
+  Record CompInstEntry
+    := {
+         comp_inst_xlens: list nat;
+         req_exts: list (list string);
+         comp_inst_id: UniqId;
+         decompressFn: (CompInst @# ty) -> (Inst ## ty)
+       }.
 
   Record InstEntry ik ok :=
     { instName     : string ;
+      xlens        : option (list nat) ;
       extensions   : list string ;
       uniqId       : UniqId ;        
       inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;

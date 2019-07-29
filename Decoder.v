@@ -5,6 +5,7 @@ Require Import Decompressor.
 Section decoder.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -12,8 +13,10 @@ Section decoder.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 ty).
+  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+  Local Notation supported_exts := (supported_exts supported_ext_names).
+  Local Notation Extensions := (Extensions supported_ext_names ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
@@ -148,6 +151,22 @@ Section decoder.
       :  Bool ## ty
       := utila_expr_all (map (decode_match_field raw_inst) fields).
 
+    Definition decode_match_xlen
+               (sem_input_kind sem_output_kind : Kind)
+               (inst : InstEntry sem_input_kind sem_output_kind)
+               (xlen : XlenValue @# ty)
+      :  Bool ## ty
+      := match xlens inst with
+           | None => RetE $$true
+           | Some xlens
+             => RetE
+                  (utila_any
+                    (map
+                      (fun supported_xlen : nat
+                        => xlen == $supported_xlen)
+                      xlens))
+           end.
+
     Definition decode_match_enabled_exts
                (sem_input_kind sem_output_kind : Kind)
                (inst : InstEntry sem_input_kind sem_output_kind)
@@ -156,34 +175,38 @@ Section decoder.
       := utila_expr_any
            (map
               (fun ext : string
-                 => RetE (struct_get_field_default exts_pkt ext ($$false)))
+                 => RetE (Extensions_get exts_pkt ext))
               (extensions inst)).
 
     Definition decode_match_inst
                (sem_input_kind sem_output_kind : Kind)
                (inst : InstEntry sem_input_kind sem_output_kind)
+               (xlen : XlenValue @# ty)
                (exts_pkt : Extensions @# ty)
                (raw_inst : Inst @# ty)
       :  Bool ## ty
       := LETE inst_id_match : Bool
            <- decode_match_fields raw_inst (uniqId inst);
+         LETE xlens_match : Bool
+           <- decode_match_xlen inst xlen;
          LETE exts_match : Bool
            <- decode_match_enabled_exts inst exts_pkt;
-(*
+(* *)
          SystemE (
            DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
-           DispBinary ((#inst_id_match) && (#exts_match)) ::
+           DispBinary (#inst_id_match && #xlens_match && #exts_match) ::
            DispString _ "\n" ::
            nil
          );
-*)
-         RetE ((#inst_id_match) && (#exts_match)).
+(* *)
+         RetE (#inst_id_match && #xlens_match && #exts_match).
 
     (*
       Accepts a 32 bit string that represents an uncompressed RISC-V
       instruction and decodes it.
     *)
     Definition decode 
+        (xlen : XlenValue @# ty)
         (exts_pkt : Extensions @# ty)
         (raw_inst : Inst @# ty)
       :  Maybe DecoderPktInternal ## ty
@@ -191,6 +214,7 @@ Section decoder.
            (fun _ _ tagged_inst
               => decode_match_inst
                    (snd tagged_inst)
+                   xlen
                    exts_pkt
                    raw_inst)
            (fun _ func_unit_id tagged_inst
@@ -209,6 +233,7 @@ Section decoder.
     *)
     Definition decode_bstring
                (comp_inst_db : list CompInstEntry)
+               (xlen : XlenValue @# ty)
                (exts_pkt : Extensions @# ty)
                (bit_string : Inst @# ty)
       :  Maybe DecoderPktInternal ## ty
@@ -217,8 +242,8 @@ Section decoder.
            <- bit_string $[15:0];
          LETE opt_uncomp_inst
            :  Maybe Inst
-           <- decompress comp_inst_db exts_pkt #prefix;
-         (decode exts_pkt
+           <- decompress comp_inst_db xlen exts_pkt #prefix;
+         (decode xlen exts_pkt
            (ITE ((#opt_uncomp_inst) @% "valid")
                 ((#opt_uncomp_inst) @% "data")
                 bit_string)).
@@ -240,7 +265,7 @@ Section decoder.
                (fetch_pkt : FetchPkt @# ty)
       :  Maybe DecoderPkt ## ty
       := LETC raw_inst: Inst <- fetch_pkt @% "inst";
-           LETE opt_decoder_pkt : Maybe DecoderPktInternal <- decode_bstring comp_inst_db exts_pkt #raw_inst;
+           LETE opt_decoder_pkt : Maybe DecoderPktInternal <- decode_bstring comp_inst_db xlen exts_pkt #raw_inst;
            LETC decoder_pkt : DecoderPktInternal <- #opt_decoder_pkt @% "data" ;
            LETC decoder_ext_pkt
            : DecoderPkt
@@ -250,7 +275,6 @@ Section decoder.
                     "instTag"     ::= #decoder_pkt @% "instTag" ;
                     "pc"          ::= xlen_sign_extend Xlen xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
                     "inst"        ::= #decoder_pkt @% "inst"
-                    (* "compressed?" ::= !(decode_decompressed #raw_inst) *)
                   } : DecoderPkt @# ty) ;
            (utila_expr_opt_pkt #decoder_ext_pkt
              (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).

@@ -10,6 +10,7 @@ Import ListNotations.
 Section mret.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -21,7 +22,8 @@ Section mret.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
   Local Open Scope kami_expr.
@@ -54,7 +56,8 @@ Section mret.
            := [
                 {|
                   instName   := "mret";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0011000");
@@ -79,7 +82,8 @@ Section mret.
                 |};
                 {|
                   instName   := "sret";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001000");
@@ -104,7 +108,8 @@ Section mret.
                 |};
                 {|
                   instName   := "uret";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -158,7 +163,8 @@ Section mret.
            := [
                 {|
                   instName   := "ecall";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -198,6 +204,7 @@ Section mret.
            := [
                 {|
                   instName   := "fence.i";
+                  xlens      := None;
                   extensions := ["Zifencei"];
                   uniqId
                     := [
@@ -214,7 +221,8 @@ Section mret.
                 |};
                 {|
                   instName   := "fence";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct3Field ('b"000");
@@ -228,7 +236,8 @@ Section mret.
                 |};
                 {|
                   instName   := "sfence";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001001");
@@ -272,7 +281,8 @@ Section mret.
            := [
                 {|
                   instName   := "ebreak";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -321,7 +331,8 @@ Section mret.
            := [
                 {|
                   instName := "wfi";
-                  extensions := ["RV32I"; "RV64I"];
+                  xlens      := None;
+                  extensions := ["I"];
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001000");

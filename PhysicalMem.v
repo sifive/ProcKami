@@ -4,7 +4,6 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import Pmp.
-Require Import Stale.
 
 Section pmem.
   Variable name: string.
@@ -93,11 +92,6 @@ Section pmem.
        ];
        Ret (pack #result).
 
-  Local Definition markStale {ty} := (@markStale name ty memSz).
-  Local Definition markStaleMask {ty} {Rlen_over_8} := (@markStaleMask name ty memSz Rlen_over_8).
-  Local Definition staleP {ty} := (@staleP name ty memSz).
-  Local Definition flush {ty} := (@flush name ty memSz).
-
   Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
     : ActionT ty Void
     := LET writeRq
@@ -117,10 +111,6 @@ Section pmem.
          DispHex #writeRq;
          DispString _ "\n"
        ];
-       (* Mark as stale all the bytes written to*)
-       LET waddr: _ <- (pkt @% "addr");
-       LET start: _ <- SignExtendTruncLsb (Nat.log2_up memSz) #waddr;
-       LETA _ <- markStaleMask #start (pkt @% "mask");
        Retv.
 
   Definition pMemDevice

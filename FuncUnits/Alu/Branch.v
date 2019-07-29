@@ -5,6 +5,7 @@ Require Import List.
 Section Alu.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -15,12 +16,13 @@ Section Alu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
 
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition BranchInputType :=
@@ -139,7 +141,8 @@ Section Alu.
                                RetE #retVal
                    ) ; (* lt unsigned inv *)
          fuInsts := {| instName     := "beq" ; 
-                       extensions   := "RV32I" :: "RV64I" :: nil;
+                       xlens        := None;
+                       extensions   := "I" :: nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"11000") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
@@ -149,7 +152,8 @@ Section Alu.
                        instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                     |} ::
                        {| instName     := "bne" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"001") :: nil ;
@@ -159,7 +163,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "blt" ;  
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"100") :: nil ;
@@ -169,7 +174,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bge" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"101") :: nil ;
@@ -179,7 +185,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bltu" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"110") :: nil ;
@@ -189,7 +196,8 @@ Section Alu.
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bgeu" ; 
-                          extensions   := "RV32I" :: "RV64I" :: nil;
+                          xlens        := None;
+                          extensions   := "I" :: nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"111") :: nil ;

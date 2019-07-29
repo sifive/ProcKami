@@ -24,6 +24,7 @@ Section Fpu.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
@@ -35,7 +36,8 @@ Section Fpu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
@@ -128,6 +130,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fdiv" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -143,6 +146,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fsqrt" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [

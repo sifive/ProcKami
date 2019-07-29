@@ -22,6 +22,7 @@ Section Fpu.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
+  Variable supported_ext_names : list string.
 
   Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
@@ -33,7 +34,8 @@ Section Fpu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
   Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
@@ -209,6 +211,7 @@ Section Fpu.
            := [
                 {|
                   instName   := append "fmadd" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -223,6 +226,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fmsub" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -237,6 +241,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fnmsub" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -251,6 +256,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fnmadd" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -265,6 +271,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fadd" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -280,6 +287,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fsub" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [
@@ -295,6 +303,7 @@ Section Fpu.
                 |};
                 {|
                   instName   := append "fmul" suffix;
+                  xlens      := None;
                   extensions := exts;
                   uniqId
                     := [

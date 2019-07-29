@@ -6,13 +6,13 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import RegWriter.
-Require Import Stale.
 Import ListNotations.
 
 Section trap_handling.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
   Variable Flen_over_8: nat.
   Variable lgMemSz: nat.
   Variable ty: Kind -> Type.
@@ -25,6 +25,7 @@ Section trap_handling.
   Local Notation VAddr := (Bit Xlen).
   Local Notation IntRegWrite := (IntRegWrite Xlen_over_8).
   Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -238,8 +239,6 @@ Section trap_handling.
             Retv);
              Retv.
 
-  Local Definition flush := (@flush name ty memSz).
-
   Definition commit
     (pc: VAddr @# ty)
     (inst: Inst @# ty)
@@ -299,8 +298,6 @@ Section trap_handling.
                          (pc + $2)
                          (pc + $4)))));
             Retv);
-       (* Flush stale tracking register if we're commiting a fence *)
-       LETA _ <- (If (update_pkt @% "fence.i") then flush; Retv);
        Retv.
 
   Definition intrpt_pending

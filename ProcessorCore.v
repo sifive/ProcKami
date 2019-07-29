@@ -28,7 +28,6 @@ Require Import Counter.
 Require Import ProcessorUtils.
 Require Import PhysicalMem.
 Require Import MMappedRegs.
-Require Import Stale.
 
 Section Params.
   Variable name: string.
@@ -71,22 +70,51 @@ Section Params.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Variable func_units : forall ty, list (FUEntry ty).
-    Variable supportedExts : list (string * bool).
-    (* Variable initialExts : ConstT (Extensions). *)
+    Variable supported_ext_states : list (string * bool).
 
-    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
-    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 _ (func_units _)).
+    Local Definition supported_ext_names := map fst supported_ext_states.
 
-    Local Definition ext_reg (name : string)
+    Variable func_units : forall ty, list (FUEntry supported_ext_names ty).
+
+    Local Notation supported_exts := (supported_exts supported_ext_names).
+    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names _ (func_units _)).
+    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_ext_names _ (func_units _)).
+
+    Local Definition ext_field_state_enabled := 0.
+    Local Definition ext_field_state_disabled := 1.
+    Local Definition ext_field_state_unsupported := 2.
+
+    Local Definition ext_field_state (ext_field_name : string) : nat
+      := fold_right
+           (fun ext acc
+             => match
+                  find
+                    (fun state => String.eqb (fst state) (ext_name ext))
+                    supported_ext_states with
+                  | None => Nat.min acc ext_field_state_unsupported
+                  | Some state
+                    => Nat.min acc
+                         (if snd state
+                           then ext_field_state_enabled
+                           else ext_field_state_disabled)
+                  end)
+           ext_field_state_unsupported
+           (filter
+             (fun ext => String.eqb ext_field_name (ext_misa_field_name ext))
+             ExtensionInfos).
+
+    Local Definition ext_reg (ext_field_name : string)
       :  ModuleElt
       := MERegister
-           (match find (fun ext => String.eqb name (fst ext)) supportedExts with
-             | None
-               => (^name, existT RegInitValT (SyntaxKind (Bit 0)) None)
-             | Some ext
-               => (^name, existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool (snd ext)))))
-             end).
+           (^ext_field_name,
+            let state : nat := ext_field_state ext_field_name in
+            if Nat.eqb state ext_field_state_enabled
+              then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst true))
+              else
+                if Nat.eqb state ext_field_state_disabled
+                  then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))
+                  (* else existT RegInitValT (SyntaxKind (Bit 0)) None). *)
+                  else existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
@@ -103,12 +131,6 @@ Section Params.
         ].
 
     Local Open Scope list.
-
-    Local Definition memTranslate {ty} mode := (@memTranslate name Xlen_over_8 _ _ (mem_regions ty) mode $VmAccessInst).
-
-    Local Definition markStale {ty} := (@markStale name ty memSz).
-    Local Definition staleP {ty} := (@staleP name ty memSz).
-    Local Definition flush {ty} := (@flush name ty memSz).
 
     Definition processorCore 
       :  BaseModule
@@ -269,13 +291,6 @@ Section Params.
               Register ^"pmpaddr13" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
               Register ^"pmpaddr15" : Bit 54 <- ConstBit (wzero 54) with
-                  
-              (* Stale memory execution exception register *)
-              Register ^"exception" : Bool <- ConstBool false with
-              (* Register ^"stales": Array memSz Bool <- ConstArray (fun _ => ConstBool false) with *)
-              Register ^"stales": Array 0 Bool <- ConstArray (fun _ => ConstBool false) with
-                  
-
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
                    Read pc : VAddr <- ^"pc";
@@ -315,7 +330,7 @@ Section Params.
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
               Rule ^"pipeline"
-                := LETA cfg_pkt <- readConfig name _ supportedExts;
+                := LETA cfg_pkt <- readConfig name supported_ext_names _;
                    Read pc : VAddr <- ^"pc";
                    System
                      [
@@ -414,7 +429,6 @@ Section Params.
                      <- commit
                           name
                           Flen_over_8
-                          memSz
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt
@@ -423,23 +437,7 @@ Section Params.
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
                    Call ^"pc"(#pc: VAddr); (* for test verification *)
-                   Retv with
-              Rule ^"haltOnException"
-                   :=
-                     (* If we are about to execute a stale memory
-                      region, flip the exception register and call the
-                      exception method *)
-                     Read mode : PrivMode <- ^"mode";
-                     Read pc : VAddr <- ^"pc";
-                     LETA pcPaddr  :  Maybe PAddr <- memTranslate #mode #pc;
-                     If #pcPaddr @% "valid" then 
-                     (LETA stale: Bool <- staleP (SignExtendTruncLsb (Nat.log2_up memSz) (#pcPaddr @% "data": _));
-                      If #stale then (Write ^"exception" <- $$ true;
-                                      Retv);
-                      Retv);
-                     Read exc: Bool <- ^"exception";
-                     If #exc then (Call ^"exception" (); Retv);
-                     Retv
+                   Retv
          }.
 
     Definition intRegFile

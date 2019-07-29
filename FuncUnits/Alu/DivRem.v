@@ -5,6 +5,7 @@ Require Import List.
 Section Alu.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Variable supported_ext_names : list string.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -15,12 +16,13 @@ Section Alu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
   Local Notation intRegTag := (intRegTag Xlen_over_8 Rlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
 
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition DivRemInputType
@@ -85,6 +87,7 @@ Section Alu.
         fuInsts
         := {|
                instName   := "div";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -107,6 +110,7 @@ Section Alu.
              |} ::
              {|
                instName   := "divu";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -129,6 +133,7 @@ Section Alu.
              |} ::
              {|
                instName   := "divw";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -152,6 +157,7 @@ Section Alu.
              |} ::
              {|
                instName   := "divuw";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -175,6 +181,7 @@ Section Alu.
              |} ::
              {|
                instName   := "rem";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -197,6 +204,7 @@ Section Alu.
              |} ::
              {|
                instName   := "remu";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -219,6 +227,7 @@ Section Alu.
              |} ::
              {|
                instName   := "remw";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
@@ -241,6 +250,7 @@ Section Alu.
              |} ::
              {|
                instName   := "remuw";
+               xlens      := None;
                extensions := "M" :: nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
