@@ -7,6 +7,7 @@ Require Import Kami.All.
 Require Import FU.
 Require Import PhysicalMem.
 Require Import Vector.
+Require Import Pmp.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
@@ -29,6 +30,7 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
+  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
 
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
@@ -157,58 +159,134 @@ Section pt_walker.
         Local Definition isLeafValid: Bool ## ty :=
           RetE (!pte_access_dirty && pte_grant).
    
-        Definition translatePteLeaf: Maybe PAddr ## ty :=
+        (* Definition translatePteLeaf: Maybe PAddr ## ty := *)
+        Definition translatePteLeaf
+          :  PktWithException PAddr ## ty :=
           LETE leafValid: Bool <- isLeafValid;
           LETE isCheckAlign: Bool <- checkAlign;
           LETE offset: PAddr <- getVAddrRest;
-          LETC retVal: Maybe PAddr <- STRUCT { "valid" ::= #leafValid && #isCheckAlign ;
-                                               "data" ::= (ppnToPAddr (pte @% "pointer") + #offset) } ;
+          LETC exception : FullException
+            <- STRUCT {
+                 "exception"
+                   ::= Switch access_type Retn Exception With {
+                         ($VmAccessInst : VmAccessType @# ty)
+                           ::= ($InstAccessFault : Exception @# ty);
+                         ($VmAccessLoad : VmAccessType @# ty)
+                           ::= ($LoadAccessFault : Exception @# ty);
+                         ($VmAccessSAmo : VmAccessType @# ty)
+                           ::= ($SAmoAccessFault : Exception @# ty)
+                       };
+                 "value" ::= $0
+               } : FullException @# ty;
+          (* LETC retVal: Maybe PAddr *)
+          LETC retVal: PktWithException PAddr
+            <- STRUCT {
+                 "fst" ::= (ppnToPAddr (pte @% "pointer") + #offset);
+                 "snd"
+                   ::= IF #leafValid && #isCheckAlign
+                         then Invalid
+                         else Valid #exception
+               } : PktWithException PAddr @# ty;
           RetE #retVal.
     
-        Definition translatePte: Pair Bool (Maybe PAddr) ## ty :=
-          LETE validEntry : Bool <- isValidEntry;
-          LETE leaf : Bool <- isLeaf;
-          LETE leafVal: Maybe PAddr <- translatePteLeaf;
-          LETE vpnOffset <- getVpnOffset;
-          LETC nonLeafVal: Maybe PAddr <- STRUCT { "valid" ::= #validEntry;
-                                                   "data" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset) } ;
-          LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal;
-          LETC finalVal: Pair Bool (Maybe PAddr) <- STRUCT { "fst" ::= ((!#validEntry) || #leaf) ;
-                                                             "snd" ::= #retVal } ;
-          RetE #finalVal.
+        (* Definition translatePte: Pair Bool (Maybe PAddr) ## ty := *)
+        Definition translatePte
+          :  Pair Bool (PktWithException PAddr) ## ty
+          := LETE validEntry : Bool <- isValidEntry;
+             LETE leaf : Bool <- isLeaf;
+             (* LETE leafVal: Maybe PAddr <- translatePteLeaf; *)
+             LETE leafVal: PktWithException PAddr <- translatePteLeaf;
+             LETE vpnOffset <- getVpnOffset;
+             (* LETC nonLeafVal: Maybe PAddr *)
+             LETC nonLeafException : FullException
+               <- STRUCT {
+                    "exception"
+                      ::= Switch access_type Retn Exception With {
+                            ($VmAccessInst : VmAccessType @# ty)
+                              ::= ($InstAccessFault : Exception @# ty);
+                            ($VmAccessLoad : VmAccessType @# ty)
+                              ::= ($LoadAccessFault : Exception @# ty);
+                            ($VmAccessSAmo : VmAccessType @# ty)
+                              ::= ($SAmoAccessFault : Exception @# ty)
+                          };
+                    "value" ::= $0
+                  } : FullException @# ty;
+             LETC nonLeafVal: PktWithException PAddr
+               <- STRUCT {
+                    "fst" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset);
+                    "snd"
+                      ::= IF #validEntry
+                            then Invalid
+                            else Valid #nonLeafException
+                  } : PktWithException PAddr @# ty;
+             (* LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal; *)
+             LETC retVal: PktWithException PAddr <- IF #leaf then #leafVal else #nonLeafVal;
+             (* LETC finalVal: Pair Bool (Maybe PAddr) *)
+             LETC finalVal: Pair Bool (PktWithException PAddr)
+               <- STRUCT {
+                    "fst" ::= ((!#validEntry) || #leaf) ;
+                    "snd" ::= #retVal
+                  };
+             RetE #finalVal.
         End pte.
 
       Definition translatePteLoop
-        (access_type : VmAccessType @# ty)
         (* (acc: Pair Bool (Maybe PAddr) @# ty) *)
-        (acc: Pair Bool (Maybe PktWithException PAddr) @# ty)
+        (acc: Pair Bool (PktWithException PAddr) @# ty)
         (* :  ActionT ty (Pair Bool (Maybe PAddr)) := *)
         :  ActionT ty (Pair Bool (PktWithException PAddr))
-        := If acc @% "fst"
+        := LET exception : Maybe FullException
+             <- Valid (STRUCT {
+                  "exception"
+                    ::= Switch access_type Retn Exception With {
+                         ($VmAccessInst : VmAccessType @# ty)
+                           ::= ($InstAccessFault : Exception @# ty);
+                         ($VmAccessLoad : VmAccessType @# ty)
+                           ::= ($LoadAccessFault : Exception @# ty);
+                         ($VmAccessSAmo : VmAccessType @# ty)
+                           ::= ($SAmoAccessFault : Exception @# ty)
+                       };
+                  "value" ::= $0
+                } : FullException @# ty);
+           LET errorResult : PktWithException PAddr
+             <- STRUCT {
+                  "fst" ::= $0;
+                  "snd" ::= #exception
+                } : PktWithException PAddr @# ty;
+           LET doneInvalid : Pair Bool (PktWithException PAddr)
+             <- STRUCT {
+                  "fst" ::= $$true;
+                  "snd" ::= #errorResult
+                };
+           If acc @% "fst"
              then Ret acc
              else 
-               (If acc @% "snd" @% "snd" @% "valid"
+               If acc @% "snd" @% "snd" @% "valid"
                  then
-                   Ret acc @%["fst" <- $$true]
-                 else (
+                   Ret (acc @%["fst" <- $$true])
+                 else
                    LETA pmp_result: Bool
-                     <- 
-                   LETA read_result: Maybe Data
-                     <- mem_region_read (mem_read_index + (currentLevel-1)) mode
-                          (acc @% "snd" @% "data");
-                   System [
-                     DispString _ "[translatePteLoop] page table entry: ";
-                     DispHex #read_result;
-                     DispString _ "\n"
-                   ];
-                   If #read_result @% "valid"
-                   then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
-                   else Ret #doneInvalid
-                   as result;
+                     <- pmp_check_read mode (acc @% "snd" @% "fst") $4;
+                   If #pmp_result
+                     then 
+                       LETA read_result: Maybe Data
+                         <- mem_region_read (mem_read_index + (currentLevel-1)) mode
+                              (acc @% "snd" @% "fst");
+                       System [
+                         DispString _ "[translatePteLoop] page table entry: ";
+                         DispHex #read_result;
+                         DispString _ "\n"
+                       ];
+                       If #read_result @% "valid"
+                         then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
+                         else Ret #doneInvalid
+                         as result;
+                       Ret #result
+                     else Ret #doneInvalid
+                     as result;
                    Ret #result
-                   )
                  as result;
-                 Ret #result)
+               Ret #result
              as result;
            Ret #result.
     End oneIteration.
@@ -219,13 +297,12 @@ Section pt_walker.
                                            vmModes 0.
 
     Definition pt_walker
-      (access_type : VmAccessType @# ty)
       (* :  ActionT ty (Maybe PAddr) := *)
       :  ActionT ty (PktWithException PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
       LET init : PktWithException PAddr
         <- STRUCT {
-             "fst" ::= satp_ppn + #vpnOffset;
+             "fst" ::= (satp_ppn + #vpnOffset);
              "snd" ::= Invalid
            } : PktWithException PAddr @# ty;
       (* LETA result: Pair Bool (Maybe PAddr) *)
@@ -239,7 +316,7 @@ Section pt_walker.
                  DispHex #acc_result;
                  DispString _ "\n"
                ];
-               translatePteLoop access_type currentLevel #acc_result)
+               translatePteLoop currentLevel #acc_result)
              (seq 1 (maxPageLevels - 1))
              (Ret (STRUCT {
                "fst" ::= $$ false ;

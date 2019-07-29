@@ -58,7 +58,7 @@ Section mem_unit.
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
 
-  Local Notation pt_walker := (@pt_walker Xlen_over_8 Rlen_over_8 ty 4 mem_regions).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty 4 mem_regions).
   Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 ty mem_regions).
   Local Notation mem_region_write := (@mem_region_write Xlen_over_8 Rlen_over_8 ty mem_regions).
 
@@ -68,14 +68,19 @@ Section mem_unit.
   (* TODO: should this be sign extended? *)
   Definition pMemTranslate
     (vaddr : VAddr @# ty)
-    :  Maybe PAddr @# ty
-    := Valid (ZeroExtendTruncLsb PAddrSz vaddr).
+    (* :  Maybe PAddr @# ty *)
+    :  PktWithException PAddr @# ty
+    := STRUCT {
+         "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
+         "snd" ::= Invalid
+       } : PktWithException PAddr @# ty.
 
   Definition memTranslate
     (mode : PrivMode @# ty)
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
-    :  ActionT ty (Maybe PAddr)
+    (* :  ActionT ty (Maybe PAddr) *)
+    :  ActionT ty (PktWithException PAddr)
     := Read mpp : PrivMode <- ^"mpp";
        Read mprv : Bool <- ^"mprv";
        Read satp_mode : Bit 4 <- ^"satp_mode";
@@ -93,20 +98,14 @@ Section mem_unit.
               else Valid mode;
        If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
-           LETA paddr
-             :  Maybe PAddr
-             <- pt_walker
-                  #satp_mode
-                  #mxr
-                  #sum
-                  (#transMode @% "data")
-                  (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
-                  access_type
-                  vaddr;
-           Ret
-             (IF #paddr @% "valid"
-                then (Valid (ZeroExtendTruncLsb PAddrSz (#paddr @% "data")) : Maybe PAddr @# ty)
-                else Invalid)
+           pt_walker
+             #satp_mode
+             #mxr
+             #sum
+             (#transMode @% "data")
+             (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
+             access_type
+             vaddr
          else
            Ret (pMemTranslate vaddr)
          as result;
@@ -118,49 +117,56 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
     := LETA paddr
-         :  Maybe PAddr
+         (* :  Maybe PAddr *)
+         :  PktWithException PAddr
          <- memTranslate mode $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
          DispString _ "\n"
        ];
-       If #paddr @% "valid"
+       If #paddr @% "snd" @% "valid"
          then
-           LETA inst
-             :  Maybe Data
-             <- mem_region_read index mode (#paddr @% "data");
-           If #inst @% "valid"
+           Ret
+             (STRUCT {
+                "fst" ::= $0;
+                "snd" ::= #paddr @% "snd"
+              } : PktWithException Data @# ty)
+         else
+           LET exception
+             :  Maybe FullException
+             <- Valid (STRUCT {
+                    "exception" ::= $InstAccessFault;
+                    "value" ::= vaddr
+                  } : FullException @# ty);
+           LETA pmp_result
+             :  Bool
+             <- pmp_check_read mode (#paddr @% "fst") $4;
+           If #pmp_result
              then
-               Ret (STRUCT {
-                   "fst" ::= #inst @% "data";
-                   "snd" ::= Invalid
-                 } : PktWithException Data @# ty)
+               LETA inst
+                 :  Maybe Data
+                 <- mem_region_read index mode (#paddr @% "fst");
+               If #inst @% "valid"
+                 then
+                   Ret (STRUCT {
+                       "fst" ::= #inst @% "data";
+                       "snd" ::= Invalid
+                     } : PktWithException Data @# ty)
+                 else
+                   Ret (STRUCT {
+                       "fst" ::= $0;
+                       "snd" ::= #exception
+                     } : PktWithException Data @# ty)
+                 as result;
+               Ret #result
              else
-               LET exception
-                 :  Maybe FullException
-                 <- Valid (STRUCT {
-                        "exception" ::= $InstAccessFault;
-                        "value" ::= vaddr
-                      } : FullException @# ty);
                Ret (STRUCT {
                    "fst" ::= $0;
                    "snd" ::= #exception
                  } : PktWithException Data @# ty)
              as result;
            Ret #result
-         else
-           LET exception
-             :  Maybe FullException
-             <- Valid (STRUCT {
-                    "exception" ::= $InstPageFault;
-                    "value" ::= vaddr
-                  } : FullException @# ty);
-           Ret
-             (STRUCT {
-                "fst" ::= $0;
-                "snd" ::= #exception
-              } : PktWithException Data @# ty)
          as result;
        Ret #result.
 
@@ -254,22 +260,33 @@ Section mem_unit.
                     inst_id);
            (* III. get the physical address *)
            LETA mpaddr
-             :  Maybe PAddr
+             (* :  Maybe PAddr *)
+             :  PktWithException PAddr
              <- memTranslate mode
                   (IF #mis_write @% "data"
                     then $VmAccessSAmo
                     else $VmAccessLoad)
                   addr;
-           If #mpaddr @% "valid"
+           If #mpaddr @% "snd" @% "valid"
              then
+               System [
+                 DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
+               ];
+               (* (mem_unit_exec_pkt_page_fault addr (#mis_write @% "data")) *)
+               Ret (STRUCT {
+                   "fst" ::= $$(getDefaultConst MemRet);
+                   "snd" ::= #mpaddr @% "snd"
+                 } : PktWithException MemRet @# ty)
+             else
+               (* TODO: ADD PMP READ/WRITE CHECK HERE *)
                (* IV. read the current value and place reservation *)
                LETA mread_result
                  :  Maybe Data
-                 <- mem_region_read 3 mode (#mpaddr @% "data");
+                 <- mem_region_read 3 mode (#mpaddr @% "fst");
                (* TODO: should we place reservations on failed reads? *)
                LETA read_reservation_result
                  :  Array Rlen_over_8 Bool
-                 <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "data"));
+                 <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "fst"));
                (* V. did the read fail? *)
                If #mread_result @% "valid"
                  then 
@@ -306,7 +323,7 @@ Section mem_unit.
                          (* :  Maybe FullException *)
                          :  Maybe Bool
                          <- mem_region_write mode
-                              (#mpaddr @% "data")
+                              (#mpaddr @% "fst")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)
                               (#write_mask : Array Rlen_over_8 Bool @# ty);
                        Ret (* #write_result *)
@@ -326,7 +343,7 @@ Section mem_unit.
                    ];
                    If #mwrite_value @% "data" @% "isLrSc"
                      then pMemWriteReservation
-                            (#mpaddr @% "data")
+                            (#mpaddr @% "fst")
                             (#mwrite_value @% "data" @% "mask")
                             (#mwrite_value @% "data" @% "reservation");
                    LET memRet
@@ -344,11 +361,6 @@ Section mem_unit.
                    (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
                  as result;
                Ret #result
-             else
-               System [
-                 DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
-               ];
-               (mem_unit_exec_pkt_page_fault addr (#mis_write @% "data"))
              as result;
            Ret #result
          else
