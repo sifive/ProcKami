@@ -104,17 +104,17 @@ Section Params.
              ExtensionInfos).
 
     Local Definition ext_reg (ext_field_name : string)
-      :  ModuleElt
-      := MERegister
-           (^ext_field_name,
-            let state : nat := ext_field_state ext_field_name in
-            if Nat.eqb state ext_field_state_enabled
-              then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst true))
-              else
-                if Nat.eqb state ext_field_state_disabled
-                  then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))
-                  (* else existT RegInitValT (SyntaxKind (Bit 0)) None). *)
-                  else existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))).
+      :  Tree ModuleElt
+      := Leaf (MERegister
+                 (^ext_field_name,
+                  let state : nat := ext_field_state ext_field_name in
+                  if Nat.eqb state ext_field_state_enabled
+                  then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst true))
+                  else
+                    if Nat.eqb state ext_field_state_disabled
+                    then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))
+                                (* else existT RegInitValT (SyntaxKind (Bit 0)) None). *)
+                    else existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))) :: nil).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
