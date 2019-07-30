@@ -159,25 +159,28 @@ Section pt_walker.
         Local Definition isLeafValid: Bool ## ty :=
           RetE (!pte_access_dirty && pte_grant).
    
+        Local Definition faultException
+          :  FullException @# ty
+          := STRUCT {
+               "exception"
+                 ::= Switch access_type Retn Exception With {
+                       ($VmAccessInst : VmAccessType @# ty)
+                         ::= ($InstPageFault : Exception @# ty);
+                       ($VmAccessLoad : VmAccessType @# ty)
+                         ::= ($LoadPageFault : Exception @# ty);
+                       ($VmAccessSAmo : VmAccessType @# ty)
+                         ::= ($SAmoPageFault : Exception @# ty)
+                     };
+               "value" ::= vAddr
+             } : FullException @# ty.
+
         (* Definition translatePteLeaf: Maybe PAddr ## ty := *)
         Definition translatePteLeaf
           :  PktWithException PAddr ## ty :=
           LETE leafValid: Bool <- isLeafValid;
           LETE isCheckAlign: Bool <- checkAlign;
           LETE offset: PAddr <- getVAddrRest;
-          LETC exception : FullException
-            <- STRUCT {
-                 "exception"
-                   ::= Switch access_type Retn Exception With {
-                         ($VmAccessInst : VmAccessType @# ty)
-                           ::= ($InstAccessFault : Exception @# ty);
-                         ($VmAccessLoad : VmAccessType @# ty)
-                           ::= ($LoadAccessFault : Exception @# ty);
-                         ($VmAccessSAmo : VmAccessType @# ty)
-                           ::= ($SAmoAccessFault : Exception @# ty)
-                       };
-                 "value" ::= $0
-               } : FullException @# ty;
+          LETC exception : FullException <- faultException;
           (* LETC retVal: Maybe PAddr *)
           LETC retVal: PktWithException PAddr
             <- STRUCT {
@@ -198,19 +201,7 @@ Section pt_walker.
              LETE leafVal: PktWithException PAddr <- translatePteLeaf;
              LETE vpnOffset <- getVpnOffset;
              (* LETC nonLeafVal: Maybe PAddr *)
-             LETC nonLeafException : FullException
-               <- STRUCT {
-                    "exception"
-                      ::= Switch access_type Retn Exception With {
-                            ($VmAccessInst : VmAccessType @# ty)
-                              ::= ($InstAccessFault : Exception @# ty);
-                            ($VmAccessLoad : VmAccessType @# ty)
-                              ::= ($LoadAccessFault : Exception @# ty);
-                            ($VmAccessSAmo : VmAccessType @# ty)
-                              ::= ($SAmoAccessFault : Exception @# ty)
-                          };
-                    "value" ::= $0
-                  } : FullException @# ty;
+             LETC nonLeafException : FullException <- faultException;
              LETC nonLeafVal: PktWithException PAddr
                <- STRUCT {
                     "fst" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset);
@@ -235,23 +226,11 @@ Section pt_walker.
         (acc: Pair Bool (PktWithException PAddr) @# ty)
         (* :  ActionT ty (Pair Bool (Maybe PAddr)) := *)
         :  ActionT ty (Pair Bool (PktWithException PAddr))
-        := LET exception : Maybe FullException
-             <- Valid (STRUCT {
-                  "exception"
-                    ::= Switch access_type Retn Exception With {
-                         ($VmAccessInst : VmAccessType @# ty)
-                           ::= ($InstAccessFault : Exception @# ty);
-                         ($VmAccessLoad : VmAccessType @# ty)
-                           ::= ($LoadAccessFault : Exception @# ty);
-                         ($VmAccessSAmo : VmAccessType @# ty)
-                           ::= ($SAmoAccessFault : Exception @# ty)
-                       };
-                  "value" ::= $0
-                } : FullException @# ty);
+        := LET exception : FullException <- faultException;
            LET errorResult : PktWithException PAddr
              <- STRUCT {
                   "fst" ::= $0;
-                  "snd" ::= #exception
+                  "snd" ::= Valid #exception
                 } : PktWithException PAddr @# ty;
            LET doneInvalid : Pair Bool (PktWithException PAddr)
              <- STRUCT {
