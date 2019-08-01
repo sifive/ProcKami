@@ -422,7 +422,7 @@ Section Params.
                                  "reg_data" :: Data
                                }.
 
-  Definition WarlStateField
+  Definition WarlUpdateInfo
     :  Kind
     := STRUCT_TYPE {
          "pc" :: VAddr;
@@ -431,7 +431,7 @@ Section Params.
 
   Definition FieldUpd
     := STRUCT_TYPE {
-      "warlStateField" :: WarlStateField;
+      "warlStateField" :: WarlUpdateInfo;
       "cfg" :: ContextCfgPkt
     }.
 

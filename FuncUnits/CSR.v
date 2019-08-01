@@ -38,7 +38,7 @@ Section CsrInterface.
   Local Notation FieldUpd := (FieldUpd Xlen_over_8 supported_exts ty).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation WarlStateField := (WarlStateField Xlen_over_8).
+  Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
 
@@ -1818,7 +1818,7 @@ Section CsrInterface.
          <- (STRUCT {
                "pc" ::= pc;
                "compressed?" ::= compressed
-             } : WarlStateField @# ty);
+             } : WarlUpdateInfo @# ty);
        LET upd_pkt
          :  FieldUpd
          <- STRUCT {

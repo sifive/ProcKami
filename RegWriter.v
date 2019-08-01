@@ -1,6 +1,5 @@
 Require Import Kami.All.
 Require Import FU.
-(* Require Import CSR. *)
 Import ListNotations.
 
 Section RegWriter.
@@ -24,7 +23,6 @@ Section RegWriter.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation WarlStateField := (WarlStateField Xlen_over_8).
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
