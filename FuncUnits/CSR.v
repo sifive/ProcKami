@@ -356,8 +356,9 @@ Section CsrInterface.
              csrFieldKind := Bool;
              csrFieldDefaultValue := None;
              csrFieldIsValid
-               := (fun field _ _
-                    => (((field @% "warlStateField" @% "pc") & $3) == $0)); (* aligned with a 32 bit boundary. *)
+               := (fun field _ _ (* check 32 bit alignment. *)
+                    => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlStateField" @% "pc")) |
+                              (ZeroExtendTruncLsb 2 (field @% "warlStateField" @% "mepc"))));
              csrFieldXform
                := fun _ curr_value _
                     => curr_value
