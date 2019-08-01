@@ -105,6 +105,8 @@ Section mem_unit.
                   (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
                   access_type
                   vaddr;
+           Ret #paddr
+(*
            bindException 
              (#paddr @% "fst")
              (#paddr @% "snd")
@@ -131,6 +133,7 @@ Section mem_unit.
                                 then Invalid
                                 else Valid #exception)
                       } : PktWithException PAddr @# ty))
+*)
          else
            Ret (pMemTranslate vaddr)
          as result;
