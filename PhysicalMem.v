@@ -24,9 +24,6 @@ Section pmem.
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation memSz := (pow2 lgMemSz).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 ty).
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
 
   Variable mem_regions : list MemRegion.

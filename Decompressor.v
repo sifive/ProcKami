@@ -4,7 +4,7 @@ Require Import FU.
 Section Decompressor.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -12,9 +12,8 @@ Section Decompressor.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation supported_exts := (supported_exts supported_ext_names).
-  Local Notation Extensions := (Extensions supported_ext_names ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
+  Local Notation Extensions := (Extensions supported_exts ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
 
   Open Scope kami_expr.
 

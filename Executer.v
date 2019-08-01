@@ -7,7 +7,7 @@ Section Executor.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable Flen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -19,10 +19,9 @@ Section Executor.
   Local Notation FieldUpd := (FieldUpd Xlen_over_8).
   Local Notation WarlStateField := (@WarlStateField Xlen_over_8).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
-  Local Notation supported_exts := (supported_exts supported_ext_names).
-  Local Notation Extensions := (Extensions supported_ext_names ty).
+  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
+  Local Notation Extensions := (Extensions supported_exts ty).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
@@ -31,10 +30,10 @@ Section Executor.
 
   Variable func_units : list FUEntry.
 
-  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
-  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
-  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
-  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
 
   Local Open Scope kami_expr.
 

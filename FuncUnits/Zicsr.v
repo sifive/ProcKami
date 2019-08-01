@@ -13,7 +13,7 @@ Section zicsr.
   Variable Xlen_over_8 : nat.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -23,9 +23,9 @@ Section zicsr.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
   Variable ty : Kind -> Type.
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition ZicsrOpWidth : nat := 2.

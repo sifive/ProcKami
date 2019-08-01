@@ -7,7 +7,7 @@ Section config_reader.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
   
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -15,9 +15,9 @@ Section config_reader.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation supported_exts := (supported_exts supported_ext_names).
-  Local Notation Extensions := (Extensions supported_ext_names ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
+  Local Notation Extensions := (Extensions supported_exts ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+  Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
   
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -46,23 +46,20 @@ Section config_reader.
 
   Local Definition readExtensions
     :  ActionT ty Extensions
-    := fold_right
-         (fun ext acc_act
-           => let name : string := ext_name ext in
-              let field_name : string := ext_misa_field_name ext in
-              LETA acc : Extensions <- acc_act;
-              Read enabled : Bool <- ^field_name;
+    := supported_exts_foldr
+         (fun ext _ acc
+           => LETA exts : Extensions <- acc;
+              Read enabled : Bool <- ^(ext_misa_field_name ext);
               System [
-                DispString _ ("[readExtensions] reading extension register " ++ ^field_name ++ " for " ++ name ++ " enabled?: ");
+                DispString _ ("[readExtensions] reading extension register " ++ ^(ext_misa_field_name ext) ++ " for " ++ (ext_name ext) ++ " enabled?: ");
                 DispBinary #enabled;
                 DispString _ "\n";
                 DispString _ "[readExtensions] acc: ";
-                DispHex (Extensions_set #acc "M" $$true);
+                DispHex #exts;
                 DispString _ "\n"
               ];
-              Ret (Extensions_set #acc name #enabled))
-         (Ret $$(getDefaultConst Extensions))
-         supported_exts.
+              Ret (Extensions_set #exts (ext_name ext) #enabled))
+         (Ret $$(getDefaultConst Extensions)).
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt

@@ -23,7 +23,7 @@ Section Fpu.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
 
   Variable fpu_params_single : FpuParamsType.
   Variable fpu_params_double : FpuParamsType.
@@ -36,8 +36,8 @@ Section Fpu.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
   Local Notation single_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_single).

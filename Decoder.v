@@ -5,7 +5,7 @@ Require Import Decompressor.
 Section decoder.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -13,10 +13,9 @@ Section decoder.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
-  Local Notation supported_exts := (supported_exts supported_ext_names).
-  Local Notation Extensions := (Extensions supported_ext_names ty).
+  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
+  Local Notation Extensions := (Extensions supported_exts ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).

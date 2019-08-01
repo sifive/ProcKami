@@ -21,13 +21,13 @@ Section CsrInterface.
   Variable Xlen_over_8: nat.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0) : local_scope.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation supported_exts := (supported_exts supported_ext_names).
+  Local Notation misa_field_states := (misa_field_states supported_exts).
   Local Notation CsrValueWidth := (Clen_over_8 * 8).
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation Data := (Bit Rlen).
@@ -35,7 +35,7 @@ Section CsrInterface.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8 supported_ext_names ty).
+  Local Notation FieldUpd := (FieldUpd Xlen_over_8 supported_exts ty).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation WarlStateField := (WarlStateField Xlen_over_8).
@@ -43,8 +43,7 @@ Section CsrInterface.
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
 
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).
-
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
 
   Open Scope kami_expr.
 
@@ -87,8 +86,8 @@ Section CsrInterface.
     := {
          csrViewContext    : Bit 2 @# ty;
          csrViewFields     : list CSRField;
-         csrViewReadXform  : csrViewKind csrViewFields @# ty -> CsrValue @# ty;
-         csrViewWriteXform : csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
+         csrViewReadXform  : FieldUpd @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty;
+         csrViewWriteXform : FieldUpd @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
        }.
 
   Record CSR :=
@@ -115,14 +114,36 @@ Section CsrInterface.
     (upd_pkt : FieldUpd @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty CsrValue
-    := LETA csr_value
+    := 
+       System [
+         DispString _ "[csrViewReadWrite] req: \n";
+         DispHex req;
+         DispString _ "\n";
+         DispString _ "[csrViewReadWrite] upd pkt: \n";
+         DispHex upd_pkt;
+         DispString _ "\n"
+       ];
+       LETA csr_value
          :  csrViewKind (csrViewFields view)
          <- (MayStruct_RegReads ty (csrViewMayStruct view));
+       System [
+         DispString _ "[csrViewReadWrite] csr value: \n";
+         DispHex #csr_value;
+         DispString _ "\n"
+       ];
        If !(req @% "isRd")
          then
+           System [
+             DispString _ "[csrViewReadWrite] is write operation\n"
+           ];
            LET input_value
              :  csrViewKind (csrViewFields view)
-             <- csrViewWriteXform view #csr_value (req @% "data");
+             <- csrViewWriteXform view upd_pkt #csr_value (req @% "data");
+           System [
+             DispString _ "[csrViewReadWrite] input value\n";
+             DispHex #input_value;
+             DispString _ "\n"
+           ];
            LET write_value
              :  csrViewKind (csrViewFields view)
              <- BuildStruct 
@@ -165,8 +186,11 @@ Section CsrInterface.
              <- MayStruct_RegWrites (csrViewMayStruct view)
                     ((#write_value) : (csrViewKind (csrViewFields view)) @# ty);
            Retv;
+       System [
+         DispString _ "[csrViewReadWrite] done\n"
+       ];
        Ret
-         (csrViewReadXform view #csr_value).
+         (csrViewReadXform view upd_pkt #csr_value).
 
   Local Open Scope local_scope.
 
@@ -209,7 +233,13 @@ Section CsrInterface.
                                DispString _ (csrName csr_entry);
                                DispString _ "\n"
                              ];
-                             csrViewReadWrite view_entry upd_pkt req
+                             LETA result : CsrValue <- csrViewReadWrite view_entry upd_pkt req;
+                             System [
+                               DispString _ "[csrReadWrite] result: \n";
+                               DispBinary #result;
+                               DispString _ "\n"
+                             ];
+                             Ret #result
                            else
                              Ret (unpack CsrValue $0)
                            as result;
@@ -219,12 +249,14 @@ Section CsrInterface.
 
   Local Definition csrViewDefaultReadXform
     (fields : list CSRField)
+    (_ : FieldUpd @# ty)
     (data : csrViewKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
 
   Local Definition csrViewDefaultWriteXform
     (fields : list CSRField)
+    (_ : FieldUpd @# ty)
     (_ : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
@@ -236,12 +268,14 @@ Section CsrInterface.
 
   Local Definition csrViewUpperReadXform
     (fields : list CSRField)
+    (_ : FieldUpd @# ty)
     (data : csrViewKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (ZeroExtendTruncMsb 32 (pack data)).
 
   Local Definition csrViewUpperWriteXform
     (fields : list CSRField)
+    (_ : FieldUpd @# ty)
     (curr_value : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
@@ -250,6 +284,16 @@ Section CsrInterface.
            (size (csrViewKind fields))
            (((ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 data)) << (Const ty (natToWord 5 32))) &
             (ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 (pack curr_value))))).
+
+  (* See 3.1.1 and 3.1.15 *)
+  Local Definition epcReadXform
+    (fields : list CSRField)
+    (context : FieldUpd @# ty)
+    (data : csrViewKind fields @# ty)
+    := ZeroExtendTruncLsb CsrValueWidth
+         (IF Extensions_get (context @% "cfg" @% "extensions") "C"
+           then pack data >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
+           else pack data >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty)).
 
   Local Open Scope local_scope.
 
@@ -293,15 +337,32 @@ Section CsrInterface.
          csrFieldIsValid
            := fun _ _ _ => $$false;
          csrFieldXform
-           := fun _ _ => id
+           := fun _ curr_value _ => curr_value
        |}.
 
   Local Definition extField
     (name : string)
     :  CSRField
-    := if existsb (fun ext => String.eqb name (ext_misa_field_name ext)) supported_exts
+    := if strings_in (fst misa_field_states) name
          then csrFieldAny ^name Bool
-         else csrFieldNoReg "reserved" false.
+         else csrFieldNoReg ^name false.
+
+  Local Definition compressedExtField
+    :  CSRField
+    := if strings_in (fst misa_field_states) "C"
+         then
+           {|
+             csrFieldName := ^"C";
+             csrFieldKind := Bool;
+             csrFieldDefaultValue := None;
+             csrFieldIsValid
+               := (fun field _ _
+                    => (((field @% "warlStateField" @% "pc") & $3) == $0)); (* aligned with a 32 bit boundary. *)
+             csrFieldXform
+               := fun _ curr_value _
+                    => curr_value
+           |}
+         else csrFieldNoReg ^"C" false.
 
   Local Definition xlField
     (prefix : string)
@@ -366,8 +427,8 @@ Section CsrInterface.
   Fixpoint repeatCSRView
     (n : nat)
     (fields : list CSRField)
-    (readXform : csrViewKind fields @# ty -> CsrValue @# ty)
-    (writeXform : csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
+    (readXform : FieldUpd @# ty -> csrViewKind fields @# ty -> CsrValue @# ty)
+    (writeXform : FieldUpd @# ty -> csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
     :  list CSRView
     := match n with
          | 0 => []
@@ -490,14 +551,14 @@ Section CsrInterface.
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
                   let fields := [ @csrFieldAny ^"uepc" (Bit 64) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
                 ];
@@ -667,7 +728,7 @@ Section CsrInterface.
                        extField "F";
                        extField "E";
                        extField "D";
-                       extField "C";
+                       compressedExtField;
                        extField "B";
                        extField "A"
                      ] in
@@ -675,11 +736,13 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "reserved" (Bit 4) (getDefaultConst _);
+                         @csrFieldNoReg "reserved" (Bit 4) (getDefaultConst _)
+(*
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] (* ++ ext_fields *) in
+*)
+                       ] ++ ext_fields in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
@@ -689,11 +752,13 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "reserved" (Bit 36) (getDefaultConst _);
+                         @csrFieldNoReg "reserved" (Bit 36) (getDefaultConst _)
+(*
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] (* ++ ext_fields *) in
+*)
+                       ] ++ ext_fields in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -916,14 +981,14 @@ Section CsrInterface.
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
                   let fields := [ @csrFieldAny ^"mepc" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
                 ];
@@ -1299,14 +1364,14 @@ Section CsrInterface.
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
                   let fields := [ @csrFieldAny ^"sepc" (Bit 64) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform fields);
+                    csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |}
                 ];
@@ -1696,7 +1761,7 @@ Section CsrInterface.
                System [
                  DispString _ "[commitCSRWrite] read csr value: \n";
                  DispHex #csr_val;
-                 DispString _ "\n"
+                 DispString _ "done\n"
                ];
                If rd_index != $0
                  then 

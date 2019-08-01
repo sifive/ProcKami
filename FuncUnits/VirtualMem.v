@@ -35,7 +35,6 @@ Section pt_walker.
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
 
-  (* Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty mem_regions). *)
   Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 ty mem_regions).
 
   Local Open Scope kami_expr.
@@ -76,16 +75,6 @@ Section pt_walker.
       Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
       Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
 
-      Definition satp_select k (f: VmMode -> k @# ty): k @# ty :=
-        Switch satp_mode Retn k With {
-                 ($SatpModeSv32 : Bit SatpModeWidth @# ty)
-                 ::= f vm_mode_sv32;
-                 ($SatpModeSv39 : Bit SatpModeWidth @# ty)
-                 ::= f vm_mode_sv39;
-                 ($SatpModeSv48 : Bit SatpModeWidth @# ty)
-                 ::= f vm_mode_sv48
-               }.
-
       Section pte.
         Variable pte: PteEntry @# ty.
         Local Notation flags := (pte @% "flags").
@@ -95,7 +84,7 @@ Section pt_walker.
           RetE (flags @% "R" || flags @% "X").
 
         Local Definition isValidEntry : Bool ## ty :=
-        LETC cond1 <- satp_select
+        LETC cond1 <- satp_select satp_mode
              (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
                    (length (vm_mode_sizes x)))%nat));
         LETC cond2 <- ! (flags @% "V");
@@ -107,7 +96,7 @@ Section pt_walker.
         Definition ppnToPAddr sz (x: Bit sz @# ty) := ZeroExtendTruncLsb PAddrSz x << (Const ty (natToWord 4 LgPageSize)).
   
         Local Definition getVpnOffset: PAddr ## ty :=
-          RetE (satp_select
+          RetE (satp_select satp_mode
             (fun x
               => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
                 (ZeroExtendTruncLsb _
@@ -116,7 +105,7 @@ Section pt_walker.
         Local Definition getVAddrRest: PAddr ## ty :=
           RetE
             (ZeroExtendTruncLsb PAddrSz
-              (satp_select
+              (satp_select satp_mode
                 (fun x
                   => let shiftAmt x
                        := wordOfVAddrShifter
@@ -126,7 +115,7 @@ Section pt_walker.
           
         Local Definition checkAlign: Bool ## ty :=
           RetE
-            (satp_select
+            (satp_select satp_mode
               (fun x
                 => let index := ((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x)%nat in
                    (unsafeTruncLsb index (pte @% "pointer")) == $0)).
@@ -158,30 +147,13 @@ Section pt_walker.
         
         Local Definition isLeafValid: Bool ## ty :=
           RetE (!pte_access_dirty && pte_grant).
-   
-        Local Definition faultException
-          :  FullException @# ty
-          := STRUCT {
-               "exception"
-                 ::= Switch access_type Retn Exception With {
-                       ($VmAccessInst : VmAccessType @# ty)
-                         ::= ($InstPageFault : Exception @# ty);
-                       ($VmAccessLoad : VmAccessType @# ty)
-                         ::= ($LoadPageFault : Exception @# ty);
-                       ($VmAccessSAmo : VmAccessType @# ty)
-                         ::= ($SAmoPageFault : Exception @# ty)
-                     };
-               "value" ::= vAddr
-             } : FullException @# ty.
 
-        (* Definition translatePteLeaf: Maybe PAddr ## ty := *)
         Definition translatePteLeaf
           :  PktWithException PAddr ## ty :=
           LETE leafValid: Bool <- isLeafValid;
           LETE isCheckAlign: Bool <- checkAlign;
           LETE offset: PAddr <- getVAddrRest;
-          LETC exception : FullException <- faultException;
-          (* LETC retVal: Maybe PAddr *)
+          LETC exception : FullException <- faultException access_type vAddr;
           LETC retVal: PktWithException PAddr
             <- STRUCT {
                  "fst" ::= (ppnToPAddr (pte @% "pointer") + #offset);
@@ -192,16 +164,13 @@ Section pt_walker.
                } : PktWithException PAddr @# ty;
           RetE #retVal.
     
-        (* Definition translatePte: Pair Bool (Maybe PAddr) ## ty := *)
         Definition translatePte
           :  Pair Bool (PktWithException PAddr) ## ty
           := LETE validEntry : Bool <- isValidEntry;
              LETE leaf : Bool <- isLeaf;
-             (* LETE leafVal: Maybe PAddr <- translatePteLeaf; *)
              LETE leafVal: PktWithException PAddr <- translatePteLeaf;
              LETE vpnOffset <- getVpnOffset;
-             (* LETC nonLeafVal: Maybe PAddr *)
-             LETC nonLeafException : FullException <- faultException;
+             LETC nonLeafException : FullException <- faultException access_type vAddr;
              LETC nonLeafVal: PktWithException PAddr
                <- STRUCT {
                     "fst" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset);
@@ -210,9 +179,7 @@ Section pt_walker.
                             then Invalid
                             else Valid #nonLeafException
                   } : PktWithException PAddr @# ty;
-             (* LETC retVal: Maybe PAddr <- IF #leaf then #leafVal else #nonLeafVal; *)
              LETC retVal: PktWithException PAddr <- IF #leaf then #leafVal else #nonLeafVal;
-             (* LETC finalVal: Pair Bool (Maybe PAddr) *)
              LETC finalVal: Pair Bool (PktWithException PAddr)
                <- STRUCT {
                     "fst" ::= ((!#validEntry) || #leaf) ;
@@ -222,11 +189,9 @@ Section pt_walker.
         End pte.
 
       Definition translatePteLoop
-        (* (acc: Pair Bool (Maybe PAddr) @# ty) *)
         (acc: Pair Bool (PktWithException PAddr) @# ty)
-        (* :  ActionT ty (Pair Bool (Maybe PAddr)) := *)
         :  ActionT ty (Pair Bool (PktWithException PAddr))
-        := LET exception : FullException <- faultException;
+        := LET exception : FullException <- accessException access_type vAddr;
            LET errorResult : PktWithException PAddr
              <- STRUCT {
                   "fst" ::= $0;
@@ -270,13 +235,10 @@ Section pt_walker.
            Ret #result.
     End oneIteration.
 
-    Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
-
     Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
                                            vmModes 0.
 
     Definition pt_walker
-      (* :  ActionT ty (Maybe PAddr) := *)
       :  ActionT ty (PktWithException PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
       LET init : PktWithException PAddr
@@ -284,10 +246,8 @@ Section pt_walker.
              "fst" ::= (satp_ppn + #vpnOffset);
              "snd" ::= Invalid
            } : PktWithException PAddr @# ty;
-      (* LETA result: Pair Bool (Maybe PAddr) *)
       LETA result: Pair Bool (PktWithException PAddr)
         <- fold_left
-             (* (fun (acc : ActionT ty (Pair Bool (Maybe PAddr))) (currentLevel : nat) *)
              (fun (acc : ActionT ty (Pair Bool (PktWithException PAddr))) (currentLevel : nat)
                => LETA acc_result <- acc;
                System [
@@ -299,7 +259,6 @@ Section pt_walker.
              (seq 1 (maxPageLevels - 1))
              (Ret (STRUCT {
                "fst" ::= $$ false ;
-               (* "snd" ::= Valid (satp_ppn + #vpnOffset)})); *)
                "snd" ::= #init}));
       System [
         DispString _ "[pt_walker] the resulting paddr: ";

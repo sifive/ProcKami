@@ -70,51 +70,14 @@ Section Params.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Variable supported_ext_states : list (string * bool).
+    Variable supported_exts : list (string * bool).
 
-    Local Definition supported_ext_names := map fst supported_ext_states.
+    Variable func_units : forall ty, list (FUEntry supported_exts ty).
 
-    Variable func_units : forall ty, list (FUEntry supported_ext_names ty).
-
-    Local Notation supported_exts := (supported_exts supported_ext_names).
-    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names _ (func_units _)).
-    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_ext_names _ (func_units _)).
-
-    Local Definition ext_field_state_enabled := 0.
-    Local Definition ext_field_state_disabled := 1.
-    Local Definition ext_field_state_unsupported := 2.
-
-    Local Definition ext_field_state (ext_field_name : string) : nat
-      := fold_right
-           (fun ext acc
-             => match
-                  find
-                    (fun state => String.eqb (fst state) (ext_name ext))
-                    supported_ext_states with
-                  | None => Nat.min acc ext_field_state_unsupported
-                  | Some state
-                    => Nat.min acc
-                         (if snd state
-                           then ext_field_state_enabled
-                           else ext_field_state_disabled)
-                  end)
-           ext_field_state_unsupported
-           (filter
-             (fun ext => String.eqb ext_field_name (ext_misa_field_name ext))
-             ExtensionInfos).
-
-    Local Definition ext_reg (ext_field_name : string)
-      :  Tree ModuleElt
-      := Leaf (MERegister
-                 (^ext_field_name,
-                  let state : nat := ext_field_state ext_field_name in
-                  if Nat.eqb state ext_field_state_enabled
-                  then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst true))
-                  else
-                    if Nat.eqb state ext_field_state_disabled
-                    then existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))
-                                (* else existT RegInitValT (SyntaxKind (Bit 0)) None). *)
-                    else existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false))) :: nil).
+    Local Notation misa_field_states := (misa_field_states supported_exts).
+    Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
+    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
+    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
@@ -130,38 +93,31 @@ Section Params.
            |}
         ].
 
+    Local Open Scope kami_scope.
+
+    Local Definition extRegs
+      := supported_exts_foldr
+           (fun ext enabled acc
+             => (Register ^(ext_misa_field_name ext) : Bool <- ConstBool enabled) :: acc)
+           [].
+
+    Local Definition pmpRegs
+      := fold_right
+           (fun n regs
+             => (Register (^"pmp" ++ nat_decimal_string n ++ "cfg") : Bit 8 <- ConstBit (wzero 8)) ::
+                (Register (^"pmpaddr" ++ nat_decimal_string n) : Bit 54 <- ConstBit (wzero 54)) ::
+                regs)
+           [] (seq 0 16).
+
+    Close Scope kami_scope.
+
     Local Open Scope list.
 
     Definition processorCore 
       :  BaseModule
       := MODULE {
               (* extension registers *)
-              ext_reg "A" with
-              ext_reg "B" with
-              ext_reg "C" with
-              ext_reg "D" with
-              ext_reg "E" with
-              ext_reg "F" with
-              ext_reg "G" with
-              ext_reg "H" with
-              ext_reg "I" with
-              ext_reg "J" with
-              ext_reg "K" with
-              ext_reg "L" with
-              ext_reg "M" with
-              ext_reg "N" with
-              ext_reg "O" with
-              ext_reg "P" with
-              ext_reg "Q" with
-              ext_reg "R" with
-              ext_reg "S" with
-              ext_reg "T" with
-              ext_reg "U" with
-              ext_reg "V" with
-              ext_reg "W" with
-              ext_reg "X" with
-              ext_reg "Y" with
-              ext_reg "Z" with
+              Node extRegs with
 
               (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
@@ -257,40 +213,7 @@ Section Params.
               Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
               Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
-
-              (* memory protection registers. *)
-              Register ^"pmp0cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp1cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp2cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp3cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp4cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp5cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp6cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp7cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp8cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp9cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp10cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp11cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp12cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp13cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp14cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmp15cfg" : Bit 8 <- ConstBit (wzero 8) with
-              Register ^"pmpaddr0" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr1" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr2" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr3" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr4" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr5" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr6" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr7" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr8" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr9" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr10" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr11" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr12" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr13" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr14" : Bit 54 <- ConstBit (wzero 54) with
-              Register ^"pmpaddr15" : Bit 54 <- ConstBit (wzero 54) with
+              Node pmpRegs with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
                    Read pc : VAddr <- ^"pc";
@@ -330,7 +253,20 @@ Section Params.
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
               Rule ^"pipeline"
-                := LETA cfg_pkt <- readConfig name supported_ext_names _;
+                := 
+                   System
+                     [
+                       DispString _ "created the following extension registers: \n";
+                       DispString _ (fold_right String.append "" (fst misa_field_states));
+                       DispString _ "\n";
+                       DispString _ "the following extension registers were initialized to enabled: \n";
+                       DispString _ (fold_right String.append "" (fst misa_field_states));
+                       DispString _ "\n";
+                       DispString _ "the following misa field names are considered valid by the csr interface: \n";
+                       DispString _ (fold_right String.append "" (snd misa_field_states));
+                       DispString _ "\n"
+                     ];
+                   LETA cfg_pkt <- readConfig name supported_exts _;
                    Read pc : VAddr <- ^"pc";
                    System
                      [

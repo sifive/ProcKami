@@ -5,7 +5,7 @@ Section Mem.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -16,7 +16,7 @@ Section Mem.
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MaskedMem := (MaskedMem Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
 
   Notation Data := (Bit Rlen).
   Notation VAddr := (Bit Xlen).
@@ -25,7 +25,7 @@ Section Mem.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
@@ -37,31 +37,31 @@ Section Mem.
 
     Local Notation isAligned := (@isAligned Xlen_over_8 ty).
 
-    Local Notation loadInput := (@loadInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation loadInput := (@loadInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation loadTag := (@loadTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation loadXform := (@loadXform Rlen_over_8 ty).
 
-    Local Notation storeInput := (@storeInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation storeInput := (@storeInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation storeTag := (@storeTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation storeXform := (@storeXform Rlen_over_8 ty).
 
-    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation amoTag := (@amoTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation amoXform := (@amoXform Xlen_over_8 Rlen_over_8 ty).
 
-    Local Notation lrInput := (@lrInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation lrInput := (@lrInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation lrTag := (@lrTag Xlen_over_8 Rlen_over_8 ty).
 
     Local Notation lrXform := (@lrXform Xlen_over_8 Rlen_over_8 ty).
 
-    Local Notation scInput := (@scInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation scInput := (@scInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
 

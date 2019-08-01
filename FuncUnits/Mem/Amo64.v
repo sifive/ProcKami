@@ -7,7 +7,7 @@ Section Mem.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -18,7 +18,7 @@ Section Mem.
   Local Notation MemoryInput := (MemoryInput Rlen_over_8).
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MaskedMem := (MaskedMem Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
 
   Notation Data := (Bit Rlen).
   Notation VAddr := (Bit Xlen).
@@ -27,7 +27,7 @@ Section Mem.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+    Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
 
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
@@ -51,7 +51,7 @@ Section Mem.
 
     Local Notation storeXform := (@storeXform Rlen_over_8 ty).
 
-    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_exts ty).
 
     Local Notation amoTag := (@amoTag Xlen_over_8 Rlen_over_8 ty).
 

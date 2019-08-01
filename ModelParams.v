@@ -137,17 +137,13 @@ Section exts.
   Variable max_xlen : nat.
 
   (* The names of the supported extensions. *)
-  Variable supported_ext_states : list (string * bool).
-
-  Local Definition supported_ext_names
-    :  list string
-    := map fst supported_ext_states.
+  Variable supported_exts : list (string * bool).
 
   (* The supported extension entries. *)
   Local Definition entries
     :  list param_entry
     := filter
-         (fun entry => strings_in supported_ext_names (param_entry_name entry))
+         (fun entry => strings_in (map fst supported_exts) (param_entry_name entry))
          param_entries.
 
   Local Definition Xlen_over_8 : nat := if Nat.eqb max_xlen Xlen32 then 4 else 8.
@@ -171,65 +167,65 @@ Section exts.
     (* IV. Select and tailor function units. *)
     Section func_units.
 
-      Local Notation FUEntry   := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
-      Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_ext_names).
+      Local Notation FUEntry   := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
+      Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts).
 
       Local Definition func_units 
         :  list (FUEntry ty)
         := [
-             MRet      Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             ECall     Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Fence     Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             EBreak    Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Wfi       Xlen_over_8 Rlen_over_8 supported_ext_names _;
+             MRet      Xlen_over_8 Rlen_over_8 supported_exts _;
+             ECall     Xlen_over_8 Rlen_over_8 supported_exts _;
+             Fence     Xlen_over_8 Rlen_over_8 supported_exts _;
+             EBreak    Xlen_over_8 Rlen_over_8 supported_exts _;
+             Wfi       Xlen_over_8 Rlen_over_8 supported_exts _;
 
              (* RVI logical instructions. *)
-             Add       Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Logical   Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Shift     Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Branch    Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Jump      Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Mult      Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             DivRem    Xlen_over_8 Rlen_over_8 supported_ext_names _;
+             Add       Xlen_over_8 Rlen_over_8 supported_exts _;
+             Logical   Xlen_over_8 Rlen_over_8 supported_exts _;
+             Shift     Xlen_over_8 Rlen_over_8 supported_exts _;
+             Branch    Xlen_over_8 Rlen_over_8 supported_exts _;
+             Jump      Xlen_over_8 Rlen_over_8 supported_exts _;
+             Mult      Xlen_over_8 Rlen_over_8 supported_exts _;
+             DivRem    Xlen_over_8 Rlen_over_8 supported_exts _;
 
              (* RVI memory instructions. *)
-             Mem       Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Amo32     Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             Amo64     Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             LrSc32    Xlen_over_8 Rlen_over_8 supported_ext_names _;
-             LrSc64    Xlen_over_8 Rlen_over_8 supported_ext_names _;
+             Mem       Xlen_over_8 Rlen_over_8 supported_exts _;
+             Amo32     Xlen_over_8 Rlen_over_8 supported_exts _;
+             Amo64     Xlen_over_8 Rlen_over_8 supported_exts _;
+             LrSc32    Xlen_over_8 Rlen_over_8 supported_exts _;
+             LrSc64    Xlen_over_8 Rlen_over_8 supported_exts _;
 
              (* RVF instructions. *)
 
-             Float_double Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_single fpu_params_double _;
-             Double_float Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_single fpu_params_double _;
+             Float_double Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single fpu_params_double _;
+             Double_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single fpu_params_double _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FMv        Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             Word_float Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             Long_float Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_single _;
+             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FMv        Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             Word_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             Long_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FMv        Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             Word_float Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             Long_float Xlen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_ext_names fpu_params_double _;
+             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FMv        Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             Word_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             Long_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
 
              (* RV Zicsr instructions. *)
-             Zicsr     Xlen_over_8 Clen_over_8 Rlen_over_8 supported_ext_names _
+             Zicsr     Xlen_over_8 Clen_over_8 Rlen_over_8 supported_exts _
            ].
 
       Local Definition param_filter_insts
@@ -240,7 +236,7 @@ Section exts.
              (fun inst
                => andb
                     (existsb (fun xlen => Nat.leb xlen max_xlen) (xlens inst))
-                    (strings_any_in supported_ext_names (extensions inst))).
+                    (strings_any_in (map fst supported_exts) (extensions inst))).
 
       (*
         Accepts a functional unit and removes all of the instruction
@@ -278,7 +274,7 @@ Section exts.
          Clen_over_8
          Rlen_over_8
          mem_params_default
-         supported_ext_states
+         supported_exts
          param_func_units.
 
   Close Scope kami_expr.

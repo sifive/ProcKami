@@ -17,7 +17,7 @@ Section mem_unit.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -28,7 +28,7 @@ Section mem_unit.
   Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_ext_names ty).
+  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
@@ -51,9 +51,9 @@ Section mem_unit.
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Variable func_units : list FUEntry.
-  Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
-  Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
-  Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_ext_names ty func_units).
+  Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
 
   Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
   Variable mem_regions : list MemRegion.
@@ -68,7 +68,6 @@ Section mem_unit.
   (* TODO: should this be sign extended? *)
   Definition pMemTranslate
     (vaddr : VAddr @# ty)
-    (* :  Maybe PAddr @# ty *)
     :  PktWithException PAddr @# ty
     := STRUCT {
          "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
@@ -79,7 +78,6 @@ Section mem_unit.
     (mode : PrivMode @# ty)
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
-    (* :  ActionT ty (Maybe PAddr) *)
     :  ActionT ty (PktWithException PAddr)
     := Read mpp : PrivMode <- ^"mpp";
        Read mprv : Bool <- ^"mprv";
@@ -98,14 +96,26 @@ Section mem_unit.
               else Valid mode;
        If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
-           pt_walker
-             #satp_mode
-             #mxr
-             #sum
-             (#transMode @% "data")
-             (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
-             access_type
-             vaddr
+           If satp_select #satp_mode
+                (fun vm_mode
+                  => $0 == (vaddr >> Const ty (natToWord (Nat.log2_up vm_mode_max_width) (vm_mode_width vm_mode))))
+             then
+               pt_walker
+                 #satp_mode
+                 #mxr
+                 #sum
+                 (#transMode @% "data")
+                 (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
+                 access_type
+                 vaddr
+             else
+               LET exception : FullException <- accessException access_type vaddr;
+               Ret (STRUCT {
+                   "fst" ::= $0;
+                   "snd" ::= Valid #exception
+                 } : PktWithException PAddr @# ty)
+             as result;
+           Ret #result
          else
            Ret (pMemTranslate vaddr)
          as result;
@@ -117,7 +127,6 @@ Section mem_unit.
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
     := LETA paddr
-         (* :  Maybe PAddr *)
          :  PktWithException PAddr
          <- memTranslate mode $VmAccessInst vaddr;
        System [
@@ -141,7 +150,7 @@ Section mem_unit.
                   } : FullException @# ty);
            LETA pmp_result
              :  Bool
-             <- pmp_check_read mode (#paddr @% "fst") $4;
+             <- pmp_check_execute mode (#paddr @% "fst") $4;
            If #pmp_result
              then
                LETA inst
@@ -201,20 +210,6 @@ Section mem_unit.
            "value" ::= vaddr
          } : FullException @# ty)).
 
-  Local Definition mem_unit_exec_pkt_page_fault
-    (vaddr : VAddr @# ty)
-    (is_write : Bool @# ty)
-    :  ActionT ty (PktWithException MemRet)
-    := mem_unit_exec_pkt_def
-         (Valid (STRUCT {
-           "exception"
-             ::= (IF is_write
-                   then $SAmoPageFault
-                   else $LoadPageFault
-                   : Exception @# ty);
-           "value" ::= vaddr
-         } : FullException @# ty)).
-
   Definition mem_unit_exec
     (mode : PrivMode @# ty)
     (addr : VAddr @# ty)
@@ -260,7 +255,6 @@ Section mem_unit.
                     inst_id);
            (* III. get the physical address *)
            LETA mpaddr
-             (* :  Maybe PAddr *)
              :  PktWithException PAddr
              <- memTranslate mode
                   (IF #mis_write @% "data"
@@ -272,13 +266,11 @@ Section mem_unit.
                System [
                  DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
                ];
-               (* (mem_unit_exec_pkt_page_fault addr (#mis_write @% "data")) *)
                Ret (STRUCT {
                    "fst" ::= $$(getDefaultConst MemRet);
                    "snd" ::= #mpaddr @% "snd"
                  } : PktWithException MemRet @# ty)
              else
-               (* TODO: ADD PMP READ/WRITE CHECK HERE *)
                If #mis_write @% "data"
                  then pmp_check_write mode (#mpaddr @% "fst") $Xlen_over_8
                  else pmp_check_read mode (#mpaddr @% "fst") $Xlen_over_8
@@ -326,18 +318,17 @@ Section mem_unit.
                              :  Array Rlen_over_8 Bool
                              <- #mwrite_value @% "data" @% "mask";
                            LETA write_result
-                             (* :  Maybe FullException *)
                              :  Maybe Bool
                              <- mem_region_write mode
                                   (#mpaddr @% "fst")
                                   (#mwrite_value @% "data" @% "data" : Data @# ty)
                                   (#write_mask : Array Rlen_over_8 Bool @# ty);
-                           Ret (* #write_result *)
+                           Ret
                              (IF #write_result @% "data"
                                then
                                  Valid (STRUCT {
                                      "exception" ::= $SAmoAccessFault;
-                                     "value" ::= $0
+                                     "value" ::= addr
                                    } : FullException @# ty)
                                else Invalid)
                          else Ret Invalid

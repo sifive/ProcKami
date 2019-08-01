@@ -61,20 +61,15 @@ Section pmp.
          "addr" :: Bit 54
        }.
 
-  Local Definition nat_string
-    (n : nat)
-    :  string
-    := nth n ["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"; "10"; "11"; "12"; "13"; "14"; "15"] "".
-
   Definition pmp_entry_read
     (n : nat)
     :  ActionT ty PmpEntryPkt
     := Read entry_cfg
          :  Bit 8
-         <- ^("pmp" ++ nat_string n ++ "cfg");
+         <- ^("pmp" ++ nat_decimal_string n ++ "cfg");
        Read entry_addr
          :  Bit 54
-         <- ^("pmpaddr" ++ nat_string n);
+         <- ^("pmpaddr" ++ nat_decimal_string n);
        Ret
          (STRUCT {
             "cfg" ::= #entry_cfg;

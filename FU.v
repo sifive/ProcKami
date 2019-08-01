@@ -10,6 +10,8 @@ Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
+Require Import Wf.
+Require Import Wf_nat.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).
@@ -74,6 +76,14 @@ Definition ExtensionInfos
        {|
          ext_name            := "M";
          ext_misa_field_name := "M"
+       |};
+       {|
+         ext_name            := "S";
+         ext_misa_field_name := "S"
+       |};
+       {|
+         ext_name            := "U";
+         ext_misa_field_name := "U"
        |};
        {|
          ext_name            := "Zicsr";
@@ -195,7 +205,7 @@ Section Params.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable PAddrSz : nat. (* physical address size *)
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
@@ -225,15 +235,46 @@ Section Params.
 
   Definition PktWithException k := Pair k (Maybe FullException).
 
-  Definition supported_exts
-    :  list ExtensionInfo
-    := filter
-         (fun ext => existsb (String.eqb (ext_name ext)) supported_ext_names)
-         ExtensionInfos.
+  Local Definition strings_add xs x
+    := if existsb (String.eqb x) xs
+         then xs
+         else x :: xs.
+
+  (* fold over the set of supported extensions *)
+  Definition supported_exts_foldr
+    (A : Type)
+    (f : ExtensionInfo -> bool -> A -> A)
+    (init : A)
+    :  A
+    := fold_right
+         (fun ext acc
+           => match
+                find
+                  (fun state => String.eqb (fst state) (ext_name ext))
+                  supported_exts
+                with
+                | None => acc
+                | Some state
+                  => f ext (snd state) acc
+                end)
+         init ExtensionInfos.
+
+  (* supported and enabled misa extension fields *)
+  Definition misa_field_states
+    :  prod (list string) (list string)
+    := supported_exts_foldr
+         (fun ext enabled acc
+           => (strings_add (fst acc) (ext_misa_field_name ext),
+               if enabled
+                 then strings_add (snd acc) (ext_misa_field_name ext)
+                 else snd acc))
+         ([], []).
 
   Definition supported_ext_states
     :  list (string * Kind)
-    := map (fun ext => (ext_name ext, Bool)) supported_exts.
+    := supported_exts_foldr
+         (fun ext _ => cons (ext_name ext, Bool))
+         [].
 
   Local Open Scope kami_expr.
 
@@ -271,22 +312,6 @@ Section Params.
                                else (ReadStruct exts index : get_kind index @# ty))),
                  (fun exts name
                    => struct_get_field_default exts name $$false)))
-(*
-                   => let mfield := Syntax.struct_get_field_aux exts name in
-                      match mfield with
-                        | None => $$false
-                        | Some field
-                          => match field with
-                               | existT k value
-                                 => match Kind_dec k Bool with
-                                      | left H
-                                        => eq_rect k (fun k => k @# ty) value Bool H
-                                      | right _
-                                        => $$false
-                                      end
-                               end
-                        end)))
-*)
            supported_ext_states).
 
   Close Scope kami_expr.
@@ -497,6 +522,14 @@ Section Params.
           vm_mode_sizes := [17 ; 9; 9; 9 ];
           vm_mode_mode := $SatpModeSv48 |}.
 
+  Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
+
+  Definition vm_mode_width vm_mode
+    := (((vm_mode_vpn_size vm_mode) * (vm_mode_shift_num vm_mode)) + 12)%nat.
+
+  Definition vm_mode_max_width
+    := fold_right Nat.max 0 (map vm_mode_width vmModes).
+
   Definition VmAccessType := Bit 2.
   Definition VmAccessInst := 0.
   Definition VmAccessLoad := 1.
@@ -504,6 +537,50 @@ Section Params.
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
+
+  Definition faultException
+    (access_type : VmAccessType @# ty)
+    (value : ExceptionInfo @# ty)
+    :  FullException @# ty
+    := STRUCT {
+         "exception"
+           ::= Switch access_type Retn Exception With {
+                 ($VmAccessInst : VmAccessType @# ty)
+                   ::= ($InstPageFault : Exception @# ty);
+                 ($VmAccessLoad : VmAccessType @# ty)
+                   ::= ($LoadPageFault : Exception @# ty);
+                 ($VmAccessSAmo : VmAccessType @# ty)
+                   ::= ($SAmoPageFault : Exception @# ty)
+               };
+         "value" ::= value
+       } : FullException @# ty.
+
+  Definition accessException
+    (access_type : VmAccessType @# ty)
+    (value : ExceptionInfo @# ty)
+    :  FullException @# ty
+    := STRUCT {
+         "exception"
+           ::= Switch access_type Retn Exception With {
+                 ($VmAccessInst : VmAccessType @# ty)
+                   ::= ($InstAccessFault : Exception @# ty);
+                 ($VmAccessLoad : VmAccessType @# ty)
+                   ::= ($LoadAccessFault : Exception @# ty);
+                 ($VmAccessSAmo : VmAccessType @# ty)
+                   ::= ($SAmoAccessFault : Exception @# ty)
+               };
+         "value" ::= value
+       } : FullException @# ty.
+
+  Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
+    Switch satp_mode Retn k With {
+      ($SatpModeSv32 : Bit SatpModeWidth @# ty)
+      ::= f vm_mode_sv32;
+      ($SatpModeSv39 : Bit SatpModeWidth @# ty)
+      ::= f vm_mode_sv39;
+      ($SatpModeSv48 : Bit SatpModeWidth @# ty)
+      ::= f vm_mode_sv48
+    }.
 
   Definition bindException
     (input_kind output_kind : Kind)

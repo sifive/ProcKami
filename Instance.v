@@ -11,6 +11,7 @@ Import ListNotations.
 Require Import ModelParams.
 Require Import PeanoNat.
 Import Nat.
+Require Import RegStruct.
 
 Definition coreExts
   :  list (string * bool)
@@ -22,7 +23,9 @@ Definition coreExts
        ("A", true);
        ("F", true);
        ("D", true);
-       ("C", true)
+       ("C", true);
+       ("S", true);
+       ("U", true)
      ].
 
 Definition model (xlen : nat) : Mod := generate_model xlen coreExts.
@@ -39,6 +42,8 @@ Definition kami_model32 := snd (separateModRemove (model Xlen32)).
 Definition kami_model64 := snd (separateModRemove (model Xlen64)).
 
 Separate Extraction
+
+  MayStruct_RegReads
 
   model32
   model64

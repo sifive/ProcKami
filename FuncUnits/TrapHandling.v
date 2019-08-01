@@ -12,7 +12,7 @@ Section trap_handling.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable supported_ext_names : list string.
+  Variable supported_exts : list (string * bool).
   Variable Flen_over_8: nat.
   Variable lgMemSz: nat.
   Variable ty: Kind -> Type.
@@ -25,7 +25,7 @@ Section trap_handling.
   Local Notation VAddr := (Bit Xlen).
   Local Notation IntRegWrite := (IntRegWrite Xlen_over_8).
   Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_ext_names ty).           
+  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -239,6 +239,12 @@ Section trap_handling.
             Retv);
              Retv.
 
+  Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
+    :  VAddr @# ty
+    := IF Extensions_get (cfg_pkt @% "extensions") "C"
+         then epc >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
+         else epc >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty).
+
   Definition commit
     (pc: VAddr @# ty)
     (inst: Inst @# ty)
@@ -274,9 +280,12 @@ Section trap_handling.
             LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
             LET opt_val1 <- update_pkt @% "val1";
             LET opt_val2 <- update_pkt @% "val2";
-            Read mepc : VAddr <- ^"mepc";
-            Read sepc : VAddr <- ^"sepc";
-            Read uepc : VAddr <- ^"uepc";
+            Read mepc_raw : VAddr <- ^"mepc";
+            Read sepc_raw : VAddr <- ^"sepc";
+            Read uepc_raw : VAddr <- ^"uepc";
+            LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
+            LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
+            LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
             Write ^"pc"
               :  VAddr
               <- (ITE
