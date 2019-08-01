@@ -51,14 +51,14 @@ Section config_reader.
            => LETA exts : Extensions <- acc;
               Read enabled : Bool <- ^(ext_misa_field_name ext);
               System [
-                DispString _ ("[readExtensions] reading extension register " ++ ^(ext_misa_field_name ext) ++ " for " ++ (ext_name ext) ++ " enabled?: ");
+                DispString _ ("[readExtensions] reading extension register " ++ ^(ext_misa_field_name ext) ++ " for " ++ ext ++ " enabled?: ");
                 DispBinary #enabled;
                 DispString _ "\n";
                 DispString _ "[readExtensions] acc: ";
                 DispHex #exts;
                 DispString _ "\n"
               ];
-              Ret (Extensions_set #exts (ext_name ext) #enabled))
+              Ret (Extensions_set #exts ext #enabled))
          (Ret $$(getDefaultConst Extensions)).
 
   Definition readConfig

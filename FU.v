@@ -44,57 +44,6 @@ Definition RegId := Bit RegIdWidth.
 Definition CsrIdWidth := 12.
 Definition CsrId := Bit CsrIdWidth.
 
-Record ExtensionInfo
-  := {
-       ext_name            : string;
-       ext_misa_field_name : string
-     }.
-
-Definition ExtensionInfos
-  :  list ExtensionInfo
-  := [
-       {|
-         ext_name            := "A";
-         ext_misa_field_name := "A"
-       |};
-       {|
-         ext_name            := "C";
-         ext_misa_field_name := "C"
-       |};
-       {|
-         ext_name            := "D";
-         ext_misa_field_name := "D"
-       |};
-       {|
-         ext_name            := "F";
-         ext_misa_field_name := "F"
-       |};
-       {|
-         ext_name            := "I";
-         ext_misa_field_name := "I"
-       |};
-       {|
-         ext_name            := "M";
-         ext_misa_field_name := "M"
-       |};
-       {|
-         ext_name            := "S";
-         ext_misa_field_name := "S"
-       |};
-       {|
-         ext_name            := "U";
-         ext_misa_field_name := "U"
-       |};
-       {|
-         ext_name            := "Zicsr";
-         ext_misa_field_name := "Z"
-       |};
-       {|
-         ext_name            := "Zifencei";
-         ext_misa_field_name := "Z"
-       |}
-     ].
-
 Definition PrivMode := (Bit 2).
 Definition MachineMode    := 3.
 Definition SupervisorMode := 1.
@@ -240,24 +189,28 @@ Section Params.
          then xs
          else x :: xs.
 
+  Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
+
+  Definition ext_misa_field_name := substring 1 1.
+
   (* fold over the set of supported extensions *)
   Definition supported_exts_foldr
     (A : Type)
-    (f : ExtensionInfo -> bool -> A -> A)
+    (f : string -> bool -> A -> A)
     (init : A)
     :  A
     := fold_right
          (fun ext acc
-           => match
+           => match 
                 find
-                  (fun state => String.eqb (fst state) (ext_name ext))
+                  (fun state => String.eqb (fst state) ext)
                   supported_exts
                 with
                 | None => acc
                 | Some state
                   => f ext (snd state) acc
                 end)
-         init ExtensionInfos.
+         init ImplExts.
 
   (* supported and enabled misa extension fields *)
   Definition misa_field_states
@@ -273,7 +226,7 @@ Section Params.
   Definition supported_ext_states
     :  list (string * Kind)
     := supported_exts_foldr
-         (fun ext _ => cons (ext_name ext, Bool))
+         (fun ext _ => cons (ext, Bool))
          [].
 
   Local Open Scope kami_expr.
