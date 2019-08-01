@@ -96,30 +96,41 @@ Section mem_unit.
               else Valid mode;
        If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
-(*
-           If satp_select #satp_mode
-                (fun vm_mode
-                  => $0 == (vaddr >> Const ty (natToWord (Nat.log2_up vm_mode_max_width) (vm_mode_width vm_mode))))
-             then
-*)
-               pt_walker
-                 #satp_mode
-                 #mxr
-                 #sum
-                 (#transMode @% "data")
-                 (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
-                 access_type
-                 vaddr
-(*
-             else
-               LET exception : FullException <- accessException access_type vaddr;
-               Ret (STRUCT {
-                   "fst" ::= $0;
-                   "snd" ::= Valid #exception
-                 } : PktWithException PAddr @# ty)
-             as result;
-           Ret #result
-*)
+           LETA paddr : PktWithException PAddr
+             <- pt_walker
+                  #satp_mode
+                  #mxr
+                  #sum
+                  (#transMode @% "data")
+                  (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
+                  access_type
+                  vaddr;
+           bindException 
+             (#paddr @% "fst")
+             (#paddr @% "snd")
+             (fun paddr
+               => LET exception : FullException <- accessException access_type vaddr;
+                  LET debug_upper : PAddr
+                    <- satp_select #satp_mode
+                         (fun vm_mode
+                           => $(vm_mode_width vm_mode) : PAddr @# ty);
+                  System [
+                    DispString _ "[memTranslate] checking that the computed paddr ";
+                    DispHex paddr;
+                    DispString _ " is less than the maximum paddr ";
+                    DispHex #debug_upper;
+                    DispString _ " for the current virtual memory mode.\n"
+                  ];
+                  Ret
+                    (STRUCT {
+                        "fst" ::= paddr;
+                        "snd"
+                          ::= (IF satp_select #satp_mode
+                                   (fun vm_mode
+                                     => $0 == (vaddr >> ($(vm_mode_width vm_mode) : Bit (Nat.log2_up vm_mode_max_width) @# ty)))
+                                then Invalid
+                                else Valid #exception)
+                      } : PktWithException PAddr @# ty))
          else
            Ret (pMemTranslate vaddr)
          as result;

@@ -620,9 +620,6 @@ Section Params.
              (ZeroExtendTruncLsb
                (fst fcsr_frmField + 1)%nat
                fcsr)).
-(*
-  (fcsr $[fst fcsr_frmField: snd fcsr_frmField]).
-*)
 
   End Fields.
 
