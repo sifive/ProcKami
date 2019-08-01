@@ -96,10 +96,12 @@ Section mem_unit.
               else Valid mode;
        If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
          then
+(*
            If satp_select #satp_mode
                 (fun vm_mode
                   => $0 == (vaddr >> Const ty (natToWord (Nat.log2_up vm_mode_max_width) (vm_mode_width vm_mode))))
              then
+*)
                pt_walker
                  #satp_mode
                  #mxr
@@ -108,6 +110,7 @@ Section mem_unit.
                  (ppnToPAddr Xlen_over_8 (ZeroExtendTruncLsb 44 #satp_ppn))
                  access_type
                  vaddr
+(*
              else
                LET exception : FullException <- accessException access_type vaddr;
                Ret (STRUCT {
@@ -116,6 +119,7 @@ Section mem_unit.
                  } : PktWithException PAddr @# ty)
              as result;
            Ret #result
+*)
          else
            Ret (pMemTranslate vaddr)
          as result;

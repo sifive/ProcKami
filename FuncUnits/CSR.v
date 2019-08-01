@@ -736,13 +736,11 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "reserved" (Bit 4) (getDefaultConst _)
-(*
+                         @csrFieldNoReg "mepc_reserved32" (Bit 4) (getDefaultConst _);
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-*)
-                       ] ++ ext_fields in
+                       ] (* ++ ext_fields *) in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
@@ -752,13 +750,11 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "reserved" (Bit 36) (getDefaultConst _)
-(*
+                         @csrFieldNoReg "mepc_reserved64" (Bit 36) (getDefaultConst _);
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-*)
-                       ] ++ ext_fields in
+                       ] (* ++ ext_fields *) in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
