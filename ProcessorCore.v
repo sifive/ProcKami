@@ -78,6 +78,7 @@ Section Params.
     Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
+    Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
 
     Local Definition mem_regions (ty : Kind -> Type)
       := [
@@ -322,6 +323,8 @@ Section Params.
                    System [DispString _ "CSR Write\n"];
                    LETA mcounteren <- read_counteren _ ^"mcounteren";
                    LETA scounteren <- read_counteren _ ^"scounteren";
+                   Read mepc_raw : VAddr <- ^"mepc";
+                   LET  mepc : VAddr <- maskEpc #cfg_pkt #mepc_raw;
                    LETA csr_update_pkt
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
@@ -330,6 +333,7 @@ Section Params.
                           #mcounteren
                           #scounteren
                           #pc
+                          #mepc
                           (#decoder_pkt @% "fst" @% "inst")
                           (#fetch_pkt @% "fst" @% "compressed?")
                           #cfg_pkt

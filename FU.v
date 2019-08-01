@@ -426,8 +426,20 @@ Section Params.
     :  Kind
     := STRUCT_TYPE {
          "pc" :: VAddr;
+         "mepc" :: VAddr;
          "compressed?" :: Bool
        }.
+
+  Local Open Scope kami_expr.
+
+  (* See 3.1.1 and 3.1.15 *)
+  Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
+    :  VAddr @# ty
+    := IF Extensions_get (cfg_pkt @% "extensions") "C"
+         then epc >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
+         else epc >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty).
+
+  Local Close Scope kami_expr.
 
   Definition FieldUpd
     := STRUCT_TYPE {

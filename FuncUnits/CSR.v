@@ -736,7 +736,7 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "mepc_reserved32" (Bit 4) (getDefaultConst _);
+                         @csrFieldNoReg "misa_reserved32" (Bit 4) (getDefaultConst _);
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
@@ -750,7 +750,7 @@ Section CsrInterface.
                   let fields
                     := [
                          xlField ^"m";
-                         @csrFieldNoReg "mepc_reserved64" (Bit 36) (getDefaultConst _);
+                         @csrFieldNoReg "misa_reserved64" (Bit 36) (getDefaultConst _);
                          @csrFieldNoReg
                            "extensions" (Bit 26)
                            (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
@@ -1807,6 +1807,7 @@ Section CsrInterface.
     (mcounteren : CounterEnType @# ty)
     (scounteren : CounterEnType @# ty)
     (pc : VAddr @# ty)
+    (mepc : VAddr @# ty)
     (compressed : Bool @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (rd_index : RegId @# ty)
@@ -1817,6 +1818,7 @@ Section CsrInterface.
     := LET warlStateField
          <- (STRUCT {
                "pc" ::= pc;
+               "mepc" ::= mepc;
                "compressed?" ::= compressed
              } : WarlUpdateInfo @# ty);
        LET upd_pkt
@@ -1835,6 +1837,7 @@ Section CsrInterface.
     (mcounteren : CounterEnType @# ty)
     (scounteren : CounterEnType @# ty)
     (pc : VAddr @# ty)
+    (mepc : VAddr @# ty)
     (inst : Inst @# ty)
     (compressed : Bool @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
@@ -1849,7 +1852,7 @@ Section CsrInterface.
          (fun update_pkt : ExecUpdPkt @# ty
            => LETA errored
                 :  Bool
-                <- commitCSRWrites mcounteren scounteren pc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
+                <- commitCSRWrites mcounteren scounteren pc mepc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
               LET exception
                 :  Maybe FullException
                 <- IF #errored

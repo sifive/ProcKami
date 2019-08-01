@@ -35,6 +35,7 @@ Section trap_handling.
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
   Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
   Local Notation memSz := (pow2 lgMemSz).
+  Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts ty).
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
@@ -238,12 +239,6 @@ Section trap_handling.
                     Retv);
             Retv);
              Retv.
-
-  Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
-    :  VAddr @# ty
-    := IF Extensions_get (cfg_pkt @% "extensions") "C"
-         then epc >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
-         else epc >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty).
 
   Definition commit
     (pc: VAddr @# ty)
