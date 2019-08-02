@@ -24,9 +24,7 @@ Section fetch.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
 
-  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
-  Variable mem_regions : list MemRegion.
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
 
@@ -36,12 +34,13 @@ Section fetch.
 
   Definition fetch
     (xlen : XlenValue @# ty)
+    (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (pc: VAddr @# ty)
     :  ActionT ty (PktWithException FetchPkt)
     := LETA inst_lower
          :  PktWithException Data
-         <- memFetch 1 mode (xlen_sign_extend Xlen xlen pc);
+         <- memFetch 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
        If #inst_lower @% "snd" @% "valid"
          then
            System [
@@ -59,7 +58,7 @@ Section fetch.
              :  Bool
              <- fetch_decompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
            If #decompressed
-             then memFetch 2 mode (xlen_sign_extend Xlen xlen (pc + $2))
+             then memFetch 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
              else
                Ret (STRUCT {
                    "fst" ::= $0;

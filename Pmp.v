@@ -93,8 +93,14 @@ Section pmp.
          "pmp_cfg" :: Bit 8
        }.
 
+  Definition pmp_check_type := Bit 2.
+
+  Definition pmp_check_type_read := 0.
+  Definition pmp_check_type_write := 1.
+  Definition pmp_check_type_execute := 2.
+
   Definition pmp_check
-    (f : Bit 8 @# ty -> Bool @# ty)
+    (check : pmp_check_type @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
     (addr_len : Bit 4 @# ty)
@@ -278,21 +284,41 @@ Section pmp.
          (IF #result @% "matched"
            then
              (mode == $MachineMode && !pmp_cfg_locked (#result @% "pmp_cfg")) ||
-             (f (#result @% "pmp_cfg"))
+             (Switch check Retn Bool With {
+               ($pmp_check_type_read : pmp_check_type @# ty)
+                 ::= pmp_cfg_read (#result @% "pmp_cfg");
+               ($pmp_check_type_write : pmp_check_type @# ty)
+                 ::= pmp_cfg_write (#result @% "pmp_cfg");
+               ($pmp_check_type_execute : pmp_check_type @# ty)
+                 ::= pmp_cfg_execute (#result @% "pmp_cfg") 
+             })
            else
              (mode == $MachineMode)).
 
   Definition pmp_check_execute 
     :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check pmp_cfg_execute.
+    := pmp_check $pmp_check_type_execute.
   
   Definition pmp_check_write
     :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check pmp_cfg_write.
+    := pmp_check $pmp_check_type_write.
 
   Definition pmp_check_read
     :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check pmp_cfg_read.
+    := pmp_check $pmp_check_type_read.
+
+  Definition pmp_check_access
+    (access_type : VmAccessType @# ty)
+    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
+    := pmp_check
+         (Switch access_type Retn pmp_check_type With {
+            ($VmAccessInst : VmAccessType @# ty)
+              ::= ($pmp_check_type_execute : pmp_check_type @# ty);
+            ($VmAccessLoad : VmAccessType @# ty)
+              ::= ($pmp_check_type_read : pmp_check_type @# ty);
+            ($VmAccessSAmo : VmAccessType @# ty)
+              ::= ($pmp_check_type_write : pmp_check_type @# ty)
+          }).
 
   Close Scope kami_action.
   Close Scope kami_expr.

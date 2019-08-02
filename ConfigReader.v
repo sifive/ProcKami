@@ -63,7 +63,8 @@ Section config_reader.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
-    := Read mode : PrivMode <- ^"mode";
+    := Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
+       Read mode : PrivMode <- ^"mode";
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
@@ -89,6 +90,7 @@ Section config_reader.
        Ret
          (STRUCT {
             "xlen"       ::= #xlen;
+            "satp_mode"  ::= #satp_mode;
             "mode"       ::= #mode;
             "tsr"        ::= #tsr;
             "tvm"        ::= #tvm;

@@ -155,6 +155,7 @@ Section Params.
   Variable Rlen_over_8: nat.
   Variable PAddrSz : nat. (* physical address size *)
   Variable supported_exts : list (string * bool).
+
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
   Variable ty: Kind -> Type.
@@ -191,7 +192,7 @@ Section Params.
 
   Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
 
-  Definition ext_misa_field_name := substring 1 1.
+  Definition ext_misa_field_name := substring 0 1.
 
   (* fold over the set of supported extensions *)
   Definition supported_exts_foldr
@@ -286,6 +287,12 @@ Section Params.
     :  Bool @# ty
     := snd (projT2 ExtensionsInterface) exts name.
 
+  Definition SatpModeWidth := 4.
+  Definition SatpModeBare := 0.
+  Definition SatpModeSv32 := 1.
+  Definition SatpModeSv39 := 8.
+  Definition SatpModeSv48 := 9.
+
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst ;
@@ -306,6 +313,7 @@ Section Params.
   Definition ContextCfgPkt :=
     STRUCT_TYPE {
         "xlen"        :: XlenValue;
+        "satp_mode"   :: Bit SatpModeWidth;
         "mode"        :: PrivMode;
         "tsr"         :: Bool;
         "tvm"         :: Bool;
@@ -451,12 +459,6 @@ Section Params.
          mem_params_addr_size      : nat; (* physical address size *)
          mem_params_granularity    : nat  (* pmp (napot) granularity *)
        }.
-
-  Definition SatpModeWidth := 4.
-  Definition SatpModeBare := 0.
-  Definition SatpModeSv32 := 1.
-  Definition SatpModeSv39 := 8.
-  Definition SatpModeSv48 := 9.
 
   Definition LgPageSize := 12.
 
@@ -667,20 +669,5 @@ Section Params.
              else $2).
 
   End XlenInterface.
-
-  Record MemDevice
-    := {
-         mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
-         mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
-       }.
-
-  Record MemRegion
-    := {
-         mem_region_addr  : PAddr @# ty;
-         mem_region_width : nat;
-         mem_region_device : MemDevice
-       }.
 
 End Params.

@@ -54,13 +54,11 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-
-  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
-  Variable mem_regions : list MemRegion.
-
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty 4 mem_regions).
-  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 ty mem_regions).
-  Local Notation mem_region_write := (@mem_region_write Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 4).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -75,13 +73,13 @@ Section mem_unit.
        } : PktWithException PAddr @# ty.
 
   Definition memTranslate
+    (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
     := Read mpp : PrivMode <- ^"mpp";
        Read mprv : Bool <- ^"mprv";
-       Read satp_mode : Bit 4 <- ^"satp_mode";
        Read mxr : Bool <- ^"mxr";
        Read sum : Bool <- ^"sum";
        Read satp_ppn : Bit 44 <- ^"satp_ppn";
@@ -94,11 +92,11 @@ Section mem_unit.
                   then Valid #mpp
                   else Invalid
               else Valid mode;
-       If #transMode @% "valid" && (!(#satp_mode == $SatpModeBare))
+       If #transMode @% "valid" && (!(satp_mode == $SatpModeBare))
          then
            LETA paddr : PktWithException PAddr
              <- pt_walker
-                  #satp_mode
+                  satp_mode
                   #mxr
                   #sum
                   (#transMode @% "data")
@@ -106,34 +104,6 @@ Section mem_unit.
                   access_type
                   vaddr;
            Ret #paddr
-(*
-           bindException 
-             (#paddr @% "fst")
-             (#paddr @% "snd")
-             (fun paddr
-               => LET exception : FullException <- accessException access_type vaddr;
-                  LET debug_upper : PAddr
-                    <- satp_select #satp_mode
-                         (fun vm_mode
-                           => $(vm_mode_width vm_mode) : PAddr @# ty);
-                  System [
-                    DispString _ "[memTranslate] checking that the computed paddr ";
-                    DispHex paddr;
-                    DispString _ " is less than the maximum paddr ";
-                    DispHex #debug_upper;
-                    DispString _ " for the current virtual memory mode.\n"
-                  ];
-                  Ret
-                    (STRUCT {
-                        "fst" ::= paddr;
-                        "snd"
-                          ::= (IF satp_select #satp_mode
-                                   (fun vm_mode
-                                     => $0 == (vaddr >> ($(vm_mode_width vm_mode) : Bit (Nat.log2_up vm_mode_max_width) @# ty)))
-                                then Invalid
-                                else Valid #exception)
-                      } : PktWithException PAddr @# ty))
-*)
          else
            Ret (pMemTranslate vaddr)
          as result;
@@ -141,12 +111,13 @@ Section mem_unit.
 
   Definition memFetch
     (index : nat)
+    (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate mode $VmAccessInst vaddr;
+         <- memTranslate satp_mode mode $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
@@ -167,26 +138,19 @@ Section mem_unit.
                     "value" ::= vaddr
                   } : FullException @# ty);
            LETA pmp_result
-             :  Bool
-             <- pmp_check_execute mode (#paddr @% "fst") $4;
-           If #pmp_result
+             :  Maybe (Pair DeviceTag PAddr)
+             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $4;
+           If #pmp_result @% "valid"
              then
                LETA inst
-                 :  Maybe Data
-                 <- mem_region_read index mode (#paddr @% "fst");
-               If #inst @% "valid"
-                 then
-                   Ret (STRUCT {
-                       "fst" ::= #inst @% "data";
-                       "snd" ::= Invalid
-                     } : PktWithException Data @# ty)
-                 else
-                   Ret (STRUCT {
-                       "fst" ::= $0;
-                       "snd" ::= #exception
-                     } : PktWithException Data @# ty)
-                 as result;
-               Ret #result
+                 :  Data
+                 <- mem_region_read index mode
+                      (#pmp_result @% "data" @% "fst") 
+                      (#pmp_result @% "data" @% "snd");
+               Ret (STRUCT {
+                   "fst" ::= #inst;
+                   "snd" ::= Invalid
+                 } : PktWithException Data @# ty)
              else
                Ret (STRUCT {
                    "fst" ::= $0;
@@ -229,6 +193,7 @@ Section mem_unit.
          } : FullException @# ty)).
 
   Definition mem_unit_exec
+    (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (addr : VAddr @# ty)
     (func_unit_id : FuncUnitId @# ty)
@@ -274,7 +239,7 @@ Section mem_unit.
            (* III. get the physical address *)
            LETA mpaddr
              :  PktWithException PAddr
-             <- memTranslate mode
+             <- memTranslate satp_mode mode
                   (IF #mis_write @% "data"
                     then $VmAccessSAmo
                     else $VmAccessLoad)
@@ -289,93 +254,92 @@ Section mem_unit.
                    "snd" ::= #mpaddr @% "snd"
                  } : PktWithException MemRet @# ty)
              else
-               If #mis_write @% "data"
-                 then pmp_check_write mode (#mpaddr @% "fst") $Xlen_over_8
-                 else pmp_check_read mode (#mpaddr @% "fst") $Xlen_over_8
-                 as pmp_result;
-               If #pmp_result
+               LETA pmp_result
+                 :  Maybe (Pair DeviceTag PAddr)
+                 <- checkForAccessFault
+                      (IF #mis_write @% "data"
+                        then $VmAccessSAmo
+                        else $VmAccessLoad)
+                      satp_mode
+                      mode
+                      (#mpaddr @% "fst")
+                      $Xlen_over_8;
+               If #pmp_result @% "valid"
                  then
                    (* IV. read the current value and place reservation *)
-                   LETA mread_result
-                     :  Maybe Data
-                     <- mem_region_read 3 mode (#mpaddr @% "fst");
+                   LETA read_result
+                     :  Data
+                     <- mem_region_read 3 mode
+                          (#pmp_result @% "data" @% "fst")
+                          (#pmp_result @% "data" @% "snd");
                    (* TODO: should we place reservations on failed reads? *)
                    LETA read_reservation_result
                      :  Array Rlen_over_8 Bool
                      <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "fst"));
-                   (* V. did the read fail? *)
-                   If #mread_result @% "valid"
-                     then 
-                       (* VI. apply the memory transform to compute the wrie value *)
-                       LETA mwrite_value
-                         :  Maybe MemoryOutput
-                         <- convertLetExprSyntax_ActionT
-                              (inst_db_get_pkt
-                                (fun _ _ tagged_inst
-                                  => let inst := snd (tagged_inst) in
-                                     match optMemXform inst return MemoryOutput ## ty with
-                                       | Some f
-                                         => ((f
-                                              (RetE
-                                                (STRUCT {
-                                                  "aq" ::= input_pkt @% "aq" ;
-                                                  "rl" ::= input_pkt @% "rl" ;
-                                                  "reservation" ::= #read_reservation_result;
-                                                  "mem" ::= #mread_result @% "data" ;
-                                                  "reg_data" ::= input_pkt @% "reg_data"
-                                                 } : MemoryInput @# ty))) : MemoryOutput ## ty)
-                                       | None (* impossible case *)
-                                         => RetE $$(getDefaultConst MemoryOutput)
-                                       end)
-                                func_unit_id
-                                inst_id);
-                       If #mwrite_value @% "data" @% "isWr"
-                         then
-                           (* VII. write to memory. *)
-                           LET write_mask
-                             :  Array Rlen_over_8 Bool
-                             <- #mwrite_value @% "data" @% "mask";
-                           LETA write_result
-                             :  Maybe Bool
-                             <- mem_region_write mode
-                                  (#mpaddr @% "fst")
-                                  (#mwrite_value @% "data" @% "data" : Data @# ty)
-                                  (#write_mask : Array Rlen_over_8 Bool @# ty);
-                           Ret
-                             (IF #write_result @% "data"
-                               then
-                                 Valid (STRUCT {
-                                     "exception" ::= $SAmoAccessFault;
-                                     "value" ::= addr
-                                   } : FullException @# ty)
-                               else Invalid)
-                         else Ret Invalid
-                         as write_result;
-                       System [
-                         DispString _ "[mem_unit_exec] write result:\n";
-                         DispHex #write_result;
-                         DispString _ "\n"
-                       ];
-                       If #mwrite_value @% "data" @% "isLrSc"
-                         then pMemWriteReservation
-                                (#mpaddr @% "fst")
-                                (#mwrite_value @% "data" @% "mask")
-                                (#mwrite_value @% "data" @% "reservation");
-                       LET memRet
-                         :  MemRet
-                         <- STRUCT {
-                              "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
-                              "tag"  ::= #mwrite_value @% "data" @% "tag";
-                              "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
-                            } : MemRet @# ty;
-                       mem_unit_exec_pkt #memRet #write_result
-                     else 
-                       System [
-                         DispString _ "[mem_unit_exec] the memory read operation threw an exception.\n"
-                       ];
-                       (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
-                     as result;
-                   Ret #result
+                   (* VI. apply the memory transform to compute the wrie value *)
+                   LETA mwrite_value
+                     :  Maybe MemoryOutput
+                     <- convertLetExprSyntax_ActionT
+                          (inst_db_get_pkt
+                            (fun _ _ tagged_inst
+                              => let inst := snd (tagged_inst) in
+                                 match optMemXform inst return MemoryOutput ## ty with
+                                   | Some f
+                                     => ((f
+                                          (RetE
+                                            (STRUCT {
+                                              "aq" ::= input_pkt @% "aq" ;
+                                              "rl" ::= input_pkt @% "rl" ;
+                                              "reservation" ::= #read_reservation_result;
+                                              "mem" ::= #read_result ;
+                                              "reg_data" ::= input_pkt @% "reg_data"
+                                             } : MemoryInput @# ty))) : MemoryOutput ## ty)
+                                   | None (* impossible case *)
+                                     => RetE $$(getDefaultConst MemoryOutput)
+                                   end)
+                            func_unit_id
+                            inst_id);
+                   If #mwrite_value @% "data" @% "isWr"
+                     then
+                       (* VII. write to memory. *)
+                       LET write_mask
+                         :  Array Rlen_over_8 Bool
+                         <- #mwrite_value @% "data" @% "mask";
+                       LETA write_result
+                         :  Bool
+                         <- mem_region_write mode
+                              (#pmp_result @% "data" @% "fst")
+                              (#pmp_result @% "data" @% "snd")
+                              (#mwrite_value @% "data" @% "data" : Data @# ty)
+                              (#write_mask : Array Rlen_over_8 Bool @# ty);
+                       Ret
+                         (IF #write_result
+                           then
+                             Valid (STRUCT {
+                                 "exception" ::= $SAmoAccessFault;
+                                 "value" ::= addr
+                               } : FullException @# ty)
+                           else Invalid)
+                     else Ret Invalid
+                     as write_result;
+                   System [
+                     DispString _ "[mem_unit_exec] write result:\n";
+                     DispHex #write_result;
+                     DispString _ "\n"
+                   ];
+                   If #mwrite_value @% "data" @% "isLrSc"
+                     then pMemWriteReservation
+                            (#mpaddr @% "fst")
+                            (#mwrite_value @% "data" @% "mask")
+                            (#mwrite_value @% "data" @% "reservation");
+                   LET memRet
+                     :  MemRet
+                     <- STRUCT {
+                          "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
+                          "tag"  ::= #mwrite_value @% "data" @% "tag";
+                          "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
+                        } : MemRet @# ty;
+                   mem_unit_exec_pkt #memRet #write_result
                  else
                    System [
                      DispString _ "[mem_unit_exec] the pmp check failed\n"
@@ -400,6 +364,7 @@ Section mem_unit.
 
   Definition MemUnit
     (xlen : XlenValue @# ty)
+    (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (decoder_pkt : DecoderPkt @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
@@ -418,6 +383,7 @@ Section mem_unit.
               LETA memRet
                 :  PktWithException MemRet
                 <- mem_unit_exec
+                     satp_mode
                      mode
                      (xlen_sign_extend Xlen xlen
                        (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))

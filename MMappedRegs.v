@@ -14,23 +14,22 @@ Section mmapped.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
 
-  Local Definition lgGranuleSize : nat := Nat.log2_up 3. (* log2 number of bits per granule. *)
-  Local Definition lgMaskSz : nat := Nat.log2_up 8. (* log2 number of granules per entry. *)
-  Local Definition realAddrSz : nat := 1. (* log2 number of registers. *)
+  Definition mmregs_lgGranuleSize : nat := Nat.log2_up 3. (* log2 number of bits per granule. *)
+  Definition mmregs_lgMaskSz : nat := Nat.log2_up 8. (* log2 number of granules per entry. *)
+  Definition mmregs_realAddrSz : nat := 1. (* log2 number of registers. *)
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation GroupReg := (GroupReg lgMaskSz realAddrSz).
-  Local Notation GroupReg_Gen := (GroupReg_Gen ty lgMaskSz realAddrSz).
-  Local Notation RegMapT := (RegMapT lgGranuleSize lgMaskSz realAddrSz).
-  Local Notation FullRegMapT := (FullRegMapT lgGranuleSize lgMaskSz realAddrSz).
+  Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
+  Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
+  Local Notation RegMapT := (RegMapT mmregs_lgGranuleSize mmregs_lgMaskSz mmregs_realAddrSz).
+  Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleSize mmregs_lgMaskSz mmregs_realAddrSz).
 
   Local Notation PAddrSz := (Xlen).
-  Local Notation MemDevice := (MemDevice Rlen_over_8 PAddrSz ty).
 
-  Local Notation maskSz := (pow2 lgMaskSz).
-  Local Notation granuleSz := (pow2 lgGranuleSize).
+  Local Notation maskSz := (pow2 mmregs_lgMaskSz).
+  Local Notation granuleSz := (pow2 mmregs_lgGranuleSize).
   Local Notation dataSz := (maskSz * granuleSz).
 
   Local Definition mmapped_regs
@@ -54,7 +53,7 @@ Section mmapped.
   Definition MmappedReq
     := STRUCT_TYPE {
          "isRd" :: Bool;
-         "addr" :: Bit realAddrSz;
+         "addr" :: Bit mmregs_realAddrSz;
          "data" :: Bit dataSz
        }.
 
@@ -79,7 +78,7 @@ Section mmapped.
        Ret (ZeroExtendTruncLsb 64 #result).
 
   Definition mmapped_read
-    (addr : Bit realAddrSz @# ty) 
+    (addr : Bit mmregs_realAddrSz @# ty) 
     :  ActionT ty (Bit 64)
     := readWriteMMappedReg
          (STRUCT {
@@ -89,7 +88,7 @@ Section mmapped.
           }).
 
   Definition mmapped_write
-    (addr : Bit realAddrSz @# ty)
+    (addr : Bit mmregs_realAddrSz @# ty)
     (data : Bit dataSz @# ty)
     :  ActionT ty (Bit 64)
     := readWriteMMappedReg
@@ -98,22 +97,6 @@ Section mmapped.
             "addr" ::= addr;
             "data" ::= data
           }).
-
-  Definition mMappedRegDevice
-    :  MemDevice
-    := {|
-         mem_device_read
-           := fun _ _ addr
-                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb realAddrSz addr);
-                   Ret (ZeroExtendTruncLsb Rlen #result);
-         mem_device_write
-           := fun _ write_pkt
-                => LET addr : Bit realAddrSz <- unsafeTruncLsb realAddrSz (write_pkt @% "addr");
-                   LETA _
-                     <- mmapped_write #addr
-                          (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret $$false
-       |}.
 
   Close Scope kami_action.
   Close Scope kami_expr.

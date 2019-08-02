@@ -30,12 +30,9 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
-
-  Local Notation MemRegion := (@MemRegion Rlen_over_8 PAddrSz ty).
-  Variable mem_regions : list MemRegion.
-
-  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 ty mem_regions).
+  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -209,23 +206,23 @@ Section pt_walker.
                  then
                    Ret (acc @%["fst" <- $$true])
                  else
-                   LETA pmp_result: Bool
-                     <- pmp_check_read mode (acc @% "snd" @% "fst") $4;
-                   If #pmp_result
+                   LETA pmp_result
+                     :  Maybe (Pair DeviceTag PAddr)
+                     <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $4;
+                   If #pmp_result @% "valid"
                      then 
-                       LETA read_result: Maybe Data
+                       LETA read_result: Data
                          <- mem_region_read (mem_read_index + (currentLevel-1)) mode
-                              (acc @% "snd" @% "fst");
+                              (#pmp_result @% "data" @% "fst")
+                              (#pmp_result @% "data" @% "snd");
                        System [
                          DispString _ "[translatePteLoop] page table entry: ";
                          DispHex #read_result;
                          DispString _ "\n"
                        ];
-                       If #read_result @% "valid"
-                         then convertLetExprSyntax_ActionT (translatePte (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
-                         else Ret #doneInvalid
-                         as result;
-                       Ret #result
+                       convertLetExprSyntax_ActionT
+                         (translatePte
+                           (unpack _ (ZeroExtendTruncLsb _ #read_result)))
                      else Ret #doneInvalid
                      as result;
                    Ret #result

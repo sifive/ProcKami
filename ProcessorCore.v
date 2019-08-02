@@ -63,8 +63,6 @@ Section Params.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
-  Local Notation pMemDevice := (pMemDevice name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation mMappedRegDevice := (mMappedRegDevice name Xlen_over_8 Rlen_over_8).
   
   Section model.
     Local Open Scope kami_action.
@@ -79,20 +77,6 @@ Section Params.
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
-
-    Local Definition mem_regions (ty : Kind -> Type)
-      := [
-           {|
-             mem_region_addr := $0; (* TODO hardcode here? *)
-             mem_region_width := 16; (* 2 * num memory mapped regs *)
-             mem_region_device := (mMappedRegDevice ty)
-           |};
-           {|
-             mem_region_addr := ($1 << $$(natToWord 6 31)); (* start at 80000000 *)
-             mem_region_width := (pow2 lgMemSz);
-             mem_region_device := (pMemDevice ty)
-           |}
-        ].
 
     Local Open Scope kami_scope.
 
@@ -280,7 +264,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name Xlen_over_8 (mem_regions _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "mode") #pc;
+                     <- @fetch name Xlen_over_8 Rlen_over_8 mem_params _ (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -350,8 +334,8 @@ Section Params.
                    LETA mem_update_pkt
                      :  PktWithException ExecUpdPkt
                      <- MemUnit name mem_params
-                          (mem_regions _)
                           (#cfg_pkt @% "xlen")
+                          (#cfg_pkt @% "satp_mode")
                           (#cfg_pkt @% "mode")
                           (#decoder_pkt @% "fst")
                           (#exec_context_pkt @% "fst")
