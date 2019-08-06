@@ -70,6 +70,15 @@ Section pmp.
        Read entry_addr
          :  Bit 54
          <- ^("pmpaddr" ++ nat_decimal_string n);
+       (* System [
+         DispString _ ("[pmp_entry_read] registers: " ++ ^("pmp" ++ nat_decimal_string n ++ "cfg") ++ "  " ++ ^("pmpaddr" ++ nat_decimal_string n) ++ "\n");
+         DispString _ "[pmp_entry_read] cfg: ";
+         DispHex #entry_cfg;
+         DispString _ "\n";
+         DispString _ "[pmp_entry_read] addr: ";
+         DispHex #entry_addr;
+         DispString _ "\n"
+       ]; *)
        Ret
          (STRUCT {
             "cfg" ::= #entry_cfg;
@@ -88,7 +97,7 @@ Section pmp.
   Local Definition pmp_entry_acc_kind
     := STRUCT_TYPE {
          "any_on"  :: Bool;
-         "addr"    :: PAddrEx;
+         "addr"    :: PAddr;
          "matched" :: Bool;
          "pmp_cfg" :: Bit 8
        }.
@@ -107,7 +116,7 @@ Section pmp.
     :  ActionT ty Bool
     := (* System [
          DispString _ "[pmp_check] addr: ";
-         DispBinary addr;
+         DispHex addr;
          DispString _ "\n";
          DispString _ "[pmp_check] addr len: ";
          DispHex addr_len;
@@ -132,33 +141,33 @@ Section pmp.
                          <- pmp_entry_read entry_index;
                        LET tor
                          :  PAddrEx
-                         <- (SignExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 2 2)); 
+                         <- ((ZeroExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 2 2))); 
                        (* System [
                          DispString _ "[pmp_check] entry: ";
                          DispHex #entry;
                          DispString _ "\n";
                          DispString _ "[pmp_check] entry addr: ";
-                         DispBinary (#entry @% "addr");
+                         DispHex (#entry @% "addr");
                          DispString _ "\n";
                          DispString _ "[pmp_check] sign extended entry addr: ";
-                         DispBinary (SignExtendTruncLsb PAddrExSz (ZeroExtendTruncLsb 54 (#entry @% "addr")));
+                         DispHex (#entry @% "addr");
                          DispString _ "\n";
                          DispString _ "[pmp_check] tor: ";
-                         DispBinary #tor;
+                         DispHex #tor;
                          DispString _ "\n"
                        ]; *)
                        If pmp_cfg_addr_mode (#entry @% "cfg") == $0
                          then
                            Ret (STRUCT {
                              "any_on"  ::= #acc @% "any_on";
-                             "addr"    ::= #tor;
+                             "addr"    ::= ZeroExtendTruncLsb PAddrSz #tor;
                              "matched" ::= $$false;
                              "pmp_cfg" ::= $0
                            } : pmp_entry_acc_kind @# ty)
                          else
                            LET mask0
                              :  PAddrEx
-                             <- ((SignExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
+                             <- ((ZeroExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
                            LET mask
                              :  PAddrEx
                              <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
@@ -169,8 +178,8 @@ Section pmp.
                            ]; *)
                            LETA addr_result
                              :  pmp_addr_acc_kind
-                             <- fold_right
-                                  (fun index (addr_acc_act : ActionT ty pmp_addr_acc_kind)
+                             <- fold_left
+                                  (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
                                     => LET offset
                                          :  Bit 4
                                          <- Const ty (natToWord 4 (4 * index)%nat);
@@ -185,25 +194,24 @@ Section pmp.
                                            (* System [
                                              DispString _ "[pmp_check] offset greater than region length.\n";
                                              DispString _ "[pmp_check] addr_len: ";
-                                             DispBinary addr_len;
+                                             DispHex addr_len;
                                              DispString _ "\n";
                                              DispString _ "[pmp_check] offset: ";
-                                             DispBinary #offset;
+                                             DispHex #offset;
                                              DispString _ "\n"
                                            ]; *)
                                            addr_acc_act
                                          else 
                                            LETA addr_acc <- addr_acc_act;
                                            LET curr_addr
-                                             :  PAddrEx
-                                             <- SignExtendTruncLsb PAddrExSz
-                                                  (addr + (ZeroExtendTruncLsb PAddrSz #offset));
+                                             :  PAddr
+                                             <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
                                            LET napot_match
                                              :  Bool
-                                             <- ((CABit Bxor [#curr_addr; #tor]) & #mask) == $0;
+                                             <- ((CABit Bxor [#curr_addr; ZeroExtendTruncLsb PAddrSz #tor]) & (ZeroExtendTruncLsb PAddrSz #mask)) == $0;
                                            LET tor_match
                                              :  Bool
-                                             <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);
+                                             <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < (ZeroExtendTruncLsb PAddrSz #tor));
                                            LET matched
                                              :  Bool
                                              <- IF #entry @% "cfg" == $1
@@ -216,8 +224,11 @@ Section pmp.
                                              DispString _ "[pmp_check] curr addr: ";
                                              DispHex #curr_addr;
                                              DispString _ "\n";
+                                             DispString _ "[pmp_check] curr_addr ^ tor: ";
+                                             DispHex (CABit Bxor [#curr_addr; ZeroExtendTruncLsb PAddrSz #tor]);
+                                             DispString _ "\n";
                                              DispString _ "[pmp_check] napot reference: ";
-                                             DispHex ((CABit Bxor [#curr_addr; #tor]) & #mask);
+                                             DispHex ((CABit Bxor [#curr_addr; ZeroExtendTruncLsb PAddrSz #tor]) & (ZeroExtendTruncLsb PAddrSz #mask));
                                              DispString _ "\n";
                                              DispString _ "[pmp_check] napot match: ";
                                              DispHex #napot_match;
@@ -235,11 +246,11 @@ Section pmp.
                                            } : pmp_addr_acc_kind @# ty)
                                          as result;
                                        Ret #result)
+                                  (seq 0 2)
                                   (Ret (STRUCT {
                                      "any_matched" ::= $$false;
                                      "all_matched" ::= $$true
-                                   } : pmp_addr_acc_kind @# ty))
-                                  (seq 0 2);
+                                   } : pmp_addr_acc_kind @# ty));
                            If #addr_result @% "any_matched"
                              then 
                                (* System [
