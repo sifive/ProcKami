@@ -25,8 +25,9 @@ Section Params.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
+  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
 
-  Variable pmp_addr_ub : option (word 54).
+  Variable pmp_addr_ub : option (word pmp_reg_width).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).

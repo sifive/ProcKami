@@ -606,6 +606,8 @@ Section Params.
            : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
        }.
 
+  Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     

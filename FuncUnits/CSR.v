@@ -41,9 +41,9 @@ Section CsrInterface.
   Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).
   Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
-
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
   Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
 
   Open Scope kami_expr.
 
@@ -1203,22 +1203,22 @@ Section CsrInterface.
                   => context @% "xlen" == $1 &&
                      context @% "mode" == $MachineMode
          |};
-         simpleCSR ^"pmpaddr0" (CsrIdWidth 'h"3b0") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr1" (CsrIdWidth 'h"3b1") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr2" (CsrIdWidth 'h"3b2") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr3" (CsrIdWidth 'h"3b3") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr4" (CsrIdWidth 'h"3b4") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr5" (CsrIdWidth 'h"3b5") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr6" (CsrIdWidth 'h"3b6") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr7" (CsrIdWidth 'h"3b7") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr8" (CsrIdWidth 'h"3b8") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr9" (CsrIdWidth 'h"3b9") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr10" (CsrIdWidth 'h"3ba") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr11" (CsrIdWidth 'h"3bb") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr12" (CsrIdWidth 'h"3bc") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr13" (CsrIdWidth 'h"3bd") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr14" (CsrIdWidth 'h"3be") 54 accessMModeOnly;
-         simpleCSR ^"pmpaddr15" (CsrIdWidth 'h"3bf") 54 accessMModeOnly;
+         simpleCSR ^"pmpaddr0" (CsrIdWidth 'h"3b0") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr1" (CsrIdWidth 'h"3b1") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr2" (CsrIdWidth 'h"3b2") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr3" (CsrIdWidth 'h"3b3") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr4" (CsrIdWidth 'h"3b4") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr5" (CsrIdWidth 'h"3b5") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr6" (CsrIdWidth 'h"3b6") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr7" (CsrIdWidth 'h"3b7") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr8" (CsrIdWidth 'h"3b8") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr9" (CsrIdWidth 'h"3b9") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr10" (CsrIdWidth 'h"3ba") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr11" (CsrIdWidth 'h"3bb") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr12" (CsrIdWidth 'h"3bc") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr13" (CsrIdWidth 'h"3bd") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr14" (CsrIdWidth 'h"3be") pmp_reg_width accessMModeOnly;
+         simpleCSR ^"pmpaddr15" (CsrIdWidth 'h"3bf") pmp_reg_width accessMModeOnly;
          {|
            csrName := ^"sstatus";
            csrAddr := CsrIdWidth 'h"100";

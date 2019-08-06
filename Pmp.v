@@ -21,6 +21,7 @@ Section pmp.
   Local Notation PAddrSz := (Xlen).
   Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation PAddr := (Bit PAddrSz).
+  Local Notation pmp_reg_width := (@pmp_reg_width Xlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -58,7 +59,7 @@ Section pmp.
   Definition PmpEntryPkt
     := STRUCT_TYPE {
          "cfg" :: Bit 8;
-         "addr" :: Bit 54
+         "addr" :: Bit pmp_reg_width
        }.
 
   Definition pmp_entry_read
@@ -68,7 +69,7 @@ Section pmp.
          :  Bit 8
          <- ^("pmp" ++ nat_decimal_string n ++ "cfg");
        Read entry_addr
-         :  Bit 54
+         :  Bit pmp_reg_width
          <- ^("pmpaddr" ++ nat_decimal_string n);
        (* System [
          DispString _ ("[pmp_entry_read] registers: " ++ ^("pmp" ++ nat_decimal_string n ++ "cfg") ++ "  " ++ ^("pmpaddr" ++ nat_decimal_string n) ++ "\n");

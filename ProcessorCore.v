@@ -40,7 +40,8 @@ Section Params.
   Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Variable pmp_addr_ub : option (word 54).
+  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
+  Variable pmp_addr_ub : option (word pmp_reg_width).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   (* The width of a general purpose, "x", register for this
@@ -90,7 +91,7 @@ Section Params.
       := fold_right
            (fun n regs
              => (Register (^"pmp" ++ nat_decimal_string n ++ "cfg") : Bit 8 <- ConstBit (wzero 8)) ::
-                (Register (^"pmpaddr" ++ nat_decimal_string n) : Bit 54 <- ConstBit (wzero 54)) ::
+                (Register (^"pmpaddr" ++ nat_decimal_string n) : Bit pmp_reg_width <- ConstBit (wzero pmp_reg_width)) ::
                 regs)
            [] (seq 0 16).
 
