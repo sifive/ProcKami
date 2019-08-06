@@ -34,6 +34,11 @@ Require Import FuncUnits.Fpu.FRound.
 Require Import FuncUnits.Zicsr.
 Require Import FuncUnits.MRet.
 
+Require Import MemTable.
+Require Import BinNums.
+Require Import BinNat.
+Require Import PhysicalMem.
+
 (* I. device parameters *)
 
 (* II. configuration parameters. *)
@@ -133,6 +138,8 @@ Local Definition param_entries
 
 Section exts.
 
+  Local Definition name := "proc_core".
+
   (* The maximum xlen. *)
   Variable max_xlen : nat.
 
@@ -161,6 +168,7 @@ Section exts.
   Section ty.
 
     Variable ty : Kind -> Type.
+    Local Notation sorted_mem_table := (@sorted_mem_table "proc_core" Xlen_over_8 Rlen_over_8 mem_params_default).
 
     Open Scope kami_expr.
 
@@ -262,13 +270,17 @@ Section exts.
 
     End func_units.
 
+    (* verify tha the memory table is valid *)
+    Goal (mem_regions name Xlen_over_8 Rlen_over_8 mem_params_default ty) <> [].
+    Proof. discriminate. Qed.
+
   End ty.
 
   (* V. the model generator. *)
 
   Definition generate_model
     := @processor
-         "proc_core"
+         name
          Xlen_over_8
          Flen_over_8
          Clen_over_8

@@ -598,6 +598,14 @@ Section Params.
          "CY" :: Bool
        }.
 
+  Record MemDevice
+    := {
+         mem_device_read
+           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
+         mem_device_write
+           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
+       }.
+
   Section Fields.    
     Variable inst: Inst @# ty.
     

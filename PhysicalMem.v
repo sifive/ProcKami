@@ -1,12 +1,15 @@
 (*
   This module defines the physical memory interface.
 *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.All.
 Require Import FU.
 Require Import Pmp.
-Require Import MMappedRegs.
+Require Import MemDevice.
+Require Import MemTable.
+Require Import List.
+Import ListNotations.
+Require Import BinNums.
+Import BinNat.
 
 Section pmem.
   Variable name: string.
@@ -25,98 +28,57 @@ Section pmem.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
+  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation MemTableEntry := (@MemTableEntry name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation mtbl_entry_addr := (@mtbl_entry_addr name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation sorted_mem_table := (@sorted_mem_table name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pmp_check_access := (@pmp_check_access name Xlen_over_8 ty).
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation memSz := (pow2 lgMemSz).
-  Local Notation pmp_check_access := (@pmp_check_access name Xlen_over_8 _).
 
-  Local Notation mmregs_maskSz := (pow2 mmregs_lgMaskSz).
-  Local Notation mmregs_granuleSz := (pow2 mmregs_lgGranuleSize).
-  Local Notation mmregs_dataSz := (mmregs_maskSz * mmregs_granuleSz).
-
-  Local Notation mmapped_read := (@mmapped_read name ty).
-  Local Notation mmapped_write := (@mmapped_write name ty).
-
-  Open Scope kami_expr.
-  Open Scope kami_action.
-
-  Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
-    : ActionT ty Data
-    := Call result
-         : Array Rlen_over_8 (Bit 8)
-         <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-       System [
-         DispString _ ("[pMemRead] index: " ++ natToHexStr index ++ "\n");
-         DispString _ "[pMemRead] addr: ";
-         DispHex addr;
-         DispString _ "\n";
-         DispString _ "[pMemRead] result: ";
-         DispHex #result;
-         DispString _ "\n"
-       ];
-       Ret (pack #result).
-
-  Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-    : ActionT ty Void
-    := LET writeRq
-         :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
-         <- (STRUCT {
-               "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
-               "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data") ; (* TODO TESTING *)
-               "mask" ::= pkt @% "mask"
-             } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       (* Perform the write *)
-       Call ^"writeMem"(#writeRq: _);
-       System [
-         DispString _ "[pMemWrite] pkt: ";
-         DispHex pkt;
-         DispString _ "\n";
-         DispString _ "[pMemWrite] writeRq: ";
-         DispHex #writeRq;
-         DispString _ "\n"
-       ];
-       Retv.
-
-  Record MemDevice
+  Record MemRegion
     := {
-         mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
-         mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
+         mem_region_width : N;
+         mem_region_device : option (Fin.t (length mem_devices))
        }.
 
-  Local Definition pMemDevice
-    := {|
-         mem_device_read := pMemRead;
-         mem_device_write
-           := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                => LETA _ <- pMemWrite mode pkt;
-                   Ret $$false
-       |}.
+  Local Definition mem_table_regions
+    (xs : list MemTableEntry)
+    :  option (N * list MemRegion)%type
+    := fold_left
+         (fun acc x
+           => match acc with
+                | None => None
+                | Some (start_addr, regions)
+                  => let end_addr := N.add (mtbl_entry_addr x) (mtbl_entry_width x) in
+                     let device_region
+                       := {|
+                            mem_region_width  := mtbl_entry_width x;
+                            mem_region_device := mtbl_entry_device x
+                          |} in
+                     match N.compare start_addr (mtbl_entry_addr x) in comparison with
+                       | Datatypes.Eq
+                         => Some (end_addr, regions ++ [device_region])
+                       | Datatypes.Lt
+                         => Some (end_addr,
+                              regions ++
+                              [{|
+                                mem_region_width := ((mtbl_entry_addr x) - start_addr);
+                                mem_region_device := None
+                               |};
+                               device_region])
+                       | _ => None
+                       end
+                end)
+         xs (Some (0%N, [])).
 
-  Local Definition mMappedRegDevice
-    :  MemDevice
-    := {|
-         mem_device_read
-           := fun _ _ addr
-                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                   Ret (ZeroExtendTruncLsb Rlen #result);
-         mem_device_write
-           := fun _ write_pkt
-                => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
-                   LETA _
-                     <- mmapped_write #addr
-                          (ZeroExtendTruncLsb mmregs_dataSz (write_pkt @% "data"));
-                   Ret $$false
-       |}.
+  Definition mem_regions
+    := match mem_table_regions sorted_mem_table with
+         | Some (_, regions) => regions
+         | _ => []
+         end.
 
-  Local Definition mem_devices
-    :  list MemDevice
-    := [
-         mMappedRegDevice;
-         pMemDevice
-       ].
-
-  Definition DeviceTag := Bit (Nat.log2_up (length mem_devices)).
+  Local Definition list_sum : list N -> N := fold_right N.add 0%N.
 
   Local Definition option_eqb (A : Type) (H : A -> A -> bool) (x y : option A) : bool
     := match x with
@@ -124,71 +86,16 @@ Section pmem.
          | Some n => match y with | Some m => H n m | _ => false end
          end.
 
-  (*
-    Note: we assume that device tags will always be valid given
-    the constraints we apply in generating them.
-  *)
-  Local Definition mem_device_apply
-    (k : Kind)
-    (tag : DeviceTag @# ty)
-    (f : MemDevice -> ActionT ty k)
-    :  ActionT ty k
-    := LETA result
-         :  Maybe k
-         <- snd
-              (fold_left
-                (fun acc device
-                  => (S (fst acc),
-                      LETA acc_result : Maybe k <- snd acc;
-                      If #acc_result @% "valid" || $(fst acc) != tag
-                        then Ret #acc_result
-                        else
-                          LETA result : k <- f device;
-                          Ret (Valid #result : Maybe k @# ty)
-                        as result;
-                      Ret #result))
-                mem_devices
-                (0, Ret Invalid));
-      Ret (#result @% "data").
-
-  Record MemRegion
-    := {
-         mem_region_width : nat;
-         mem_region_device : option (Fin.t (length mem_devices))
-       }.
-
-  Ltac nat_deviceTag n
-    := exact
-         (@of_nat_lt n (length mem_devices)
-           (ltac:(repeat (try (apply le_n); apply le_S)))).
-
-  Local Definition mem_init_offset := 0.
-
-  Local Definition mem_regions
-    := [
-         {|
-           mem_region_width := 16; (* 2 * num memory mapped regs *)
-           mem_region_device := Some ltac:(nat_deviceTag 0)
-         |};
-         {|
-           mem_region_width := (pow2 31) - 16;
-           mem_region_device := None
-         |};
-         {| (* start at 80000000 *)
-           mem_region_width := (pow2 lgMemSz);
-           mem_region_device := Some ltac:(nat_deviceTag 1)
-         |}
-      ].
+  Open Scope kami_expr.
+  Open Scope kami_action.
 
   Local Definition mem_region_match
-    (region_addr : nat)
+    (region_addr : N)
     (region : MemRegion)
     (paddr : PAddr @# ty)
     :  Bool @# ty
-    := ($region_addr <= paddr) &&
-       (paddr < $(region_addr + mem_region_width region)).
-
-  Local Definition list_sum : list nat -> nat := fold_right Nat.add 0.
+    := ($(N.to_nat region_addr) <= paddr) &&
+       (paddr < $(N.to_nat (region_addr + mem_region_width region))).
 
   Local Definition mem_region_apply
     (k : Kind)
@@ -199,15 +106,15 @@ Section pmem.
          (fold_left
            (fun acc region
              => (region :: (fst acc),
-                 let region_addr := (mem_init_offset + list_sum (map mem_region_width (fst acc)))%nat in
+                 let region_addr := list_sum (map mem_region_width (fst acc)) in
                  LETA acc_result : Maybe k <- snd acc;
                  System [
                    DispString _ "[mem_region_apply] paddr: ";
                    DispHex paddr;
                    DispString _ "\n";
-                   DispString _ ("[mem_region_apply] region start: " ++ nat_hex_string region_addr ++ "\n");
-                   DispString _ ("[mem_region_apply] region width: " ++ nat_hex_string (mem_region_width region) ++ "\n");
-                   DispString _ ("[mem_region_apply] region end: " ++ nat_hex_string (region_addr + mem_region_width region) ++ "\n")
+                   DispString _ ("[mem_region_apply] region start: " ++ nat_hex_string (N.to_nat region_addr) ++ "\n");
+                   DispString _ ("[mem_region_apply] region width: " ++ nat_hex_string (N.to_nat (mem_region_width region)) ++ "\n");
+                   DispString _ ("[mem_region_apply] region end: " ++ nat_hex_string (N.to_nat (region_addr + mem_region_width region)) ++ "\n")
                  ];
                  If #acc_result @% "valid" || !(mem_region_match region_addr region paddr)
                    then
@@ -218,15 +125,15 @@ Section pmem.
                      LETA result
                        :  k
                        <- f region
-                            ((paddr - $region_addr) +
-                             ($(list_sum
-                               (map mem_region_width
-                                 (filter
-                                   (fun prev_region
-                                     => option_eqb Fin.eqb 
-                                          (mem_region_device prev_region)
-                                          (mem_region_device region))
-                                   (fst acc))))));
+                            ((paddr - $(N.to_nat region_addr)) +
+                             ($(N.to_nat (list_sum
+                                 (map mem_region_width
+                                   (filter
+                                     (fun prev_region
+                                       => option_eqb Fin.eqb 
+                                            (mem_region_device prev_region)
+                                            (mem_region_device region))
+                                     (fst acc)))))));
                      Ret (Valid #result : Maybe k @# ty)
                    as result;
                  Ret #result))
@@ -267,6 +174,19 @@ Section pmem.
                                 "snd" ::= device_offset
                               } : Pair DeviceTag PAddr @# ty)
                        end));
+       System [
+         DispString _ "[checkForAccessFault] pmp result: ";
+         DispBinary #pmp_result;
+         DispString _ "\n";
+         DispString _ "[checkForAccessFault] bound result: ";
+         DispBinary #bound_result;
+         DispString _ "\n";
+         DispString _ ("[checkForAccessFault] num memory regions: " ++ nat_decimal_string (length mem_regions) ++ "\n");
+         DispString _ ("[checkForAccessFault] num memory table entries: " ++ nat_decimal_string (length sorted_mem_table) ++ "\n");
+         DispString _ "[checkForAccessFault] mresult result: ";
+         DispBinary #mresult;
+         DispString _ "\n"
+       ];
        Ret
          (utila_opt_pkt
            (#mresult @% "data" @% "data")
@@ -312,8 +232,7 @@ Section pmem.
          Call ^"writeMemReservation" (#writeRq: _);
          Retv.
 
-  Close Scope kami_expr.
-
   Close Scope kami_action.
+  Close Scope kami_expr.
 
 End pmem.

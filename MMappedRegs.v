@@ -27,6 +27,7 @@ Section mmapped.
   Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleSize mmregs_lgMaskSz mmregs_realAddrSz).
 
   Local Notation PAddrSz := (Xlen).
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz ty).
 
   Local Notation maskSz := (pow2 mmregs_lgMaskSz).
   Local Notation granuleSz := (pow2 mmregs_lgGranuleSize).
@@ -50,7 +51,7 @@ Section mmapped.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition MmappedReq
+  Local Definition MmappedReq
     := STRUCT_TYPE {
          "isRd" :: Bool;
          "addr" :: Bit mmregs_realAddrSz;
@@ -77,7 +78,7 @@ Section mmapped.
          <- readWriteGranules_GroupReg (Valid #rq) mmapped_regs;
        Ret (ZeroExtendTruncLsb 64 #result).
 
-  Definition mmapped_read
+  Local Definition mmapped_read
     (addr : Bit mmregs_realAddrSz @# ty) 
     :  ActionT ty (Bit 64)
     := readWriteMMappedReg
@@ -87,7 +88,7 @@ Section mmapped.
             "data" ::= $0
           }).
 
-  Definition mmapped_write
+  Local Definition mmapped_write
     (addr : Bit mmregs_realAddrSz @# ty)
     (data : Bit dataSz @# ty)
     :  ActionT ty (Bit 64)
@@ -98,6 +99,21 @@ Section mmapped.
             "data" ::= data
           }).
 
+  Definition mMappedRegDevice
+    :  MemDevice
+    := {|
+         mem_device_read
+           := fun _ _ addr
+                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                   Ret (ZeroExtendTruncLsb Rlen #result);
+         mem_device_write
+           := fun _ write_pkt
+                => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
+                   LETA _
+                     <- mmapped_write #addr
+                          (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
+                   Ret $$false
+       |}.
   Close Scope kami_action.
   Close Scope kami_expr.
 

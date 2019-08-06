@@ -5,6 +5,7 @@
 *)
 Require Import Kami.All.
 Require Import FU.
+Require Import MemDevice.
 Require Import PhysicalMem.
 Require Import Vector.
 Require Import Pmp.

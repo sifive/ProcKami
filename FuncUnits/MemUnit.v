@@ -6,6 +6,7 @@ Require Import Kami.All.
 Require Import FU.
 Require Import Decoder.
 Require Import Pmp.
+Require Import MemDevice.
 Require Import PhysicalMem.
 Require Import VirtualMem.
 Require Import List.
@@ -40,12 +41,6 @@ Section mem_unit.
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
-  Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation pmp_check_execute := (@pmp_check_execute name Xlen_over_8 ty).
-  Local Notation pmp_check_read := (@pmp_check_read name Xlen_over_8 ty).
-  Local Notation pmp_check_write := (@pmp_check_write name Xlen_over_8 ty).
-  Local Notation pMemRead := (@pMemRead name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation pMemWrite := (@pMemWrite name Xlen_over_8 Rlen_over_8 ty).
 
   Local Notation pMemReadReservation := (@pMemReadReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
