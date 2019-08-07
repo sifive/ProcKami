@@ -407,8 +407,8 @@ Section Params.
          true
          Rlen_over_8
          (^"mem_reg_file")
-         (Async [^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"; ^"readMem6"])
-         (^"writeMem1")
+         (Async [^"readMem0"; ^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
+         (^"writeMem0")
          (pow2 lgMemSz) (* rfIdxNum: nat *)
          (Bit 8) (* rfData: Kind *)
          (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
@@ -435,14 +435,14 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
+             ^"readMem0"; (* fetch *)
              ^"readMem1"; (* fetch *)
-             ^"readMem2"; (* fetch *)
-             ^"readMem3"; (* load instructions *)
+             ^"readMem2"; (* load instructions *)
+             ^"readMem3"; (* page table walker read mem call *)
              ^"readMem4"; (* page table walker read mem call *)
              ^"readMem5"; (* page table walker read mem call *)
-             ^"readMem6"; (* page table walker read mem call *)
              ^"readMemReservation";
-             ^"writeMem1";
+             ^"writeMem0";
              ^"writeMemReservation"
            ].  
 

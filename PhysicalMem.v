@@ -199,7 +199,7 @@ Section pmem.
     (daddr : PAddr @# ty)
     :  ActionT ty Data
     := mem_device_apply dtag 
-         (fun device => Vector.nth (mem_device_read device mode daddr) index).
+         (fun device => mem_device_read_nth device index mode daddr).
 
   Definition mem_region_write
     (index : Fin.t mem_device_num_writes)
@@ -211,14 +211,12 @@ Section pmem.
     :  ActionT ty Bool
     := mem_device_apply dtag
          (fun device
-           => Vector.nth
-                (mem_device_write device mode
-                  (STRUCT {
-                     "addr" ::= daddr;
-                     "data" ::= data;
-                     "mask" ::= mask
-                   } : MemWrite @# ty))
-                index).
+           => mem_device_write_nth device index mode
+                (STRUCT {
+                   "addr" ::= daddr;
+                   "data" ::= data;
+                   "mask" ::= mask
+                 } : MemWrite @# ty)).
 
   Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)

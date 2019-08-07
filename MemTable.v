@@ -24,7 +24,7 @@ Section mem_table.
          mtbl_entry_device : option (Fin.t (length mem_devices))
        }.
 
-  Ltac nat_deviceTag n := nat_index (length mem_devices).
+  Ltac nat_deviceTag n := nat_index (length mem_devices) n.
 
   Local Definition mem_table
     := [

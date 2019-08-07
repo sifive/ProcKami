@@ -265,7 +265,7 @@ Section mem_unit.
                    LETA read_result
                      :  Data
                      <- mem_region_read
-                          (nat_index mem_device_num_reads 3)
+                          (ltac:(nat_index mem_device_num_reads 2))
                           mode
                           (#pmp_result @% "data" @% "fst")
                           (#pmp_result @% "data" @% "snd");
@@ -305,7 +305,7 @@ Section mem_unit.
                        LETA write_result
                          :  Bool
                          <- mem_region_write 
-                              (nat_index mem_device_num_writes 0)
+                              (ltac:(nat_index mem_device_num_writes 0))
                               mode
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd")

@@ -67,8 +67,11 @@ Section pt_walker.
           "flags" :: PteFlags
         }.
 
+    Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
+                                           vmModes 0.
+
     Section oneIteration.
-      Variable currentLevel: nat.
+      Variable currentLevel : nat.
       Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
       Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
 
@@ -184,6 +187,33 @@ Section pt_walker.
                   };
              RetE #finalVal.
         End pte.
+    End oneIteration.
+
+
+    Section oneIteration.
+      Variable currentLevelData: {n : nat | n < maxPageLevels - 1}%nat.
+      Local Definition currentLevel := proj1_sig currentLevelData.
+      Local Definition currentLevelIndex
+        :  Fin.t mem_device_num_reads
+        := Fin.of_nat_lt
+             (Nat.lt_le_trans
+               (3 + (currentLevel - 1))
+               (3 + (maxPageLevels - 1))
+               mem_device_num_reads
+               (Plus.plus_lt_compat_l
+                 (currentLevel - 1)
+                 (maxPageLevels - 1)
+                 3
+                 (Nat.le_lt_trans
+                   (currentLevel - 1)
+                   currentLevel
+                   (maxPageLevels - 1)
+                   (Nat.le_sub_l currentLevel 1)
+                   (proj2_sig currentLevelData)))
+               (ltac:(nat_lt))).
+
+      Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
+      Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
 
       Definition translatePteLoop
         (acc: Pair Bool (PktWithException PAddr) @# ty)
@@ -212,7 +242,9 @@ Section pt_walker.
                    If #pmp_result @% "valid"
                      then 
                        LETA read_result: Data
-                         <- mem_region_read (4 + (currentLevel-1)) mode
+                         <- mem_region_read
+                              currentLevelIndex
+                              mode
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd");
                        System [
@@ -222,6 +254,7 @@ Section pt_walker.
                        ];
                        convertLetExprSyntax_ActionT
                          (translatePte
+                           currentLevel
                            (unpack _ (ZeroExtendTruncLsb _ #read_result)))
                      else Ret #doneInvalid
                      as result;
@@ -232,14 +265,6 @@ Section pt_walker.
            Ret #result.
     End oneIteration.
 
-    Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
-                                           vmModes 0.
-
-    (*
-      currentLevel < maxPageLevels - 1
-      then 
-    *)
-
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
@@ -249,6 +274,24 @@ Section pt_walker.
              "snd" ::= Invalid
            } : PktWithException PAddr @# ty;
       LETA result: Pair Bool (PktWithException PAddr)
+        <- nat_rect
+             (fun currentLevel => currentLevel < maxPageLevels - 1 -> ActionT ty (Pair Bool (PktWithException PAddr)))%nat
+             (fun H
+               => translatePteLoop
+                    (exist _ 0 H)
+                    (STRUCT {
+                       "fst" ::= $$false;
+                       "snd" ::= #init
+                     }))
+             (fun prevLevel acc (H : S prevLevel < maxPageLevels - 1)
+               => LETA acc_result
+                    <- acc (Nat.lt_succ_l prevLevel (maxPageLevels - 1) H);
+                  translatePteLoop
+                    (exist _ (S prevLevel) H)
+                    #acc_result)%nat
+             (maxPageLevels - 2)
+             (ltac:(nat_lt));
+(*
         <- fold_left
              (fun (acc : ActionT ty (Pair Bool (PktWithException PAddr))) (currentLevel : nat)
                => LETA acc_result <- acc;
@@ -262,6 +305,7 @@ Section pt_walker.
              (Ret (STRUCT {
                "fst" ::= $$ false ;
                "snd" ::= #init}));
+*)
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");

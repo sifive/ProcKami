@@ -61,16 +61,17 @@ Section mem_devices.
     :  MemDevice
     := {|
          mem_device_type := main_memory;
-         mem_device_pma  := pma_default;
+         mem_device_pmas := pmas_default;
          mem_device_read
-           := Vector.of_list (map pMemRead (seq 0 mem_device_num_reads));
+           := map pMemRead (seq 0 mem_device_num_reads);
          mem_device_write
-           := Vector.of_list
-                (map
-                  (fun (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                    => LETA _ <- pMemWrite index mode pkt;
-                       Ret $$false)
-                  (seq 0 mem_device_num_writes))
+           := map
+                (fun (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                  => LETA _ <- pMemWrite index mode pkt;
+                     Ret $$false)
+                (seq 0 mem_device_num_writes);
+         mem_device_read_valid := eq_refl;
+         mem_device_write_valid := eq_refl
        |}.
 
   Close Scope kami_action.

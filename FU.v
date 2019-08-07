@@ -630,18 +630,34 @@ Section Params.
   Definition mem_device_num_reads := 6.
   Definition mem_device_num_writes := 1.
 
+  Definition mem_read_index := Fin.t mem_device_num_reads.
+  Definition mem_write_index := Fin.t mem_device_num_writes.
+
   Record MemDevice
     := {
          mem_device_type : MemDeviceType; (* 3.5.1 *)
-         mem_device_pma : PMA;
+         mem_device_pmas : list PMA;
          mem_device_read
-           : Vector.t (PrivMode @# ty -> PAddr @# ty -> ActionT ty Data) mem_device_num_reads;
+           : list (PrivMode @# ty -> PAddr @# ty -> ActionT ty Data);
          mem_device_write
-           : Vector.t (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool) mem_device_num_writes
+           : list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+         mem_device_read_valid
+           : mem_device_num_reads = length mem_device_read;
+         mem_device_write_valid
+           : mem_device_num_writes = length mem_device_write
        }.
 
-  Ltac nat_index len n
-    := exact (@of_nat_lt n len (ltac:(repeat (try (apply le_n); apply le_S)))).
+  Definition mem_device_read_nth
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_read device)
+         (mem_device_read_valid device).
+
+  Definition mem_device_write_nth
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_write device)
+         (mem_device_write_valid device).
 
   Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
 
@@ -718,3 +734,9 @@ Section Params.
   End XlenInterface.
 
 End Params.
+
+(* n < m *)
+Ltac nat_lt := repeat (try (apply le_n); apply le_S).
+
+(* n => Fin.t len *)
+Ltac nat_index len n := exact (@of_nat_lt n len ltac:(nat_lt)).
