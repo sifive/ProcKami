@@ -598,13 +598,50 @@ Section Params.
          "CY" :: Bool
        }.
 
+  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+
+  Record PMA
+    := {
+         pma_width : nat; (* in bytes *)
+         pma_readable : bool;
+         pma_writeable : bool;
+         pma_executable : bool;
+         pma_misaligned : bool;
+         pma_lrsc : bool;
+         pma_amo : PMAAmoClass
+       }.
+
+  Inductive MemDeviceType := main_memory | io_device.
+
+  Definition pmas_default
+    := map
+         (fun x
+           => {|
+                pma_width      := x;
+                pma_readable   := true;
+                pma_writeable  := true;
+                pma_executable := true;
+                pma_misaligned := true;
+                pma_lrsc       := true;
+                pma_amo        := AMOArith
+              |})
+         [4; 8].
+
+  Definition mem_device_num_reads := 6.
+  Definition mem_device_num_writes := 1.
+
   Record MemDevice
     := {
+         mem_device_type : MemDeviceType; (* 3.5.1 *)
+         mem_device_pma : PMA;
          mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
+           : Vector.t (PrivMode @# ty -> PAddr @# ty -> ActionT ty Data) mem_device_num_reads;
          mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
+           : Vector.t (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool) mem_device_num_writes
        }.
+
+  Ltac nat_index len n
+    := exact (@of_nat_lt n len (ltac:(repeat (try (apply le_n); apply le_S)))).
 
   Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
 

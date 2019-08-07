@@ -20,7 +20,6 @@ Section pt_walker.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
-  Variable mem_read_index: nat.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -213,7 +212,7 @@ Section pt_walker.
                    If #pmp_result @% "valid"
                      then 
                        LETA read_result: Data
-                         <- mem_region_read (mem_read_index + (currentLevel-1)) mode
+                         <- mem_region_read (4 + (currentLevel-1)) mode
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd");
                        System [
@@ -235,6 +234,11 @@ Section pt_walker.
 
     Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
                                            vmModes 0.
+
+    (*
+      currentLevel < maxPageLevels - 1
+      then 
+    *)
 
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=

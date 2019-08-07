@@ -193,15 +193,16 @@ Section pmem.
            (#pmp_result && #bound_result && (#mresult @% "valid") && (#mresult @% "data" @% "valid"))).
 
   Definition mem_region_read
-    (index : nat)
+    (index : Fin.t mem_device_num_reads)
     (mode : PrivMode @# ty)
     (dtag : DeviceTag @# ty)
     (daddr : PAddr @# ty)
     :  ActionT ty Data
     := mem_device_apply dtag 
-         (fun device => mem_device_read device index mode daddr).
+         (fun device => Vector.nth (mem_device_read device mode daddr) index).
 
   Definition mem_region_write
+    (index : Fin.t mem_device_num_writes)
     (mode : PrivMode @# ty)
     (dtag : DeviceTag @# ty)
     (daddr : PAddr @# ty)
@@ -210,12 +211,14 @@ Section pmem.
     :  ActionT ty Bool
     := mem_device_apply dtag
          (fun device
-           => mem_device_write device mode
-                (STRUCT {
-                   "addr" ::= daddr;
-                   "data" ::= data;
-                   "mask" ::= mask
-                 } : MemWrite @# ty)).
+           => Vector.nth
+                (mem_device_write device mode
+                  (STRUCT {
+                     "addr" ::= daddr;
+                     "data" ::= data;
+                     "mask" ::= mask
+                   } : MemWrite @# ty))
+                index).
 
   Definition pMemReadReservation (addr: PAddr @# ty)
     : ActionT ty (Array Rlen_over_8 Bool)

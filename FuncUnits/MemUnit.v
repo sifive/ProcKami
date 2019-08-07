@@ -53,7 +53,7 @@ Section mem_unit.
   Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty 4).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -105,7 +105,7 @@ Section mem_unit.
        Ret #result.
 
   Definition memFetch
-    (index : nat)
+    (index : Fin.t mem_device_num_reads)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
@@ -264,7 +264,9 @@ Section mem_unit.
                    (* IV. read the current value and place reservation *)
                    LETA read_result
                      :  Data
-                     <- mem_region_read 3 mode
+                     <- mem_region_read
+                          (nat_index mem_device_num_reads 3)
+                          mode
                           (#pmp_result @% "data" @% "fst")
                           (#pmp_result @% "data" @% "snd");
                    (* TODO: should we place reservations on failed reads? *)
@@ -302,7 +304,9 @@ Section mem_unit.
                          <- #mwrite_value @% "data" @% "mask";
                        LETA write_result
                          :  Bool
-                         <- mem_region_write mode
+                         <- mem_region_write 
+                              (nat_index mem_device_num_writes 0)
+                              mode
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)

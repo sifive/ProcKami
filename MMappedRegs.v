@@ -102,18 +102,27 @@ Section mmapped.
   Definition mMappedRegDevice
     :  MemDevice
     := {|
+         mem_device_type := main_memory;
+         mem_device_pma  := pma_default;
          mem_device_read
-           := fun _ _ addr
-                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                   Ret (ZeroExtendTruncLsb Rlen #result);
+           := Vector.of_list
+                (List.repeat
+                  (fun _ addr
+                    => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                       Ret (ZeroExtendTruncLsb Rlen #result))
+                  mem_device_num_reads);
          mem_device_write
-           := fun _ write_pkt
-                => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
-                   LETA _
-                     <- mmapped_write #addr
-                          (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret $$false
+           := Vector.of_list
+                (List.repeat
+                  (fun _ write_pkt
+                    => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
+                       LETA _
+                         <- mmapped_write #addr
+                              (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
+                       Ret $$false)
+                  mem_device_num_writes)
        |}.
+
   Close Scope kami_action.
   Close Scope kami_expr.
 

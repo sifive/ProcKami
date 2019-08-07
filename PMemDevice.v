@@ -37,7 +37,7 @@ Section mem_devices.
        ];
        Ret (pack #result).
 
-  Local Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+  Local Definition pMemWrite (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
     : ActionT ty Void
     := LET writeRq
          :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
@@ -46,7 +46,7 @@ Section mem_devices.
                "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data");
                "mask" ::= pkt @% "mask"
              } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       Call ^"writeMem"(#writeRq: _);
+       Call ^("writeMem" ++ (natToHexStr index)) (#writeRq: _);
        System [
          DispString _ "[pMemWrite] pkt: ";
          DispHex pkt;
@@ -60,11 +60,17 @@ Section mem_devices.
   Definition pMemDevice
     :  MemDevice
     := {|
-         mem_device_read := pMemRead;
+         mem_device_type := main_memory;
+         mem_device_pma  := pma_default;
+         mem_device_read
+           := Vector.of_list (map pMemRead (seq 0 mem_device_num_reads));
          mem_device_write
-           := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                => LETA _ <- pMemWrite mode pkt;
-                   Ret $$false
+           := Vector.of_list
+                (map
+                  (fun (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                    => LETA _ <- pMemWrite index mode pkt;
+                       Ret $$false)
+                  (seq 0 mem_device_num_writes))
        |}.
 
   Close Scope kami_action.
