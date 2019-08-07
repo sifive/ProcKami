@@ -41,16 +41,16 @@ Section pmp.
     :  Bool @# ty
     := pmp_cfg$[2:2] == $1.
     
-  Definition pmp_cfg_write
-    (pmp_cfg : Bit 8 @# ty)
-    :  Bool @# ty
-    := pmp_cfg$[1:1] == $1.
-    
   Definition pmp_cfg_read
     (pmp_cfg : Bit 8 @# ty)
     :  Bool @# ty
     := unsafeTruncLsb 1 pmp_cfg == $1.
 
+  Definition pmp_cfg_write
+    (pmp_cfg : Bit 8 @# ty)
+    :  Bool @# ty
+    := pmp_cfg$[1:1] == $1 && pmp_cfg_read pmp_cfg.
+    
   Definition pmp_cfg_on
     (pmp_cfg : Bit 8 @# ty)
     :  Bool @# ty
@@ -113,7 +113,7 @@ Section pmp.
     (check : pmp_check_type @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
-    (addr_len : Bit 4 @# ty)
+    (addr_len : Bit (Nat.log2_up Xlen_over_8) @# ty)
     :  ActionT ty Bool
     := (* System [
          DispString _ "[pmp_check] addr: ";
@@ -182,8 +182,8 @@ Section pmp.
                              <- fold_left
                                   (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
                                     => LET offset
-                                         :  Bit 4
-                                         <- Const ty (natToWord 4 (4 * index)%nat);
+                                         :  Bit (Nat.log2_up Xlen_over_8)
+                                         <- Const ty (natToWord (Nat.log2_up Xlen_over_8) (4 * index)%nat);
                                        (* System [
                                          DispString _ "[pmp_check] --------------------------------------------------\n";
                                          DispString _ "[pmp_check] offset: ";
@@ -307,21 +307,9 @@ Section pmp.
            else
              (mode == $MachineMode)).
 
-  Definition pmp_check_execute 
-    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check $pmp_check_type_execute.
-  
-  Definition pmp_check_write
-    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check $pmp_check_type_write.
-
-  Definition pmp_check_read
-    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
-    := pmp_check $pmp_check_type_read.
-
   Definition pmp_check_access
     (access_type : VmAccessType @# ty)
-    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> Bit (Nat.log2_up Xlen_over_8) @# ty -> ActionT ty Bool
     := pmp_check
          (Switch access_type Retn pmp_check_type With {
             ($VmAccessInst : VmAccessType @# ty)

@@ -134,7 +134,7 @@ Section mem_unit.
                   } : FullException @# ty);
            LETA pmp_result
              :  Maybe (Pair DeviceTag PAddr)
-             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $4;
+             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $2;
            If #pmp_result @% "valid"
              then
                LETA inst
@@ -271,7 +271,7 @@ Section mem_unit.
                    LETA read_reservation_result
                      :  Array Rlen_over_8 Bool
                      <- pMemReadReservation (unsafeTruncLsb PAddrSz (#mpaddr @% "fst"));
-                   (* VI. apply the memory transform to compute the wrie value *)
+                   (* VI. apply the memory transform to compute the write value *)
                    LETA mwrite_value
                      :  Maybe MemoryOutput
                      <- convertLetExprSyntax_ActionT
