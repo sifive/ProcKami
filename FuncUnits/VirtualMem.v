@@ -187,35 +187,12 @@ Section pt_walker.
                   };
              RetE #finalVal.
         End pte.
+
     End oneIteration.
 
-
-    Section oneIteration.
-      Variable currentLevelData: {n : nat | n < maxPageLevels - 1}%nat.
-      Local Definition currentLevel := proj1_sig currentLevelData.
-      Local Definition currentLevelIndex
-        :  Fin.t mem_device_num_reads
-        := Fin.of_nat_lt
-             (Nat.lt_le_trans
-               (3 + (currentLevel - 1))
-               (3 + (maxPageLevels - 1))
-               mem_device_num_reads
-               (Plus.plus_lt_compat_l
-                 (currentLevel - 1)
-                 (maxPageLevels - 1)
-                 3
-                 (Nat.le_lt_trans
-                   (currentLevel - 1)
-                   currentLevel
-                   (maxPageLevels - 1)
-                   (Nat.le_sub_l currentLevel 1)
-                   (proj2_sig currentLevelData)))
-               (ltac:(nat_lt))).
-
-      Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
-      Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
-
       Definition translatePteLoop
+        (index : nat)
+        (indexValid : (index < maxPageLevels - 1)%nat)
         (acc: Pair Bool (PktWithException PAddr) @# ty)
         :  ActionT ty (Pair Bool (PktWithException PAddr))
         := LET exception : FullException <- accessException access_type vAddr;
@@ -243,7 +220,22 @@ Section pt_walker.
                      then 
                        LETA read_result: Data
                          <- mem_region_read
-                              currentLevelIndex
+                              (Fin.of_nat_lt
+                                (Nat.lt_le_trans
+                                  (3 + (index - 1))
+                                  (3 + (maxPageLevels - 1))
+                                  mem_device_num_reads
+                                  (Plus.plus_lt_compat_l
+                                    (index - 1)
+                                    (maxPageLevels - 1)
+                                    3
+                                    (Nat.le_lt_trans
+                                      (index - 1)
+                                      index
+                                      (maxPageLevels - 1)
+                                      (Nat.le_sub_l index 1)
+                                      indexValid))
+                                  (ltac:(nat_lt))))
                               mode
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd");
@@ -253,9 +245,7 @@ Section pt_walker.
                          DispString _ "\n"
                        ];
                        convertLetExprSyntax_ActionT
-                         (translatePte
-                           currentLevel
-                           (unpack _ (ZeroExtendTruncLsb _ #read_result)))
+                         (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
                      else Ret #doneInvalid
                      as result;
                    Ret #result
@@ -263,7 +253,6 @@ Section pt_walker.
                Ret #result
              as result;
            Ret #result.
-    End oneIteration.
 
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
@@ -275,37 +264,18 @@ Section pt_walker.
            } : PktWithException PAddr @# ty;
       LETA result: Pair Bool (PktWithException PAddr)
         <- nat_rect
-             (fun currentLevel => currentLevel < maxPageLevels - 1 -> ActionT ty (Pair Bool (PktWithException PAddr)))%nat
+             (fun index => index < maxPageLevels - 1 -> ActionT ty (Pair Bool (PktWithException PAddr)))%nat
              (fun H
-               => translatePteLoop
-                    (exist _ 0 H)
+               => translatePteLoop H
                     (STRUCT {
                        "fst" ::= $$false;
                        "snd" ::= #init
                      }))
-             (fun prevLevel acc (H : S prevLevel < maxPageLevels - 1)
-               => LETA acc_result
-                    <- acc (Nat.lt_succ_l prevLevel (maxPageLevels - 1) H);
-                  translatePteLoop
-                    (exist _ (S prevLevel) H)
-                    #acc_result)%nat
+             (fun index acc H
+               => LETA acc_result <- acc (Nat.lt_succ_l index (maxPageLevels - 1) H);
+                  translatePteLoop H #acc_result)%nat
              (maxPageLevels - 2)
              (ltac:(nat_lt));
-(*
-        <- fold_left
-             (fun (acc : ActionT ty (Pair Bool (PktWithException PAddr))) (currentLevel : nat)
-               => LETA acc_result <- acc;
-               System [
-                 DispString _ "[pt_walker] acc: ";
-                 DispHex #acc_result;
-                 DispString _ "\n"
-               ];
-               translatePteLoop currentLevel #acc_result)
-             (seq 1 (maxPageLevels - 1))
-             (Ret (STRUCT {
-               "fst" ::= $$ false ;
-               "snd" ::= #init}));
-*)
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");
