@@ -402,9 +402,9 @@ Section Params.
 
   Local Close Scope kami_expr.
 
-  Definition FieldUpd
+  Definition CsrFieldUpdGuard
     := STRUCT_TYPE {
-      "warlStateField" :: WarlUpdateInfo;
+      "warlUpdateInfo" :: WarlUpdateInfo;
       "cfg" :: ContextCfgPkt
     }.
 

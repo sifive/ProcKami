@@ -16,7 +16,6 @@ Section Executor.
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8).
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
