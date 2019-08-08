@@ -65,7 +65,7 @@ Section Alu.
                        outputXform  := (fun resultExpr : AddOutputType ## ty
                                          => LETE res <- resultExpr;
                                             RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
-                       optMemXform  := None ;
+                       optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "slti" ;
@@ -84,7 +84,7 @@ Section Alu.
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen #resultMsb)));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sltiu" ;
@@ -105,7 +105,7 @@ Section Alu.
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen #resultMsb))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "add" ; 
@@ -123,7 +123,7 @@ Section Alu.
                           outputXform  := (fun resultExpr : AddOutputType ## ty
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sub" ; 
@@ -141,7 +141,7 @@ Section Alu.
                           outputXform  := (fun resultExpr : AddOutputType ## ty
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "slt" ;
@@ -160,7 +160,7 @@ Section Alu.
                                             => LETE res <- resultExpr;
                                                LETC resultMsb : Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res") ;
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen (#resultMsb)))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sltu" ;
@@ -181,7 +181,7 @@ Section Alu.
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen (#resultMsb)))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "addiw" ; 
@@ -207,7 +207,7 @@ Section Alu.
                             := fun resultExpr : AddOutputType ## ty
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "addw" ; 
@@ -225,7 +225,7 @@ Section Alu.
                           outputXform  := (fun resultExpr : AddOutputType ## ty
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "subw" ; 
@@ -243,7 +243,7 @@ Section Alu.
                           outputXform  := (fun resultExpr : AddOutputType ## ty
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res"))));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "lui" ; 
@@ -274,7 +274,7 @@ Section Alu.
                             := fun resultExpr : AddOutputType ## ty
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRd := true|>
                        |} ::
                        {| instName     := "auipc" ; 
@@ -302,7 +302,7 @@ Section Alu.
                             := fun resultExpr : AddOutputType ## ty
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRd := true|>
                        |} ::
                        nil

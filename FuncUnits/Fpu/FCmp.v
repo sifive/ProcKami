@@ -204,7 +204,7 @@ Section Fpu.
                        ];
                   inputXform  := FCmpInput ($$false) cmp_cond_eq cmp_cond_not_used;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
                 {|
@@ -221,7 +221,7 @@ Section Fpu.
                        ];
                   inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_not_used;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
                 {|
@@ -238,7 +238,7 @@ Section Fpu.
                        ];
                   inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_eq;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |}
               ]

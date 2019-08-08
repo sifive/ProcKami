@@ -222,7 +222,7 @@ Section Fpu.
                        ];
                   inputXform  := MacInput $0;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -237,7 +237,7 @@ Section Fpu.
                        ];
                   inputXform  := MacInput $1;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -252,7 +252,7 @@ Section Fpu.
                        ];
                   inputXform  := MacInput $2;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -267,7 +267,7 @@ Section Fpu.
                        ];
                   inputXform  := MacInput $3;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -283,7 +283,7 @@ Section Fpu.
                        ];
                   inputXform  := AddInput $0;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -299,7 +299,7 @@ Section Fpu.
                        ];
                   inputXform  := AddInput $1;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -315,7 +315,7 @@ Section Fpu.
                        ];
                   inputXform  := MulInput $0;
                   outputXform := MacOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]

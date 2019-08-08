@@ -54,6 +54,8 @@ Section mem_unit.
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
+  Local Notation LgSize := (LgSize Rlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -134,14 +136,15 @@ Section mem_unit.
                   } : FullException @# ty);
            LETA pmp_result
              :  Maybe (Pair DeviceTag PAddr)
-             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $2;
+             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1;
            If #pmp_result @% "valid"
              then
                LETA inst
                  :  Data
                  <- mem_region_read index mode
                       (#pmp_result @% "data" @% "fst") 
-                      (#pmp_result @% "data" @% "snd");
+                      (#pmp_result @% "data" @% "snd")
+                      $2;
                Ret (STRUCT {
                    "fst" ::= #inst;
                    "snd" ::= Invalid
@@ -214,7 +217,7 @@ Section mem_unit.
                 (fun _ _ tagged_inst
                   => let inst := snd tagged_inst in
                      RetE
-                       (match optMemXform inst with
+                       (match optMemParams inst with
                          | Some _ => $$true
                          | None => $$false
                          end))
@@ -231,6 +234,18 @@ Section mem_unit.
                       => RetE (if writeMem (instHints (snd tagged_inst)) then $$true else $$false))
                     func_unit_id
                     inst_id);
+           LETA msize
+             :  Maybe LgSize
+             <-  convertLetExprSyntax_ActionT
+                   (inst_db_get_pkt
+                     (fun _ _ tagged_inst
+                       => RetE
+                            (match optMemParams (snd tagged_inst) with
+                              | Some params => $(accessSize params)
+                              | _ => $0
+                              end))
+                     func_unit_id
+                     inst_id);
            (* III. get the physical address *)
            LETA mpaddr
              :  PktWithException PAddr
@@ -258,7 +273,7 @@ Section mem_unit.
                       satp_mode
                       mode
                       (#mpaddr @% "fst")
-                      $Xlen_over_8;
+                      (#msize @% "data");
                If #pmp_result @% "valid"
                  then
                    (* IV. read the current value and place reservation *)
@@ -268,7 +283,8 @@ Section mem_unit.
                           (ltac:(nat_index mem_device_num_reads 2))
                           mode
                           (#pmp_result @% "data" @% "fst")
-                          (#pmp_result @% "data" @% "snd");
+                          (#pmp_result @% "data" @% "snd")
+                          (#msize @% "data");
                    (* TODO: should we place reservations on failed reads? *)
                    LETA read_reservation_result
                      :  Array Rlen_over_8 Bool
@@ -280,9 +296,9 @@ Section mem_unit.
                           (inst_db_get_pkt
                             (fun _ _ tagged_inst
                               => let inst := snd (tagged_inst) in
-                                 match optMemXform inst return MemoryOutput ## ty with
-                                   | Some f
-                                     => ((f
+                                 match optMemParams inst return MemoryOutput ## ty with
+                                   | Some params
+                                     => (((memXform params)
                                           (RetE
                                             (STRUCT {
                                               "aq" ::= input_pkt @% "aq" ;
@@ -310,7 +326,8 @@ Section mem_unit.
                               (#pmp_result @% "data" @% "fst")
                               (#pmp_result @% "data" @% "snd")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)
-                              (#write_mask : Array Rlen_over_8 Bool @# ty);
+                              (#write_mask : Array Rlen_over_8 Bool @# ty)
+                              (#msize @% "data");
                        Ret
                          (IF #write_result
                            then

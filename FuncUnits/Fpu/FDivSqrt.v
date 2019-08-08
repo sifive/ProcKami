@@ -142,7 +142,7 @@ Section Fpu.
                        ];
                   inputXform  := FDivSqrtInput ($$false);
                   outputXform := FDivSqrtOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|>
                 |};
                 {|
@@ -159,7 +159,7 @@ Section Fpu.
                        ];
                   inputXform  := FDivSqrtInput ($$true);
                   outputXform := FDivSqrtOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrd := true|>
                 |}
               ]

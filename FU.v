@@ -168,6 +168,12 @@ Section Params.
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation CsrValue := (Bit CsrValueWidth).
 
+  (* memory access sizes *)
+  Definition sizeWidth := S (Nat.log2_up Rlen_over_8).
+  Definition Size := Bit sizeWidth.
+  Definition lgSizeWidth := S (Nat.log2_up sizeWidth).
+  Definition LgSize := Bit lgSizeWidth.
+
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
 
@@ -352,6 +358,7 @@ Section Params.
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
                                  "isWr" :: Bool ;
+                                 "size" :: Bit (Nat.log2_up Rlen_over_8) ;
                                  "mask" :: Array Rlen_over_8 Bool ;
                                  "data" :: Data ;
                                  "isLrSc" :: Bool ;
@@ -370,7 +377,8 @@ Section Params.
   Definition MemWrite := STRUCT_TYPE {
                              "addr" :: PAddr ;
                              "data" :: Data ;
-                             "mask" :: Array Rlen_over_8 Bool }.
+                             "mask" :: Array Rlen_over_8 Bool ;
+                             "size" :: LgSize }.
   
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
@@ -416,6 +424,12 @@ Section Params.
          decompressFn: (CompInst @# ty) -> (Inst ## ty)
        }.
 
+  Record MemInstParams
+    := {
+         accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
+         memXform : MemoryInput ## ty -> MemoryOutput ## ty
+       }.
+
   Record InstEntry ik ok :=
     { instName     : string ;
       xlens        : list nat ;
@@ -423,7 +437,7 @@ Section Params.
       uniqId       : UniqId ;        
       inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
       outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;
-      optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
+      optMemParams : option MemInstParams ;
       instHints    : InstHints }.
 
   Record IntParamsType
@@ -638,7 +652,7 @@ Section Params.
          mem_device_type : MemDeviceType; (* 3.5.1 *)
          mem_device_pmas : list PMA;
          mem_device_read
-           : list (PrivMode @# ty -> PAddr @# ty -> ActionT ty Data);
+           : list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
          mem_device_write
            : list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
          mem_device_read_valid

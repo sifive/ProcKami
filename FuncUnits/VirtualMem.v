@@ -237,7 +237,8 @@ Section pt_walker.
                                 (ltac:(nat_lt))))
                             mode
                             (#pmp_result @% "data" @% "fst")
-                            (#pmp_result @% "data" @% "snd");
+                            (#pmp_result @% "data" @% "snd")
+                            $(Nat.log2_up Xlen_over_8);
                      System [
                        DispString _ "[translatePteLoop] page table entry: ";
                        DispHex #read_result;

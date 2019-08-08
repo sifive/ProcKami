@@ -123,7 +123,7 @@ Section Fpu.
                                  };
                             RetE #ret;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
@@ -150,7 +150,7 @@ Section Fpu.
                                  };
                                  RetE #ret;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
            ]

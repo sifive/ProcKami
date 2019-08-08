@@ -139,7 +139,7 @@ Section Alu.
                                   "misalignedException?" ::= cfg_pkt @% "instMisalignedException?"
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
-                  optMemXform  := None ;
+                  optMemParams  := None ;
                   instHints    := falseHints<|hasRd := true|>
                 |} ::
                 {| instName     := "jalr" ; 
@@ -171,7 +171,7 @@ Section Alu.
                                 } : JumpInputType @# ty);
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                      => jumpTag (transPC sem_output_expr);
-                   optMemXform  := None ;
+                   optMemParams  := None ;
                    instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                 |} ::
                 nil

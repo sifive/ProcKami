@@ -55,7 +55,7 @@ Section Alu.
                                                              }): LogicalType @# _)) ;
                        outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                             RetE (intRegTag (SignExtendTruncLsb Rlen #result)));
-                       optMemXform  := None ;
+                       optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "ori" ; 
@@ -71,7 +71,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "andi" ; 
@@ -87,7 +87,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "xor" ; 
@@ -104,7 +104,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "or" ; 
@@ -122,7 +122,7 @@ Section Alu.
                           outputXform  := (fun resultExpr
                                              => LETE result <- resultExpr;
                                                 RetE (intRegTag (SignExtendTruncLsb Rlen #result))); 
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "and" ; 
@@ -139,7 +139,7 @@ Section Alu.
                                                                 }): LogicalType @# _)) ;
                           outputXform  := (fun resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        nil |}.

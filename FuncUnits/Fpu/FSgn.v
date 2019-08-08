@@ -146,7 +146,7 @@ Section Fpu.
                        ];
                   inputXform  := FSgnInput $0;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -163,7 +163,7 @@ Section Fpu.
                        ];
                   inputXform  := FSgnInput $1;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
@@ -180,7 +180,7 @@ Section Fpu.
                        ];
                   inputXform  := FSgnInput $2;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]

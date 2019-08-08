@@ -13,6 +13,7 @@ Section pmp.
 
   Variable name: string.
   Variable Xlen_over_8: nat.
+  Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
 
@@ -22,6 +23,10 @@ Section pmp.
   Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation pmp_reg_width := (@pmp_reg_width Xlen_over_8).
+  Local Notation sizeWidth := (sizeWidth Rlen_over_8).
+  Local Notation Size := (Size Rlen_over_8).
+  Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
+  Local Notation LgSize := (LgSize Rlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -109,11 +114,16 @@ Section pmp.
   Definition pmp_check_type_write := 1.
   Definition pmp_check_type_execute := 2.
 
+  Local Definition div_up x y
+    := (if Nat.eqb (x mod y) 0
+         then x / y
+         else S (x / y))%nat.
+
   Definition pmp_check
     (check : pmp_check_type @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
-    (addr_len : Bit 4 @# ty)
+    (addr_len : LgSize @# ty)
     :  ActionT ty Bool
     := System [
          DispString _ "[pmp_check] addr: ";
@@ -182,15 +192,15 @@ Section pmp.
                              <- fold_left
                                   (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
                                     => LET offset
-                                         :  Bit 4
-                                         <- Const ty (natToWord 4 (4 * index)%nat);
+                                         :  Size
+                                         <- Const ty (natToWord sizeWidth (4 * index)%nat);
                                        System [
                                          DispString _ "[pmp_check] --------------------------------------------------\n";
                                          DispString _ "[pmp_check] offset: ";
                                          DispHex #offset;
                                          DispString _ "\n"
                                        ];
-                                       If addr_len < #offset
+                                       If ($1 << addr_len) < #offset
                                          then
                                            System [
                                              DispString _ "[pmp_check] offset greater than region length.\n";
@@ -247,7 +257,7 @@ Section pmp.
                                            } : pmp_addr_acc_kind @# ty)
                                          as result;
                                        Ret #result)
-                                  (seq 0 2)
+                                  (seq 0 (div_up Rlen_over_8 4))
                                   (Ret (STRUCT {
                                      "any_matched" ::= $$false;
                                      "all_matched" ::= $$true
@@ -309,7 +319,7 @@ Section pmp.
 
   Definition pmp_check_access
     (access_type : VmAccessType @# ty)
-    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Bool
     := pmp_check
          (Switch access_type Retn pmp_check_type With {
             ($VmAccessInst : VmAccessType @# ty)

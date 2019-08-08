@@ -149,7 +149,7 @@ Section Alu.
                                                 fieldVal funct3Field ('b"000") :: nil ;
                        inputXform   := branchInput ($$false) ($$false) ($$false);
                        outputXform  := branchTag ;
-                       optMemXform  := None ;
+                       optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                     |} ::
                        {| instName     := "bne" ; 
@@ -160,7 +160,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"001") :: nil ;
                           inputXform   := branchInput ($$false) ($$false) ($$true) ;
                           outputXform  := branchTag ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "blt" ;  
@@ -171,7 +171,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"100") :: nil ;
                           inputXform   := branchInput ($$true) ($$false) ($$false) ;
                           outputXform  := branchTag ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bge" ; 
@@ -182,7 +182,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"101") :: nil ;
                           inputXform   := branchInput ($$true) ($$false) ($$true) ;
                           outputXform  := branchTag ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bltu" ; 
@@ -193,7 +193,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"110") :: nil ;
                           inputXform   := branchInput ($$true) ($$true) ($$false) ;
                           outputXform  := branchTag ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        {| instName     := "bgeu" ; 
@@ -204,7 +204,7 @@ Section Alu.
                                                    fieldVal funct3Field ('b"111") :: nil ;
                           inputXform   := branchInput ($$true) ($$true) ($$true) ;
                           outputXform  := branchTag ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
                        |} ::
                        nil |}.

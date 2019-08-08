@@ -17,11 +17,12 @@ Section mem_devices.
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz ty).
+  Local Notation LgSize := (LgSize Rlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+  Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty) (_ : LgSize @# ty)
     : ActionT ty Data
     := Call result
          : Array Rlen_over_8 (Bit 8)

@@ -94,7 +94,7 @@ Section Alu.
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -121,7 +121,7 @@ Section Alu.
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -148,7 +148,7 @@ Section Alu.
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -175,7 +175,7 @@ Section Alu.
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (trunc_msb (#res @% "xlen") (#res @% "res")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -202,7 +202,7 @@ Section Alu.
                  := fun res_expr : MultOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              nil

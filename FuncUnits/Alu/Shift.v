@@ -79,7 +79,7 @@ Section Alu.
                                                            }): ShiftInputType @# _)) ;
                        outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                             RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                       optMemXform  := None ;
+                       optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                     {| instName     := "slli64" ; 
@@ -100,7 +100,7 @@ Section Alu.
                                                            }): ShiftInputType @# _)) ;
                        outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                             RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                       optMemXform  := None ;
+                       optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                     |} ::
                        {| instName     := "srli" ; 
@@ -121,7 +121,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srai" ; 
@@ -142,7 +142,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sll" ; 
@@ -163,7 +163,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srl" ; 
@@ -184,7 +184,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sra" ;  
@@ -205,7 +205,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (xlen_sign_extend Rlen (#result @% "xlen") (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "slliw" ; 
@@ -226,7 +226,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res"))));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srliw" ; 
@@ -247,7 +247,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result  <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res"))));
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraiw" ; 
@@ -269,7 +269,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sllw" ; 
@@ -290,7 +290,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "srlw" ; 
@@ -311,7 +311,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        {| instName     := "sraw" ; 
@@ -332,7 +332,7 @@ Section Alu.
                                                                 }): ShiftInputType @# _)) ;
                           outputXform  := (fun resultExpr : ShiftOutputType ## _ => LETE result <- resultExpr;
                                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#result @% "res")))) ;
-                          optMemXform  := None ;
+                          optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
                        |} ::
                        nil

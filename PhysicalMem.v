@@ -33,8 +33,10 @@ Section pmem.
   Local Notation mtbl_entry_addr := (@mtbl_entry_addr name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation sorted_mem_table := (@sorted_mem_table name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pmp_check_access := (@pmp_check_access name Xlen_over_8 ty).
+  Local Notation pmp_check_access := (@pmp_check_access name Xlen_over_8 Rlen_over_8 ty).
   Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
+  Local Notation LgSize := (LgSize Rlen_over_8).
 
   Record MemRegion
     := {
@@ -145,7 +147,7 @@ Section pmem.
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (paddr : PAddr @# ty)
-    (paddr_len : Bit 4 @# ty)
+    (paddr_len : LgSize @# ty)
     :  ActionT ty (Maybe (Pair DeviceTag PAddr))
     := LETA pmp_result
          :  Bool
@@ -197,9 +199,10 @@ Section pmem.
     (mode : PrivMode @# ty)
     (dtag : DeviceTag @# ty)
     (daddr : PAddr @# ty)
+    (size : LgSize @# ty)
     :  ActionT ty Data
     := mem_device_apply dtag 
-         (fun device => mem_device_read_nth device index mode daddr).
+         (fun device => mem_device_read_nth device index mode daddr size).
 
   Definition mem_region_write
     (index : Fin.t mem_device_num_writes)
@@ -207,7 +210,8 @@ Section pmem.
     (dtag : DeviceTag @# ty)
     (daddr : PAddr @# ty)
     (data : Data @# ty)
-    (mask : Array Rlen_over_8 Bool @# ty) (* TODO generalize mask size? *)
+    (mask : Array Rlen_over_8 Bool @# ty)
+    (size : LgSize @# ty)
     :  ActionT ty Bool
     := mem_device_apply dtag
          (fun device
@@ -215,7 +219,8 @@ Section pmem.
                 (STRUCT {
                    "addr" ::= daddr;
                    "data" ::= data;
-                   "mask" ::= mask
+                   "mask" ::= mask;
+                   "size" ::= size
                  } : MemWrite @# ty)).
 
   Definition pMemReadReservation (addr: PAddr @# ty)

@@ -120,7 +120,7 @@ Section Fpu.
                        ];
                   inputXform  := FClassInput;
                   outputXform := FClassOutput;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}
              ]
