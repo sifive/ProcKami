@@ -19,7 +19,6 @@ Section RegWriter.
   Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).

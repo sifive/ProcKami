@@ -35,7 +35,7 @@ Section CsrInterface.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation FieldUpd := (FieldUpd Xlen_over_8 supported_exts ty).
+  Local Notation CsrFieldUpdGuard := (CsrFieldUpdGuard Xlen_over_8 supported_exts ty).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
@@ -64,12 +64,12 @@ Section CsrInterface.
          csrFieldKind : Kind;
          csrFieldDefaultValue : option (ConstT csrFieldKind);
          csrFieldIsValid
-           : FieldUpd @# ty ->
+           : CsrFieldUpdGuard @# ty ->
              csrFieldKind @# ty ->
              csrFieldKind @# ty ->
              Bool @# ty;
          csrFieldXform
-           : FieldUpd @# ty ->
+           : CsrFieldUpdGuard @# ty ->
              csrFieldKind @# ty ->
              csrFieldKind @# ty ->
              csrFieldKind @# ty
@@ -86,8 +86,8 @@ Section CsrInterface.
     := {
          csrViewContext    : Bit 2 @# ty;
          csrViewFields     : list CSRField;
-         csrViewReadXform  : FieldUpd @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty;
-         csrViewWriteXform : FieldUpd @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
+         csrViewReadXform  : CsrFieldUpdGuard @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty;
+         csrViewWriteXform : CsrFieldUpdGuard @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
        }.
 
   Record CSR :=
@@ -111,7 +111,7 @@ Section CsrInterface.
 
   Definition csrViewReadWrite
     (view : CSRView)
-    (upd_pkt : FieldUpd @# ty)
+    (upd_pkt : CsrFieldUpdGuard @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty CsrValue
     := 
@@ -206,7 +206,7 @@ Section CsrInterface.
 
   Definition csrReadWrite
     (entries : list CSR)
-    (upd_pkt : FieldUpd @# ty)
+    (upd_pkt : CsrFieldUpdGuard @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty (Maybe CsrValue)
     := System [
@@ -249,14 +249,14 @@ Section CsrInterface.
 
   Local Definition csrViewDefaultReadXform
     (fields : list CSRField)
-    (_ : FieldUpd @# ty)
+    (_ : CsrFieldUpdGuard @# ty)
     (data : csrViewKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
 
   Local Definition csrViewDefaultWriteXform
     (fields : list CSRField)
-    (_ : FieldUpd @# ty)
+    (_ : CsrFieldUpdGuard @# ty)
     (_ : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
@@ -268,14 +268,14 @@ Section CsrInterface.
 
   Local Definition csrViewUpperReadXform
     (fields : list CSRField)
-    (_ : FieldUpd @# ty)
+    (_ : CsrFieldUpdGuard @# ty)
     (data : csrViewKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (ZeroExtendTruncMsb 32 (pack data)).
 
   Local Definition csrViewUpperWriteXform
     (fields : list CSRField)
-    (_ : FieldUpd @# ty)
+    (_ : CsrFieldUpdGuard @# ty)
     (curr_value : csrViewKind fields @# ty)
     (data : CsrValue @# ty)
     :  csrViewKind fields @# ty
@@ -288,7 +288,7 @@ Section CsrInterface.
   (* See 3.1.1 and 3.1.15 *)
   Local Definition epcReadXform
     (fields : list CSRField)
-    (context : FieldUpd @# ty)
+    (context : CsrFieldUpdGuard @# ty)
     (data : csrViewKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (IF Extensions_get (context @% "cfg" @% "extensions") "C"
@@ -357,8 +357,8 @@ Section CsrInterface.
              csrFieldDefaultValue := None;
              csrFieldIsValid
                := (fun field _ _ (* check 32 bit alignment. *)
-                    => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlStateField" @% "pc")) |
-                              (ZeroExtendTruncLsb 2 (field @% "warlStateField" @% "mepc"))));
+                    => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "pc")) |
+                              (ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "mepc"))));
              csrFieldXform
                := fun _ curr_value _
                     => curr_value
@@ -428,8 +428,8 @@ Section CsrInterface.
   Fixpoint repeatCSRView
     (n : nat)
     (fields : list CSRField)
-    (readXform : FieldUpd @# ty -> csrViewKind fields @# ty -> CsrValue @# ty)
-    (writeXform : FieldUpd @# ty -> csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
+    (readXform : CsrFieldUpdGuard @# ty -> csrViewKind fields @# ty -> CsrValue @# ty)
+    (writeXform : CsrFieldUpdGuard @# ty -> csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
     :  list CSRView
     := match n with
          | 0 => []
@@ -1641,7 +1641,7 @@ Section CsrInterface.
   Close Scope local_scope.
 
   Definition readCSR
-    (upd_pkt : FieldUpd @# ty)
+    (upd_pkt : CsrFieldUpdGuard @# ty)
     (csrId : CsrId @# ty)
     :  ActionT ty (Maybe CsrValue)
     := csrReadWrite CSRs upd_pkt
@@ -1653,7 +1653,7 @@ Section CsrInterface.
           } : LocationReadWriteInputT CsrValue @# ty).
 
   Definition writeCSR
-    (upd_pkt : FieldUpd @# ty)
+    (upd_pkt : CsrFieldUpdGuard @# ty)
     (csrId : CsrId @# ty)
     (raw_data : CsrValue @# ty)
     :  ActionT ty (Maybe CsrValue)
@@ -1712,7 +1712,7 @@ Section CsrInterface.
     (tvm : Bool @# ty)
     (mcounteren : CounterEnType @# ty)
     (scounteren : CounterEnType @# ty)
-    (upd_pkt : FieldUpd @# ty)
+    (upd_pkt : CsrFieldUpdGuard @# ty)
     (rd_index : RegId @# ty)
     (rs1_index : RegId @# ty)
     (csr_index : CsrId @# ty)
@@ -1816,19 +1816,19 @@ Section CsrInterface.
     (csr_index : CsrId @# ty)
     (update_pkt : ExecUpdPkt @# ty)
     :  ActionT ty Bool
-    := LET warlStateField
+    := LET warlUpdateInfo
          <- (STRUCT {
                "pc" ::= pc;
                "mepc" ::= mepc;
                "compressed?" ::= compressed
              } : WarlUpdateInfo @# ty);
        LET upd_pkt
-         :  FieldUpd
+         :  CsrFieldUpdGuard
          <- STRUCT {
-              "warlStateField"
-                ::= #warlStateField;
+              "warlUpdateInfo"
+                ::= #warlUpdateInfo;
               "cfg" ::= cfg_pkt
-            } : FieldUpd @# ty;
+            } : CsrFieldUpdGuard @# ty;
        (* NOTE: only one CSR write can occur per instruction *)
        LETA result0 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
        LETA result1 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
