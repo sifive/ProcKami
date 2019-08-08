@@ -145,7 +145,7 @@ Section pmem.
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (paddr : PAddr @# ty)
-    (paddr_len : Bit (Nat.log2_up Xlen_over_8) @# ty)
+    (paddr_len : Bit 4 @# ty)
     :  ActionT ty (Maybe (Pair DeviceTag PAddr))
     := LETA pmp_result
          :  Bool

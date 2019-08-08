@@ -113,27 +113,27 @@ Section pmp.
     (check : pmp_check_type @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
-    (addr_len : Bit (Nat.log2_up Xlen_over_8) @# ty)
+    (addr_len : Bit 4 @# ty)
     :  ActionT ty Bool
-    := (* System [
+    := System [
          DispString _ "[pmp_check] addr: ";
          DispHex addr;
          DispString _ "\n";
          DispString _ "[pmp_check] addr len: ";
          DispHex addr_len;
          DispString _ "\n"
-       ]; *)
+       ];
        LETA result
          :  pmp_entry_acc_kind
          <- fold_right
               (fun entry_index (acc_act : ActionT ty pmp_entry_acc_kind)
                 => LETA acc <- acc_act;
-                   (* System [
+                   System [
                      DispString _ "[pmp_check] ==================================================\n";
                      DispString _ "[pmp_check] acc: ";
                      DispHex #acc;
                      DispString _ "\n"
-                   ]; *)
+                   ];
                    If #acc @% "matched" 
                      then Ret #acc
                      else
@@ -143,7 +143,7 @@ Section pmp.
                        LET tor
                          :  PAddrEx
                          <- ((ZeroExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 2 2))); 
-                       (* System [
+                       System [
                          DispString _ "[pmp_check] entry: ";
                          DispHex #entry;
                          DispString _ "\n";
@@ -156,7 +156,7 @@ Section pmp.
                          DispString _ "[pmp_check] tor: ";
                          DispHex #tor;
                          DispString _ "\n"
-                       ]; *)
+                       ];
                        If pmp_cfg_addr_mode (#entry @% "cfg") == $0
                          then
                            Ret (STRUCT {
@@ -172,27 +172,27 @@ Section pmp.
                            LET mask
                              :  PAddrEx
                              <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
-                           (* System [
+                           System [
                              DispString _ "[pmp_check] mask: ";
                              DispHex #mask;
                              DispString _ "\n"
-                           ]; *)
+                           ];
                            LETA addr_result
                              :  pmp_addr_acc_kind
                              <- fold_left
                                   (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
                                     => LET offset
-                                         :  Bit (Nat.log2_up Xlen_over_8)
-                                         <- Const ty (natToWord (Nat.log2_up Xlen_over_8) (4 * index)%nat);
-                                       (* System [
+                                         :  Bit 4
+                                         <- Const ty (natToWord 4 (4 * index)%nat);
+                                       System [
                                          DispString _ "[pmp_check] --------------------------------------------------\n";
                                          DispString _ "[pmp_check] offset: ";
                                          DispHex #offset;
                                          DispString _ "\n"
-                                       ]; *)
+                                       ];
                                        If addr_len < #offset
                                          then
-                                           (* System [
+                                           System [
                                              DispString _ "[pmp_check] offset greater than region length.\n";
                                              DispString _ "[pmp_check] addr_len: ";
                                              DispHex addr_len;
@@ -200,7 +200,7 @@ Section pmp.
                                              DispString _ "[pmp_check] offset: ";
                                              DispHex #offset;
                                              DispString _ "\n"
-                                           ]; *)
+                                           ];
                                            addr_acc_act
                                          else 
                                            LETA addr_acc <- addr_acc_act;
@@ -218,7 +218,7 @@ Section pmp.
                                              <- IF #entry @% "cfg" == $1
                                                   then #tor_match
                                                   else #napot_match;
-                                           (* System [
+                                           System [
                                              DispString _ "[pmp_check] addr acc: ";
                                              DispHex #addr_acc;
                                              DispString _ "\n";
@@ -240,7 +240,7 @@ Section pmp.
                                              DispString _ "[pmp_check] matched: ";
                                              DispHex #matched;
                                              DispString _ "\n"
-                                           ]; *)
+                                           ];
                                            Ret (STRUCT {
                                              "any_matched" ::= ((#addr_acc @% "any_matched") || #matched);
                                              "all_matched" ::= ((#addr_acc @% "all_matched") && #matched)
@@ -254,9 +254,9 @@ Section pmp.
                                    } : pmp_addr_acc_kind @# ty));
                            If #addr_result @% "any_matched"
                              then 
-                               (* System [
+                               System [
                                  DispString _ "[pmp_check] addr any matched\n"
-                               ]; *)
+                               ];
                                Ret (STRUCT {
                                  "any_on"  ::= $$true;
                                  "addr"    ::= $0;
@@ -264,9 +264,9 @@ Section pmp.
                                  "pmp_cfg" ::= #entry @% "cfg" (* ((#addr_result @% "all_matched") && (f (#entry @% "cfg"))) *)
                                } : pmp_entry_acc_kind @# ty)
                              else 
-                               (* System [
+                               System [
                                  DispString _ "[pmp_check] addr none matched\n"
-                               ]; *)
+                               ];
                                Ret (STRUCT {
                                  "any_on"  ::= #acc @% "any_on";
                                  "addr"    ::= #acc @% "addr";
@@ -286,12 +286,12 @@ Section pmp.
                  "pmp_cfg" ::= $0
                } : pmp_entry_acc_kind @# ty))
               (seq 0 16);
-       (* System [
+       System [
          DispString _ "[pmp_check] ##################################################\n";
          DispString _ "[pmp_check] result: ";
          DispHex #result;
          DispString _ "\n"
-       ]; *)
+       ];
        Ret (* (#result @% "result").  *)
          (IF #result @% "matched"
            then
@@ -309,7 +309,7 @@ Section pmp.
 
   Definition pmp_check_access
     (access_type : VmAccessType @# ty)
-    :  PrivMode @# ty -> PAddr @# ty -> Bit (Nat.log2_up Xlen_over_8) @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> Bit 4 @# ty -> ActionT ty Bool
     := pmp_check
          (Switch access_type Retn pmp_check_type With {
             ($VmAccessInst : VmAccessType @# ty)

@@ -187,72 +187,71 @@ Section pt_walker.
                   };
              RetE #finalVal.
         End pte.
-
     End oneIteration.
 
-      Definition translatePteLoop
-        (index : nat)
-        (indexValid : (index < maxPageLevels - 1)%nat)
-        (acc: Pair Bool (PktWithException PAddr) @# ty)
-        :  ActionT ty (Pair Bool (PktWithException PAddr))
-        := LET exception : FullException <- accessException access_type vAddr;
-           LET errorResult : PktWithException PAddr
-             <- STRUCT {
-                  "fst" ::= $0;
-                  "snd" ::= Valid #exception
-                } : PktWithException PAddr @# ty;
-           LET doneInvalid : Pair Bool (PktWithException PAddr)
-             <- STRUCT {
-                  "fst" ::= $$true;
-                  "snd" ::= #errorResult
-                };
-           If acc @% "fst"
-             then Ret acc
-             else 
-               If acc @% "snd" @% "snd" @% "valid"
-                 then
-                   Ret (acc @%["fst" <- $$true])
-                 else
-                   LETA pmp_result
-                     :  Maybe (Pair DeviceTag PAddr)
-                     <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $4;
-                   If #pmp_result @% "valid"
-                     then 
-                       LETA read_result: Data
-                         <- mem_region_read
-                              (Fin.of_nat_lt
-                                (Nat.lt_le_trans
-                                  (3 + (index - 1))
-                                  (3 + (maxPageLevels - 1))
-                                  mem_device_num_reads
-                                  (Plus.plus_lt_compat_l
+    Definition translatePteLoop
+      (index : nat)
+      (indexValid : (index < maxPageLevels - 1)%nat)
+      (acc: Pair Bool (PktWithException PAddr) @# ty)
+      :  ActionT ty (Pair Bool (PktWithException PAddr))
+      := LET exception : FullException <- accessException access_type vAddr;
+         LET errorResult : PktWithException PAddr
+           <- STRUCT {
+                "fst" ::= $0;
+                "snd" ::= Valid #exception
+              } : PktWithException PAddr @# ty;
+         LET doneInvalid : Pair Bool (PktWithException PAddr)
+           <- STRUCT {
+                "fst" ::= $$true;
+                "snd" ::= #errorResult
+              };
+         If acc @% "fst"
+           then Ret acc
+           else 
+             If acc @% "snd" @% "snd" @% "valid"
+               then
+                 Ret (acc @%["fst" <- $$true])
+               else
+                 LETA pmp_result
+                   :  Maybe (Pair DeviceTag PAddr)
+                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $4;
+                 If #pmp_result @% "valid"
+                   then 
+                     LETA read_result: Data
+                       <- mem_region_read
+                            (Fin.of_nat_lt
+                              (Nat.lt_le_trans
+                                (3 + (index - 1))
+                                (3 + (maxPageLevels - 1))
+                                mem_device_num_reads
+                                (Plus.plus_lt_compat_l
+                                  (index - 1)
+                                  (maxPageLevels - 1)
+                                  3
+                                  (Nat.le_lt_trans
                                     (index - 1)
+                                    index
                                     (maxPageLevels - 1)
-                                    3
-                                    (Nat.le_lt_trans
-                                      (index - 1)
-                                      index
-                                      (maxPageLevels - 1)
-                                      (Nat.le_sub_l index 1)
-                                      indexValid))
-                                  (ltac:(nat_lt))))
-                              mode
-                              (#pmp_result @% "data" @% "fst")
-                              (#pmp_result @% "data" @% "snd");
-                       System [
-                         DispString _ "[translatePteLoop] page table entry: ";
-                         DispHex #read_result;
-                         DispString _ "\n"
-                       ];
-                       convertLetExprSyntax_ActionT
-                         (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
-                     else Ret #doneInvalid
-                     as result;
-                   Ret #result
-                 as result;
-               Ret #result
-             as result;
-           Ret #result.
+                                    (Nat.le_sub_l index 1)
+                                    indexValid))
+                                (ltac:(nat_lt))))
+                            mode
+                            (#pmp_result @% "data" @% "fst")
+                            (#pmp_result @% "data" @% "snd");
+                     System [
+                       DispString _ "[translatePteLoop] page table entry: ";
+                       DispHex #read_result;
+                       DispString _ "\n"
+                     ];
+                     convertLetExprSyntax_ActionT
+                       (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
+                   else Ret #doneInvalid
+                   as result;
+                 Ret #result
+               as result;
+             Ret #result
+           as result;
+         Ret #result.
 
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
