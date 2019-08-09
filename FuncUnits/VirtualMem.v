@@ -189,23 +189,24 @@ Section pt_walker.
         End pte.
     End oneIteration.
 
+    Local Definition doneInvalid (exception : FullException @# ty)
+      :  ActionT ty (Pair Bool (PktWithException PAddr))
+      := LET errorResult : PktWithException PAddr
+           <- STRUCT {
+                "fst" ::= $0;
+                "snd" ::= Valid exception
+              } : PktWithException PAddr @# ty;
+         Ret (STRUCT {
+                "fst" ::= $$true;
+                "snd" ::= #errorResult
+              } : Pair Bool (PktWithException PAddr) @# ty).
+
     Definition translatePteLoop
       (index : nat)
       (indexValid : (index < maxPageLevels - 1)%nat)
       (acc: Pair Bool (PktWithException PAddr) @# ty)
       :  ActionT ty (Pair Bool (PktWithException PAddr))
-      := LET exception : FullException <- accessException access_type vAddr;
-         LET errorResult : PktWithException PAddr
-           <- STRUCT {
-                "fst" ::= $0;
-                "snd" ::= Valid #exception
-              } : PktWithException PAddr @# ty;
-         LET doneInvalid : Pair Bool (PktWithException PAddr)
-           <- STRUCT {
-                "fst" ::= $$true;
-                "snd" ::= #errorResult
-              };
-         If acc @% "fst"
+      := If acc @% "fst"
            then Ret acc
            else 
              If acc @% "snd" @% "snd" @% "valid"
@@ -214,9 +215,13 @@ Section pt_walker.
                else
                  LETA pmp_result
                    :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $2;
+                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
                  If mem_error (#pmp_result @% "snd")
-                   then Ret #doneInvalid (* TODO: raise misaligned exception if mem error is misaligned *)
+                   then
+                     doneInvalid
+                       (IF #pmp_result @% "snd" @% "misaligned"
+                          then misalignedException access_type (acc @% "snd" @% "fst")
+                          else accessException access_type vAddr)
                    else 
                      LETA read_result: Data
                        <- mem_region_read

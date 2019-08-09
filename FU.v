@@ -553,6 +553,23 @@ Section Params.
          "value" ::= value
        } : FullException @# ty.
 
+  Definition misalignedException
+    (access_type : VmAccessType @# ty)
+    (value : ExceptionInfo @# ty)
+    :  FullException @# ty
+    := STRUCT {
+         "exception"
+           ::= Switch access_type Retn Exception With {
+                 ($VmAccessInst : VmAccessType @# ty)
+                   ::= ($InstAddrMisaligned : Exception @# ty);
+                 ($VmAccessLoad : VmAccessType @# ty)
+                   ::= ($LoadAddrMisaligned : Exception @# ty);
+                 ($VmAccessSAmo : VmAccessType @# ty)
+                   ::= ($SAmoAddrMisaligned : Exception @# ty)
+               };
+         "value" ::= value
+       } : FullException @# ty.
+
   Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
     Switch satp_mode Retn k With {
       ($SatpModeSv32 : Bit SatpModeWidth @# ty)
@@ -682,12 +699,14 @@ Section Params.
          "range"      :: Bool; (* paddr failed to match any device range *)
          "width"      :: Bool; (* unsupported access width *)
          "pma"        :: Bool; (* failed device pma check *)
-         "misaligned" :: Bool  (* address misaligned and misaligned access not supported by device *)
+         "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
+         "lrsc"       :: Bool  (* does not support lrsc operations *) 
        }.
 
   Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
     := err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
-       err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned".
+       err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned" ||
+       err_pkt @% "lrsc".
 
   Section Fields.    
     Variable inst: Inst @# ty.

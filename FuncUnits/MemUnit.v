@@ -128,17 +128,20 @@ Section mem_unit.
                 "snd" ::= #paddr @% "snd"
               } : PktWithException Data @# ty)
          else
-           LET exception
-             :  Maybe FullException
-             <- Valid (STRUCT {
-                    "exception" ::= $InstAccessFault;
-                    "value" ::= vaddr
-                  } : FullException @# ty);
            LETA pmp_result
              :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1;
+             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
            If mem_error (#pmp_result @% "snd")
              then
+               LET exception
+                 :  Maybe FullException
+                 <- Valid (STRUCT {
+                        "exception"
+                          ::= IF #pmp_result @% "snd" @% "misaligned"
+                                then $InstAddrMisaligned
+                                else $InstAccessFault;
+                        "value" ::= vaddr
+                      } : FullException @# ty);
                Ret (STRUCT {
                    "fst" ::= $0;
                    "snd" ::= #exception (* TODO: raise misaligned exception if mem error is misaligned. *)
@@ -273,13 +276,29 @@ Section mem_unit.
                       satp_mode
                       mode
                       (#mpaddr @% "fst")
-                      (#msize @% "data");
+                      (#msize @% "data")
+                      (input_pkt @% "aq" || input_pkt @% "rl");
                If mem_error (#pmp_result @% "snd")
                  then (* TODO: return misaligned exception if mem error is misaligned. *)
                    System [
                      DispString _ "[mem_unit_exec] the pmp check failed\n"
                    ];
-                   (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
+                   LET exception
+                     :  Maybe FullException
+                     <- Valid (STRUCT {
+                          "exception"
+                            ::= IF #pmp_result @% "snd" @% "misaligned"
+                                  then
+                                    (IF #mis_write @% "data"
+                                      then $SAmoAddrMisaligned
+                                      else $LoadAddrMisaligned)
+                                  else
+                                    (IF #mis_write @% "data"
+                                      then $SAmoAccessFault
+                                      else $LoadAccessFault);
+                          "value" ::= ZeroExtendTruncLsb Xlen (#mpaddr @% "fst")
+                        } : FullException @# ty);
+                   mem_unit_exec_pkt_def #exception
                  else
                    (* IV. read the current value and place reservation *)
                    LETA read_result

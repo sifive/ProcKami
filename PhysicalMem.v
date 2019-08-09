@@ -147,7 +147,8 @@ Section pmem.
     := STRUCT_TYPE {
          "width"      :: Bool;
          "pma"        :: Bool;
-         "misaligned" :: Bool
+         "misaligned" :: Bool;
+         "lrsc"       :: Bool
        }.
 
   Definition checkForAccessFault
@@ -156,6 +157,7 @@ Section pmem.
     (mode : PrivMode @# ty)
     (paddr : PAddr @# ty)
     (paddr_len : LgSize @# ty)
+    (lrsc : Bool @# ty)
     :  ActionT ty (Pair (Pair DeviceTag PAddr) MemErrorPkt)
     := LETA pmp_result
          :  Bool
@@ -222,7 +224,9 @@ Section pmem.
                               ::= (#acc @% "misaligned" ||
                                    (width_match && 
                                     (isAligned paddr $2 || 
-                                     $$(pma_misaligned pma))))
+                                     $$(pma_misaligned pma))));
+                            "lrsc"
+                              ::= (#acc @% "lrsc" || (width_match && ($$(pma_lrsc pma) || !lrsc)))
                           } : PMAErrorsPkt @# ty))
                      (mem_device_pmas device));
        LET err_pkt : MemErrorPkt
@@ -232,7 +236,8 @@ Section pmem.
               "range"      ::= !(#mresult @% "valid");
               "width"      ::= !(#pma_result @% "width");
               "pma"        ::= !(#pma_result @% "pma");
-              "misaligned" ::= !(#pma_result @% "misaligned")
+              "misaligned" ::= !(#pma_result @% "misaligned");
+              "lrsc"       ::= !(#pma_result @% "lrsc")
             } : MemErrorPkt @# ty;
        System [
          DispString _ "[checkForAccessFault] device tag and offset: ";
