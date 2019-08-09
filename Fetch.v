@@ -74,7 +74,6 @@ Section fetch.
                          (IF #decompressed
                             then 
                               ((zero_extend_trunc 16 InstSz (#inst_upper @% "fst")) <<
-                               (* ($16 : Bit (Nat.log2_up 16) @# ty)) *)
                                ($16 : Bit 32 @# ty))
                             else $0));
                   "compressed?" ::= !#decompressed

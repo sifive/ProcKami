@@ -135,24 +135,24 @@ Section mem_unit.
                     "value" ::= vaddr
                   } : FullException @# ty);
            LETA pmp_result
-             :  Maybe (Pair DeviceTag PAddr)
+             :  Pair (Pair DeviceTag PAddr) MemErrorPkt
              <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1;
-           If #pmp_result @% "valid"
+           If mem_error (#pmp_result @% "snd")
              then
+               Ret (STRUCT {
+                   "fst" ::= $0;
+                   "snd" ::= #exception (* TODO: raise misaligned exception if mem error is misaligned. *)
+                 } : PktWithException Data @# ty)
+             else
                LETA inst
                  :  Data
                  <- mem_region_read index mode
-                      (#pmp_result @% "data" @% "fst") 
-                      (#pmp_result @% "data" @% "snd")
+                      (#pmp_result @% "fst" @% "fst") 
+                      (#pmp_result @% "fst" @% "snd")
                       $2;
                Ret (STRUCT {
                    "fst" ::= #inst;
                    "snd" ::= Invalid
-                 } : PktWithException Data @# ty)
-             else
-               Ret (STRUCT {
-                   "fst" ::= $0;
-                   "snd" ::= #exception
                  } : PktWithException Data @# ty)
              as result;
            Ret #result
@@ -265,7 +265,7 @@ Section mem_unit.
                  } : PktWithException MemRet @# ty)
              else
                LETA pmp_result
-                 :  Maybe (Pair DeviceTag PAddr)
+                 :  Pair (Pair DeviceTag PAddr) MemErrorPkt
                  <- checkForAccessFault
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
@@ -274,16 +274,21 @@ Section mem_unit.
                       mode
                       (#mpaddr @% "fst")
                       (#msize @% "data");
-               If #pmp_result @% "valid"
-                 then
+               If mem_error (#pmp_result @% "snd")
+                 then (* TODO: return misaligned exception if mem error is misaligned. *)
+                   System [
+                     DispString _ "[mem_unit_exec] the pmp check failed\n"
+                   ];
+                   (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
+                 else
                    (* IV. read the current value and place reservation *)
                    LETA read_result
                      :  Data
                      <- mem_region_read
                           (ltac:(nat_index mem_device_num_reads 2))
                           mode
-                          (#pmp_result @% "data" @% "fst")
-                          (#pmp_result @% "data" @% "snd")
+                          (#pmp_result @% "fst" @% "fst")
+                          (#pmp_result @% "fst" @% "snd")
                           (#msize @% "data");
                    (* TODO: should we place reservations on failed reads? *)
                    LETA read_reservation_result
@@ -323,8 +328,8 @@ Section mem_unit.
                          <- mem_region_write 
                               (ltac:(nat_index mem_device_num_writes 0))
                               mode
-                              (#pmp_result @% "data" @% "fst")
-                              (#pmp_result @% "data" @% "snd")
+                              (#pmp_result @% "fst" @% "fst")
+                              (#pmp_result @% "fst" @% "snd")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)
                               (#write_mask : Array Rlen_over_8 Bool @# ty)
                               (#msize @% "data");
@@ -356,11 +361,6 @@ Section mem_unit.
                           "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
                         } : MemRet @# ty;
                    mem_unit_exec_pkt #memRet #write_result
-                 else
-                   System [
-                     DispString _ "[mem_unit_exec] the pmp check failed\n"
-                   ];
-                   (mem_unit_exec_pkt_access_fault addr (#mis_write @% "data"))
                  as result;
                Ret #result
              as result;

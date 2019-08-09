@@ -37,6 +37,7 @@ Section pmem.
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
+  Local Notation isAligned := (isAligned Xlen_over_8).
 
   Record MemRegion
     := {
@@ -142,13 +143,20 @@ Section pmem.
            mem_regions
            ([], Ret Invalid)).
 
+  Local Definition PMAErrorsPkt
+    := STRUCT_TYPE {
+         "width"      :: Bool;
+         "pma"        :: Bool;
+         "misaligned" :: Bool
+       }.
+
   Definition checkForAccessFault
     (access_type : VmAccessType @# ty)
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (paddr : PAddr @# ty)
     (paddr_len : LgSize @# ty)
-    :  ActionT ty (Maybe (Pair DeviceTag PAddr))
+    :  ActionT ty (Pair (Pair DeviceTag PAddr) MemErrorPkt)
     := LETA pmp_result
          :  Bool
          <- pmp_check_access access_type mode paddr paddr_len; 
@@ -176,23 +184,68 @@ Section pmem.
                                 "snd" ::= device_offset
                               } : Pair DeviceTag PAddr @# ty)
                        end));
+       LETA pma_result
+         :  PMAErrorsPkt
+         <- mem_device_apply
+              (#mresult @% "data" @% "data" @% "fst")
+              (fun device
+                => list_rect
+                     (fun _ => ActionT ty PMAErrorsPkt)
+                     (Ret $$(getDefaultConst PMAErrorsPkt))
+                     (fun pma pmas F
+                       => let width_match := paddr_len == $(pma_width pma) in
+                          LETA acc <- F;
+                          System [
+                            DispString _ "[checkForAceessFault] paddr_len: ";
+                            DispHex paddr_len;
+                            DispString _ "\n";
+                            DispString _ ("[checkForAceessFault] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
+                            DispString _ "[checkForAceessFault] width match: ";
+                            DispHex width_match;
+                            DispString _ "\n"
+                          ];
+                          Ret (STRUCT {
+                            "width"
+                              ::= (#acc @% "width" || width_match);
+                            "pma"
+                              ::= (#acc @% "pma" ||
+                                   (width_match &&
+                                    Switch access_type Retn Bool With {
+                                      ($VmAccessInst : VmAccessType @# ty)
+                                        ::= ($$(pma_executable pma) : Bool @# ty);
+                                      ($VmAccessLoad : VmAccessType @# ty)
+                                        ::= ($$(pma_readable pma) : Bool @# ty);
+                                      ($VmAccessSAmo : VmAccessType @# ty)
+                                        ::= ($$(pma_writeable pma) : Bool @# ty)
+                                    }));
+                            "misaligned"
+                              ::= (#acc @% "misaligned" ||
+                                   (width_match && 
+                                    (isAligned paddr $2 || 
+                                     $$(pma_misaligned pma))))
+                          } : PMAErrorsPkt @# ty))
+                     (mem_device_pmas device));
+       LET err_pkt : MemErrorPkt
+         <- STRUCT {
+              "pmp"        ::= !#pmp_result;
+              "paddr"      ::= !#bound_result;
+              "range"      ::= !(#mresult @% "valid");
+              "width"      ::= !(#pma_result @% "width");
+              "pma"        ::= !(#pma_result @% "pma");
+              "misaligned" ::= !(#pma_result @% "misaligned")
+            } : MemErrorPkt @# ty;
        System [
-         DispString _ "[checkForAccessFault] pmp result: ";
-         DispBinary #pmp_result;
+         DispString _ "[checkForAccessFault] device tag and offset: ";
+         DispHex (#mresult @% "data" @% "data");
          DispString _ "\n";
-         DispString _ "[checkForAccessFault] bound result: ";
-         DispBinary #bound_result;
-         DispString _ "\n";
-         DispString _ ("[checkForAccessFault] num memory regions: " ++ nat_decimal_string (length mem_regions) ++ "\n");
-         DispString _ ("[checkForAccessFault] num memory table entries: " ++ nat_decimal_string (length sorted_mem_table) ++ "\n");
-         DispString _ "[checkForAccessFault] mresult result: ";
-         DispBinary #mresult;
+         DispString _ "[checkForAccessFault] err pkt: ";
+         DispHex #err_pkt;
          DispString _ "\n"
        ];
-       Ret
-         (utila_opt_pkt
-           (#mresult @% "data" @% "data")
-           (#pmp_result && #bound_result && (#mresult @% "valid") && (#mresult @% "data" @% "valid"))).
+       Ret (STRUCT {
+         "fst" ::= #mresult @% "data" @% "data";
+         "snd" ::= #err_pkt
+       } : Pair (Pair DeviceTag PAddr) MemErrorPkt @# ty).
 
   Definition mem_region_read
     (index : Fin.t mem_device_num_reads)

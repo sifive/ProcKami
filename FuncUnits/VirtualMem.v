@@ -213,10 +213,11 @@ Section pt_walker.
                  Ret (acc @%["fst" <- $$true])
                else
                  LETA pmp_result
-                   :  Maybe (Pair DeviceTag PAddr)
-                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $4;
-                 If #pmp_result @% "valid"
-                   then 
+                   :  Pair (Pair DeviceTag PAddr) MemErrorPkt
+                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $2;
+                 If mem_error (#pmp_result @% "snd")
+                   then Ret #doneInvalid (* TODO: raise misaligned exception if mem error is misaligned *)
+                   else 
                      LETA read_result: Data
                        <- mem_region_read
                             (Fin.of_nat_lt
@@ -236,8 +237,8 @@ Section pt_walker.
                                     indexValid))
                                 (ltac:(nat_lt))))
                             mode
-                            (#pmp_result @% "data" @% "fst")
-                            (#pmp_result @% "data" @% "snd")
+                            (#pmp_result @% "fst" @% "fst")
+                            (#pmp_result @% "fst" @% "snd")
                             $(Nat.log2_up Xlen_over_8);
                      System [
                        DispString _ "[translatePteLoop] page table entry: ";
@@ -246,7 +247,6 @@ Section pt_walker.
                      ];
                      convertLetExprSyntax_ActionT
                        (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
-                   else Ret #doneInvalid
                    as result;
                  Ret #result
                as result;

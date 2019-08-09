@@ -639,7 +639,7 @@ Section Params.
                 pma_lrsc       := true;
                 pma_amo        := AMOArith
               |})
-         [4; 8].
+         [0; 1; 2; 3].
 
   Definition mem_device_num_reads := 6.
   Definition mem_device_num_writes := 1.
@@ -674,6 +674,20 @@ Section Params.
          (mem_device_write_valid device).
 
   Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
+
+  Definition MemErrorPkt
+    := STRUCT_TYPE {
+         "pmp"        :: Bool; (* request failed pmp check *)
+         "paddr"      :: Bool; (* paddr exceeded virtual memory mode upper bound *)
+         "range"      :: Bool; (* paddr failed to match any device range *)
+         "width"      :: Bool; (* unsupported access width *)
+         "pma"        :: Bool; (* failed device pma check *)
+         "misaligned" :: Bool  (* address misaligned and misaligned access not supported by device *)
+       }.
+
+  Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
+    := err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
+       err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned".
 
   Section Fields.    
     Variable inst: Inst @# ty.
