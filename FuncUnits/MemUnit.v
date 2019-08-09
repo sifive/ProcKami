@@ -50,7 +50,7 @@ Section mem_unit.
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
@@ -130,7 +130,7 @@ Section mem_unit.
          else
            LETA pmp_result
              :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-             <- checkForAccessFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
+             <- checkForFault $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
            If mem_error (#pmp_result @% "snd")
              then
                LET exception
@@ -269,7 +269,7 @@ Section mem_unit.
              else
                LETA pmp_result
                  :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                 <- checkForAccessFault
+                 <- checkForFault
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
                         else $VmAccessLoad)

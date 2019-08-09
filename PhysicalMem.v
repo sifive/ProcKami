@@ -151,7 +151,7 @@ Section pmem.
          "lrsc"       :: Bool
        }.
 
-  Definition checkForAccessFault
+  Definition checkForFault
     (access_type : VmAccessType @# ty)
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
@@ -240,10 +240,10 @@ Section pmem.
               "lrsc"       ::= !(#pma_result @% "lrsc")
             } : MemErrorPkt @# ty;
        System [
-         DispString _ "[checkForAccessFault] device tag and offset: ";
+         DispString _ "[checkForFault] device tag and offset: ";
          DispHex (#mresult @% "data" @% "data");
          DispString _ "\n";
-         DispString _ "[checkForAccessFault] err pkt: ";
+         DispString _ "[checkForFault] err pkt: ";
          DispHex #err_pkt;
          DispString _ "\n"
        ];

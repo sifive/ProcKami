@@ -32,7 +32,7 @@ Section pt_walker.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -215,7 +215,7 @@ Section pt_walker.
                else
                  LETA pmp_result
                    :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                   <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
+                   <- checkForFault access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
                  If mem_error (#pmp_result @% "snd")
                    then
                      doneInvalid
