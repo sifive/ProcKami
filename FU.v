@@ -158,10 +158,10 @@ Section Params.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
   
-  Definition XlenWidth : nat := Nat.log2 Xlen_over_8 - 2.
+  Definition XlenWidth : nat := (* Nat.log2 Xlen_over_8 - 2 *) 0*Xlen_over_8 + 2.
   Definition XlenValue: Kind := Bit XlenWidth.
-  Definition Xlen32 := 0.
-  Definition Xlen64 := 1.
+  Definition Xlen32 := 1.
+  Definition Xlen64 := 2.
 
   Local Notation CsrValueWidth := (Xlen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
