@@ -92,7 +92,7 @@ Section Params.
       := ConstBit
            (natToWord XlenWidth
               (if Nat.eqb Xlen_over_8 4
-                 then 1
-                 else 2)).
+                 then 0
+                 else 1)).
   End model.
 End Params.
