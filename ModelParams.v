@@ -243,7 +243,7 @@ Section exts.
               uniqId := uniqId e ;
               inputXform := inputXform e ;
               outputXform := outputXform e ;
-              optMemXform := optMemXform e ;
+              optMemParams := optMemParams e ;
               instHints := instHints e |}.
 
       Local Definition param_filter_insts
