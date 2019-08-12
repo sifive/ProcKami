@@ -116,7 +116,7 @@ Section Mem.
     Definition loadXform (tag: RoutingTag @# ty) (size: nat)
                (ext: forall (ty : Kind -> Type)
                             (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
-      Some (fun memRegIn: MemoryInput ## ty =>
+      fun memRegIn: MemoryInput ## ty =>
               LETE memReg : MemoryInput <- memRegIn ;
               LETC mem : Data <- #memReg @% "mem" ;
               LETC memByte: Bit size <-
@@ -129,13 +129,14 @@ Section Mem.
                                    "aq" ::= $$ false ;
                                    "rl" ::= $$ false ;
                                    "isWr" ::= $$ false ;
+                                   "size" ::= $size ;
                                    "mask" ::= $$ (ConstArray (fun _ : Fin.t Rlen_over_8 => false)) ;
                                    "data" ::= $$ (getDefaultConst Data) ;
                                    "isLrSc" ::= $$ false ;
                                    "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
                                    "tag" ::= tag ;
                                    "reg_data" ::= #memOut };
-              RetE #outMemReg).
+              RetE #outMemReg.
 
     Definition storeInput
       (size: nat)
@@ -201,24 +202,24 @@ Section Mem.
          RetE #retval.
 
     Definition storeXform (size: nat) :=
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memMask: _ <- unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= $$ false ;
-                                  "rl" ::= $$ false ;
-                                  "isWr" ::= $$ true ;
-                                  "mask" ::= #memMask ;
-                                  "data" ::= #reg ;
-                                  "isLrSc" ::= $$ false ;
-                                  "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= (Invalid: Maybe Data @# ty) };
-             RetE #outMemReg).
+      fun memRegIn =>
+        LETE memReg : MemoryInput <- memRegIn ;
+          LETC reg : Data <- #memReg @% "reg_data" ;
+          LETC memMask: _ <- unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1));
+          LETC outMemReg : MemoryOutput
+                             <-
+                             STRUCT {
+                               "aq" ::= $$ false ;
+                               "rl" ::= $$ false ;
+                               "isWr" ::= $$ true ;
+                               "size" ::= $size ;
+                               "mask" ::= #memMask ;
+                               "data" ::= #reg ;
+                               "isLrSc" ::= $$ false ;
+                               "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
+                               "tag" ::= $IntRegTag ;
+                               "reg_data" ::= (Invalid: Maybe Data @# ty) };
+          RetE #outMemReg.
     
     Definition amoInput
       sz
@@ -249,36 +250,36 @@ Section Mem.
 
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC reg : Data <- #memReg @% "reg_data" ;
-             LETC memVal: Data <- #memReg @% "mem" ;
-             LETC memMask: Array Rlen_over_8 Bool <-
-                                 $$ (ConstArray
-                                       (fun i: Fin.t Rlen_over_8 =>
-                                          getBool (Compare_dec.lt_dec
-                                                     (proj1_sig (Fin.to_nat i))
-                                                     (if dohalf
-                                                      then Xlen_over_8/2
-                                                      else Xlen_over_8)))) ;
-             LETC dataVal: Data <- fn #reg #memVal;
-             LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
-                               (if dohalf then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "isWr" ::= $$ true ;
-                                  "mask" ::= #memMask ;
-                                  "data" ::= #dataVal ;
-                                  "isLrSc" ::= $$ false ;
-                                  "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false))  ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= #finalLoadVal };
-             RetE #outMemReg).
+      fun memRegIn =>
+        LETE memReg : MemoryInput <- memRegIn ;
+          LETC reg : Data <- #memReg @% "reg_data" ;
+          LETC memVal: Data <- #memReg @% "mem" ;
+          LETC memMask: Array Rlen_over_8 Bool <-
+                              $$ (ConstArray
+                                    (fun i: Fin.t Rlen_over_8 =>
+                                       getBool (Compare_dec.lt_dec
+                                                  (proj1_sig (Fin.to_nat i))
+                                                  (if dohalf
+                                                   then Xlen_over_8/2
+                                                   else Xlen_over_8)))) ;
+          LETC dataVal: Data <- fn #reg #memVal;
+          LETC loadVal: Bit (if dohalf then (Xlen/2) else Xlen) <- SignExtendTruncLsb
+                            (if dohalf then (Xlen/2) else Xlen) #memVal;
+          LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
+          LETC outMemReg : MemoryOutput
+                             <-
+                             STRUCT {
+                               "aq" ::= #memReg @% "aq" ;
+                               "rl" ::= #memReg @% "rl" ;
+                               "isWr" ::= $$ true ;
+                               "size" ::= $(if dohalf then Xlen_over_8/2 else Xlen_over_8) ;
+                               "mask" ::= #memMask ;
+                               "data" ::= #dataVal ;
+                               "isLrSc" ::= $$ false ;
+                               "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false))  ;
+                               "tag" ::= $IntRegTag ;
+                               "reg_data" ::= #finalLoadVal };
+          RetE #outMemReg.
 
     Definition lrInput := amoInput.
 
@@ -286,13 +287,30 @@ Section Mem.
 
     Definition lrXform (half: bool) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
-      Some
-        (fun memRegIn =>
-           LETE memReg : MemoryInput <- memRegIn ;
-             LETC memVal: Data <- #memReg @% "mem" ;
-             LETC loadVal <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
-             LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
-             LETC memMask: Array Rlen_over_8 Bool <-
+      fun memRegIn =>
+        LETE memReg : MemoryInput <- memRegIn ;
+          LETC memVal: Data <- #memReg @% "mem" ;
+          LETC loadVal <- SignExtendTruncLsb (if dohalf then (Xlen/2) else Xlen) #memVal;
+          LETC finalLoadVal: Maybe Data <- Valid (SignExtendTruncLsb Rlen #loadVal);
+          LETC memMask: Array Rlen_over_8 Bool <-
+                              $$ (ConstArray
+                                    (fun i: Fin.t Rlen_over_8 =>
+                                       getBool (Compare_dec.lt_dec
+                                                  (proj1_sig (Fin.to_nat i))
+                                                  (if dohalf
+                                                   then Xlen_over_8/2
+                                                   else Xlen_over_8)))) ;
+          LETC outMemReg : MemoryOutput
+                             <-
+                             STRUCT {
+                               "aq" ::= #memReg @% "aq" ;
+                               "rl" ::= #memReg @% "rl" ;
+                               "isWr" ::= $$ false ;
+                               "size" ::= $(if dohalf then Xlen_over_8/2 else Xlen_over_8) ;
+                               "mask" ::= #memMask ;
+                               "data" ::= $$ (getDefaultConst Data) ;
+                               "isLrSc" ::= $$ true ;
+                               "reservation" ::=
                                  $$ (ConstArray
                                        (fun i: Fin.t Rlen_over_8 =>
                                           getBool (Compare_dec.lt_dec
@@ -300,71 +318,55 @@ Section Mem.
                                                      (if dohalf
                                                       then Xlen_over_8/2
                                                       else Xlen_over_8)))) ;
-             LETC outMemReg : MemoryOutput
-                                <-
-                                STRUCT {
-                                  "aq" ::= #memReg @% "aq" ;
-                                  "rl" ::= #memReg @% "rl" ;
-                                  "isWr" ::= $$ false ;
-                                  "mask" ::= #memMask ;
-                                  "data" ::= $$ (getDefaultConst Data) ;
-                                  "isLrSc" ::= $$ true ;
-                                  "reservation" ::=
-                                    $$ (ConstArray
-                                          (fun i: Fin.t Rlen_over_8 =>
-                                             getBool (Compare_dec.lt_dec
-                                                        (proj1_sig (Fin.to_nat i))
-                                                        (if dohalf
-                                                         then Xlen_over_8/2
-                                                         else Xlen_over_8)))) ;
-                                  "tag" ::= $IntRegTag ;
-                                  "reg_data" ::= #finalLoadVal };
-             RetE #outMemReg).
+                               "tag" ::= $IntRegTag ;
+                               "reg_data" ::= #finalLoadVal };
+          RetE #outMemReg.
 
     Definition scInput := amoInput.
 
     Definition scTag := storeTag.
 
+    (* TODO: should this use dohalf like those above? *)
     Definition scXform (half: bool)
       := let dohalf
            := andb half (getBool (Nat.eq_dec Rlen 64)) in
-         Some
-           (fun memRegIn
-              => LETE memReg
-                   :  MemoryInput
-                   <- memRegIn;
-                 LETC reg
-                   :  Data
-                   <- #memReg @% "reg_data";
-                 LETC memMask
-                   :  Array Rlen_over_8 Bool
-                   <- $$ (ConstArray
-                            (fun i: Fin.t Rlen_over_8 =>
-                               getBool
-                                 (Compare_dec.lt_dec
-                                    (proj1_sig (Fin.to_nat i))
-                                    (if half then Xlen_over_8/2 else Xlen_over_8)))) ;
-                 LETC isStore
-                   :  Bool
-                        <- CABool And (map (fun i => ReadArrayConst (#memReg @% "reservation") i)
-                                           (getFinsBound (if half then Xlen_over_8/2 else Xlen_over_8)
-                                                         Rlen_over_8)) ;
-                 LETC loadVal
-                   :  Data
-                   <- IF #isStore then $0 else $1;
-                 LETC outMemReg
-                   :  MemoryOutput
-                   <- STRUCT {
-                        "aq" ::= #memReg @% "aq";
-                        "rl" ::= #memReg @% "rl";
-                        "isWr" ::= #isStore ;
-                        "mask" ::= #memMask ;
-                        "data" ::= #reg ;
-                        "isLrSc" ::= #isStore ;
-                        "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
-                        "tag" ::= $IntRegTag;
-                        "reg_data" ::= Valid #loadVal
-                      };
-                 RetE #outMemReg).
+         fun memRegIn
+           => LETE memReg
+                :  MemoryInput
+                <- memRegIn;
+              LETC reg
+                :  Data
+                <- #memReg @% "reg_data";
+              LETC memMask
+                :  Array Rlen_over_8 Bool
+                <- $$ (ConstArray
+                         (fun i: Fin.t Rlen_over_8 =>
+                            getBool
+                              (Compare_dec.lt_dec
+                                 (proj1_sig (Fin.to_nat i))
+                                 (if half then Xlen_over_8/2 else Xlen_over_8)))) ;
+              LETC isStore
+                :  Bool
+                     <- CABool And (map (fun i => ReadArrayConst (#memReg @% "reservation") i)
+                                        (getFinsBound (if half then Xlen_over_8/2 else Xlen_over_8)
+                                                      Rlen_over_8)) ;
+              LETC loadVal
+                :  Data
+                <- IF #isStore then $0 else $1;
+              LETC outMemReg
+                :  MemoryOutput
+                <- STRUCT {
+                     "aq" ::= #memReg @% "aq";
+                     "rl" ::= #memReg @% "rl";
+                     "isWr" ::= #isStore ;
+                     "size" ::= $(if half then Xlen_over_8/2 else Xlen_over_8);
+                     "mask" ::= #memMask ;
+                     "data" ::= #reg ;
+                     "isLrSc" ::= #isStore ;
+                     "reservation" ::= $$ (ConstArray (fun _: Fin.t Rlen_over_8 => false)) ;
+                     "tag" ::= $IntRegTag;
+                     "reg_data" ::= Valid #loadVal
+                   };
+              RetE #outMemReg.
   End Ty.
 End Mem.

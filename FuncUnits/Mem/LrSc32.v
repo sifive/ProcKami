@@ -97,7 +97,7 @@ Section Mem.
                                        nil ;
               inputXform   := lrInput 2;
               outputXform  := lrTag;
-              optMemXform  := lrXform true ;
+              optMemParams := Some {| accessSize := 2; memXform := lrXform true |};
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
            |} ::
               {| instName     := "sc.w" ;
@@ -110,7 +110,7 @@ Section Mem.
                                           nil ;
                  inputXform   := scInput 2;
                  outputXform  := scTag ;
-                 optMemXform  := scXform true ;
+                 optMemParams := Some {| accessSize := 2; memXform := scXform true |};
                  instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
               |} ::
               nil |}.

@@ -124,7 +124,7 @@ Section Fpu.
                                     ::= #fstVal;
                                   "snd" ::= Invalid
                                 } : PktWithException ExecUpdPkt @# ty));
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrd := true|>
                 |}
               ]
@@ -196,7 +196,7 @@ Section Fpu.
                                     ::= #fstVal;
                                   "snd" ::= Invalid
                                 } : PktWithException ExecUpdPkt @# ty));
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrd := true|>
                 |}
               ]

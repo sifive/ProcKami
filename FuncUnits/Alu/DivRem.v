@@ -106,7 +106,7 @@ Section Alu.
                  := fun res_expr : DivRemOutputType ## ty
                       => LETE res <- res_expr;
                          RetE (intRegTag (SignExtendTruncLsb Rlen (#res @% "div")));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -129,7 +129,7 @@ Section Alu.
                := (fun res_expr : DivRemOutputType ## ty
                    => LETE res <- res_expr;
                         RetE (intRegTag (SignExtendTruncLsb Rlen (#res @% "div"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -153,7 +153,7 @@ Section Alu.
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
                        RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "div"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -177,7 +177,7 @@ Section Alu.
                  (fun res_expr : DivRemOutputType ## ty
                   => LETE res <- res_expr;
                        RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "div"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -200,7 +200,7 @@ Section Alu.
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
                           RetE (intRegTag (SignExtendTruncLsb Rlen (#res @% "rem"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -223,7 +223,7 @@ Section Alu.
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
                           RetE (intRegTag (SignExtendTruncLsb Rlen (#res @% "rem"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -246,7 +246,7 @@ Section Alu.
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
                           RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "rem"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              {|
@@ -269,7 +269,7 @@ Section Alu.
                  := (fun res_expr : DivRemOutputType ## ty
                      => LETE res <- res_expr;
                           RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "rem"))));
-               optMemXform := None;
+               optMemParams := None;
                instHints   := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
              |} ::
              nil

@@ -14,7 +14,7 @@ Section mmapped.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
 
-  Definition mmregs_lgGranuleSize : nat := Nat.log2_up 3. (* log2 number of bits per granule. *)
+  Definition mmregs_lgGranuleLgSize : nat := Nat.log2_up 3. (* log2 number of bits per granule. *)
   Definition mmregs_lgMaskSz : nat := Nat.log2_up 8. (* log2 number of granules per entry. *)
   Definition mmregs_realAddrSz : nat := 1. (* log2 number of registers. *)
 
@@ -23,14 +23,14 @@ Section mmapped.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
   Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
-  Local Notation RegMapT := (RegMapT mmregs_lgGranuleSize mmregs_lgMaskSz mmregs_realAddrSz).
-  Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleSize mmregs_lgMaskSz mmregs_realAddrSz).
+  Local Notation RegMapT := (RegMapT mmregs_lgGranuleLgSize mmregs_lgMaskSz mmregs_realAddrSz).
+  Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleLgSize mmregs_lgMaskSz mmregs_realAddrSz).
 
   Local Notation PAddrSz := (Xlen).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz ty).
 
   Local Notation maskSz := (pow2 mmregs_lgMaskSz).
-  Local Notation granuleSz := (pow2 mmregs_lgGranuleSize).
+  Local Notation granuleSz := (pow2 mmregs_lgGranuleLgSize).
   Local Notation dataSz := (maskSz * granuleSz).
 
   Local Definition mmapped_regs
@@ -102,18 +102,27 @@ Section mmapped.
   Definition mMappedRegDevice
     :  MemDevice
     := {|
+         mem_device_type := main_memory;
+         mem_device_pmas := pmas_default;
          mem_device_read
-           := fun _ _ addr
-                => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                   Ret (ZeroExtendTruncLsb Rlen #result);
+           := List.repeat
+                (fun _ addr _
+                  => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                     Ret (ZeroExtendTruncLsb Rlen #result))
+                mem_device_num_reads;
          mem_device_write
-           := fun _ write_pkt
-                => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
-                   LETA _
-                     <- mmapped_write #addr
-                          (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                   Ret $$false
+           := List.repeat
+                (fun (_ : PrivMode @# ty) (write_pkt : MemWrite Rlen_over_8 PAddrSz @# ty)
+                  => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
+                     LETA _
+                       <- mmapped_write #addr
+                            (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
+                     Ret $$false)
+                mem_device_num_writes;
+         mem_device_read_valid := eq_refl;
+         mem_device_write_valid := eq_refl
        |}.
+
   Close Scope kami_action.
   Close Scope kami_expr.
 

@@ -17,11 +17,12 @@ Section mem_devices.
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz ty).
+  Local Notation LgSize := (LgSize Rlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty)
+  Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty) (_ : LgSize @# ty)
     : ActionT ty Data
     := Call result
          : Array Rlen_over_8 (Bit 8)
@@ -37,7 +38,7 @@ Section mem_devices.
        ];
        Ret (pack #result).
 
-  Local Definition pMemWrite (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+  Local Definition pMemWrite (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
     : ActionT ty Void
     := LET writeRq
          :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
@@ -46,7 +47,7 @@ Section mem_devices.
                "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data");
                "mask" ::= pkt @% "mask"
              } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-       Call ^"writeMem"(#writeRq: _);
+       Call ^("writeMem" ++ (natToHexStr index)) (#writeRq: _);
        System [
          DispString _ "[pMemWrite] pkt: ";
          DispHex pkt;
@@ -60,11 +61,18 @@ Section mem_devices.
   Definition pMemDevice
     :  MemDevice
     := {|
-         mem_device_read := pMemRead;
+         mem_device_type := main_memory;
+         mem_device_pmas := pmas_default;
+         mem_device_read
+           := map pMemRead (seq 0 mem_device_num_reads);
          mem_device_write
-           := fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                => LETA _ <- pMemWrite mode pkt;
-                   Ret $$false
+           := map
+                (fun (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                  => LETA _ <- pMemWrite index mode pkt;
+                     Ret $$false)
+                (seq 0 mem_device_num_writes);
+         mem_device_read_valid := eq_refl;
+         mem_device_write_valid := eq_refl
        |}.
 
   Close Scope kami_action.

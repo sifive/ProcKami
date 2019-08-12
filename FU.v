@@ -168,6 +168,12 @@ Section Params.
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation CsrValue := (Bit CsrValueWidth).
 
+  (* memory access sizes *)
+  Definition sizeWidth := S (Nat.log2_up Rlen_over_8).
+  Definition Size := Bit sizeWidth.
+  Definition lgSizeWidth := S (Nat.log2_up sizeWidth).
+  Definition LgSize := Bit lgSizeWidth.
+
   Local Notation expWidthMinus1 := (expWidthMinus2 + 1).
   Local Notation expWidth := (expWidthMinus1 + 1).
 
@@ -352,6 +358,7 @@ Section Params.
                                  "aq" :: Bool ;
                                  "rl" :: Bool ;
                                  "isWr" :: Bool ;
+                                 "size" :: Bit (Nat.log2_up Rlen_over_8) ;
                                  "mask" :: Array Rlen_over_8 Bool ;
                                  "data" :: Data ;
                                  "isLrSc" :: Bool ;
@@ -370,7 +377,8 @@ Section Params.
   Definition MemWrite := STRUCT_TYPE {
                              "addr" :: PAddr ;
                              "data" :: Data ;
-                             "mask" :: Array Rlen_over_8 Bool }.
+                             "mask" :: Array Rlen_over_8 Bool ;
+                             "size" :: LgSize }.
   
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
@@ -415,6 +423,12 @@ Section Params.
          decompressFn: (CompInst @# ty) -> (Inst ## ty)
        }.
 
+  Record MemInstParams
+    := {
+         accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
+         memXform : MemoryInput ## ty -> MemoryOutput ## ty
+       }.
+
   Record InstEntry ik ok :=
     { instName     : string ;
       xlens        : list nat ;
@@ -422,7 +436,7 @@ Section Params.
       uniqId       : UniqId ;        
       inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
       outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;
-      optMemXform  : option (MemoryInput ## ty -> MemoryOutput ## ty) ;
+      optMemParams : option MemInstParams ;
       instHints    : InstHints }.
 
   Record IntParamsType
@@ -538,6 +552,23 @@ Section Params.
          "value" ::= value
        } : FullException @# ty.
 
+  Definition misalignedException
+    (access_type : VmAccessType @# ty)
+    (value : ExceptionInfo @# ty)
+    :  FullException @# ty
+    := STRUCT {
+         "exception"
+           ::= Switch access_type Retn Exception With {
+                 ($VmAccessInst : VmAccessType @# ty)
+                   ::= ($InstAddrMisaligned : Exception @# ty);
+                 ($VmAccessLoad : VmAccessType @# ty)
+                   ::= ($LoadAddrMisaligned : Exception @# ty);
+                 ($VmAccessSAmo : VmAccessType @# ty)
+                   ::= ($SAmoAddrMisaligned : Exception @# ty)
+               };
+         "value" ::= value
+       } : FullException @# ty.
+
   Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
     Switch satp_mode Retn k With {
       ($SatpModeSv32 : Bit SatpModeWidth @# ty)
@@ -597,15 +628,84 @@ Section Params.
          "CY" :: Bool
        }.
 
-  Record MemDevice
+  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+
+  Record PMA
     := {
-         mem_device_read
-           : nat -> PrivMode @# ty -> PAddr @# ty -> ActionT ty Data;
-         mem_device_write
-           : PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
+         pma_width : nat; (* in bytes *)
+         pma_readable : bool;
+         pma_writeable : bool;
+         pma_executable : bool;
+         pma_misaligned : bool;
+         pma_lrsc : bool;
+         pma_amo : PMAAmoClass
        }.
 
+  Inductive MemDeviceType := main_memory | io_device.
+
+  Definition pmas_default
+    := map
+         (fun x
+           => {|
+                pma_width      := x;
+                pma_readable   := true;
+                pma_writeable  := true;
+                pma_executable := true;
+                pma_misaligned := true;
+                pma_lrsc       := true;
+                pma_amo        := AMOArith
+              |})
+         [0; 1; 2; 3].
+
+  Definition mem_device_num_reads := 6.
+  Definition mem_device_num_writes := 1.
+
+  Definition mem_read_index := Fin.t mem_device_num_reads.
+  Definition mem_write_index := Fin.t mem_device_num_writes.
+
+  Record MemDevice
+    := {
+         mem_device_type : MemDeviceType; (* 3.5.1 *)
+         mem_device_pmas : list PMA;
+         mem_device_read
+           : list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
+         mem_device_write
+           : list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+         mem_device_read_valid
+           : mem_device_num_reads = length mem_device_read;
+         mem_device_write_valid
+           : mem_device_num_writes = length mem_device_write
+       }.
+
+  Definition mem_device_read_nth
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_read device)
+         (mem_device_read_valid device).
+
+  Definition mem_device_write_nth
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_write device)
+         (mem_device_write_valid device).
+
   Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
+
+  Definition MemErrorPkt
+    := STRUCT_TYPE {
+         "pmp"        :: Bool; (* request failed pmp check *)
+         "paddr"      :: Bool; (* paddr exceeded virtual memory mode upper bound *)
+         "range"      :: Bool; (* paddr failed to match any device range *)
+         "width"      :: Bool; (* unsupported access width *)
+         "pma"        :: Bool; (* failed device pma check *)
+         "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
+         "lrsc"       :: Bool  (* does not support lrsc operations *) 
+       }.
+
+  Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
+    := err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
+       err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned" ||
+       err_pkt @% "lrsc".
 
   Section Fields.    
     Variable inst: Inst @# ty.
@@ -680,3 +780,9 @@ Section Params.
   End XlenInterface.
 
 End Params.
+
+(* n < m *)
+Ltac nat_lt := repeat (try (apply le_n); apply le_S).
+
+(* n => Fin.t len *)
+Ltac nat_index len n := exact (@of_nat_lt n len ltac:(nat_lt)).

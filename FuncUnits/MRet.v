@@ -78,7 +78,7 @@ Section mret.
                                  "snd" ::= $$false
                                } : Pair Inst Bool @# ty);
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |};
                 {|
@@ -104,7 +104,7 @@ Section mret.
                                  "snd" ::= cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tsr"
                                } : Pair Inst Bool @# ty);
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |};
                 {|
@@ -130,7 +130,7 @@ Section mret.
                                  "snd" ::= $$false
                                } : Pair Inst Bool @# ty);
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
@@ -177,7 +177,7 @@ Section mret.
                        ];
                   inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (cfg_pkt @% "mode");
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
@@ -217,7 +217,7 @@ Section mret.
                   outputXform := fun (upkt: PktWithException ExecUpdPkt ## ty) =>
                                    LETE u: (PktWithException ExecUpdPkt) <- upkt;
                                    RetE (#u @%["fst" <- ((#u @% "fst") @%["fence.i" <- $$ true])]);
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |};
                 {|
@@ -232,7 +232,7 @@ Section mret.
                        ];
                   inputXform  := fun _ _ => RetE Invalid;
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |};
                 {|
@@ -256,7 +256,7 @@ Section mret.
                                 else @Invalid ty Inst
                                 ) :  Maybe Inst ## ty);
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
@@ -299,7 +299,7 @@ Section mret.
                          => LETE gcp : ExecContextPkt <- gcpin;
                             RetE (#gcp @% "inst");
                   outputXform := id;
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
@@ -348,7 +348,7 @@ Section mret.
                     := fun (cfg_pkt : ContextCfgPkt @# ty) _
                          => RetE (cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
                   outputXform := id; 
-                  optMemXform := None;
+                  optMemParams := None;
                   instHints   := falseHints
                 |}
               ]

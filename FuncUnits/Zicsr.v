@@ -107,7 +107,7 @@ Section zicsr.
                                 (#exec_context_pkt @% "reg1"))
                    } : ZicsrInput @# ty);
               outputXform := id;
-              optMemXform := None;
+              optMemParams := None;
               instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
             |};
               {|
@@ -134,7 +134,7 @@ Section zicsr.
                                   (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
-                optMemXform := None;
+                optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
               {|
@@ -161,7 +161,7 @@ Section zicsr.
                                  (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
-                optMemXform := None;
+                optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
               {|
@@ -188,7 +188,7 @@ Section zicsr.
                                (rs1 (#exec_context_pkt @% "inst")))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
-                optMemXform := None;
+                optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
               {|
@@ -215,7 +215,7 @@ Section zicsr.
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
-                optMemXform := None;
+                optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
               {|
@@ -242,7 +242,7 @@ Section zicsr.
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
                 outputXform := fun pkt => pkt;
-                optMemXform := None;
+                optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |}
           ]

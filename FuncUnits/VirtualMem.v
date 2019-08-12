@@ -20,7 +20,6 @@ Section pt_walker.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
-  Variable mem_read_index: nat.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -33,7 +32,7 @@ Section pt_walker.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation checkForAccessFault := (@checkForAccessFault name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_params ty).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -68,8 +67,11 @@ Section pt_walker.
           "flags" :: PteFlags
         }.
 
+    Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
+                                           vmModes 0.
+
     Section oneIteration.
-      Variable currentLevel: nat.
+      Variable currentLevel : nat.
       Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
       Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
 
@@ -185,56 +187,77 @@ Section pt_walker.
                   };
              RetE #finalVal.
         End pte.
-
-      Definition translatePteLoop
-        (acc: Pair Bool (PktWithException PAddr) @# ty)
-        :  ActionT ty (Pair Bool (PktWithException PAddr))
-        := LET exception : FullException <- accessException access_type vAddr;
-           LET errorResult : PktWithException PAddr
-             <- STRUCT {
-                  "fst" ::= $0;
-                  "snd" ::= Valid #exception
-                } : PktWithException PAddr @# ty;
-           LET doneInvalid : Pair Bool (PktWithException PAddr)
-             <- STRUCT {
-                  "fst" ::= $$true;
-                  "snd" ::= #errorResult
-                };
-           If acc @% "fst"
-             then Ret acc
-             else 
-               If acc @% "snd" @% "snd" @% "valid"
-                 then
-                   Ret (acc @%["fst" <- $$true])
-                 else
-                   LETA pmp_result
-                     :  Maybe (Pair DeviceTag PAddr)
-                     <- checkForAccessFault access_type satp_mode mode (acc @% "snd" @% "fst") $4;
-                   If #pmp_result @% "valid"
-                     then 
-                       LETA read_result: Data
-                         <- mem_region_read (mem_read_index + (currentLevel-1)) mode
-                              (#pmp_result @% "data" @% "fst")
-                              (#pmp_result @% "data" @% "snd");
-                       System [
-                         DispString _ "[translatePteLoop] page table entry: ";
-                         DispHex #read_result;
-                         DispString _ "\n"
-                       ];
-                       convertLetExprSyntax_ActionT
-                         (translatePte
-                           (unpack _ (ZeroExtendTruncLsb _ #read_result)))
-                     else Ret #doneInvalid
-                     as result;
-                   Ret #result
-                 as result;
-               Ret #result
-             as result;
-           Ret #result.
     End oneIteration.
 
-    Definition maxPageLevels := fold_left (fun acc x => Nat.max (length (vm_mode_sizes x)) acc)
-                                           vmModes 0.
+    Local Definition doneInvalid (exception : FullException @# ty)
+      :  ActionT ty (Pair Bool (PktWithException PAddr))
+      := LET errorResult : PktWithException PAddr
+           <- STRUCT {
+                "fst" ::= $0;
+                "snd" ::= Valid exception
+              } : PktWithException PAddr @# ty;
+         Ret (STRUCT {
+                "fst" ::= $$true;
+                "snd" ::= #errorResult
+              } : Pair Bool (PktWithException PAddr) @# ty).
+
+    Definition translatePteLoop
+      (index : nat)
+      (indexValid : (index < maxPageLevels - 1)%nat)
+      (acc: Pair Bool (PktWithException PAddr) @# ty)
+      :  ActionT ty (Pair Bool (PktWithException PAddr))
+      := If acc @% "fst"
+           then Ret acc
+           else 
+             If acc @% "snd" @% "snd" @% "valid"
+               then
+                 Ret (acc @%["fst" <- $$true])
+               else
+                 LETA pmp_result
+                   :  Pair (Pair DeviceTag PAddr) MemErrorPkt
+                   <- checkForFault access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
+                 If mem_error (#pmp_result @% "snd")
+                   then
+                     doneInvalid
+                       (IF #pmp_result @% "snd" @% "misaligned"
+                          then misalignedException access_type (acc @% "snd" @% "fst")
+                          else accessException access_type vAddr)
+                   else 
+                     LETA read_result: Data
+                       <- mem_region_read
+                            (Fin.of_nat_lt
+                              (Nat.lt_le_trans
+                                (3 + (index - 1))
+                                (3 + (maxPageLevels - 1))
+                                mem_device_num_reads
+                                (Plus.plus_lt_compat_l
+                                  (index - 1)
+                                  (maxPageLevels - 1)
+                                  3
+                                  (Nat.le_lt_trans
+                                    (index - 1)
+                                    index
+                                    (maxPageLevels - 1)
+                                    (Nat.le_sub_l index 1)
+                                    indexValid))
+                                (ltac:(nat_lt))))
+                            mode
+                            (#pmp_result @% "fst" @% "fst")
+                            (#pmp_result @% "fst" @% "snd")
+                            $(Nat.log2_up Xlen_over_8);
+                     System [
+                       DispString _ "[translatePteLoop] page table entry: ";
+                       DispHex #read_result;
+                       DispString _ "\n"
+                     ];
+                     convertLetExprSyntax_ActionT
+                       (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
+                   as result;
+                 Ret #result
+               as result;
+             Ret #result
+           as result;
+         Ret #result.
 
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
@@ -245,19 +268,19 @@ Section pt_walker.
              "snd" ::= Invalid
            } : PktWithException PAddr @# ty;
       LETA result: Pair Bool (PktWithException PAddr)
-        <- fold_left
-             (fun (acc : ActionT ty (Pair Bool (PktWithException PAddr))) (currentLevel : nat)
-               => LETA acc_result <- acc;
-               System [
-                 DispString _ "[pt_walker] acc: ";
-                 DispHex #acc_result;
-                 DispString _ "\n"
-               ];
-               translatePteLoop currentLevel #acc_result)
-             (seq 1 (maxPageLevels - 1))
-             (Ret (STRUCT {
-               "fst" ::= $$ false ;
-               "snd" ::= #init}));
+        <- nat_rect
+             (fun index => index < maxPageLevels - 1 -> ActionT ty (Pair Bool (PktWithException PAddr)))%nat
+             (fun H
+               => translatePteLoop H
+                    (STRUCT {
+                       "fst" ::= $$false;
+                       "snd" ::= #init
+                     }))
+             (fun index acc H
+               => LETA acc_result <- acc (Nat.lt_succ_l index (maxPageLevels - 1) H);
+                  translatePteLoop H #acc_result)%nat
+             (maxPageLevels - 2)
+             (ltac:(nat_lt));
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");
