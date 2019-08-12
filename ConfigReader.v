@@ -16,8 +16,9 @@ Section config_reader.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation Extensions := (Extensions supported_exts ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
   Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
   
   Open Scope kami_expr.
   Open Scope kami_action.

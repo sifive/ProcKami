@@ -14,6 +14,7 @@ Section Decompressor.
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation Extensions := (Extensions supported_exts ty).
   Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Open Scope kami_expr.
 

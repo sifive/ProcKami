@@ -22,12 +22,13 @@ Section reg_reader.
   Local Notation CompInstEntry := (CompInstEntry ty).
   Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation flen_one_extend := (@flen_one_extend Flen_over_8 ty).
+  Local Notation flen_one_extend := (@flen_one_extend Xlen_over_8 Flen_over_8 ty).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Variable func_units : list FUEntry.
 
