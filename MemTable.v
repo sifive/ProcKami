@@ -12,10 +12,9 @@ Section mem_table.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Variable ty: Kind -> Type.
 
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8 mem_params).
 
   Record MemTableEntry
     := {

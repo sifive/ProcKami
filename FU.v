@@ -158,7 +158,6 @@ Section Params.
 
   Variable expWidthMinus2: nat.
   Variable sigWidthMinus2: nat.
-  Variable ty: Kind -> Type.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -191,108 +190,6 @@ Section Params.
 
   Definition PktWithException k := Pair k (Maybe FullException).
 
-  Local Definition strings_add xs x
-    := if existsb (String.eqb x) xs
-         then xs
-         else x :: xs.
-
-  Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
-
-  Definition ext_misa_field_name := substring 0 1.
-
-  (* fold over the set of supported extensions *)
-  Definition supported_exts_foldr
-    (A : Type)
-    (f : string -> bool -> A -> A)
-    (init : A)
-    :  A
-    := fold_right
-         (fun ext acc
-           => match 
-                find
-                  (fun state => String.eqb (fst state) ext)
-                  supported_exts
-                with
-                | None => acc
-                | Some state
-                  => f ext (snd state) acc
-                end)
-         init ImplExts.
-
-  (* supported and enabled misa extension fields *)
-  Definition misa_field_states
-    :  prod (list string) (list string)
-    := supported_exts_foldr
-         (fun ext enabled acc
-           => (strings_add (fst acc) (ext_misa_field_name ext),
-               if enabled
-                 then strings_add (snd acc) (ext_misa_field_name ext)
-                 else snd acc))
-         ([], []).
-
-  Definition supported_ext_states
-    :  list (string * Kind)
-    := supported_exts_foldr
-         (fun ext _ => cons (ext, Bool))
-         [].
-
-  Local Open Scope kami_expr.
-
-  Definition ExtensionsInterface
-    :  {k : Kind &
-         ((k @# ty -> string -> Bool @# ty -> k @# ty) *
-          (k @# ty -> string -> Bool @# ty))}%type
-    := existT
-         (fun k
-           => (k @# ty -> string -> Bool @# ty -> k @# ty) *
-              (k @# ty -> string -> Bool @# ty))%type
-         (getStruct supported_ext_states)
-         (list_rect
-           (fun states
-             => (getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
-                (getStruct states @# ty -> string -> Bool @# ty))%type
-           ((fun exts _ _ => exts),
-            (fun _ _ => $$false))
-           (fun state states _
-             => ((fun exts name value
-                   => let get_kind index := snd (nth_Fin (state :: states) index) in
-                      let get_name index := fst (nth_Fin (state :: states) index) in
-                      BuildStruct
-                        get_kind
-                        get_name
-                        (fun index
-                          => if String.eqb name (get_name index)
-                               then (* (value : get_kind index @# ty) *)
-                                 match Kind_dec Bool (get_kind index) with
-                                   | left H
-                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
-                                   | right _
-                                     => $$(getDefaultConst (get_kind index)) (* impossible case *)
-                                   end
-                               else (ReadStruct exts index : get_kind index @# ty))),
-                 (fun exts name
-                   => struct_get_field_default exts name $$false)))
-           supported_ext_states).
-
-  Close Scope kami_expr.
-
-  Definition Extensions
-    :  Kind
-    := projT1 ExtensionsInterface.
-
-  Definition Extensions_set
-    (exts : Extensions @# ty)
-    (name : string)
-    (value : Bool @# ty)
-    :  Extensions @# ty
-    := fst (projT2 ExtensionsInterface) exts name value.
-
-  Definition Extensions_get
-    (exts : Extensions @# ty)
-    (name : string)
-    :  Bool @# ty
-    := snd (projT2 ExtensionsInterface) exts name.
-
   Definition SatpModeWidth := 4.
   Definition SatpModeBare := 0.
   Definition SatpModeSv32 := 1.
@@ -314,20 +211,6 @@ Section Params.
         "frm"                      :: FrmValue;
         "inst"                     :: Inst ;
         "compressed?"              :: Bool
-      }.
-
-  Definition ContextCfgPkt :=
-    STRUCT_TYPE {
-        "xlen"        :: XlenValue;
-        "satp_mode"   :: Bit SatpModeWidth;
-        "mode"        :: PrivMode;
-        "tsr"         :: Bool;
-        "tvm"         :: Bool;
-        "tw"          :: Bool;
-        "extensions"  :: Extensions;
-        "instMisalignedException?" :: Bool ;
-        "memMisalignedException?"  :: Bool ;
-        "accessException?"         :: Bool
       }.
 
   Definition RoutedReg
@@ -398,6 +281,189 @@ Section Params.
          "mepc" :: VAddr;
          "compressed?" :: Bool
        }.
+
+  Local Definition strings_add xs x
+    := if existsb (String.eqb x) xs
+         then xs
+         else x :: xs.
+
+  Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
+
+  Definition ext_misa_field_name := substring 0 1.
+
+  (* fold over the set of supported extensions *)
+  Definition supported_exts_foldr
+    (A : Type)
+    (f : string -> bool -> A -> A)
+    (init : A)
+    :  A
+    := fold_right
+         (fun ext acc
+           => match 
+                find
+                  (fun state => String.eqb (fst state) ext)
+                  supported_exts
+                with
+                | None => acc
+                | Some state
+                  => f ext (snd state) acc
+                end)
+         init ImplExts.
+
+  (* supported and enabled misa extension fields *)
+  Definition misa_field_states
+    :  prod (list string) (list string)
+    := supported_exts_foldr
+         (fun ext enabled acc
+           => (strings_add (fst acc) (ext_misa_field_name ext),
+               if enabled
+                 then strings_add (snd acc) (ext_misa_field_name ext)
+                 else snd acc))
+         ([], []).
+
+  Definition supported_ext_states
+    :  list (string * Kind)
+    := supported_exts_foldr
+         (fun ext _ => cons (ext, Bool))
+         [].
+
+  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+
+  Record PMA
+    := {
+         pma_width : nat; (* in bytes *)
+         pma_readable : bool;
+         pma_writeable : bool;
+         pma_executable : bool;
+         pma_misaligned : bool;
+         pma_lrsc : bool;
+         pma_amo : PMAAmoClass
+       }.
+
+  Inductive MemDeviceType := main_memory | io_device.
+
+  Definition pmas_default
+    := map
+         (fun x
+           => {|
+                pma_width      := x;
+                pma_readable   := true;
+                pma_writeable  := true;
+                pma_executable := true;
+                pma_misaligned := true;
+                pma_lrsc       := true;
+                pma_amo        := AMOArith
+              |})
+         [0; 1; 2; 3].
+
+  Definition mem_device_num_reads := 6.
+  Definition mem_device_num_writes := 1.
+
+  Definition mem_read_index := Fin.t mem_device_num_reads.
+  Definition mem_write_index := Fin.t mem_device_num_writes.
+
+  Record MemDevice
+    := {
+         mem_device_type : MemDeviceType; (* 3.5.1 *)
+         mem_device_pmas : list PMA;
+         mem_device_read
+           : forall ty, list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
+         mem_device_write
+           : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+         mem_device_read_valid
+           : forall ty, mem_device_num_reads = length (mem_device_read ty);
+         mem_device_write_valid
+           : forall ty, mem_device_num_writes = length (mem_device_write ty);
+         mem_device_file
+           : option RegFileBase
+       }.
+
+  Definition mem_device_read_nth
+    (ty : Kind -> Type)
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_read device ty)
+         (mem_device_read_valid device ty).
+
+  Definition mem_device_write_nth
+    (ty : Kind -> Type)
+    (device : MemDevice)
+    := nth_Fin'
+         (mem_device_write device ty)
+         (mem_device_write_valid device ty).
+
+  Variable ty: Kind -> Type.
+
+  Local Open Scope kami_expr.
+
+  Definition ExtensionsInterface
+    :  {k : Kind &
+         ((k @# ty -> string -> Bool @# ty -> k @# ty) *
+          (k @# ty -> string -> Bool @# ty))}%type
+    := existT
+         (fun k
+           => (k @# ty -> string -> Bool @# ty -> k @# ty) *
+              (k @# ty -> string -> Bool @# ty))%type
+         (getStruct supported_ext_states)
+         (list_rect
+           (fun states
+             => (getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
+                (getStruct states @# ty -> string -> Bool @# ty))%type
+           ((fun exts _ _ => exts),
+            (fun _ _ => $$false))
+           (fun state states _
+             => ((fun exts name value
+                   => let get_kind index := snd (nth_Fin (state :: states) index) in
+                      let get_name index := fst (nth_Fin (state :: states) index) in
+                      BuildStruct
+                        get_kind
+                        get_name
+                        (fun index
+                          => if String.eqb name (get_name index)
+                               then (* (value : get_kind index @# ty) *)
+                                 match Kind_dec Bool (get_kind index) with
+                                   | left H
+                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
+                                   | right _
+                                     => $$(getDefaultConst (get_kind index)) (* impossible case *)
+                                   end
+                               else (ReadStruct exts index : get_kind index @# ty))),
+                 (fun exts name
+                   => struct_get_field_default exts name $$false)))
+           supported_ext_states).
+
+  Close Scope kami_expr.
+
+  Definition Extensions
+    :  Kind
+    := projT1 ExtensionsInterface.
+
+  Definition Extensions_set
+    (exts : Extensions @# ty)
+    (name : string)
+    (value : Bool @# ty)
+    :  Extensions @# ty
+    := fst (projT2 ExtensionsInterface) exts name value.
+
+  Definition Extensions_get
+    (exts : Extensions @# ty)
+    (name : string)
+    :  Bool @# ty
+    := snd (projT2 ExtensionsInterface) exts name.
+
+  Definition ContextCfgPkt :=
+    STRUCT_TYPE {
+        "xlen"        :: XlenValue;
+        "satp_mode"   :: Bit SatpModeWidth;
+        "mode"        :: PrivMode;
+        "tsr"         :: Bool;
+        "tvm"         :: Bool;
+        "tw"          :: Bool;
+        "extensions"  :: Extensions;
+        "instMisalignedException?" :: Bool ;
+        "memMisalignedException?"  :: Bool ;
+        "accessException?"         :: Bool
+      }.
 
   Local Open Scope kami_expr.
 
@@ -628,67 +694,6 @@ Section Params.
          "TM" :: Bool;
          "CY" :: Bool
        }.
-
-  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
-
-  Record PMA
-    := {
-         pma_width : nat; (* in bytes *)
-         pma_readable : bool;
-         pma_writeable : bool;
-         pma_executable : bool;
-         pma_misaligned : bool;
-         pma_lrsc : bool;
-         pma_amo : PMAAmoClass
-       }.
-
-  Inductive MemDeviceType := main_memory | io_device.
-
-  Definition pmas_default
-    := map
-         (fun x
-           => {|
-                pma_width      := x;
-                pma_readable   := true;
-                pma_writeable  := true;
-                pma_executable := true;
-                pma_misaligned := true;
-                pma_lrsc       := true;
-                pma_amo        := AMOArith
-              |})
-         [0; 1; 2; 3].
-
-  Definition mem_device_num_reads := 6.
-  Definition mem_device_num_writes := 1.
-
-  Definition mem_read_index := Fin.t mem_device_num_reads.
-  Definition mem_write_index := Fin.t mem_device_num_writes.
-
-  Record MemDevice
-    := {
-         mem_device_type : MemDeviceType; (* 3.5.1 *)
-         mem_device_pmas : list PMA;
-         mem_device_read
-           : list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
-         mem_device_write
-           : list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
-         mem_device_read_valid
-           : mem_device_num_reads = length mem_device_read;
-         mem_device_write_valid
-           : mem_device_num_writes = length mem_device_write
-       }.
-
-  Definition mem_device_read_nth
-    (device : MemDevice)
-    := nth_Fin'
-         (mem_device_read device)
-         (mem_device_read_valid device).
-
-  Definition mem_device_write_nth
-    (device : MemDevice)
-    := nth_Fin'
-         (mem_device_write device)
-         (mem_device_write_valid device).
 
   Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
 

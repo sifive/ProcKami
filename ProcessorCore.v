@@ -26,8 +26,11 @@ Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.
 Require Import Counter.
 Require Import ProcessorUtils.
+(*
 Require Import PhysicalMem.
 Require Import MMappedRegs.
+*)
+Require Import MemDevice.
 
 Section Params.
   Variable name: string.
@@ -70,7 +73,6 @@ Section Params.
     Local Open Scope kami_expr.
 
     Variable supported_exts : list (string * bool).
-
     Variable func_units : forall ty, list (FUEntry supported_exts ty).
 
     Local Notation misa_field_states := (misa_field_states supported_exts).
@@ -78,6 +80,7 @@ Section Params.
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
+    Local Notation mem_device_files := (mem_device_files name Xlen_over_8 Rlen_over_8 mem_params).
 
     Local Open Scope kami_scope.
 
@@ -401,6 +404,7 @@ Section Params.
            Bool
            (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
 
+(*
     Definition memRegFile
        :  RegFileBase :=
        @Build_RegFileBase
@@ -412,7 +416,7 @@ Section Params.
          (pow2 lgMemSz) (* rfIdxNum: nat *)
          (Bit 8) (* rfData: Kind *)
          (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
-
+*)
     Definition processor
       :  Mod 
       := createHideMod
@@ -421,12 +425,12 @@ Section Params.
              processorCore
              (map
                (fun m => Base (BaseRegFile m)) 
-               [   
-                 intRegFile; 
-                 floatRegFile; 
-                 memRegFile;
-                 memReservationRegFile
-               ]))
+               ([   
+                  intRegFile; 
+                  floatRegFile; 
+                  (* memRegFile; *)
+                  memReservationRegFile
+                ] ++ (mem_device_files ))))
            [   
              ^"read_reg_1"; 
              ^"read_reg_2"; 

@@ -30,7 +30,7 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params).
   Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_params ty).
 
