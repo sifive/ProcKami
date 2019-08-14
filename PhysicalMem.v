@@ -37,6 +37,8 @@ Section pmem.
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).
+  Local Notation mem_device_read := (@mem_device_read Rlen_over_8 PAddrSz).
+  Local Notation mem_device_write := (@mem_device_write Rlen_over_8 PAddrSz).
 
   Record MemRegion
     := {
@@ -276,9 +278,14 @@ Section pmem.
       (dtag : DeviceTag @# ty)
       (daddr : PAddr @# ty)
       (size : LgSize @# ty)
-      :  ActionT ty Data
+      :  ActionT ty (Maybe Data)
       := mem_device_apply dtag 
-           (fun device => mem_device_read_nth device index mode daddr size).
+           (fun device
+             => if Nat.leb index (length (@mem_device_read device ty))
+                  then
+                    LETA result : Data <- mem_device_read_nth device index mode daddr size;
+                    Ret (Valid #result : Maybe Data @# ty)
+                  else Ret Invalid).
 
     Definition mem_region_write
       (index : nat)
@@ -291,13 +298,16 @@ Section pmem.
       :  ActionT ty Bool
       := mem_device_apply dtag
            (fun device
-             => mem_device_write_nth device index mode
-                  (STRUCT {
-                     "addr" ::= daddr;
-                     "data" ::= data;
-                     "mask" ::= mask;
-                     "size" ::= size
-                   } : MemWrite @# ty)).
+             => if Nat.leb index (length (@mem_device_write device ty))
+                  then
+                    mem_device_write_nth device index mode
+                      (STRUCT {
+                         "addr" ::= daddr;
+                         "data" ::= data;
+                         "mask" ::= mask;
+                         "size" ::= size
+                       } : MemWrite @# ty)
+                  else Ret $$false).
 
     Definition pMemReadReservation (addr: PAddr @# ty)
       : ActionT ty (Array Rlen_over_8 Bool)

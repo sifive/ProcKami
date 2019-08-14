@@ -224,7 +224,8 @@ Section pt_walker.
                           then misalignedException access_type (acc @% "snd" @% "fst")
                           else accessException access_type vAddr)
                    else 
-                     LETA read_result: Data
+                     LETA read_result
+                       : Maybe Data
                        <- mem_region_read index mode
                             (#pmp_result @% "fst" @% "fst")
                             (#pmp_result @% "fst" @% "snd")
@@ -234,8 +235,14 @@ Section pt_walker.
                        DispHex #read_result;
                        DispString _ "\n"
                      ];
-                     convertLetExprSyntax_ActionT
-                       (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ #read_result)))
+                     If #read_result @% "valid"
+                       then 
+                         convertLetExprSyntax_ActionT
+                           (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
+                       else
+                         doneInvalid (accessException access_type vAddr)
+                       as result;
+                     Ret #result
                    as result;
                  Ret #result
                as result;
