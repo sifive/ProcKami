@@ -267,7 +267,7 @@ Section exts.
         := {|
              fuName  := fuName func_unit;
              fuFunc  := fuFunc func_unit;
-             fuInsts := param_filter_insts (fuInsts func_unit)
+             fuInsts := param_filter_insts (map (@param_filter_xlens _ _) (fuInsts func_unit))
            |}.
         
       Local Definition param_filter_func_units
