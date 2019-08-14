@@ -760,7 +760,7 @@ Section Params.
       (w : XlenValue @# ty)
       (x : Bit n @# ty)
       :  Bit m @# ty
-      := IF w == $0
+      := IF w == $Xlen32
            then f 32 m (@unsafeTruncLsb n 32 x)
            else f 64 m (@unsafeTruncLsb n 64 x).
 
