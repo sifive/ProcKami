@@ -80,7 +80,7 @@ Section Params.
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
-    Local Notation mem_device_files := (mem_device_files name Xlen_over_8 Rlen_over_8 mem_params).
+    Local Notation mem_device_files := (mem_device_files name Xlen_over_8 Rlen_over_8).
 
     Local Open Scope kami_scope.
 
@@ -268,7 +268,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- @fetch name Xlen_over_8 Rlen_over_8 mem_params _ (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                     <- @fetch name Xlen_over_8 Rlen_over_8 _ (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";

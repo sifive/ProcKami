@@ -49,11 +49,12 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Definition DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8).
+  Opaque DeviceTag.
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
 

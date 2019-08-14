@@ -14,7 +14,7 @@ Section mem_devices.
   Local Notation PAddrSz := (Xlen).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
   Local Notation mMappedRegDevice := (@mMappedRegDevice name Xlen_over_8 Rlen_over_8).
-  Local Notation pMemDevice := (@pMemDevice name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation pMemDevice := (@pMemDevice name Xlen_over_8 Rlen_over_8).
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -54,19 +54,32 @@ Section mem_devices.
       := LETA result
            :  Maybe k
            <- snd
-                (fold_left
-                  (fun acc device
+                (fold_right
+                  (fun device acc
                     => (S (fst acc),
                         LETA acc_result : Maybe k <- snd acc;
+                        System [
+                          DispString _ "[mem_device_apply] device tag: ";
+                          DispHex tag;
+                          DispString _ "\n";
+                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
+                        ];
                         If #acc_result @% "valid" || $(fst acc) != tag
-                          then Ret #acc_result
+                          then
+                            System [
+                              DispString _ "[mem_device_apply] did not match"
+                            ];
+                            Ret #acc_result
                           else
+                            System [
+                              DispString _ "[mem_device_apply] matched"
+                            ];
                             LETA result : k <- f device;
                             Ret (Valid #result : Maybe k @# ty)
                           as result;
                         Ret #result))
-                  mem_devices
-                  (0, Ret Invalid));
+                  (0, Ret Invalid)
+                  mem_devices);
         Ret (#result @% "data").
 
   End ty.

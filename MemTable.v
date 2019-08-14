@@ -14,7 +14,7 @@ Section mem_table.
   Variable mem_params : MemParamsType.
 
   Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8).
 
   Record MemTableEntry
     := {
@@ -30,12 +30,12 @@ Section mem_table.
          {|
            mtbl_entry_addr := 0%N;
            mtbl_entry_width := 16%N;
-           mtbl_entry_device := Some ltac:(nat_deviceTag 0)
+           mtbl_entry_device := Some ltac:(nat_deviceTag 1)
          |};
          {|
            mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
-           mtbl_entry_width := N.pow 2 (N.of_nat lgMemSz);
-           mtbl_entry_device := Some ltac:(nat_deviceTag 1)
+           mtbl_entry_width := N.pow 2 20;
+           mtbl_entry_device := Some ltac:(nat_deviceTag 0)
          |}
        ].
 
@@ -44,7 +44,7 @@ Section mem_table.
     := match ys with
          | [] => [x]
          | y0 :: ys
-           => if N.leb (f x) (f y0)
+           => if N.leb (f y0) (f x)
                 then x :: y0 :: ys
                 else y0 :: (sort_insert f x ys)
          end.
@@ -52,6 +52,7 @@ Section mem_table.
   Local Definition sort : list MemTableEntry -> list MemTableEntry
     := fold_right (sort_insert mtbl_entry_addr) [].
 
+  (* mem table entries from largest address to smallest address *)
   Definition sorted_mem_table := sort mem_table.
 
 End mem_table.

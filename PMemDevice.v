@@ -14,9 +14,9 @@ Section mem_devices.
   Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
-  Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
   Local Notation LgSize := (LgSize Rlen_over_8).
+  Local Definition lgMemSz := 20.
 
   Open Scope kami_expr.
   Open Scope kami_action.

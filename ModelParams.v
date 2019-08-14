@@ -271,7 +271,7 @@ Section exts.
     End func_units.
 
     (* verify tha the memory table is valid *)
-    Goal (mem_regions name Xlen_over_8 Rlen_over_8 mem_params_default) <> [].
+    Goal (mem_regions name Xlen_over_8 Rlen_over_8) <> [].
     Proof. discriminate. Qed.
 
   End ty.

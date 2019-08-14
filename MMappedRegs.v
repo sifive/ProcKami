@@ -108,7 +108,7 @@ Section mmapped.
   Definition mMappedRegDevice
     :  MemDevice
     := {|
-         mem_device_type := main_memory;
+         mem_device_type := io_device;
          mem_device_pmas := pmas_default;
          mem_device_read
            := fun ty

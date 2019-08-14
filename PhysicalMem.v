@@ -27,11 +27,12 @@ Section pmem.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
-  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation MemTableEntry := (@MemTableEntry name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation mtbl_entry_addr := (@mtbl_entry_addr name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation sorted_mem_table := (@sorted_mem_table name Xlen_over_8 Rlen_over_8 mem_params).
-  Local Notation DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8 mem_params).
+  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8).
+  Local Notation MemTableEntry := (@MemTableEntry name Xlen_over_8 Rlen_over_8).
+  Local Notation mtbl_entry_addr := (@mtbl_entry_addr name Xlen_over_8 Rlen_over_8).
+  Local Notation sorted_mem_table := (@sorted_mem_table name Xlen_over_8 Rlen_over_8).
+  Local Definition DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8).
+  Opaque DeviceTag.
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
@@ -43,35 +44,35 @@ Section pmem.
          mem_region_device : option (Fin.t (length mem_devices))
        }.
 
+  (* memory regions from largest start address to smallest start address *)
   Local Definition mem_table_regions
-    (xs : list MemTableEntry)
-    :  option (N * list MemRegion)%type
-    := fold_left
-         (fun acc x
+    :  list MemTableEntry -> option (N * list MemRegion)%type
+    := fold_right
+         (fun x acc
            => match acc with
                 | None => None
-                | Some (start_addr, regions)
-                  => let end_addr := N.add (mtbl_entry_addr x) (mtbl_entry_width x) in
+                | Some (end_addr, regions)
+                  => let next_end_addr := N.add (mtbl_entry_addr x) (mtbl_entry_width x) in
                      let device_region
                        := {|
                             mem_region_width  := mtbl_entry_width x;
                             mem_region_device := mtbl_entry_device x
                           |} in
-                     match N.compare start_addr (mtbl_entry_addr x) in comparison with
+                     match N.compare end_addr (mtbl_entry_addr x) in comparison with
                        | Datatypes.Eq
-                         => Some (end_addr, regions ++ [device_region])
+                         => Some (next_end_addr, device_region :: regions)
                        | Datatypes.Lt
-                         => Some (end_addr,
-                              regions ++
-                              [{|
-                                mem_region_width := ((mtbl_entry_addr x) - start_addr);
+                         => Some (next_end_addr,
+                              device_region ::
+                              {|
+                                mem_region_width  := ((mtbl_entry_addr x) - end_addr);
                                 mem_region_device := None
-                               |};
-                               device_region])
+                              |} ::
+                              regions)
                        | _ => None
                        end
                 end)
-         xs (Some (0%N, [])).
+         (Some (0%N, [])).
 
   Definition mem_regions
     := match mem_table_regions sorted_mem_table with
@@ -110,8 +111,8 @@ Section pmem.
       (f : MemRegion -> PAddr @# ty -> ActionT ty k)
       :  ActionT ty (Maybe k)
       := snd
-           (fold_left
-             (fun acc region
+           (fold_right
+             (fun region acc
                => (region :: (fst acc),
                    let region_addr := list_sum (map mem_region_width (fst acc)) in
                    LETA acc_result : Maybe k <- snd acc;
@@ -144,8 +145,8 @@ Section pmem.
                        Ret (Valid #result : Maybe k @# ty)
                      as result;
                    Ret #result))
-             mem_regions
-             ([], Ret Invalid)).
+             ([], Ret Invalid)
+             mem_regions).
 
     Local Definition PMAErrorsPkt
       := STRUCT_TYPE {
@@ -154,6 +155,70 @@ Section pmem.
            "misaligned" :: Bool;
            "lrsc"       :: Bool
          }.
+
+    Local Definition getDTag
+      (paddr : PAddr @# ty)
+      :  ActionT ty (Maybe (Maybe (Pair DeviceTag PAddr)))
+      := mem_region_apply
+           paddr
+           (fun region device_offset
+             => Ret
+                  (match mem_region_device region return Maybe (Pair DeviceTag PAddr) @# ty with
+                    | None => Invalid
+                    | Some dtag
+                      => Valid (STRUCT {
+                             "fst" ::=  $(proj1_sig (to_nat dtag));
+                             "snd" ::= device_offset
+                           } : Pair DeviceTag PAddr @# ty)
+                    end)).
+
+    Local Definition checkPMAs
+      (access_type : VmAccessType @# ty)
+      (paddr : PAddr @# ty)
+      (paddr_len : LgSize @# ty)
+      (dtag : DeviceTag @# ty)
+      (lrsc : Bool @# ty)
+      :  ActionT ty PMAErrorsPkt 
+      := mem_device_apply dtag
+           (fun device
+             => list_rect
+                  (fun _ => ActionT ty PMAErrorsPkt)
+                  (Ret $$(getDefaultConst PMAErrorsPkt))
+                  (fun pma pmas F
+                    => let width_match := paddr_len == $(pma_width pma) in
+                       LETA acc <- F;
+                       System [
+                         DispString _ "[checkForAceessFault] paddr_len: ";
+                         DispHex paddr_len;
+                         DispString _ "\n";
+                         DispString _ ("[checkForAceessFault] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
+                         DispString _ "[checkForAceessFault] width match: ";
+                         DispHex width_match;
+                         DispString _ "\n"
+                       ];
+                       Ret (STRUCT {
+                         "width"
+                           ::= (#acc @% "width" || width_match);
+                         "pma"
+                           ::= (#acc @% "pma" ||
+                                (width_match &&
+                                 Switch access_type Retn Bool With {
+                                   ($VmAccessInst : VmAccessType @# ty)
+                                     ::= ($$(pma_executable pma) : Bool @# ty);
+                                   ($VmAccessLoad : VmAccessType @# ty)
+                                     ::= ($$(pma_readable pma) : Bool @# ty);
+                                   ($VmAccessSAmo : VmAccessType @# ty)
+                                     ::= ($$(pma_writeable pma) : Bool @# ty)
+                                 }));
+                         "misaligned"
+                           ::= (#acc @% "misaligned" ||
+                                (width_match && 
+                                 (isAligned paddr $2 || 
+                                  $$(pma_misaligned pma))));
+                         "lrsc"
+                           ::= (#acc @% "lrsc" || (width_match && ($$(pma_lrsc pma) || !lrsc)))
+                       } : PMAErrorsPkt @# ty))
+                  (mem_device_pmas device)).
 
     Definition checkForFault
       (access_type : VmAccessType @# ty)
@@ -178,61 +243,10 @@ Section pmem.
                                 : Bit (Nat.log2_up vm_mode_max_width) @# ty)));
          LETA mresult
            :  Maybe (Maybe (Pair DeviceTag PAddr))
-           <- mem_region_apply
-                paddr
-                (fun region device_offset
-                  => Ret
-                       (match mem_region_device region return Maybe (Pair DeviceTag PAddr) @# ty with
-                         | None => Invalid
-                         | Some dtag
-                           => Valid (STRUCT {
-                                  "fst" ::=  $(proj1_sig (to_nat dtag));
-                                  "snd" ::= device_offset
-                                } : Pair DeviceTag PAddr @# ty)
-                         end));
+           <- getDTag paddr;
          LETA pma_result
            :  PMAErrorsPkt
-           <- mem_device_apply
-                (#mresult @% "data" @% "data" @% "fst")
-                (fun device
-                  => list_rect
-                       (fun _ => ActionT ty PMAErrorsPkt)
-                       (Ret $$(getDefaultConst PMAErrorsPkt))
-                       (fun pma pmas F
-                         => let width_match := paddr_len == $(pma_width pma) in
-                            LETA acc <- F;
-                            System [
-                              DispString _ "[checkForAceessFault] paddr_len: ";
-                              DispHex paddr_len;
-                              DispString _ "\n";
-                              DispString _ ("[checkForAceessFault] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
-                              DispString _ "[checkForAceessFault] width match: ";
-                              DispHex width_match;
-                              DispString _ "\n"
-                            ];
-                            Ret (STRUCT {
-                              "width"
-                                ::= (#acc @% "width" || width_match);
-                              "pma"
-                                ::= (#acc @% "pma" ||
-                                     (width_match &&
-                                      Switch access_type Retn Bool With {
-                                        ($VmAccessInst : VmAccessType @# ty)
-                                          ::= ($$(pma_executable pma) : Bool @# ty);
-                                        ($VmAccessLoad : VmAccessType @# ty)
-                                          ::= ($$(pma_readable pma) : Bool @# ty);
-                                        ($VmAccessSAmo : VmAccessType @# ty)
-                                          ::= ($$(pma_writeable pma) : Bool @# ty)
-                                      }));
-                              "misaligned"
-                                ::= (#acc @% "misaligned" ||
-                                     (width_match && 
-                                      (isAligned paddr $2 || 
-                                       $$(pma_misaligned pma))));
-                              "lrsc"
-                                ::= (#acc @% "lrsc" || (width_match && ($$(pma_lrsc pma) || !lrsc)))
-                            } : PMAErrorsPkt @# ty))
-                       (mem_device_pmas device));
+           <- checkPMAs access_type paddr paddr_len (#mresult @% "data" @% "data" @% "fst") lrsc;
          LET err_pkt : MemErrorPkt
            <- STRUCT {
                 "pmp"        ::= !#pmp_result;
