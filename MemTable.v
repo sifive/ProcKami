@@ -29,7 +29,12 @@ Section mem_table.
     := [
          {|
            mtbl_entry_addr := 0%N;
-           mtbl_entry_width := 16%N;
+           mtbl_entry_width := 8%N;
+           mtbl_entry_device := Some ltac:(nat_deviceTag 2)
+         |};
+         {|
+           mtbl_entry_addr := 8%N;
+           mtbl_entry_width := 8%N;
            mtbl_entry_device := Some ltac:(nat_deviceTag 1)
          |};
          {|

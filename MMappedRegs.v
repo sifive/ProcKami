@@ -135,15 +135,21 @@ Section mmapped.
 
   End params.
 
-  Definition mMappedRegDevice
+  Definition mtimeDevice
     := @gen_reg_device
-         (Nat.log2_up 2)
+         (Nat.log2_up 1)
          [
            {|
              gr_addr := $0%word;
              gr_kind := Bit 64;
              gr_name := ^"mtime"
-           |};
+           |}
+         ] false.
+
+  Definition mtimecmpDevice
+    := @gen_reg_device
+         (Nat.log2_up 1)
+         [
            {|
              gr_addr := $8%word;
              gr_kind := Bit 64;

@@ -13,7 +13,8 @@ Section mem_devices.
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PAddrSz := (Xlen).
   Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
-  Local Notation mMappedRegDevice := (@mMappedRegDevice name Xlen_over_8 Rlen_over_8).
+  Local Notation mtimeDevice := (@mtimeDevice name Xlen_over_8 Rlen_over_8).
+  Local Notation mtimecmpDevice := (@mtimecmpDevice name Xlen_over_8 Rlen_over_8).
   Local Notation pMemDevice := (@pMemDevice name Xlen_over_8 Rlen_over_8).
 
   Open Scope kami_expr.
@@ -22,7 +23,8 @@ Section mem_devices.
   Definition mem_devices
     :  list MemDevice
     := [
-         mMappedRegDevice;
+         mtimeDevice;
+         mtimecmpDevice;
          pMemDevice
        ].
 
