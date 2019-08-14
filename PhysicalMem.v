@@ -271,7 +271,7 @@ Section pmem.
          } : Pair (Pair DeviceTag PAddr) MemErrorPkt @# ty).
 
     Definition mem_region_read
-      (index : Fin.t mem_device_num_reads)
+      (index : nat)
       (mode : PrivMode @# ty)
       (dtag : DeviceTag @# ty)
       (daddr : PAddr @# ty)
@@ -281,7 +281,7 @@ Section pmem.
            (fun device => mem_device_read_nth device index mode daddr size).
 
     Definition mem_region_write
-      (index : Fin.t mem_device_num_writes)
+      (index : nat)
       (mode : PrivMode @# ty)
       (dtag : DeviceTag @# ty)
       (daddr : PAddr @# ty)

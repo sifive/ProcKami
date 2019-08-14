@@ -359,9 +359,6 @@ Section Params.
   Definition mem_device_num_reads := 6.
   Definition mem_device_num_writes := 1.
 
-  Definition mem_read_index := Fin.t mem_device_num_reads.
-  Definition mem_write_index := Fin.t mem_device_num_writes.
-
   Record MemDevice
     := {
          mem_device_type : MemDeviceType; (* 3.5.1 *)
@@ -370,27 +367,35 @@ Section Params.
            : forall ty, list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
          mem_device_write
            : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
-         mem_device_read_valid
-           : forall ty, mem_device_num_reads = length (mem_device_read ty);
-         mem_device_write_valid
-           : forall ty, mem_device_num_writes = length (mem_device_write ty);
          mem_device_file
            : option RegFileBase
        }.
 
+  Open Scope kami_action.
+
+  Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : LgSize @# ty)
+    :  ActionT ty Data 
+    := Ret $0.
+
+  Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
+    :  ActionT ty Bool
+    := Ret $$false.
+
+  Close Scope kami_action.
+
   Definition mem_device_read_nth
     (ty : Kind -> Type)
     (device : MemDevice)
-    := nth_Fin'
-         (mem_device_read device ty)
-         (mem_device_read_valid device ty).
+    (index : nat)
+    :  PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data
+    := List.nth index (mem_device_read device ty) (@null_read ty).
 
   Definition mem_device_write_nth
     (ty : Kind -> Type)
     (device : MemDevice)
-    := nth_Fin'
-         (mem_device_write device ty)
-         (mem_device_write_valid device ty).
+    (index : nat)
+    :  PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
+    := List.nth index (mem_device_write device ty) (@null_write ty).
 
   Variable ty: Kind -> Type.
 

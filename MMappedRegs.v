@@ -127,8 +127,6 @@ Section mmapped.
                                  (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
                           Ret $$false)
                      mem_device_num_writes;
-         mem_device_read_valid := fun _ => eq_refl;
-         mem_device_write_valid := fun _ => eq_refl;
          mem_device_file := None
        |}.
 

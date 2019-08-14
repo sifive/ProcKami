@@ -77,8 +77,6 @@ Section mem_devices.
                        => LETA _ <- pMemWrite index mode pkt;
                           Ret $$false)
                      (seq 0 mem_device_num_writes);
-         mem_device_read_valid := fun _ => eq_refl;
-         mem_device_write_valid := fun _ => eq_refl;
          mem_device_file
            := Some
                 (@Build_RegFileBase

@@ -40,7 +40,7 @@ Section fetch.
     :  ActionT ty (PktWithException FetchPkt)
     := LETA inst_lower
          :  PktWithException Data
-         <- memFetch (ltac:(nat_index mem_device_num_reads 0)) satp_mode mode (xlen_sign_extend Xlen xlen pc);
+         <- memFetch 0 satp_mode mode (xlen_sign_extend Xlen xlen pc);
        If #inst_lower @% "snd" @% "valid"
          then
            System [
@@ -58,7 +58,7 @@ Section fetch.
              :  Bool
              <- fetch_decompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
            If #decompressed
-             then memFetch ltac:(nat_index mem_device_num_reads 1) satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
+             then memFetch 1 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
              else
                Ret (STRUCT {
                    "fst" ::= $0;

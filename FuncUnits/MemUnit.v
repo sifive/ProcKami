@@ -108,7 +108,7 @@ Section mem_unit.
        Ret #result.
 
   Definition memFetch
-    (index : Fin.t mem_device_num_reads)
+    (index : nat)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
@@ -304,9 +304,7 @@ Section mem_unit.
                    (* IV. read the current value and place reservation *)
                    LETA read_result
                      :  Data
-                     <- mem_region_read
-                          (ltac:(nat_index mem_device_num_reads 2))
-                          mode
+                     <- mem_region_read 2 mode
                           (#pmp_result @% "fst" @% "fst")
                           (#pmp_result @% "fst" @% "snd")
                           (#msize @% "data");
@@ -345,9 +343,7 @@ Section mem_unit.
                          <- #mwrite_value @% "data" @% "mask";
                        LETA write_result
                          :  Bool
-                         <- mem_region_write 
-                              (ltac:(nat_index mem_device_num_writes 0))
-                              mode
+                         <- mem_region_write 0 mode
                               (#pmp_result @% "fst" @% "fst")
                               (#pmp_result @% "fst" @% "snd")
                               (#mwrite_value @% "data" @% "data" : Data @# ty)

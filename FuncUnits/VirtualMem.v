@@ -225,24 +225,7 @@ Section pt_walker.
                           else accessException access_type vAddr)
                    else 
                      LETA read_result: Data
-                       <- mem_region_read
-                            (Fin.of_nat_lt
-                              (Nat.lt_le_trans
-                                (3 + (index - 1))
-                                (3 + (maxPageLevels - 1))
-                                mem_device_num_reads
-                                (Plus.plus_lt_compat_l
-                                  (index - 1)
-                                  (maxPageLevels - 1)
-                                  3
-                                  (Nat.le_lt_trans
-                                    (index - 1)
-                                    index
-                                    (maxPageLevels - 1)
-                                    (Nat.le_sub_l index 1)
-                                    indexValid))
-                                (ltac:(nat_lt))))
-                            mode
+                       <- mem_region_read index mode
                             (#pmp_result @% "fst" @% "fst")
                             (#pmp_result @% "fst" @% "snd")
                             $(Nat.log2_up Xlen_over_8);
