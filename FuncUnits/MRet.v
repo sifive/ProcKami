@@ -23,7 +23,7 @@ Section mret.
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).           
   Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 

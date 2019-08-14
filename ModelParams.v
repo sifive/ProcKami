@@ -140,8 +140,7 @@ Section exts.
 
   Local Definition name := "proc_core".
 
-  (* The maximum xlen. *)
-  Variable max_xlen : nat.
+  Variable supported_xlens : list nat.
 
   (* The names of the supported extensions. *)
   Variable supported_exts : list (string * bool).
@@ -153,11 +152,9 @@ Section exts.
          (fun entry => strings_in (map fst supported_exts) (param_entry_name entry))
          param_entries.
 
-  Local Definition Xlen_over_8 : nat := if Nat.eqb max_xlen Xlen32 then 4 else 8.
+  Local Definition Xlen_over_8 : nat := if existsb (Nat.eqb Xlen64) supported_xlens then 8 else 4.
 
   Local Definition Flen_over_8 : nat := list_max 4 (map param_entry_flen entries).
-
-  Local Definition Clen_over_8 : nat := Xlen_over_8.
 
   (* TODO: determine the correct way to specify the physical address size. *)
   Local Definition PAddrSz_over_8 : nat := 8.
@@ -233,8 +230,21 @@ Section exts.
              FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
 
              (* RV Zicsr instructions. *)
-             Zicsr     Xlen_over_8 Clen_over_8 Rlen_over_8 supported_exts _
-           ].
+             Zicsr     Xlen_over_8 Rlen_over_8 supported_exts _
+          ].
+
+      Local Definition param_filter_xlens
+            (fuInputK fuOutputK: Kind)
+        (e: InstEntry ty fuInputK fuOutputK)
+        : InstEntry ty fuInputK fuOutputK
+        := {| instName := instName e ;
+              xlens := filter (fun x => existsb (Nat.eqb x) supported_xlens) (xlens e) ;
+              extensions := extensions e ;
+              uniqId := uniqId e ;
+              inputXform := inputXform e ;
+              outputXform := outputXform e ;
+              optMemParams := optMemParams e ;
+              instHints := instHints e |}.
 
       Local Definition param_filter_insts
         (fuInputK fuOutputK : Kind)
@@ -243,7 +253,8 @@ Section exts.
         := filter
              (fun inst
                => andb
-                    (existsb (fun xlen => Nat.leb xlen max_xlen) (xlens inst))
+                    (existsb (fun xlen => existsb (Nat.eqb xlen) supported_xlens) (xlens inst))
+                    (* (negb (emptyb (xlens inst))) *)
                     (strings_any_in (map fst supported_exts) (extensions inst))).
 
       (*
@@ -257,7 +268,7 @@ Section exts.
         := {|
              fuName  := fuName func_unit;
              fuFunc  := fuFunc func_unit;
-             fuInsts := param_filter_insts (fuInsts func_unit)
+             fuInsts := param_filter_insts ((* map (@param_filter_xlens _ _) *) (fuInsts func_unit))
            |}.
         
       Local Definition param_filter_func_units
@@ -283,7 +294,6 @@ Section exts.
          name
          Xlen_over_8
          Flen_over_8
-         Clen_over_8
          Rlen_over_8
          mem_params_default
          supported_exts

@@ -19,7 +19,6 @@ Import ListNotations.
 Section CsrInterface.
   Variable name: string.
   Variable Xlen_over_8: nat.
-  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
@@ -28,7 +27,7 @@ Section CsrInterface.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation misa_field_states := (misa_field_states supported_exts).
-  Local Notation CsrValueWidth := (Clen_over_8 * 8).
+  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
   Local Notation CsrValue := (Bit CsrValueWidth).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
@@ -40,10 +39,13 @@ Section CsrInterface.
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).
-  Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
-  Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth 2).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+  Local Notation reg_writer_write_reg := (@reg_writer_write_reg name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
   Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
+  Local Notation XlenWidth := (XlenWidth Xlen_over_8).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
+  Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth XlenWidth).
+
 
   Open Scope kami_expr.
 
@@ -51,7 +53,7 @@ Section CsrInterface.
 
   Local Definition CsrAccessPkt
     := STRUCT_TYPE {
-         "xlen"       :: Bit 2;
+         "xlen"       :: XlenValue;
          "mode"       :: PrivMode;
          "mcounteren" :: CounterEnType;
          "scounteren" :: CounterEnType;
@@ -62,7 +64,7 @@ Section CsrInterface.
     := {
          csrFieldName : string;
          csrFieldKind : Kind;
-         csrFieldDefaultValue : option (ConstT csrFieldKind);
+         csrFieldInitValue : option (ConstT csrFieldKind);
          csrFieldIsValid
            : CsrFieldUpdGuard @# ty ->
              csrFieldKind @# ty ->
@@ -75,7 +77,7 @@ Section CsrInterface.
              csrFieldKind @# ty
        }.
 
-  Definition csrViewKind
+  Definition csrKind
     (fields : list CSRField)
     :  Kind
     := Struct
@@ -84,10 +86,10 @@ Section CsrInterface.
 
   Record CSRView
     := {
-         csrViewContext    : Bit 2 @# ty;
+         csrViewContext    : XlenValue @# ty;
          csrViewFields     : list CSRField;
-         csrViewReadXform  : CsrFieldUpdGuard @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty;
-         csrViewWriteXform : CsrFieldUpdGuard @# ty -> csrViewKind csrViewFields @# ty -> CsrValue @# ty -> csrViewKind csrViewFields @# ty (* current csr value, input value, new csr value *)
+         csrViewReadXform  : CsrFieldUpdGuard @# ty -> csrKind csrViewFields @# ty -> CsrValue @# ty;
+         csrViewWriteXform : CsrFieldUpdGuard @# ty -> csrKind csrViewFields @# ty -> CsrValue @# ty -> csrKind csrViewFields @# ty (* current csr value, input value, new csr value *)
        }.
 
   Record CSR :=
@@ -105,7 +107,7 @@ Section CsrInterface.
          (fun i => (fun field =>
                       existT (fun k => option (ConstT k))
                              (csrFieldKind field)
-                             (csrFieldDefaultValue field))
+                             (csrFieldInitValue field))
                      (nth_Fin (csrViewFields view) i))
          (fun j => csrFieldName (nth_Fin (csrViewFields view) j)).
 
@@ -124,7 +126,7 @@ Section CsrInterface.
          DispString _ "\n"
        ];
        LETA csr_value
-         :  csrViewKind (csrViewFields view)
+         :  csrKind (csrViewFields view)
          <- (MayStruct_RegReads ty (csrViewMayStruct view));
        System [
          DispString _ "[csrViewReadWrite] csr value: \n";
@@ -137,7 +139,7 @@ Section CsrInterface.
              DispString _ "[csrViewReadWrite] is write operation\n"
            ];
            LET input_value
-             :  csrViewKind (csrViewFields view)
+             :  csrKind (csrViewFields view)
              <- csrViewWriteXform view upd_pkt #csr_value (req @% "data");
            System [
              DispString _ "[csrViewReadWrite] input value\n";
@@ -145,7 +147,7 @@ Section CsrInterface.
              DispString _ "\n"
            ];
            LET write_value
-             :  csrViewKind (csrViewFields view)
+             :  csrKind (csrViewFields view)
              <- BuildStruct 
              (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
              (fun j => csrFieldName (nth_Fin (csrViewFields view) j))
@@ -184,7 +186,7 @@ Section CsrInterface.
            LETA _
              : Void 
              <- MayStruct_RegWrites (csrViewMayStruct view)
-                    ((#write_value) : (csrViewKind (csrViewFields view)) @# ty);
+                    ((#write_value) : (csrKind (csrViewFields view)) @# ty);
            Retv;
        System [
          DispString _ "[csrViewReadWrite] done\n"
@@ -250,38 +252,38 @@ Section CsrInterface.
   Local Definition csrViewDefaultReadXform
     (fields : list CSRField)
     (_ : CsrFieldUpdGuard @# ty)
-    (data : csrViewKind fields @# ty)
+    (data : csrKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
 
   Local Definition csrViewDefaultWriteXform
     (fields : list CSRField)
     (_ : CsrFieldUpdGuard @# ty)
-    (_ : csrViewKind fields @# ty)
+    (_ : csrKind fields @# ty)
     (data : CsrValue @# ty)
-    :  csrViewKind fields @# ty
+    :  csrKind fields @# ty
     := unpack
-         (csrViewKind fields)
+         (csrKind fields)
          (ZeroExtendTruncLsb
-           (size (csrViewKind fields))
+           (size (csrKind fields))
            (pack data)).
 
   Local Definition csrViewUpperReadXform
     (fields : list CSRField)
     (_ : CsrFieldUpdGuard @# ty)
-    (data : csrViewKind fields @# ty)
+    (data : csrKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (ZeroExtendTruncMsb 32 (pack data)).
 
   Local Definition csrViewUpperWriteXform
     (fields : list CSRField)
     (_ : CsrFieldUpdGuard @# ty)
-    (curr_value : csrViewKind fields @# ty)
+    (curr_value : csrKind fields @# ty)
     (data : CsrValue @# ty)
-    :  csrViewKind fields @# ty
-    := unpack (csrViewKind fields)
+    :  csrKind fields @# ty
+    := unpack (csrKind fields)
          (ZeroExtendTruncLsb
-           (size (csrViewKind fields))
+           (size (csrKind fields))
            (((ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 data)) << (Const ty (natToWord 5 32))) &
             (ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 (pack curr_value))))).
 
@@ -289,7 +291,7 @@ Section CsrInterface.
   Local Definition epcReadXform
     (fields : list CSRField)
     (context : CsrFieldUpdGuard @# ty)
-    (data : csrViewKind fields @# ty)
+    (data : csrKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (IF Extensions_get (context @% "cfg" @% "extensions") "C"
            then pack data >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
@@ -305,7 +307,7 @@ Section CsrInterface.
     := {|
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldDefaultValue := Some default;
+         csrFieldInitValue := Some default;
          csrFieldIsValid
            := fun _ _ _ => $$false;
          csrFieldXform
@@ -319,7 +321,7 @@ Section CsrInterface.
     := {| 
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldDefaultValue := None;
+         csrFieldInitValue := None;
          csrFieldIsValid
            := fun _ _ _ => $$true;
          csrFieldXform
@@ -333,7 +335,7 @@ Section CsrInterface.
     := {|
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldDefaultValue := None;
+         csrFieldInitValue := None;
          csrFieldIsValid
            := fun _ _ _ => $$false;
          csrFieldXform
@@ -354,7 +356,7 @@ Section CsrInterface.
            {|
              csrFieldName := ^"C";
              csrFieldKind := Bool;
-             csrFieldDefaultValue := None;
+             csrFieldInitValue := None;
              csrFieldIsValid
                := (fun field _ _ (* check 32 bit alignment. *)
                     => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "pc")) |
@@ -371,7 +373,7 @@ Section CsrInterface.
     := {|
          csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
-         csrFieldDefaultValue := None;
+         csrFieldInitValue := None;
          csrFieldIsValid
            := fun _ _ x
                 => x == $1 || x == $2;
@@ -387,7 +389,7 @@ Section CsrInterface.
     := {|
          csrFieldName := (prefix ++ "tvec_base");
          csrFieldKind := Bit width;
-         csrFieldDefaultValue := None;
+         csrFieldInitValue := None;
          csrFieldIsValid
            := fun _ _ input_value
                 => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
@@ -428,8 +430,8 @@ Section CsrInterface.
   Fixpoint repeatCSRView
     (n : nat)
     (fields : list CSRField)
-    (readXform : CsrFieldUpdGuard @# ty -> csrViewKind fields @# ty -> CsrValue @# ty)
-    (writeXform : CsrFieldUpdGuard @# ty -> csrViewKind fields @# ty -> CsrValue @# ty -> csrViewKind fields @# ty)
+    (readXform : CsrFieldUpdGuard @# ty -> csrKind fields @# ty -> CsrValue @# ty)
+    (writeXform : CsrFieldUpdGuard @# ty -> csrKind fields @# ty -> CsrValue @# ty -> csrKind fields @# ty)
     :  list CSRView
     := match n with
          | 0 => []

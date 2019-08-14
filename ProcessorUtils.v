@@ -37,6 +37,7 @@ Section Params.
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
+  Local Notation XlenWidth := (XlenWidth Xlen_over_8).
 
   Definition napot_granularity : nat
     := match pmp_addr_ub with

@@ -41,6 +41,7 @@ Section mem_unit.
   Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
   Local Notation MemUnitInput := (MemUnitInput Rlen_over_8).
   Local Notation MemRet := (MemRet Rlen_over_8).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Local Notation pMemReadReservation := (@pMemReadReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
   Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).

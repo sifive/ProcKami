@@ -20,6 +20,7 @@ Section decoder.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   (* instruction database parameters. *)
   Variable func_units : list FUEntry.

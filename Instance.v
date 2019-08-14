@@ -28,18 +28,16 @@ Definition coreExts
        ("U", true)
      ].
 
-Definition model (xlen : nat) : Mod := generate_model xlen coreExts.
+Definition model (xlen : list nat) : Mod := generate_model xlen coreExts.
 
-Definition model32
-  :  RtlModule
-  := getRtlSafe (model Xlen32).
+Definition model32Val := model [Xlen32].
+Definition model64Val := model [Xlen32; Xlen64].
 
-Definition model64
-  :  RtlModule
-  := getRtlSafe (model Xlen64).
+Definition model32 := getRtlSafe model32Val.
+Definition model64 := getRtlSafe model64Val.
 
-Definition kami_model32 := snd (separateModRemove (model Xlen32)).
-Definition kami_model64 := snd (separateModRemove (model Xlen64)).
+Definition kami_model32 := snd (separateModRemove model32Val).
+Definition kami_model64 := snd (separateModRemove model64Val).
 
 Separate Extraction
 

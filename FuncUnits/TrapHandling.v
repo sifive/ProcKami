@@ -25,17 +25,18 @@ Section trap_handling.
   Local Notation VAddr := (Bit Xlen).
   Local Notation IntRegWrite := (IntRegWrite Xlen_over_8).
   Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation reg_writer_write_reg := (reg_writer_write_reg name Xlen_over_8 Rlen_over_8).
-  Local Notation reg_writer_write_freg := (reg_writer_write_freg name Rlen_over_8 Flen_over_8).
+  Local Notation reg_writer_write_reg := (@reg_writer_write_reg name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation reg_writer_write_freg := (@reg_writer_write_freg name Rlen_over_8 Flen_over_8 ty).
   Local Notation memSz := (pow2 lgMemSz).
   Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts ty).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
