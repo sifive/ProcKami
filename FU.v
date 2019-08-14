@@ -360,11 +360,13 @@ Section Params.
   Definition mem_device_num_reads := 6.
   Definition mem_device_num_writes := 1.
 
-  Record MMReg
+  Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
+  Definition mmregs_lgMaskSz := Nat.log2_up 8.
+
+  Record MMRegs
     := {
-         mmreg_addr : N;
-         mmreg_kind : Kind;
-         mmreg_name : string
+         mmregs_dev_lgNumRegs : nat;
+         mmregs_dev_regs : GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs
        }.
 
   Record MemDevice
@@ -376,7 +378,7 @@ Section Params.
          mem_device_write
            : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
          mem_device_file
-           : option ((list RegFileBase) + (list MMReg))%type
+           : option ((list RegFileBase) + MMRegs)%type
        }.
 
   Open Scope kami_action.
