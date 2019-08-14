@@ -79,7 +79,7 @@ Section mem_devices.
                      (seq 0 mem_device_num_writes);
          mem_device_file
            := Some
-                (@Build_RegFileBase
+                (inl [@Build_RegFileBase
                   true
                   Rlen_over_8
                   (^"mem_reg_file")
@@ -87,7 +87,7 @@ Section mem_devices.
                   (^"writeMem0")
                   (pow2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
-                  (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)))
+                  (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _))])
        |}.
 
   Close Scope kami_action.

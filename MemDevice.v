@@ -31,7 +31,11 @@ Section mem_devices.
     := fold_right
          (fun device acc
            => match (mem_device_file device) with
-                | Some file => file :: acc
+                | Some res
+                  => match res with
+                       | inl files => files ++ acc
+                       | _ => acc
+                       end
                 | _ => acc
                 end)
          [] mem_devices.

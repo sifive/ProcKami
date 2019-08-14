@@ -12,6 +12,7 @@ Require Import List.
 Import ListNotations.
 Require Import Wf.
 Require Import Wf_nat.
+Require Import BinNat.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).
@@ -359,6 +360,13 @@ Section Params.
   Definition mem_device_num_reads := 6.
   Definition mem_device_num_writes := 1.
 
+  Record MMReg
+    := {
+         mmreg_addr : N;
+         mmreg_kind : Kind;
+         mmreg_name : string
+       }.
+
   Record MemDevice
     := {
          mem_device_type : MemDeviceType; (* 3.5.1 *)
@@ -368,7 +376,7 @@ Section Params.
          mem_device_write
            : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
          mem_device_file
-           : option RegFileBase
+           : option ((list RegFileBase) + (list MMReg))%type
        }.
 
   Open Scope kami_action.
