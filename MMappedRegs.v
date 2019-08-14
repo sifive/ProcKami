@@ -36,6 +36,9 @@ Section mmapped.
     Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation RegMapT := (RegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
+    Local Notation maskSz := (pow2 mmregs_lgMaskSz).
+    Local Notation granuleSz := (pow2 mmregs_lgGranuleLgSz).
+    Local Notation dataSz := (maskSz * granuleSz)%nat.
 
     Variable mmregs : list GroupReg.
 
@@ -44,9 +47,6 @@ Section mmapped.
       Variable ty : Kind -> Type.
 
       Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
-      Local Notation maskSz := (pow2 mmregs_lgMaskSz).
-      Local Notation granuleSz := (pow2 mmregs_lgGranuleLgSz).
-      Local Notation dataSz := (maskSz * granuleSz).
 
       Local Definition MmappedReq
         := STRUCT_TYPE {
@@ -72,7 +72,7 @@ Section mmapped.
                   "info" ::= #rq_info
                 } : FullRegMapT @# ty;
            LETA result
-             <- readWriteGranules_GroupReg (Valid #rq) mmapped_regs;
+             <- readWriteGranules_GroupReg (Valid #rq) mmregs;
            Ret (ZeroExtendTruncLsb 64 #result).
 
       Local Definition mmapped_read
@@ -127,8 +127,8 @@ Section mmapped.
                     Some
                       (inr
                         {|
-                          mmreg_dev_lgNumRegs := mmregs_realAddrSz;
-                          mmreg_dev_regs      := mmregs
+                          mmregs_dev_lgNumRegs := mmregs_realAddrSz;
+                          mmregs_dev_regs      := mmregs
                         |})
                   else None
          |}.
@@ -136,7 +136,7 @@ Section mmapped.
   End params.
 
   Definition mMappedRegDevice
-    := gen_reg_device
+    := @gen_reg_device
          (Nat.log2_up 2)
          [
            {|

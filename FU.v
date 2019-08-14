@@ -366,7 +366,7 @@ Section Params.
   Record MMRegs
     := {
          mmregs_dev_lgNumRegs : nat;
-         mmregs_dev_regs : GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs
+         mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
        }.
 
   Record MemDevice
