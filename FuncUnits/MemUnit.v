@@ -62,7 +62,10 @@ Section mem_unit.
   Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_devices mem_table ty).
   Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 mem_devices ty).
   Local Notation mem_region_write := (@mem_region_write Xlen_over_8 Rlen_over_8 mem_devices ty).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty mem_devices mem_table).
+
+  Local Definition baseIndex := 3. (* the first available read port available to the page table walker. *)
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty mem_devices mem_table baseIndex).
+
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
 
@@ -79,6 +82,7 @@ Section mem_unit.
        } : PktWithException PAddr @# ty.
 
   Definition memTranslate
+    (index : nat) (* 0 based index specifying which call to the page table walker this is. *)
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (access_type : VmAccessType @# ty)
@@ -102,6 +106,7 @@ Section mem_unit.
          then
            LETA paddr : PktWithException PAddr
              <- pt_walker
+                  index
                   satp_mode
                   #mxr
                   #sum
@@ -123,7 +128,7 @@ Section mem_unit.
     :  ActionT ty (PktWithException Data)
     := LETA paddr
          :  PktWithException PAddr
-         <- memTranslate satp_mode mode $VmAccessInst vaddr;
+         <- memTranslate index satp_mode mode $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
@@ -270,7 +275,7 @@ Section mem_unit.
            (* III. get the physical address *)
            LETA mpaddr
              :  PktWithException PAddr
-             <- memTranslate satp_mode mode
+             <- memTranslate 2 satp_mode mode
                   (IF #mis_write @% "data"
                     then $VmAccessSAmo
                     else $VmAccessLoad)

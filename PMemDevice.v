@@ -83,7 +83,20 @@ Section mem_devices.
                   true
                   Rlen_over_8
                   (^"mem_reg_file")
-                  (Async [^"readMem0"; ^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
+                  (Async [
+                      ^"readMem0"; (* fetch lower *)
+                      ^"readMem1"; (* fetch upper *)
+                      ^"readMem2"; (* mem unit loads *)
+                      ^"readMem3"; (* fetch lower page table walker read mem call *)
+                      ^"readMem4"; (* fetch lower page table walker read mem call *)
+                      ^"readMem5"; (* fetch lower page table walker read mem call *)
+                      ^"readMem6"; (* fetch upper page table walker read mem call *)
+                      ^"readMem7"; (* fetch upper page table walker read mem call *)
+                      ^"readMem8"; (* fetch upper page table walker read mem call *)
+                      ^"readMem9"; (* mem unit page table walker read mem call *)
+                      ^"readMemA"; (* mem unit page table walker read mem call *)
+                      ^"readMemB"  (* mem unit page table walker read mem call *)
+                    ])
                   (^"writeMem0")
                   (pow2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)

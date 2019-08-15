@@ -408,19 +408,6 @@ Section Params.
            Bool
            (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
 
-(*
-    Definition memRegFile
-       :  RegFileBase :=
-       @Build_RegFileBase
-         true
-         Rlen_over_8
-         (^"mem_reg_file")
-         (Async [^"readMem0"; ^"readMem1"; ^"readMem2"; ^"readMem3"; ^"readMem4"; ^"readMem5"])
-         (^"writeMem0")
-         (pow2 lgMemSz) (* rfIdxNum: nat *)
-         (Bit 8) (* rfData: Kind *)
-         (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _)).
-*)
     Definition processor
       :  Mod 
       := createHideMod
@@ -432,7 +419,6 @@ Section Params.
                ([   
                   intRegFile; 
                   floatRegFile; 
-                  (* memRegFile; *)
                   memReservationRegFile
                 ] ++ (mem_device_files ))))
            [   
@@ -443,12 +429,18 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"readMem0"; (* fetch *)
-             ^"readMem1"; (* fetch *)
-             ^"readMem2"; (* load instructions *)
-             ^"readMem3"; (* page table walker read mem call *)
-             ^"readMem4"; (* page table walker read mem call *)
-             ^"readMem5"; (* page table walker read mem call *)
+             ^"readMem0"; (* fetch lower *)
+             ^"readMem1"; (* fetch upper *)
+             ^"readMem2"; (* mem unit loads *)
+             ^"readMem3"; (* fetch lower page table walker read mem call *)
+             ^"readMem4"; (* fetch lower page table walker read mem call *)
+             ^"readMem5"; (* fetch lower page table walker read mem call *)
+             ^"readMem6"; (* fetch upper page table walker read mem call *)
+             ^"readMem7"; (* fetch upper page table walker read mem call *)
+             ^"readMem8"; (* fetch upper page table walker read mem call *)
+             ^"readMem9"; (* mem unit page table walker read mem call *)
+             ^"readMemA"; (* mem unit page table walker read mem call *)
+             ^"readMemB"; (* mem unit page table walker read mem call *)
              ^"readMemReservation";
              ^"writeMem0";
              ^"writeMemReservation"
