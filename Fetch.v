@@ -25,7 +25,13 @@ Section fetch.
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
   Local Notation XlenValue := (XlenValue Xlen_over_8).
 
-  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Variable mem_devices : list MemDevice.
+
+  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
+  Variable mem_table : list MemTableEntry.
+
+  Local Notation memFetch := (@memFetch name Xlen_over_8 Rlen_over_8 ty mem_devices mem_table).
 
   Open Scope kami_expr.
 

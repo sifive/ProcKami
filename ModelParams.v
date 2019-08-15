@@ -33,11 +33,11 @@ Require Import FuncUnits.Fpu.FDivSqrt.
 Require Import FuncUnits.Fpu.FRound.
 Require Import FuncUnits.Zicsr.
 Require Import FuncUnits.MRet.
-
-Require Import MemTable.
 Require Import BinNums.
 Require Import BinNat.
 Require Import PhysicalMem.
+Require Import PMemDevice.
+Require Import MMappedRegs.
 
 (* I. device parameters *)
 
@@ -165,7 +165,6 @@ Section exts.
   Section ty.
 
     Variable ty : Kind -> Type.
-    Local Notation sorted_mem_table := (@sorted_mem_table "proc_core" Xlen_over_8 Rlen_over_8 mem_params_default).
 
     Open Scope kami_expr.
 
@@ -280,11 +279,37 @@ Section exts.
 
     End func_units.
 
-    (* verify tha the memory table is valid *)
-    Goal (mem_regions name Xlen_over_8 Rlen_over_8) <> [].
-    Proof. discriminate. Qed.
-
   End ty.
+
+  Definition mem_devices
+    := [
+         mtimeDevice    name Xlen_over_8 Rlen_over_8;
+         mtimecmpDevice name Xlen_over_8 Rlen_over_8;
+         pMemDevice     name Xlen_over_8 Rlen_over_8
+       ].
+
+  Definition mem_table
+    := [
+         {|
+           mtbl_entry_addr := 0%N;
+           mtbl_entry_width := 8%N;
+           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 2)
+         |};
+         {|
+           mtbl_entry_addr := 8%N;
+           mtbl_entry_width := 8%N;
+           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 1)
+         |};
+         {|
+           mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
+           mtbl_entry_width := N.pow 2 20;
+           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 0)
+         |}
+       ].
+
+  (* verify tha the memory table is valid *)
+  Goal (mem_regions Xlen_over_8 mem_table) <> [].
+  Proof. discriminate. Qed.
 
   (* V. the model generator. *)
 
@@ -295,6 +320,8 @@ Section exts.
          Flen_over_8
          Rlen_over_8
          mem_params_default
+         mem_devices
+         mem_table
          supported_exts
          param_func_units.
 

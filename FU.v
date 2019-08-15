@@ -417,9 +417,108 @@ Section Params.
     :  PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
     := List.nth index (mem_device_write device ty) (@null_write ty).
 
+  Definition mem_device_files
+    :  list MemDevice -> list RegFileBase
+    := fold_right
+         (fun device acc
+           => match mem_device_file device with
+                | Some res
+                  => match res with
+                       | inl files => files ++ acc
+                       | _ => acc
+                       end
+                | _ => acc
+                end)
+         [].
+
+  Definition mem_device_regs
+    :  list MemDevice -> list (Tree ModuleElt)
+    := fold_right
+         (fun device acc
+           => match mem_device_file device with
+                | Some res
+                  => match res with
+                       | inr mmregs => (mmregs_regs mmregs) ++ acc
+                       | _ => acc
+                       end
+                | _ => acc
+                end)
+         [].
+
+  Definition DeviceTag (mem_devices : list MemDevice)
+    := Bit (Nat.log2_up (length mem_devices)).
+
   Variable ty: Kind -> Type.
 
   Local Open Scope kami_expr.
+
+  Local Open Scope kami_action.
+
+    (*
+      Note: we assume that device tags will always be valid given
+      the constraints we apply in generating them.
+    *)
+    Definition mem_device_apply
+      (mem_devices : list MemDevice)
+      (k : Kind)
+      (tag : DeviceTag mem_devices @# ty)
+      (f : MemDevice -> ActionT ty k)
+      :  ActionT ty k
+      := LETA result
+           :  Maybe k
+           <- snd
+                (fold_right
+                  (fun device acc
+                    => (S (fst acc),
+                        LETA acc_result : Maybe k <- snd acc;
+                        System [
+                          DispString _ "[mem_device_apply] device tag: ";
+                          DispHex tag;
+                          DispString _ "\n";
+                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
+                        ];
+                        If #acc_result @% "valid" || $(fst acc) != tag
+                          then
+                            System [
+                              DispString _ "[mem_device_apply] did not match"
+                            ];
+                            Ret #acc_result
+                          else
+                            System [
+                              DispString _ "[mem_device_apply] matched"
+                            ];
+                            LETA result : k <- f device;
+                            Ret (Valid #result : Maybe k @# ty)
+                          as result;
+                        Ret #result))
+                  (0, Ret Invalid)
+                  mem_devices);
+        Ret (#result @% "data").
+
+  Local Close Scope kami_action.
+
+  Record MemTableEntry
+    (mem_devices : list MemDevice)
+    := {
+         mtbl_entry_addr : N;
+         mtbl_entry_width : N;
+         mtbl_entry_device : option (Fin.t (length mem_devices))
+       }.
+
+  Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
+    :  list A
+    := match ys with
+         | [] => [x]
+         | y0 :: ys
+           => if N.leb (f y0) (f x)
+                then x :: y0 :: ys
+                else y0 :: (mem_table_insert f x ys)
+         end.
+
+  Definition mem_table_sort
+    (mem_devices : list MemDevice)
+    :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
+    := fold_right (mem_table_insert (@mtbl_entry_addr mem_devices)) [].
 
   Definition ExtensionsInterface
     :  {k : Kind &
@@ -816,3 +915,5 @@ Ltac nat_lt := repeat (try (apply le_n); apply le_S).
 
 (* n => Fin.t len *)
 Ltac nat_index len n := exact (@of_nat_lt n len ltac:(nat_lt)).
+
+Ltac nat_deviceTag mem_devices n := nat_index (length mem_devices) n.

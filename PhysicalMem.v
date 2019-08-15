@@ -4,8 +4,6 @@
 Require Import Kami.All.
 Require Import FU.
 Require Import Pmp.
-Require Import MemDevice.
-Require Import MemTable.
 Require Import List.
 Import ListNotations.
 Require Import BinNums.
@@ -27,12 +25,18 @@ Section pmem.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
-  Local Notation mem_devices := (@mem_devices name Xlen_over_8 Rlen_over_8).
-  Local Notation MemTableEntry := (@MemTableEntry name Xlen_over_8 Rlen_over_8).
-  Local Notation mtbl_entry_addr := (@mtbl_entry_addr name Xlen_over_8 Rlen_over_8).
-  Local Notation sorted_mem_table := (@sorted_mem_table name Xlen_over_8 Rlen_over_8).
-  Local Definition DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8).
+
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Variable mem_devices : list MemDevice.
+
+  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
+  Variable mem_table : list MemTableEntry.
+
+  Local Definition DeviceTag := (@DeviceTag Rlen_over_8 PAddrSz mem_devices).
   Opaque DeviceTag.
+
+  Local Notation mtbl_entry_addr := (@mtbl_entry_addr Rlen_over_8 PAddrSz mem_devices).
+  Local Notation sorted_mem_table := (@mem_table_sort Rlen_over_8 PAddrSz mem_devices mem_table).
   Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).

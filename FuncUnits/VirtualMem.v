@@ -5,7 +5,6 @@
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import MemDevice.
 Require Import PhysicalMem.
 Require Import Vector.
 Require Import Pmp.
@@ -30,10 +29,14 @@ Section pt_walker.
   Local Notation Data := (Bit Rlen).
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
-  Local Definition DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8).
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Variable mem_devices : list MemDevice.
+  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
+  Variable mem_table : list MemTableEntry.
+  Local Definition DeviceTag := (@DeviceTag Rlen_over_8 PAddrSz mem_devices).
   Opaque DeviceTag.
-  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 mem_devices ty).
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_devices mem_table ty).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.

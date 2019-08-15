@@ -6,7 +6,6 @@ Require Import Kami.All.
 Require Import FU.
 Require Import Decoder.
 Require Import Pmp.
-Require Import MemDevice.
 Require Import PhysicalMem.
 Require Import VirtualMem.
 Require Import List.
@@ -50,12 +49,20 @@ Section mem_unit.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation InstId := (@Decoder.InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
   Local Notation DecoderPkt := (@Decoder.DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Definition DeviceTag := (@DeviceTag name Xlen_over_8 Rlen_over_8).
+
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Variable mem_devices : list MemDevice.
+
+  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
+  Variable mem_table : list MemTableEntry.
+
+  Local Definition DeviceTag := (@DeviceTag Rlen_over_8 PAddrSz mem_devices).
   Opaque DeviceTag.
-  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation mem_region_read := (@mem_region_read name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation mem_region_write := (@mem_region_write name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty).
+
+  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_devices mem_table ty).
+  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 mem_devices ty).
+  Local Notation mem_region_write := (@mem_region_write Xlen_over_8 Rlen_over_8 mem_devices ty).
+  Local Notation pt_walker := (@pt_walker name Xlen_over_8 Rlen_over_8 ty mem_devices mem_table).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
 

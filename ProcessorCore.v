@@ -26,11 +26,6 @@ Require Import FuncUnits.CSR.
 Require Import FuncUnits.TrapHandling.
 Require Import Counter.
 Require Import ProcessorUtils.
-(*
-Require Import PhysicalMem.
-Require Import MMappedRegs.
-*)
-Require Import MemDevice.
 
 Section Params.
   Variable name: string.
@@ -42,23 +37,31 @@ Section Params.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
-  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
-  Variable pmp_addr_ub : option (word pmp_reg_width).
 
   Local Notation Rlen := (Rlen_over_8 * 8).
-  (* The width of a general purpose, "x", register for this
-     processor. This also determine the size of, say, the virtual
-     address space. *)
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
   Local Notation CsrValueWidth := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CsrValue := (Bit CsrValueWidth).
-  Local Notation lgMemSz := (mem_params_size mem_params).
-  Local Notation memSz := (pow2 lgMemSz).
   Local Notation PAddrSz := (Xlen).
   Local Notation PAddr := (Bit PAddrSz).
+
+  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
+  Variable pmp_addr_ub : option (word pmp_reg_width).
+
+  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Variable mem_devices : list MemDevice.
+
+  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
+  Variable mem_table : list MemTableEntry.
+
+  (* The width of a general purpose, "x", register for this
+     processor. This also determine the size of, say, the virtual
+     address space. *)
+  Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation memSz := (pow2 lgMemSz).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
   Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
@@ -80,8 +83,8 @@ Section Params.
     Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
-    Local Notation mem_device_files := (mem_device_files name Xlen_over_8 Rlen_over_8).
-    Local Notation mem_device_regs := (mem_device_regs name Xlen_over_8 Rlen_over_8).
+    Local Notation mem_device_files := (@mem_device_files Rlen_over_8 PAddrSz mem_devices).
+    Local Notation mem_device_regs := (@mem_device_regs Rlen_over_8 PAddrSz mem_devices).
 
     Local Open Scope kami_scope.
 
@@ -270,7 +273,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- @fetch name Xlen_over_8 Rlen_over_8 _ (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                     <- @fetch name Xlen_over_8 Rlen_over_8 _ mem_devices mem_table (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -338,7 +341,7 @@ Section Params.
                      ];
                    LETA mem_update_pkt
                      :  PktWithException ExecUpdPkt
-                     <- MemUnit name mem_params
+                     <- MemUnit name mem_params mem_table
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "satp_mode")
                           (#cfg_pkt @% "mode")
