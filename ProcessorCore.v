@@ -40,7 +40,6 @@ Section Params.
      this processor, divided by 8 *)
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
-  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable mem_params : MemParamsType.
   Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
@@ -52,7 +51,7 @@ Section Params.
      address space. *)
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation CsrValueWidth := (Clen_over_8 * 8).
+  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CsrValue := (Bit CsrValueWidth).
@@ -67,6 +66,7 @@ Section Params.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation DispNF := (DispNF Flen_over_8).
   Local Notation initXlen := (initXlen Xlen_over_8).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
   
   Section model.
     Local Open Scope kami_action.
@@ -208,9 +208,9 @@ Section Params.
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
                    Read pc : VAddr <- ^"pc";
-                   LETA xlen : XlenValue <- readXlen name #mode;
+                   LETA xlen : XlenValue <- readXlen name Xlen_over_8 #mode;
                    System [DispString _ "[trap_interrupt]\n"];
-                   interruptAction name Xlen_over_8 #xlen #mode #pc with
+                   interruptAction name #xlen #mode #pc with
               Rule ^"set_time_interrupt"
                 := Read mtime : Bit 64 <- ^"mtime";
                    Read mtimecmp : Bit 64 <- ^"mtimecmp";
@@ -257,7 +257,7 @@ Section Params.
                        DispString _ (fold_right String.append "" (snd misa_field_states));
                        DispString _ "\n"
                      ];
-                   LETA cfg_pkt <- readConfig name supported_exts _;
+                   LETA cfg_pkt <- readConfig name Xlen_over_8 supported_exts _;
                    Read pc : VAddr <- ^"pc";
                    System
                      [
@@ -319,7 +319,6 @@ Section Params.
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
-                          Clen_over_8
                           #mcounteren
                           #scounteren
                           #pc

@@ -139,11 +139,6 @@ Definition falseHints :=
      isCsr       := false ;
      writeMem    := false |}.
 
-Definition XlenWidth : nat := 2.
-Definition XlenValue : Kind := Bit XlenWidth.
-Definition Xlen32 := 1.
-Definition Xlen64 := 2.
-
 Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
@@ -152,7 +147,6 @@ Section Params.
   
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
-  Variable Clen_over_8: nat.
   Variable Rlen_over_8: nat.
   Variable PAddrSz : nat. (* physical address size *)
   Variable supported_exts : list (string * bool).
@@ -163,7 +157,13 @@ Section Params.
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation CsrValueWidth := (Clen_over_8 * 8).
+  
+  Definition XlenWidth : nat := (* Nat.log2 Xlen_over_8 - 2 *) 0*Xlen_over_8 + 2.
+  Definition XlenValue: Kind := Bit XlenWidth.
+  Definition Xlen32 := 1.
+  Definition Xlen64 := 2.
+
+  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
   Local Notation VAddr := (Bit Xlen).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation CsrValue := (Bit CsrValueWidth).
@@ -495,9 +495,8 @@ Section Params.
   (* See 3.1.1 and 3.1.15 *)
   Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
     :  VAddr @# ty
-    := IF Extensions_get (cfg_pkt @% "extensions") "C"
-         then epc >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
-         else epc >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty).
+    := let shiftAmount := (IF Extensions_get (cfg_pkt @% "extensions") "C" then $1 else $2): Bit 2 @# ty in
+       (epc >> shiftAmount) << shiftAmount.
 
   Local Close Scope kami_expr.
 
@@ -791,7 +790,7 @@ Section Params.
       (w : XlenValue @# ty)
       (x : Bit n @# ty)
       :  Bit m @# ty
-      := IF w == $1
+      := IF w == $Xlen32
            then f 32 m (@unsafeTruncLsb n 32 x)
            else f 64 m (@unsafeTruncLsb n 64 x).
 

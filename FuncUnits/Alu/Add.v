@@ -18,11 +18,12 @@ Section Alu.
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
   Local Notation intRegTag := (intRegTag Xlen_over_8 Rlen_over_8).
+  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
+    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition AddInputType
