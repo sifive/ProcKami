@@ -253,8 +253,7 @@ Section exts.
         := filter
              (fun inst
                => andb
-                    (existsb (fun xlen => existsb (Nat.eqb xlen) supported_xlens) (xlens inst))
-                    (* (negb (emptyb (xlens inst))) *)
+                    (negb (emptyb (xlens inst)))
                     (strings_any_in (map fst supported_exts) (extensions inst))).
 
       (*
@@ -268,7 +267,7 @@ Section exts.
         := {|
              fuName  := fuName func_unit;
              fuFunc  := fuFunc func_unit;
-             fuInsts := param_filter_insts ((* map (@param_filter_xlens _ _) *) (fuInsts func_unit))
+             fuInsts := param_filter_insts (map (@param_filter_xlens _ _) (fuInsts func_unit))
            |}.
         
       Local Definition param_filter_func_units
