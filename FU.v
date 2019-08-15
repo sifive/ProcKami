@@ -369,6 +369,16 @@ Section Params.
          mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
        }.
 
+  Open Scope kami_scope.
+
+  Definition mmregs_regs (mmregs : MMRegs)
+    := map
+         (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
+           => Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x)))
+         (mmregs_dev_regs mmregs).
+
+  Close Scope kami_scope.
+
   Record MemDevice
     := {
          mem_device_type : MemDeviceType; (* 3.5.1 *)

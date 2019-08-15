@@ -32,10 +32,24 @@ Section mem_devices.
     :  list RegFileBase
     := fold_right
          (fun device acc
-           => match (mem_device_file device) with
+           => match mem_device_file device with
                 | Some res
                   => match res with
                        | inl files => files ++ acc
+                       | _ => acc
+                       end
+                | _ => acc
+                end)
+         [] mem_devices.
+
+  Definition mem_device_regs
+    :  list (Tree ModuleElt)
+    := fold_right
+         (fun device acc
+           => match mem_device_file device with
+                | Some res
+                  => match res with
+                       | inr mmregs => (mmregs_regs mmregs) ++ acc
                        | _ => acc
                        end
                 | _ => acc

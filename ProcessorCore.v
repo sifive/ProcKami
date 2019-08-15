@@ -81,6 +81,7 @@ Section Params.
     Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
     Local Notation mem_device_files := (mem_device_files name Xlen_over_8 Rlen_over_8).
+    Local Notation mem_device_regs := (mem_device_regs name Xlen_over_8 Rlen_over_8).
 
     Local Open Scope kami_scope.
 
@@ -203,6 +204,7 @@ Section Params.
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
               Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
               Node pmpRegs with
+              Node mem_device_regs with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
                    Read pc : VAddr <- ^"pc";
