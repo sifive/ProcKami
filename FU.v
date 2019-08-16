@@ -410,15 +410,15 @@ Section Params.
     (ty : Kind -> Type)
     (device : MemDevice)
     (index : nat)
-    :  PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data
-    := List.nth index (mem_device_read device ty) (@null_read ty).
+    :  option (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data)
+    := List.nth_error (mem_device_read device ty) index.
 
   Definition mem_device_write_nth
     (ty : Kind -> Type)
     (device : MemDevice)
     (index : nat)
-    :  PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool
-    := List.nth index (mem_device_write device ty) (@null_write ty).
+    :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
+    := List.nth_error (mem_device_write device ty) index.
 
   Definition mem_device_files
     :  list MemDevice -> list RegFileBase

@@ -285,30 +285,29 @@ Section pmem.
       :  ActionT ty (Maybe Data)
       := mem_device_apply dtag 
            (fun device
-             => if Nat.leb index (length (@mem_device_read device ty))
-                  then
-                    System [
-                      DispString _ "[mem_region_read] sending read request to device.\n";
-                      DispString _ "[mem_region_read] device tag:";
-                      DispHex dtag;
-                      DispString _ "\n";
-                      DispString _ "[mem_region_read] device offset:";
-                      DispHex daddr;
-                      DispString _ "\n";
-                      DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
-                    ];
-                    LETA result : Data <- mem_device_read_nth device index mode daddr size;
-                    System [
-                      DispString _ "[mem_region_read] result: ";
-                      DispHex #result;
-                      DispString _ "\n"
-                    ];
-                    Ret (Valid #result : Maybe Data @# ty)
-                  else
-                    System [
-                      DispString _ "[mem_region_read] illegal index.\n"
-                    ];
-                    Ret Invalid).
+             => match mem_device_read_nth ty device index with
+                  | None 
+                    => System [DispString _ "[mem_region_read] illegal index.\n"];
+                       Ret Invalid
+                  | Some read
+                    => System [
+                         DispString _ "[mem_region_read] sending read request to device.\n";
+                         DispString _ "[mem_region_read] device tag:";
+                         DispHex dtag;
+                         DispString _ "\n";
+                         DispString _ "[mem_region_read] device offset:";
+                         DispHex daddr;
+                         DispString _ "\n";
+                         DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
+                       ];
+                       LETA result : Data <- read mode daddr size;
+                       System [
+                         DispString _ "[mem_region_read] result: ";
+                         DispHex #result;
+                         DispString _ "\n"
+                       ];
+                       Ret (Valid #result : Maybe Data @# ty)
+                 end).
 
     Definition mem_region_write
       (index : nat)
@@ -321,16 +320,17 @@ Section pmem.
       :  ActionT ty Bool
       := mem_device_apply dtag
            (fun device
-             => if Nat.leb index (length (@mem_device_write device ty))
-                  then
-                    mem_device_write_nth device index mode
-                      (STRUCT {
-                         "addr" ::= daddr;
-                         "data" ::= data;
-                         "mask" ::= mask;
-                         "size" ::= size
-                       } : MemWrite @# ty)
-                  else Ret $$false).
+             => match mem_device_write_nth ty device index with
+                  | None => Ret $$false
+                  | Some write
+                    => write mode
+                         (STRUCT {
+                            "addr" ::= daddr;
+                            "data" ::= data;
+                            "mask" ::= mask;
+                            "size" ::= size
+                          } : MemWrite @# ty)
+                  end).
 
     Definition pMemReadReservation (addr: PAddr @# ty)
       : ActionT ty (Array Rlen_over_8 Bool)
