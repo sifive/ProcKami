@@ -432,18 +432,18 @@ Section Params.
              ^"read_freg_2"; 
              ^"read_freg_3"; 
              ^"fregWrite";
-             ^"readMem0"; (* fetch lower *)
-             ^"readMem1"; (* fetch upper *)
-             ^"readMem2"; (* mem unit loads *)
-             ^"readMem3"; (* fetch lower page table walker read mem call *)
-             ^"readMem4"; (* fetch lower page table walker read mem call *)
-             ^"readMem5"; (* fetch lower page table walker read mem call *)
-             ^"readMem6"; (* fetch upper page table walker read mem call *)
-             ^"readMem7"; (* fetch upper page table walker read mem call *)
-             ^"readMem8"; (* fetch upper page table walker read mem call *)
-             ^"readMem9"; (* mem unit page table walker read mem call *)
-             ^"readMemA"; (* mem unit page table walker read mem call *)
-             ^"readMemB"; (* mem unit page table walker read mem call *)
+             ^"readMem0"; (* mem unit loads *)
+             ^"readMem1"; (* fetch lower *)
+             ^"readMem2"; (* fetch upper *)
+             ^"readMem3"; (* mem unit page table walker read mem call *)
+             ^"readMem4"; (* mem unit page table walker read mem call *)
+             ^"readMem5"; (* mem unit page table walker read mem call *)
+             ^"readMem6"; (* fetch lower page table walker read mem call *)
+             ^"readMem7"; (* fetch lower page table walker read mem call *)
+             ^"readMem8"; (* fetch lower page table walker read mem call *)
+             ^"readMem9"; (* fetch upper page table walker read mem call *)
+             ^"readMemA"; (* fetch upper page table walker read mem call *)
+             ^"readMemB"; (* fetch upper page table walker read mem call *)
              ^"readMemReservation";
              ^"writeMem0";
              ^"writeMemReservation"

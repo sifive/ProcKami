@@ -341,7 +341,7 @@ Section mem_unit.
                    (* IV. read the current value and place reservation *)
                    LETA read_result
                      :  Maybe Data
-                     <- mem_region_read 2 mode
+                     <- mem_region_read 0 mode
                           (#pmp_result @% "fst" @% "fst")
                           (#pmp_result @% "fst" @% "snd")
                           (#msize @% "data");
