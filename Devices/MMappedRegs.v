@@ -99,16 +99,21 @@ Section mmapped.
     End ty.
 
     Definition gen_reg_device
+      (device_name : string)
       (gen_regs : bool)
       :  MemDevice
       := {|
+           mem_device_name := device_name;
            mem_device_type := io_device;
            mem_device_pmas := pmas_default;
            mem_device_read
              := fun ty
                   => List.repeat
                        (fun _ addr _
-                         => LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                         => System [
+                              DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
+                            ];
+                            LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
                             Ret (ZeroExtendTruncLsb Rlen #result))
                        mem_device_num_reads;
            mem_device_write
@@ -144,7 +149,7 @@ Section mmapped.
              gr_kind := Bit 64;
              gr_name := ^"mtime"
            |}
-         ] false.
+         ] "mtime" false.
 
   Definition mtimecmpDevice
     := @gen_reg_device
@@ -155,7 +160,7 @@ Section mmapped.
              gr_kind := Bit 64;
              gr_name := ^"mtimecmp"
            |}
-         ] false.
+         ] "mtimecmp" false.
 
   Close Scope kami_action.
   Close Scope kami_expr.

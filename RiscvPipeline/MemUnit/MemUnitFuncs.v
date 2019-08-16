@@ -126,7 +126,12 @@ Section mem_unit.
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException Data)
-    := LETA paddr
+    := System [
+         DispString _ "[memFetch] fetching vaddr: ";
+         DispHex vaddr;
+         DispString _ "\n"
+       ];
+       LETA paddr
          :  PktWithException PAddr
          <- memTranslate index satp_mode mode $VmAccessInst vaddr;
        System [
@@ -167,6 +172,11 @@ Section mem_unit.
                       (#pmp_result @% "fst" @% "fst") 
                       (#pmp_result @% "fst" @% "snd")
                       $2;
+               System [
+                 DispString _ "[memFetch] fetched upper bits: ";
+                 DispHex #inst;
+                 DispString _ "\n"
+               ];
                LET exception
                  :  FullException
                  <- STRUCT {
@@ -183,6 +193,11 @@ Section mem_unit.
              as result;
            Ret #result
          as result;
+       System [
+         DispString _ "[memFetch] fetch results: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
        Ret #result.
 
   Local Definition mem_unit_exec_pkt

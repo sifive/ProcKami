@@ -66,6 +66,7 @@ Section mem_devices.
   Definition pMemDevice
     :  MemDevice
     := {|
+         mem_device_name := "main memory";
          mem_device_type := main_memory;
          mem_device_pmas := pmas_default;
          mem_device_read

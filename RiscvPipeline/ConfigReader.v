@@ -29,7 +29,7 @@ Section config_reader.
     := Read mxl : XlenValue <- ^"mxl";
        Read sxl : XlenValue <- ^"sxl";
        Read uxl : XlenValue <- ^"uxl";
-       System [
+       (* System [
            DispString _ "mxl: ";
            DispHex #mxl;
            DispString _ "\n";
@@ -39,7 +39,7 @@ Section config_reader.
            DispString _ "uxl: ";
            DispHex #uxl;
            DispString _ "\n"
-       ];
+       ]; *)
        Ret
          (IF mode == $MachineMode
            then #mxl
@@ -51,14 +51,14 @@ Section config_reader.
          (fun ext _ acc
            => LETA exts : Extensions <- acc;
               Read enabled : Bool <- ^(ext_misa_field_name ext);
-              System [
+              (* System [
                 DispString _ ("[readExtensions] reading extension register " ++ ^(ext_misa_field_name ext) ++ " for " ++ ext ++ " enabled?: ");
                 DispBinary #enabled;
                 DispString _ "\n";
                 DispString _ "[readExtensions] acc: ";
                 DispHex #exts;
                 DispString _ "\n"
-              ];
+              ]; *)
               Ret (Extensions_set #exts ext #enabled))
          (Ret $$(getDefaultConst Extensions)).
 

@@ -187,14 +187,14 @@ Section decoder.
            <- decode_match_xlen inst xlen;
          LETE exts_match : Bool
            <- decode_match_enabled_exts inst exts_pkt;
-(* *)
+(*
          SystemE (
            DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
            DispBinary (#inst_id_match && #xlens_match && #exts_match) ::
            DispString _ "\n" ::
            nil
          );
-(* *)
+*)
          RetE (#inst_id_match && #xlens_match && #exts_match).
 
     (*

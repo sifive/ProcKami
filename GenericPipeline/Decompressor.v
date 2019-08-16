@@ -50,7 +50,7 @@ Section Decompressor.
              => utila_expr_all
                   (map
                      (fun ext : string
-                      => SystemE [
+                      => (* SystemE [
                            DispString _ ("[inst_match_enabled_exts] ext: " ++ ext ++ "\n");
                            DispString _ "[inst_match_enabled_exts] exts_pkt: ";
                            DispHex exts_pkt;
@@ -58,7 +58,7 @@ Section Decompressor.
                            DispString _ "[inst_match_enabled_exts] ext match result: ";
                            DispBinary (Extensions_get exts_pkt ext);
                            DispString _ "\n"
-                         ];
+                         ]; *)
                          RetE (Extensions_get exts_pkt ext))
                      exts))
             (req_exts comp_inst_entry)).
@@ -87,7 +87,7 @@ Section Decompressor.
                  <- inst_match_enabled_exts
                       comp_inst_entry
                       exts_pkt;
-               SystemE (
+               (* SystemE (
                  DispString _ ("[decompress] ===== ") ::
                  DispString _ ("[decompress] inst match: ") ::
                  DispBinary #inst_match ::
@@ -102,7 +102,7 @@ Section Decompressor.
                  DispBinary (#inst_match && #xlens_match && #exts_match) ::
                  DispString _ "\n" ::
                  nil
-               );
+               ); *)
                RetE (#inst_match && #xlens_match && #exts_match))
          (fun (comp_inst_entry : CompInstEntry)
             => decompressFn comp_inst_entry raw_comp_inst).

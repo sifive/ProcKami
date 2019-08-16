@@ -122,20 +122,20 @@ Section pmem.
                => (region :: (fst acc),
                    let region_addr := list_sum (map mem_region_width (fst acc)) in
                    LETA acc_result : Maybe k <- snd acc;
-                   System [
+                   (* System [
                      DispString _ "[mem_region_apply] paddr: ";
                      DispHex paddr;
                      DispString _ "\n";
                      DispString _ ("[mem_region_apply] region start: " ++ nat_hex_string (N.to_nat region_addr) ++ "\n");
                      DispString _ ("[mem_region_apply] region width: " ++ nat_hex_string (N.to_nat (mem_region_width region)) ++ "\n");
                      DispString _ ("[mem_region_apply] region end: " ++ nat_hex_string (N.to_nat (region_addr + mem_region_width region)) ++ "\n")
-                   ];
+                   ]; *)
                    If #acc_result @% "valid" || !(mem_region_match region_addr region paddr)
                      then
-                       System [DispString _ "[mem_region_apply] did not match.\n"];
+                       (* System [DispString _ "[mem_region_apply] did not match.\n"]; *)
                        Ret #acc_result
                      else
-                       System [DispString _ "[mem_region_apply] matched.\n"];
+                       (* System [DispString _ "[mem_region_apply] matched.\n"]; *)
                        LETA result
                          :  k
                          <- f region
@@ -193,15 +193,15 @@ Section pmem.
                   (fun pma pmas F
                     => let width_match := paddr_len == $(pma_width pma) in
                        LETA acc <- F;
-                       System [
-                         DispString _ "[checkForAceessFault] paddr_len: ";
+                       (* System [
+                         DispString _ "[checkPMAs] paddr_len: ";
                          DispHex paddr_len;
                          DispString _ "\n";
-                         DispString _ ("[checkForAceessFault] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
-                         DispString _ "[checkForAceessFault] width match: ";
+                         DispString _ ("[checkPMAs] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
+                         DispString _ "[checkPMAs] width match: ";
                          DispHex width_match;
                          DispString _ "\n"
-                       ];
+                       ]; *)
                        Ret (STRUCT {
                          "width"
                            ::= (#acc @% "width" || width_match);
@@ -287,9 +287,28 @@ Section pmem.
            (fun device
              => if Nat.leb index (length (@mem_device_read device ty))
                   then
+                    System [
+                      DispString _ "[mem_region_read] sending read request to device.\n";
+                      DispString _ "[mem_region_read] device tag:";
+                      DispHex dtag;
+                      DispString _ "\n";
+                      DispString _ "[mem_region_read] device offset:";
+                      DispHex daddr;
+                      DispString _ "\n";
+                      DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
+                    ];
                     LETA result : Data <- mem_device_read_nth device index mode daddr size;
+                    System [
+                      DispString _ "[mem_region_read] result: ";
+                      DispHex #result;
+                      DispString _ "\n"
+                    ];
                     Ret (Valid #result : Maybe Data @# ty)
-                  else Ret Invalid).
+                  else
+                    System [
+                      DispString _ "[mem_region_read] illegal index.\n"
+                    ];
+                    Ret Invalid).
 
     Definition mem_region_write
       (index : nat)

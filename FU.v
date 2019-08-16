@@ -357,7 +357,7 @@ Section Params.
               |})
          [0; 1; 2; 3].
 
-  Definition mem_device_num_reads := 6.
+  Definition mem_device_num_reads := 12.
   Definition mem_device_num_writes := 1.
 
   Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
@@ -381,6 +381,7 @@ Section Params.
 
   Record MemDevice
     := {
+         mem_device_name : string;
          mem_device_type : MemDeviceType; (* 3.5.1 *)
          mem_device_pmas : list PMA;
          mem_device_read
@@ -395,11 +396,13 @@ Section Params.
 
   Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : LgSize @# ty)
     :  ActionT ty Data 
-    := Ret $0.
+    := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
+       Ret $0.
 
   Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
     :  ActionT ty Bool
-    := Ret $$false.
+    := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
+       Ret $$false.
 
   Close Scope kami_action.
 
@@ -471,22 +474,18 @@ Section Params.
                   (fun device acc
                     => (S (fst acc),
                         LETA acc_result : Maybe k <- snd acc;
-                        System [
+                        (* System [
                           DispString _ "[mem_device_apply] device tag: ";
                           DispHex tag;
                           DispString _ "\n";
                           DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
-                        ];
+                        ]; *)
                         If #acc_result @% "valid" || $(fst acc) != tag
                           then
-                            System [
-                              DispString _ "[mem_device_apply] did not match"
-                            ];
+                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
                             Ret #acc_result
                           else
-                            System [
-                              DispString _ "[mem_device_apply] matched"
-                            ];
+                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
                             LETA result : k <- f device;
                             Ret (Valid #result : Maybe k @# ty)
                           as result;
