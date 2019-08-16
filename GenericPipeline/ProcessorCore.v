@@ -25,7 +25,6 @@ Require Import GenericPipeline.RegWriter.
 Require Import RiscvIsaSpec.Csr.Csr.
 Require Import RiscvIsaSpec.Csr.CsrFuncs.
 Require Import RiscvPipeline.Commit.
-Require Import Counter.
 Require Import GenericPipeline.ProcessorUtils.
 
 Section Params.

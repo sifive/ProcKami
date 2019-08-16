@@ -39,7 +39,7 @@ Section pmp.
   Definition pmp_cfg_addr_mode
     (pmp_cfg : Bit 8 @# ty)
     :  Bit 2 @# ty
-    := unsafeTruncLsb 2 (pmp_cfg >> Const ty (natToWord 2 3)).
+    := UniBit (TruncLsb 2 _) (pmp_cfg >> Const ty (natToWord 2 3)).
 
   Definition pmp_cfg_execute
     (pmp_cfg : Bit 8 @# ty)
@@ -49,7 +49,7 @@ Section pmp.
   Definition pmp_cfg_read
     (pmp_cfg : Bit 8 @# ty)
     :  Bool @# ty
-    := unsafeTruncLsb 1 pmp_cfg == $1.
+    := UniBit (TruncLsb 1 _) pmp_cfg == $1.
 
   Definition pmp_cfg_write
     (pmp_cfg : Bit 8 @# ty)
