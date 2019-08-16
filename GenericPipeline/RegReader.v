@@ -1,7 +1,7 @@
 Require Import Kami.All.
 Require Import FU.
-Require Import Decoder.
-(* Require Import CSR. *)
+Require Import GenericPipeline.Decoder.
+(* Require Import RiscvIsaSpec.Csr.CsrFuncs. *)
 Require Import List.
 Import ListNotations.
 

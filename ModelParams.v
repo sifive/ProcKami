@@ -5,39 +5,39 @@
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import ProcessorCore.
+Require Import GenericPipeline.ProcessorCore.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import FuncUnits.Alu.Add.
-Require Import FuncUnits.Alu.Logical.
-Require Import FuncUnits.Alu.Branch.
-Require Import FuncUnits.Alu.Shift.
-Require Import FuncUnits.Alu.Jump.
-Require Import FuncUnits.Alu.Mult.
-Require Import FuncUnits.Alu.DivRem.
-Require Import FuncUnits.Mem.LdS.
-Require Import FuncUnits.Mem.Amo32.
-Require Import FuncUnits.Mem.Amo64.
-Require Import FuncUnits.Mem.LrSc32.
-Require Import FuncUnits.Mem.LrSc64.
-Require Import FuncUnits.Fpu.FMac.
-Require Import FuncUnits.Fpu.FMinMax.
-Require Import FuncUnits.Fpu.FSgn.
-Require Import FuncUnits.Fpu.FMv.
-Require Import FuncUnits.Fpu.FCvt.
-Require Import FuncUnits.Fpu.FCmp.
-Require Import FuncUnits.Fpu.FClass.
-Require Import FuncUnits.Fpu.FDivSqrt.
-Require Import FuncUnits.Fpu.FRound.
-Require Import FuncUnits.Zicsr.
-Require Import FuncUnits.MRet.
 Require Import BinNums.
 Require Import BinNat.
-Require Import PhysicalMem.
-Require Import PMemDevice.
-Require Import MMappedRegs.
+Require Import RiscvIsaSpec.Insts.Alu.Add.
+Require Import RiscvIsaSpec.Insts.Alu.Logical.
+Require Import RiscvIsaSpec.Insts.Alu.Branch.
+Require Import RiscvIsaSpec.Insts.Alu.Shift.
+Require Import RiscvIsaSpec.Insts.Alu.Jump.
+Require Import RiscvIsaSpec.Insts.Alu.Mult.
+Require Import RiscvIsaSpec.Insts.Alu.DivRem.
+Require Import RiscvIsaSpec.Insts.Mem.LdS.
+Require Import RiscvIsaSpec.Insts.Mem.Amo32.
+Require Import RiscvIsaSpec.Insts.Mem.Amo64.
+Require Import RiscvIsaSpec.Insts.Mem.LrSc32.
+Require Import RiscvIsaSpec.Insts.Mem.LrSc64.
+Require Import RiscvIsaSpec.Insts.Fpu.FMac.
+Require Import RiscvIsaSpec.Insts.Fpu.FMinMax.
+Require Import RiscvIsaSpec.Insts.Fpu.FSgn.
+Require Import RiscvIsaSpec.Insts.Fpu.FMv.
+Require Import RiscvIsaSpec.Insts.Fpu.FCvt.
+Require Import RiscvIsaSpec.Insts.Fpu.FCmp.
+Require Import RiscvIsaSpec.Insts.Fpu.FClass.
+Require Import RiscvIsaSpec.Insts.Fpu.FDivSqrt.
+Require Import RiscvIsaSpec.Insts.Fpu.FRound.
+Require Import RiscvIsaSpec.Insts.Zicsr.
+Require Import RiscvIsaSpec.Insts.MRet.
+Require Import GenericPipeline.PhysicalMem.
+Require Import Devices.PMemDevice.
+Require Import Devices.MMappedRegs.
 
 (* I. device parameters *)
 

@@ -7,7 +7,7 @@ Require Import FU.
 Require Import Decoder.
 Require Import Pmp.
 Require Import PhysicalMem.
-Require Import VirtualMem.
+Require Import RiscvPipeline.MemUnit.PageTable.
 Require Import List.
 Import ListNotations.
 

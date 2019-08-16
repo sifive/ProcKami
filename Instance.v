@@ -5,7 +5,7 @@
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import ProcessorCore.
+Require Import GenericPipeline.ProcessorCore.
 Require Import List.
 Import ListNotations.
 Require Import ModelParams.

@@ -1,6 +1,6 @@
 Require Import Kami.All.
 Require Import FU.
-Require Import CompressedInsts.
+Require Import RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
@@ -8,17 +8,17 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import ConfigReader.
-Require Import Fetch.
-Require Import Decompressor.
-Require Import Decoder.
-Require Import InputTrans.
-Require Import RegReader.
-Require Import Executer.
-Require Import FuncUnits.MemUnit.
-Require Import RegWriter.
-Require Import FuncUnits.CSR.
-Require Import FuncUnits.TrapHandling.
+Require Import RiscvPipeline.ConfigReader.
+Require Import GenericPipeline.Fetch.
+Require Import GenericPipeline.Decompressor.
+Require Import GenericPipeline.Decoder.
+Require Import ProcKami.GenericPipeline.InputXform.
+Require Import GenericPipeline.RegReader.
+Require Import GenericPipeline.Executer.
+Require Import RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import GenericPipeline.RegWriter.
+Require Import RiscvIsaSpec.Csr.Csr.
+Require Import RiscvPipeline.Commit.
 
 Section Params.
   Variable lgMemSz: nat.

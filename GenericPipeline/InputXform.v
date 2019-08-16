@@ -1,6 +1,6 @@
 Require Import Kami.All.
 Require Import FU.
-Require Import Decoder.
+Require Import GenericPipeline.Decoder.
 
 Section FUInputTrans.
   Variable name: string.

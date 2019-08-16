@@ -1,5 +1,6 @@
 Require Import Kami.All FU.
-Require Import List Mem.
+Require Import List.
+Require Import RiscvIsaSpec.Insts.Mem.Mem.
 
 Section Mem.
   Variable Xlen_over_8: nat.

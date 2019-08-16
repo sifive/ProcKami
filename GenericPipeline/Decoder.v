@@ -1,6 +1,6 @@
 Require Import Kami.All.
 Require Import FU.
-Require Import Decompressor.
+Require Import GenericPipeline.Decompressor.
 
 Section decoder.
   Variable Xlen_over_8: nat.

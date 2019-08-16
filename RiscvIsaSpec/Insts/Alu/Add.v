@@ -1,5 +1,5 @@
 Require Import Kami.All FU Div.
-Require Import FuncUnits.Alu.Alu.
+Require Import RiscvIsaSpec.Insts.Alu.Alu.
 Require Import List.
 
 Section Alu.

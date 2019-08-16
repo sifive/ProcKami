@@ -1,5 +1,5 @@
 Require Import Kami.All FU.
-Require Import FuncUnits.Mem.Mem.
+Require Import RiscvIsaSpec.Insts.Mem.Mem.
 Require Import List.
 Import ListNotations.
 

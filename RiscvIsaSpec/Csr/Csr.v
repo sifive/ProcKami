@@ -1,6 +1,48 @@
 (* Defines the standard CSRs. *)
+Require Import Vector.
+Import VectorNotations.
+Require Import Kami.All.
+Require Import FU.
+Require Import GenericPipeline.RegWriter.
+Require Import StdLibKami.RegStruct.
+Require Import StdLibKami.RegMapper.
+Require Import RiscvIsaSpec.Csr.CsrFuncs.
+Require Import List.
+Import ListNotations.
 
 Section csrs.
+  Variable name: string.
+  Variable Xlen_over_8: nat.
+  Variable supported_exts : list (string * bool).
+  Variable ty: Kind -> Type.
+
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Local Notation CSR := (@CSR Xlen_over_8 supported_exts ty).
+  Local Notation csrFieldNoReg := (@csrFieldNoReg Xlen_over_8 supported_exts ty).
+  Local Notation csrFieldAny := (@csrFieldAny Xlen_over_8 supported_exts ty).
+  Local Notation csrFieldReadOnly := (@csrFieldReadOnly Xlen_over_8 supported_exts ty).
+  Local Notation csrViewDefaultReadXform := (@csrViewDefaultReadXform Xlen_over_8 supported_exts ty).
+  Local Notation csrViewDefaultWriteXform := (@csrViewDefaultWriteXform Xlen_over_8 supported_exts ty).
+  Local Notation csrViewUpperReadXform := (@csrViewUpperReadXform Xlen_over_8 supported_exts ty).
+  Local Notation csrViewUpperWriteXform := (@csrViewUpperWriteXform Xlen_over_8 supported_exts ty).
+  Local Notation repeatCSRView := (@repeatCSRView Xlen_over_8 supported_exts ty).
+  Local Notation epcReadXform := (@epcReadXform Xlen_over_8 supported_exts ty).
+  Local Notation extField := (@extField name Xlen_over_8 supported_exts ty).
+  Local Notation compressedExtField := (@compressedExtField name Xlen_over_8 supported_exts ty).
+  Local Notation xlField := (@xlField Xlen_over_8 supported_exts ty).
+  Local Notation tvecField := (@tvecField Xlen_over_8 supported_exts ty).
+  Local Notation accessAny := (@accessAny Xlen_over_8 ty).
+  Local Notation accessMModeOnly := (@accessMModeOnly Xlen_over_8 ty).
+  Local Notation accessSMode := (@accessSMode Xlen_over_8 ty).
+  Local Notation accessCounter := (@accessCounter Xlen_over_8 ty).
+  Local Notation nilCSR := (@nilCSR Xlen_over_8 supported_exts ty).
+  Local Notation simpleCSR := (@simpleCSR Xlen_over_8 supported_exts ty).
+  Local Notation readonlyCSR := (@readonlyCSR Xlen_over_8 supported_exts ty).
+  Local Notation pmp_reg_width := (@pmp_reg_width Xlen_over_8).
+  Local Notation satpCsrName := (@satpCsrName name).
+  Local Notation CsrAccessPkt := (@CsrAccessPkt Xlen_over_8).
+
+  Open Scope kami_expr.
 
   Definition CSRs
     :  list CSR
@@ -1148,5 +1190,7 @@ Section csrs.
          nilCSR ^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
          nilCSR ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly
        ].
+
+  Close Scope kami_expr.
 
 End csrs.

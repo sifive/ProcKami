@@ -3,7 +3,7 @@
 *)
 Require Import Kami.All.
 Require Import FU.
-Require Import Pmp.
+Require Import RiscvPipeline.MemUnit.Pmp.
 Require Import List.
 Import ListNotations.
 Require Import BinNums.

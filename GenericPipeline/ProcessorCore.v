@@ -5,7 +5,7 @@
 
 Require Import Kami.All.
 Require Import FU.
-Require Import CompressedInsts.
+Require Import RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
@@ -13,19 +13,20 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import ConfigReader.
-Require Import Fetch.
-Require Import Decompressor.
-Require Import Decoder.
-Require Import InputTrans.
-Require Import RegReader.
-Require Import Executer.
-Require Import FuncUnits.MemUnit.
-Require Import RegWriter.
-Require Import FuncUnits.CSR.
-Require Import FuncUnits.TrapHandling.
+Require Import RiscvPipeline.ConfigReader.
+Require Import GenericPipeline.Fetch.
+Require Import GenericPipeline.Decompressor.
+Require Import GenericPipeline.Decoder.
+Require Import ProcKami.GenericPipeline.InputXform.
+Require Import GenericPipeline.RegReader.
+Require Import GenericPipeline.Executer.
+Require Import RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import GenericPipeline.RegWriter.
+Require Import RiscvIsaSpec.Csr.Csr.
+Require Import RiscvIsaSpec.Csr.CsrFuncs.
+Require Import RiscvPipeline.Commit.
 Require Import Counter.
-Require Import ProcessorUtils.
+Require Import GenericPipeline.ProcessorUtils.
 
 Section Params.
   Variable name: string.
@@ -85,6 +86,7 @@ Section Params.
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
     Local Notation mem_device_files := (@mem_device_files Rlen_over_8 PAddrSz mem_devices).
     Local Notation mem_device_regs := (@mem_device_regs Rlen_over_8 PAddrSz mem_devices).
+    Local Notation CSRs := (@CSRs name Xlen_over_8 supported_exts _).
 
     Local Open Scope kami_scope.
 
@@ -322,6 +324,7 @@ Section Params.
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
+                          CSRs
                           #mcounteren
                           #scounteren
                           #pc
