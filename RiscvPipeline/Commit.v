@@ -272,6 +272,12 @@ Section trap_handling.
        If (exception @% "valid")
          then trapException (cfg_pkt @% "xlen") (cfg_pkt @% "mode") pc (exception @% "data")
          else (
+            Read mcountinhibit_ir : Bool <- ^"mcountinhibit_ir";
+            If !(#mcountinhibit_ir)
+              then 
+                Read instret_reg <- ^"minstret";
+                Write ^"minstret" : Bit 64 <- #instret_reg + $1;
+                Retv;
             LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
             LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
             LET opt_val1 <- update_pkt @% "val1";
