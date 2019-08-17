@@ -278,7 +278,7 @@ Section pt_walker.
                => LETA acc_result <- acc (Nat.lt_succ_l index (maxPageLevels - 1) H);
                   translatePteLoop H #acc_result)%nat
              (maxPageLevels - 2)
-             (ltac:(nat_lt));
+             (ltac:(simpl; lia));
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");

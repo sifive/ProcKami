@@ -281,22 +281,24 @@ Section exts.
          pMemDevice     name Xlen_over_8 Rlen_over_8
        ].
 
+  Local Definition nat_deviceTag n := @of_nat_lt n (length mem_devices).
+
   Definition mem_table
     := [
          {|
            mtbl_entry_addr := 0%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 2)
+           mtbl_entry_device := Some (@nat_deviceTag 2 ltac:(simpl; lia))
          |};
          {|
            mtbl_entry_addr := 8%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 1)
+           mtbl_entry_device := Some (@nat_deviceTag 1 ltac:(simpl; lia))
          |};
          {|
            mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
            mtbl_entry_width := N.pow 2 20;
-           mtbl_entry_device := Some ltac:(nat_deviceTag mem_devices 0)
+           mtbl_entry_device := Some (@nat_deviceTag 0 ltac:(simpl; lia))
          |}
        ].
 

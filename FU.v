@@ -653,7 +653,12 @@ Section Params.
       fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
       fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
-  Definition LgPageSize := 12.
+  Definition LgPageSize := 12.  Record MemParamsType
+    := {
+         mem_params_size           : nat; (* log2 num mem bytes *)
+         mem_params_addr_size      : nat; (* physical address size *)
+         mem_params_granularity    : nat  (* pmp (napot) granularity *)
+       }.
 
   (* virtual memory translation params.*)
   Record VmMode
@@ -899,11 +904,3 @@ Section Params.
   End XlenInterface.
 
 End Params.
-
-(* n < m *)
-Ltac nat_lt := repeat (try (apply le_n); apply le_S).
-
-(* n => Fin.t len *)
-Ltac nat_index len n := exact (@of_nat_lt n len ltac:(nat_lt)).
-
-Ltac nat_deviceTag mem_devices n := nat_index (length mem_devices) n.
