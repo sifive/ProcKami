@@ -1,5 +1,5 @@
-Require Import Kami.All FU.
-Require Import RiscvIsaSpec.Insts.Mem.Mem.
+Require Import Kami.All ProcKami.FU.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Mem.
 Require Import List.
 Import ListNotations.
 

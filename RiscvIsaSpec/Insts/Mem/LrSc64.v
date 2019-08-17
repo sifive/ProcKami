@@ -1,6 +1,6 @@
-Require Import Kami.All FU.
+Require Import Kami.All ProcKami.FU.
 Require Import List.
-Require Import RiscvIsaSpec.Insts.Mem.Mem.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Mem.
 
 Section Mem.
   Variable Xlen_over_8: nat.

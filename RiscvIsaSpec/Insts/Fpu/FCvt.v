@@ -13,8 +13,8 @@ Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FpuKami.Round.
-Require Import FU.
-Require Import Fpu.
+Require Import ProcKami.FU.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.Fpu.
 Require Import List.
 Import ListNotations.
 

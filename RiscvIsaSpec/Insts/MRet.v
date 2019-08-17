@@ -3,7 +3,7 @@
   instruction.
 *)
 Require Import Kami.All.
-Require Import FU.
+Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.
 

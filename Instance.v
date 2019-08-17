@@ -4,14 +4,14 @@
   in generating the model's Verilog.
 *)
 Require Import Kami.All.
-Require Import FU.
-Require Import GenericPipeline.ProcessorCore.
+Require Import ProcKami.FU.
+Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import List.
 Import ListNotations.
-Require Import ModelParams.
+Require Import ProcKami.ModelParams.
 Require Import PeanoNat.
 Import Nat.
-Require Import RegStruct.
+Require Import StdLibKami.RegStruct.
 
 Definition coreExts
   :  list (string * bool)

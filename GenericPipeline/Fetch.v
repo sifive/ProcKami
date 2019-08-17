@@ -1,6 +1,6 @@
 Require Import Kami.All.
-Require Import FU.
-Require Import RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import ProcKami.FU.
+Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 
 Section fetch.
   Variable name: string.

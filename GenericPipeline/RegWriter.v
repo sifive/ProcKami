@@ -1,5 +1,5 @@
 Require Import Kami.All.
-Require Import FU.
+Require Import ProcKami.FU.
 Import ListNotations.
 
 Section RegWriter.

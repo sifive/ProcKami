@@ -9,8 +9,8 @@
 Require Import Vector.
 Import VectorNotations.
 Require Import Kami.All.
-Require Import FU.
-Require Import GenericPipeline.RegWriter.
+Require Import ProcKami.FU.
+Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.

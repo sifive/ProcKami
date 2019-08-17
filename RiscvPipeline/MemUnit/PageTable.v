@@ -4,10 +4,10 @@
   TODO: Replace references to VAddr with PAddr.
 *)
 Require Import Kami.All.
-Require Import FU.
-Require Import PhysicalMem.
+Require Import ProcKami.FU.
+Require Import ProcKami.GenericPipeline.PhysicalMem.
 Require Import Vector.
-Require Import Pmp.
+Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.

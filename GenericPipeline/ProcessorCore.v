@@ -4,8 +4,8 @@
 *)
 
 Require Import Kami.All.
-Require Import FU.
-Require Import RiscvIsaSpec.CompressedInsts.
+Require Import ProcKami.FU.
+Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
@@ -13,19 +13,19 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
-Require Import RiscvPipeline.ConfigReader.
-Require Import GenericPipeline.Fetch.
-Require Import GenericPipeline.Decompressor.
-Require Import GenericPipeline.Decoder.
+Require Import ProcKami.RiscvPipeline.ConfigReader.
+Require Import ProcKami.GenericPipeline.Fetch.
+Require Import ProcKami.GenericPipeline.Decompressor.
+Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.GenericPipeline.InputXform.
-Require Import GenericPipeline.RegReader.
-Require Import GenericPipeline.Executer.
-Require Import RiscvPipeline.MemUnit.MemUnitFuncs.
-Require Import GenericPipeline.RegWriter.
-Require Import RiscvIsaSpec.Csr.Csr.
-Require Import RiscvIsaSpec.Csr.CsrFuncs.
-Require Import RiscvPipeline.Commit.
-Require Import GenericPipeline.ProcessorUtils.
+Require Import ProcKami.GenericPipeline.RegReader.
+Require Import ProcKami.GenericPipeline.Executer.
+Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import ProcKami.GenericPipeline.RegWriter.
+Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
+Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
+Require Import ProcKami.RiscvPipeline.Commit.
+Require Import ProcKami.GenericPipeline.ProcessorUtils.
 
 Section Params.
   Variable name: string.

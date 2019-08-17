@@ -1,5 +1,5 @@
 Require Import Kami.All.
-Require Import FU.
+Require Import ProcKami.FU.
 
 Section mem_devices.
   Variable name: string.

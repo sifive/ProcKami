@@ -4,40 +4,40 @@
   that represents the procesor model.
 *)
 Require Import Kami.All.
-Require Import FU.
-Require Import GenericPipeline.ProcessorCore.
+Require Import ProcKami.FU.
+Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
 Require Import BinNums.
 Require Import BinNat.
-Require Import RiscvIsaSpec.Insts.Alu.Add.
-Require Import RiscvIsaSpec.Insts.Alu.Logical.
-Require Import RiscvIsaSpec.Insts.Alu.Branch.
-Require Import RiscvIsaSpec.Insts.Alu.Shift.
-Require Import RiscvIsaSpec.Insts.Alu.Jump.
-Require Import RiscvIsaSpec.Insts.Alu.Mult.
-Require Import RiscvIsaSpec.Insts.Alu.DivRem.
-Require Import RiscvIsaSpec.Insts.Mem.LdS.
-Require Import RiscvIsaSpec.Insts.Mem.Amo32.
-Require Import RiscvIsaSpec.Insts.Mem.Amo64.
-Require Import RiscvIsaSpec.Insts.Mem.LrSc32.
-Require Import RiscvIsaSpec.Insts.Mem.LrSc64.
-Require Import RiscvIsaSpec.Insts.Fpu.FMac.
-Require Import RiscvIsaSpec.Insts.Fpu.FMinMax.
-Require Import RiscvIsaSpec.Insts.Fpu.FSgn.
-Require Import RiscvIsaSpec.Insts.Fpu.FMv.
-Require Import RiscvIsaSpec.Insts.Fpu.FCvt.
-Require Import RiscvIsaSpec.Insts.Fpu.FCmp.
-Require Import RiscvIsaSpec.Insts.Fpu.FClass.
-Require Import RiscvIsaSpec.Insts.Fpu.FDivSqrt.
-Require Import RiscvIsaSpec.Insts.Fpu.FRound.
-Require Import RiscvIsaSpec.Insts.Zicsr.
-Require Import RiscvIsaSpec.Insts.MRet.
-Require Import GenericPipeline.PhysicalMem.
-Require Import Devices.PMemDevice.
-Require Import Devices.MMappedRegs.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Add.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Logical.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Branch.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Shift.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Jump.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Mult.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.DivRem.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LdS.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Amo32.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Amo64.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LrSc32.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LrSc64.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FMac.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FMinMax.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FSgn.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FMv.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FCvt.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FCmp.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FClass.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FDivSqrt.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FRound.
+Require Import ProcKami.RiscvIsaSpec.Insts.Zicsr.
+Require Import ProcKami.RiscvIsaSpec.Insts.MRet.
+Require Import ProcKami.GenericPipeline.PhysicalMem.
+Require Import ProcKami.Devices.PMemDevice.
+Require Import ProcKami.Devices.MMappedRegs.
 
 (* I. device parameters *)
 

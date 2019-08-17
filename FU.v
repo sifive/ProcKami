@@ -10,8 +10,6 @@ Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
-Require Import Wf.
-Require Import Wf_nat.
 Require Import BinNat.
 
 Definition InstSz := 32.

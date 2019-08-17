@@ -3,11 +3,11 @@
   update packet and performs the requested memory writes.
 *)
 Require Import Kami.All.
-Require Import FU.
-Require Import Decoder.
-Require Import Pmp.
-Require Import PhysicalMem.
-Require Import RiscvPipeline.MemUnit.PageTable.
+Require Import ProcKami.FU.
+Require Import ProcKami.GenericPipeline.Decoder.
+Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
+Require Import ProcKami.GenericPipeline.PhysicalMem.
+Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
 Require Import List.
 Import ListNotations.
 
