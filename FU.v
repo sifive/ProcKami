@@ -653,13 +653,6 @@ Section Params.
       fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
       fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
-  Record MemParamsType
-    := {
-         mem_params_size           : nat; (* log2 num mem bytes *)
-         mem_params_addr_size      : nat; (* physical address size *)
-         mem_params_granularity    : nat  (* pmp (napot) granularity *)
-       }.
-
   Definition LgPageSize := 12.
 
   (* virtual memory translation params.*)

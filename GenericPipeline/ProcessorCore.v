@@ -36,7 +36,6 @@ Section Params.
   Variable Xlen_over_8: nat.
   Variable Flen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : MemParamsType.
 
   Local Notation Rlen := (Rlen_over_8 * 8).
   Local Notation Xlen := (Xlen_over_8 * 8).
@@ -60,7 +59,7 @@ Section Params.
   (* The width of a general purpose, "x", register for this
      processor. This also determine the size of, say, the virtual
      address space. *)
-  Local Notation lgMemSz := (mem_params_size mem_params).
+  Local Notation lgMemSz := 20.
   Local Notation memSz := (pow2 lgMemSz).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
   Local Notation FetchPkt := (FetchPkt Xlen_over_8).
@@ -343,7 +342,7 @@ Section Params.
                      ];
                    LETA mem_update_pkt
                      :  PktWithException ExecUpdPkt
-                     <- MemUnit name mem_params mem_table
+                     <- MemUnit name mem_table
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "satp_mode")
                           (#cfg_pkt @% "mode")

@@ -71,13 +71,6 @@ Definition fpu_params_double
        fpu_params_exts_64        := ["D"]
      |}.
 
-Definition mem_params_default
-  := {|
-       mem_params_size        := 20;
-       mem_params_addr_size   := 34;
-       mem_params_granularity := 20  (* TODO fix *)
-     |}.
-
 (* III. Processor extension table entries. *)
 
 Record param_entry
@@ -319,7 +312,6 @@ Section exts.
          Xlen_over_8
          Flen_over_8
          Rlen_over_8
-         mem_params_default
          mem_devices
          mem_table
          supported_exts

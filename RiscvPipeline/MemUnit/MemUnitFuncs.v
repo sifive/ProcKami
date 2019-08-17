@@ -16,7 +16,6 @@ Section mem_unit.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : MemParamsType.
   Variable supported_exts : list (string * bool).
   Variable ty: Kind -> Type.
 
@@ -42,8 +41,8 @@ Section mem_unit.
   Local Notation MemRet := (MemRet Rlen_over_8).
   Local Notation XlenValue := (XlenValue Xlen_over_8).
 
-  Local Notation pMemReadReservation := (@pMemReadReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
-  Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 mem_params ty).
+  Local Notation pMemReadReservation := (@pMemReadReservation name Xlen_over_8 Rlen_over_8 ty).
+  Local Notation pMemWriteReservation := (@pMemWriteReservation name Xlen_over_8 Rlen_over_8 ty).
 
   Variable func_units : list FUEntry.
   Local Notation FuncUnitId := (@Decoder.FuncUnitId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).

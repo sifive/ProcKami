@@ -13,8 +13,9 @@ Section pmem.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : MemParamsType.
   Variable supportZifencei : bool.
+
+  Local Notation lgMemSz := 20.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Rlen := (Rlen_over_8 * 8).
@@ -37,7 +38,6 @@ Section pmem.
 
   Local Notation mtbl_entry_addr := (@mtbl_entry_addr Rlen_over_8 PAddrSz mem_devices).
   Local Notation sorted_mem_table := (@mem_table_sort Rlen_over_8 PAddrSz mem_devices mem_table).
-  Local Notation lgMemSz := (mem_params_size mem_params).
   Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
   Local Notation LgSize := (LgSize Rlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).

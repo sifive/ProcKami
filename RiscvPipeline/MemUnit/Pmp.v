@@ -14,13 +14,11 @@ Section pmp.
   Variable name: string.
   Variable Xlen_over_8: nat.
   Variable Rlen_over_8: nat.
-  Variable mem_params : MemParamsType.
   Variable ty : Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation PAddrSz := (Xlen).
-  Local Notation granularity := (mem_params_granularity mem_params).
   Local Notation PAddr := (Bit PAddrSz).
   Local Notation pmp_reg_width := (@pmp_reg_width Xlen_over_8).
   Local Notation sizeWidth := (sizeWidth Rlen_over_8).
