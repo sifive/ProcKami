@@ -288,17 +288,17 @@ Section exts.
          {|
            mtbl_entry_addr := 0%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := Some (@nat_deviceTag 2 ltac:(simpl; lia))
+           mtbl_entry_device := @nat_deviceTag 2 ltac:(simpl; lia)
          |};
          {|
            mtbl_entry_addr := 8%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := Some (@nat_deviceTag 1 ltac:(simpl; lia))
+           mtbl_entry_device := @nat_deviceTag 1 ltac:(simpl; lia)
          |};
          {|
            mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
            mtbl_entry_width := N.pow 2 20;
-           mtbl_entry_device := Some (@nat_deviceTag 0 ltac:(simpl; lia))
+           mtbl_entry_device := @nat_deviceTag 0 ltac:(simpl; lia)
          |}
        ].
 

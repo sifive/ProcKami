@@ -62,7 +62,7 @@ Section pmem.
                      let device_region
                        := {|
                             mem_region_width  := mtbl_entry_width x;
-                            mem_region_device := mtbl_entry_device x
+                            mem_region_device := Some (mtbl_entry_device x)
                           |} in
                      match N.compare end_addr (mtbl_entry_addr x) in comparison with
                        | Datatypes.Eq
