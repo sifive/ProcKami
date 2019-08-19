@@ -60,21 +60,31 @@ Section CsrInterface.
          "tvm"        :: Bool
        }.
 
+  Record CSRFieldRegister (csrFieldKind : Kind)
+    := {
+         csrFieldRegisterName : string;
+         csrFieldRegisterKind : Kind;
+         csrFieldRegisterReadXform
+           : CsrFieldUpdGuard @# ty ->
+             csrFieldRegisterKind @# ty ->
+             csrFieldKind @# ty;
+         csrFieldRegisterWriteIsValid
+           : CsrFieldUpdGuard @# ty ->
+             csrFieldKind @# ty -> 
+             csrFieldKind @# ty ->
+             Bool @# ty;
+         csrFieldRegisterWriteXform
+           : CsrFieldUpdGuard @# ty ->
+             csrFieldKind @# ty ->
+             csrFieldKind @# ty ->
+             csrFieldRegisterKind @# ty
+       }.
+
   Record CSRField
     := {
          csrFieldName : string;
          csrFieldKind : Kind;
-         csrFieldInitValue : option (ConstT csrFieldKind);
-         csrFieldIsValid
-           : CsrFieldUpdGuard @# ty ->
-             csrFieldKind @# ty ->
-             csrFieldKind @# ty ->
-             Bool @# ty;
-         csrFieldXform
-           : CsrFieldUpdGuard @# ty ->
-             csrFieldKind @# ty ->
-             csrFieldKind @# ty ->
-             csrFieldKind @# ty
+         csrFieldValue : (ConstT csrFieldKind) + (CSRFieldRegister csrFieldKind)
        }.
 
   Definition csrKind
@@ -100,24 +110,12 @@ Section CsrInterface.
       csrAccess : CsrAccessPkt @# ty -> Bool @# ty
     }.
 
-  Definition csrViewMayStruct
-    (view : CSRView)
-    :  MayStruct (length (csrViewFields view))
-    := Build_MayStruct
-         (fun i => (fun field =>
-                      existT (fun k => option (ConstT k))
-                             (csrFieldKind field)
-                             (csrFieldInitValue field))
-                     (nth_Fin (csrViewFields view) i))
-         (fun j => csrFieldName (nth_Fin (csrViewFields view) j)).
-
   Definition csrViewReadWrite
     (view : CSRView)
     (upd_pkt : CsrFieldUpdGuard @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty CsrValue
-    := 
-       System [
+    := System [
          DispString _ "[csrViewReadWrite] req: \n";
          DispHex req;
          DispString _ "\n";
@@ -127,7 +125,25 @@ Section CsrInterface.
        ];
        LETA csr_value
          :  csrKind (csrViewFields view)
-         <- (MayStruct_RegReads ty (csrViewMayStruct view));
+         <- fold_right
+              (fun field (acc_act : ActionT ty (csrKind (csrViewFields view)))
+                => LETA value
+                     :  csrFieldKind field
+                     <- match csrFieldValue field return ActionT ty (csrFieldKind field) with
+                          | inl value
+                            => Ret $$value 
+                          | inr interface
+                            => Read value : (csrFieldRegisterKind interface)
+                                 <- (csrFieldRegisterName interface);
+                               Ret (csrFieldRegisterReadXform interface upd_pkt #value)
+                          end;
+                   LETA acc : csrKind (csrViewFields view) <- acc_act;
+                   Ret (match struct_set_field #acc (csrFieldName field) #value with
+                         | Some result => result
+                         | None => #acc
+                         end))
+              (Ret $$(getDefaultConst (csrKind (csrViewFields view))))
+              (csrViewFields view);
        System [
          DispString _ "[csrViewReadWrite] csr value: \n";
          DispHex #csr_value;
@@ -146,53 +162,31 @@ Section CsrInterface.
              DispHex #input_value;
              DispString _ "\n"
            ];
-           LET write_value
-             :  csrKind (csrViewFields view)
-             <- BuildStruct 
-             (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
-             (fun j => csrFieldName (nth_Fin (csrViewFields view) j))
-             (fun i => let field
-                           :  CSRField 
-                           := nth_Fin (csrViewFields view) i in
-                       let field_kind
-                           :  Kind
-                           := csrFieldKind field in
-                       let curr_field_value
-                           :  field_kind @# ty
-                           := (ReadStruct #csr_value i)
-                       in
-                       let input_field_value
-                           :  field_kind @# ty
-                           := (ReadStruct #input_value i)
-                       in
-                       (ITE
-                          (csrFieldIsValid field
-                                           upd_pkt
-                                           curr_field_value
-                                           input_field_value)
-                          input_field_value
-                          (csrFieldXform field
-                                         upd_pkt
-                                         curr_field_value
-                                         input_field_value)));
-           System [
-             DispString _ "[csrViewReadWrite] input value:\n";
-             DispBinary #input_value;
-             DispString _ "\n";
-             DispString _ "[csrViewReadWrite] write value:\n";
-             DispBinary #write_value;
-             DispString _ "\n"
-           ];
-           LETA _
-             : Void 
-             <- MayStruct_RegWrites (csrViewMayStruct view)
-                    ((#write_value) : (csrKind (csrViewFields view)) @# ty);
-           Retv;
-       System [
-         DispString _ "[csrViewReadWrite] done\n"
-       ];
-       Ret
-         (csrViewReadXform view upd_pkt #csr_value).
+           fold_right
+             (fun field (acc : ActionT ty Void)
+               => LETA _
+                    <- match csrFieldValue field with
+                         | inl _ => Retv
+                         | inr interface
+                           => Write (csrFieldRegisterName interface)
+                                :  csrFieldRegisterKind interface
+                                <- csrFieldRegisterWriteXform interface
+                                     upd_pkt
+                                     (struct_get_field_default
+                                       #csr_value
+                                       (csrFieldName field)
+                                       $$(getDefaultConst (csrFieldKind field)))
+                                     (struct_get_field_default
+                                       #input_value
+                                       (csrFieldName field)
+                                       $$(getDefaultConst (csrFieldKind field)));
+                              Retv
+                         end;
+                  acc)
+             Retv
+             (csrViewFields view);
+       System [DispString _ "[csrViewReadWrite] done\n"];
+       Ret (csrViewReadXform view upd_pkt #csr_value).
 
   Local Open Scope local_scope.
 
@@ -307,11 +301,7 @@ Section CsrInterface.
     := {|
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldInitValue := Some default;
-         csrFieldIsValid
-           := fun _ _ _ => $$false;
-         csrFieldXform
-           := fun _ _ _ => Const ty default;
+         csrFieldValue := inl default
        |}.
 
   Definition csrFieldAny
@@ -321,11 +311,14 @@ Section CsrInterface.
     := {| 
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldInitValue := None;
-         csrFieldIsValid
-           := fun _ _ _ => $$true;
-         csrFieldXform
-           := fun _ _ => id
+         csrFieldValue
+           := inr {|
+                  csrFieldRegisterName := name;
+                  csrFieldRegisterKind := k;
+                  csrFieldRegisterReadXform := fun _ => id;
+                  csrFieldRegisterWriteIsValid := fun _ _ _ => $$true;
+                  csrFieldRegisterWriteXform := fun _ _ => id
+                |}
        |}.
 
   Definition csrFieldReadOnly
@@ -335,11 +328,14 @@ Section CsrInterface.
     := {|
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldInitValue := None;
-         csrFieldIsValid
-           := fun _ _ _ => $$false;
-         csrFieldXform
-           := fun _ curr_value _ => curr_value
+         csrFieldValue
+           := inr {|
+                  csrFieldRegisterName := name;
+                  csrFieldRegisterKind := k;
+                  csrFieldRegisterReadXform := fun _ => id;
+                  csrFieldRegisterWriteIsValid := fun _ _ _ => $$false;
+                  csrFieldRegisterWriteXform := fun _ curr_value _ => curr_value
+                |}
        |}.
 
   Definition extField
@@ -356,14 +352,19 @@ Section CsrInterface.
            {|
              csrFieldName := ^"C";
              csrFieldKind := Bool;
-             csrFieldInitValue := None;
-             csrFieldIsValid
-               := (fun field _ _ (* check 32 bit alignment. *)
-                    => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "pc")) |
-                              (ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "mepc"))));
-             csrFieldXform
-               := fun _ curr_value _
-                    => curr_value
+             csrFieldValue
+               := inr {|
+                      csrFieldRegisterName := ^"C";
+                      csrFieldRegisterKind := Bool;
+                      csrFieldRegisterReadXform := fun _ => id;
+                      csrFieldRegisterWriteIsValid
+                        := (fun field _ _ (* check 32 bit alignment. *)
+                             => $0 == ((ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "pc")) |
+                                       (ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "mepc"))));
+                      csrFieldRegisterWriteXform
+                        := fun _ curr_value _
+                             => curr_value
+                    |}
            |}
          else csrFieldNoReg ^"C" false.
 
@@ -373,13 +374,18 @@ Section CsrInterface.
     := {|
          csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
-         csrFieldInitValue := None;
-         csrFieldIsValid
-           := fun _ _ x
-                => x == $1 || x == $2;
-         csrFieldXform
-           := fun _ curr_value _
-                => curr_value
+         csrFieldValue
+           := inr {| 
+                  csrFieldRegisterName := (prefix ++ "xl");
+                  csrFieldRegisterKind := Bit 2;
+                  csrFieldRegisterReadXform := fun _ => id;
+                  csrFieldRegisterWriteIsValid
+                    := fun _ _ x
+                         => x == $1 || x == $2;
+                  csrFieldRegisterWriteXform
+                    := fun _ curr_value _
+                         => curr_value
+                |}
        |}.
 
   Definition tvecField
@@ -389,16 +395,21 @@ Section CsrInterface.
     := {|
          csrFieldName := (prefix ++ "tvec_base");
          csrFieldKind := Bit width;
-         csrFieldInitValue := None;
-         csrFieldIsValid
-           := fun _ _ input_value
-                => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
-                  (* isAligned (SignExtendTruncLsb Xlen input_value) $2; *)
-                  (* TODO: the test suite seems to assume that we will append two zeros and accept any value. Is this correct? *)
-                  $$true;
-         csrFieldXform
-           := fun _ curr_value _
-                => curr_value
+         csrFieldValue
+           := inr {|
+                  csrFieldRegisterName := (prefix ++ "tvec_base");
+                  csrFieldRegisterKind := Bit width;
+                  csrFieldRegisterReadXform := fun _ => id;
+                  csrFieldRegisterWriteIsValid
+                    := fun _ _ input_value
+                         => (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
+                           (* isAligned (SignExtendTruncLsb Xlen input_value) $2; *)
+                           (* TODO: the test suite seems to assume that we will append two zeros and accept any value. Is this correct? *)
+                           $$true;
+                  csrFieldRegisterWriteXform
+                    := fun _ curr_value _
+                         => curr_value
+                |}
        |}.
 
   Definition accessAny
