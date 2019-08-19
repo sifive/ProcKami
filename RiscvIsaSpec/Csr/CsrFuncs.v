@@ -524,7 +524,7 @@ Section CsrInterface.
               "data"        ::= raw_data
             } : LocationReadWriteInputT CsrValue @# ty).
 
-    Local Record CSRParams
+    Record CSRParams
       := {
            csr_params_tag          : RoutingTag @# ty;
            csr_params_write_enable : RegId @# ty -> Bool @# ty;
