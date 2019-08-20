@@ -1053,14 +1053,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"f13";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) (Bit Xlen) ] in
+                  let fields := [ @csrFieldAny ^"mimpid" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) (Bit Xlen) ] in
+                  let fields := [ @csrFieldAny ^"mimpid" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;

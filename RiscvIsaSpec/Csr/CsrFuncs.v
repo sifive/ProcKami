@@ -529,6 +529,40 @@ Section CsrInterface.
 
     Variable CSRs : list CSR.
 
+    Open Scope kami_scope.
+
+    Definition csr_regs
+      :  list (Tree ModuleElt)
+      := map snd 
+           (fold_right
+             (fun csr csrs_acc
+               => fold_right
+                    (fun view views_acc
+                      => fold_right
+                           (fun field fields_acc
+                             => match csrFieldValue field with
+                                  | inl _ => fields_acc
+                                  | inr reg
+                                    => if existsb
+                                            (fun entry
+                                              => String.eqb (csrFieldRegisterName reg) (fst entry))
+                                            fields_acc
+                                         then fields_acc
+                                         else
+                                           ((csrFieldRegisterName reg,
+                                             Register (csrFieldRegisterName reg)
+                                               :  (csrFieldRegisterKind reg)
+                                               <- getDefaultConst (csrFieldRegisterKind reg))) ::
+                                           fields_acc
+                                  end)
+                           views_acc
+                           (csrViewFields view))
+                    csrs_acc
+                    (csrViews csr))
+             [] CSRs).
+
+    Close Scope kami_scope.
+
     Definition readCSR
       (upd_pkt : CsrFieldUpdGuard @# ty)
       (csrId : CsrId @# ty)
