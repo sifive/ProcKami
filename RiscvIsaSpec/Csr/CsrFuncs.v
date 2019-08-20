@@ -18,32 +18,9 @@ Import ListNotations.
 
 Section CsrInterface.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
-
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0) : local_scope.
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation misa_field_states := (misa_field_states supported_exts).
-  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
-  Local Notation CsrValue := (Bit CsrValueWidth).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation CsrFieldUpdGuard := (CsrFieldUpdGuard Xlen_over_8 supported_exts).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
-  Local Notation isAligned := (isAligned Xlen_over_8).
-  Local Notation reg_writer_write_reg := (@reg_writer_write_reg name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation XlenWidth := (XlenWidth Xlen_over_8).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
-  Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth XlenWidth).
 
   Open Scope kami_expr.
 
@@ -106,7 +83,7 @@ Section CsrInterface.
   Definition csrViewReadWrite
     (view : CsrView)
     (upd_pkt : CsrFieldUpdGuard @# ty)
-    (req : LocationReadWriteInputT CsrValue @# ty)
+    (req : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty)
     :  ActionT ty CsrValue
     := System [
          DispString _ "[csrViewReadWrite] req: \n";
@@ -207,8 +184,6 @@ Section CsrInterface.
        System [DispString _ "[csrViewReadWrite] done\n"];
        Ret (csrViewReadXform view upd_pkt #csr_value).
 
-  Local Open Scope local_scope.
-
   Definition satpCsrName : string := ^"satp".
 
   Definition read_counteren
@@ -217,12 +192,10 @@ Section CsrInterface.
     := Read counteren : Bit 32 <- name;
        Ret (unpack CounterEnType #counteren).
 
-  Close Scope local_scope.
-
   Definition csrReadWrite
     (entries : list Csr)
     (upd_pkt : CsrFieldUpdGuard @# ty)
-    (req : LocationReadWriteInputT CsrValue @# ty)
+    (req : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty)
     :  ActionT ty (Maybe CsrValue)
     := System [
          DispString _ "[csrReadWrite]\n";
@@ -309,8 +282,6 @@ Section CsrInterface.
          (IF Extensions_get (context @% "cfg" @% "extensions") "C"
            then pack data >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
            else pack data >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty)).
-
-  Local Open Scope local_scope.
 
   Definition csrFieldNoReg
     (name : string)
@@ -522,8 +493,6 @@ Section CsrInterface.
          csrAccess := access
        |}.
 
-  Close Scope local_scope.
-
   Section csrs.
 
     Variable Csrs : list Csr.
@@ -572,7 +541,7 @@ Section CsrInterface.
               "addr"        ::= csrId;
               "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
               "data"        ::= ($0 : CsrValue @# ty)
-            } : LocationReadWriteInputT CsrValue @# ty).
+            } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
 
     Definition writeCsr
       (upd_pkt : CsrFieldUpdGuard @# ty)
@@ -585,7 +554,7 @@ Section CsrInterface.
               "addr"        ::= csrId;
               "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
               "data"        ::= raw_data
-            } : LocationReadWriteInputT CsrValue @# ty).
+            } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
 
     Record CsrParams
       := {
@@ -687,7 +656,7 @@ Section CsrInterface.
                      System [
                        DispString _ "[commitCsrWrite] writing to rd (rd index != 0): \n"
                      ];
-                     reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
+                     reg_writer_write_reg name (upd_pkt @% "cfg" @% "xlen") rd_index
                        (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
                  If utila_lookup_table_default
                       csr_params
