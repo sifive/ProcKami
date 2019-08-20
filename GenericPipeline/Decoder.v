@@ -3,27 +3,13 @@ Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decompressor.
 
 Section decoder.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Variable name: string.
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation Extensions := (Extensions supported_exts).
-  Local Notation FetchPkt := (FetchPkt Xlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
-
   (* instruction database parameters. *)
-  Variable func_units : list FUEntry.
+  Variable func_units : list (FUEntry ty).
 
   (* instruction database ids. *)
   Definition FuncUnitIdWidth := Nat.log2_up (length func_units).
@@ -91,19 +77,19 @@ Section decoder.
     *)
     Definition inst_db_find_pkt
         (result_kind : Kind)
-        (p : forall func_unit : FUEntry,
+        (p : forall func_unit : FUEntry ty,
                nat ->
-               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
                Bool ## ty)
-        (f : forall func_unit : FUEntry,
+        (f : forall func_unit : FUEntry ty,
                nat ->
-               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
                result_kind ## ty)
 
       :  Maybe result_kind ## ty
       := utila_expr_find_pkt
            (map
-              (fun tagged_func_unit : (nat * FUEntry)
+              (fun tagged_func_unit : (nat * FUEntry ty)
                  => let (func_unit_id, func_unit)
                       := tagged_func_unit in
                     utila_expr_lookup_table
@@ -124,9 +110,9 @@ Section decoder.
     *)
     Definition inst_db_get_pkt
         (result_kind : Kind)
-        (f : forall func_unit : FUEntry,
+        (f : forall func_unit : FUEntry ty,
                nat ->
-               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
                result_kind ## ty)
         (sel_func_unit_id : FuncUnitId @# ty)
         (sel_inst_id : InstId @# ty)
@@ -153,7 +139,7 @@ Section decoder.
 
     Definition decode_match_xlen
                (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
+               (inst : InstEntry ty sem_input_kind sem_output_kind)
                (xlen : XlenValue @# ty)
       :  Bool ## ty
       := RetE
@@ -165,7 +151,7 @@ Section decoder.
 
     Definition decode_match_enabled_exts
                (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
+               (inst : InstEntry ty sem_input_kind sem_output_kind)
                (exts_pkt : Extensions @# ty)
       :  Bool ## ty
       := utila_expr_any
@@ -176,7 +162,7 @@ Section decoder.
 
     Definition decode_match_inst
                (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry sem_input_kind sem_output_kind)
+               (inst : InstEntry ty sem_input_kind sem_output_kind)
                (xlen : XlenValue @# ty)
                (exts_pkt : Extensions @# ty)
                (raw_inst : Inst @# ty)
@@ -228,7 +214,7 @@ Section decoder.
       result. Otherwise, it attempts to decode the full 32 bit string.
     *)
     Definition decode_bstring
-               (comp_inst_db : list CompInstEntry)
+               (comp_inst_db : list (CompInstEntry ty))
                (xlen : XlenValue @# ty)
                (exts_pkt : Extensions @# ty)
                (bit_string : Inst @# ty)
@@ -255,7 +241,7 @@ Section decoder.
       by the 32 bit string contained within the fetch packet.
     *)
     Definition decode_full
-               (comp_inst_db : list CompInstEntry)
+               (comp_inst_db : list (CompInstEntry ty))
                (xlen : XlenValue @# ty)
                (exts_pkt : Extensions @# ty)
                (fetch_pkt : FetchPkt @# ty)
@@ -275,7 +261,7 @@ Section decoder.
            (utila_expr_opt_pkt #decoder_ext_pkt
              (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).
 
-    Variable CompInstDb: list CompInstEntry.
+    Variable CompInstDb: list (CompInstEntry ty).
     
     Definition decoder
       (xlen : XlenValue @# ty)

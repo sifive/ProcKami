@@ -13,29 +13,14 @@ Require Import List.
 Import ListNotations.
 
 Section pt_walker.
-
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable ty : Kind -> Type.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation PAddrSz := (Xlen).
-  Local Notation PAddr := (Bit PAddrSz).
-  Local Notation Data := (Bit Rlen).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
+
   Variable mem_devices : list MemDevice.
-  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
-  Variable mem_table : list MemTableEntry.
-  Local Definition DeviceTag := (@DeviceTag Rlen_over_8 PAddrSz mem_devices).
-  Opaque DeviceTag.
-  Local Notation mem_region_read := (@mem_region_read Xlen_over_8 Rlen_over_8 mem_devices ty).
-  Local Notation checkForFault := (@checkForFault name Xlen_over_8 Rlen_over_8 mem_devices mem_table ty).
+  Variable mem_table : list (MemTableEntry mem_devices).
+  Local Definition DeviceTag := (DeviceTag mem_devices).
 
   Variable baseIndex : nat. (* the read port that should be used by the first page table walker read. *)
   Variable callIndex : nat. (* 0 based index identifying which call to the page table walker this is. *)
@@ -83,8 +68,8 @@ Section pt_walker.
 
       Section pte.
         Variable pte: PteEntry @# ty.
-        Local Notation flags := (pte @% "flags").
-        Local Notation pointer := (pte @% "pointer").
+        Local Notation flags := (pte @% "flags") (only parsing).
+        Local Notation pointer := (pte @% "pointer") (only parsing).
   
         Local Definition isLeaf : Bool ## ty :=
           RetE (flags @% "R" || flags @% "X").
@@ -221,7 +206,7 @@ Section pt_walker.
                else
                  LETA pmp_result
                    :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                   <- checkForFault access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
+                   <- checkForFault name mem_table access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
                  If mem_error (#pmp_result @% "snd")
                    then
                      doneInvalid

@@ -5,20 +5,9 @@ Import ListNotations.
 
 Section config_reader.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-  Variable ty: Kind -> Type.
-  
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation Extensions := (Extensions supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
   
   Open Scope kami_expr.
   Open Scope kami_action.

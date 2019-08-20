@@ -10,33 +10,9 @@ Import ListNotations.
 
 Section trap_handling.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-  Variable Flen_over_8: nat.
-  Variable lgMemSz: nat.
-  Variable ty: Kind -> Type.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation IntRegWrite := (IntRegWrite Xlen_over_8).
-  Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation reg_writer_write_reg := (@reg_writer_write_reg name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation reg_writer_write_freg := (@reg_writer_write_freg name Rlen_over_8 Flen_over_8 ty).
-  Local Notation memSz := (pow2 lgMemSz).
-  Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts ty).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
@@ -214,10 +190,10 @@ Section trap_handling.
          then 
            (If (#val_pos == $IntRegTag)
               then (If (reg_index != $0)
-                      then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data);
+                      then reg_writer_write_reg name (cfg_pkt @% "xlen") (reg_index) (#val_data);
                     Retv)
               else (If (#val_pos == $FloatRegTag)
-                      then reg_writer_write_freg (reg_index) (#val_data)
+                      then reg_writer_write_freg name (reg_index) (#val_data)
                       else (If (#val_pos == $FflagsTag)
                               then (Write ^"fflags" : FflagsValue
                                       <- unsafeTruncLsb FflagsWidth #val_data;

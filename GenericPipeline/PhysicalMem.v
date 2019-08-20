@@ -11,38 +11,15 @@ Import BinNat.
 
 Section pmem.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supportZifencei : bool.
-
-  Local Notation lgMemSz := 20.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation PAddrSz := (Xlen).
-  Local Notation PAddr := (Bit PAddrSz).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
 
-  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
   Variable mem_devices : list MemDevice.
 
-  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
-  Variable mem_table : list MemTableEntry.
+  Variable mem_table : list (MemTableEntry mem_devices).
 
-  Local Definition DeviceTag := (@DeviceTag Rlen_over_8 PAddrSz mem_devices).
-  Opaque DeviceTag.
-
-  Local Notation mtbl_entry_addr := (@mtbl_entry_addr Rlen_over_8 PAddrSz mem_devices).
-  Local Notation sorted_mem_table := (@mem_table_sort Rlen_over_8 PAddrSz mem_devices mem_table).
-  Local Notation lgSizeWidth := (lgSizeWidth Rlen_over_8).
-  Local Notation LgSize := (LgSize Rlen_over_8).
-  Local Notation isAligned := (isAligned Xlen_over_8).
-  Local Notation mem_device_read := (@mem_device_read Rlen_over_8 PAddrSz).
-  Local Notation mem_device_write := (@mem_device_write Rlen_over_8 PAddrSz).
+  Local Notation DeviceTag := (DeviceTag mem_devices).
 
   Record MemRegion
     := {
@@ -52,7 +29,7 @@ Section pmem.
 
   (* memory regions from largest start address to smallest start address *)
   Local Definition mem_table_regions
-    :  list MemTableEntry -> option (N * list MemRegion)%type
+    :  list (MemTableEntry mem_devices) -> option (N * list MemRegion)%type
     := fold_right
          (fun x acc
            => match acc with
@@ -81,7 +58,7 @@ Section pmem.
          (Some (0%N, [])).
 
   Definition mem_regions
-    := match mem_table_regions sorted_mem_table with
+    := match mem_table_regions (mem_table_sort mem_table) with
          | Some (_, regions) => regions
          | _ => []
          end.
@@ -98,10 +75,6 @@ Section pmem.
   Open Scope kami_action.
 
   Section ty.
-
-    Variable ty: Kind -> Type.
-
-    Local Notation pmp_check_access := (@pmp_check_access name Xlen_over_8 Rlen_over_8 ty).
 
     Local Definition mem_region_match
       (region_addr : N)
@@ -236,7 +209,7 @@ Section pmem.
       :  ActionT ty (Pair (Pair DeviceTag PAddr) MemErrorPkt)
       := LETA pmp_result
            :  Bool
-           <- pmp_check_access access_type mode paddr paddr_len; 
+           <- pmp_check_access name access_type mode paddr paddr_len; 
          LET bound_result
            :  Bool
            <- mode == $MachineMode ||
@@ -332,6 +305,7 @@ Section pmem.
                           } : MemWrite @# ty)
                   end).
 
+    Local Notation lgMemSz := 20.
     Definition pMemReadReservation (addr: PAddr @# ty)
       : ActionT ty (Array Rlen_over_8 Bool)
       := Call result: Array Rlen_over_8 Bool

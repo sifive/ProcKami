@@ -7,36 +7,11 @@ Import ListNotations.
 
 Section reg_reader.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-  Variable Flen_over_8: nat.
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation flen_one_extend := (@flen_one_extend Xlen_over_8 Flen_over_8 ty).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
-
-  Variable func_units : list FUEntry.
-
-  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-
+  Variable func_units : list (FUEntry ty).
   Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
     
   Open Scope kami_expr.
@@ -44,8 +19,8 @@ Section reg_reader.
 
   Definition reg_reader_insts_match
              (sem_input_kind sem_output_kind : Kind)
-             (inst_id : InstId @# ty)
-             (insts : list (nat * InstEntry sem_input_kind sem_output_kind))
+             (inst_id : InstId func_units @# ty)
+             (insts : list (nat * InstEntry ty sem_input_kind sem_output_kind))
     :  Bool @# ty
     := utila_any (map (fun inst =>  $(fst inst) == inst_id) insts).
 
@@ -55,15 +30,15 @@ Section reg_reader.
    *)
   Definition reg_reader_match
              (p : forall sem_input_kind sem_output_kind : Kind,
-                 InstEntry sem_input_kind sem_output_kind ->
+                 InstEntry ty sem_input_kind sem_output_kind ->
                  bool)
-             (decoder_pkt : DecoderPkt @# ty)
+             (decoder_pkt : DecoderPkt func_units @# ty)
     :  Bool @# ty
     := utila_any
          (map
-            (fun tagged_func_unit : (nat * FUEntry)
+            (fun tagged_func_unit : (nat * FUEntry ty)
              => let func_unit
-                    :  FUEntry
+                    :  FUEntry ty
                     := snd tagged_func_unit in
                 ((reg_reader_insts_match
                     (decoder_pkt @% "instTag")
@@ -102,7 +77,7 @@ Section reg_reader.
 
   Definition reg_reader
     (cfg_pkt : ContextCfgPkt @# ty)
-    (decoder_pkt : DecoderPkt @# ty)
+    (decoder_pkt : DecoderPkt func_units @# ty)
     (compressed : Bool @# ty)
     :  ActionT ty ExecContextPkt
     := LET raw_inst
@@ -163,13 +138,13 @@ Section reg_reader.
 
   Definition readerWithException
     (cfg_pkt : ContextCfgPkt @# ty)
-    (decoder_pkt : PktWithException DecoderPkt @# ty)
+    (decoder_pkt : PktWithException (DecoderPkt func_units) @# ty)
     (compressed : Bool @# ty)
     :  ActionT ty (PktWithException ExecContextPkt)
     := bindException
          (decoder_pkt @% "fst")
          (decoder_pkt @% "snd")
-         (fun decoder_pkt : DecoderPkt @# ty
+         (fun decoder_pkt : DecoderPkt func_units @# ty
            => LETA exec_context_pkt
                 :  ExecContextPkt
                 <- reg_reader cfg_pkt decoder_pkt compressed;
