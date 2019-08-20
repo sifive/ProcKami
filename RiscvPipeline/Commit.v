@@ -224,7 +224,7 @@ Section trap_handling.
                                     System [
                                       DispString _ " Reg Write Wrote ";
                                       DispHex #val_data;
-                                      DispString _ " to FFLAGS field in FCSR\n"
+                                      DispString _ " to FFLAGS field in FCsr\n"
                                     ];
                                     Retv)
                               else

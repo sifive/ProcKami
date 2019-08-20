@@ -84,8 +84,8 @@ Section Params.
     Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
     Local Notation mem_device_files := (@mem_device_files Rlen_over_8 PAddrSz mem_devices).
     Local Notation mem_device_regs := (@mem_device_regs Rlen_over_8 PAddrSz mem_devices).
-    Local Notation CSRs := (@CSRs name Xlen_over_8 supported_exts _).
-    Local Notation csr_regs := (@csr_regs Xlen_over_8 supported_exts type CSRs).
+    Local Notation Csrs := (@Csrs name Xlen_over_8 supported_exts _).
+    Local Notation csr_regs := (@csr_regs Xlen_over_8 supported_exts type Csrs).
 
     Local Open Scope kami_scope.
 
@@ -246,7 +246,7 @@ Section Params.
                        DispHex #exec_update_pkt;
                        DispString _ "\n"
                      ];
-                   System [DispString _ "CSR Write\n"];
+                   System [DispString _ "Csr Write\n"];
                    LETA mcounteren <- read_counteren _ ^"mcounteren";
                    LETA scounteren <- read_counteren _ ^"scounteren";
                    Read mepc_raw : VAddr <- ^"mepc";
@@ -255,7 +255,7 @@ Section Params.
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
-                          CSRs
+                          Csrs
                           #mcounteren
                           #scounteren
                           #pc
@@ -269,7 +269,7 @@ Section Params.
                           #exec_update_pkt;
                    System
                      [
-                       DispString _ "CSR Unit:\n";
+                       DispString _ "Csr Unit:\n";
                        DispHex #csr_update_pkt;    
                        DispString _ "\n"
                      ];

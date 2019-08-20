@@ -1,8 +1,8 @@
 (*
   This section defines the interface between the processor core and
-  the CSR registers.
+  the Csr registers.
 
-  A number of CSR registers are pseudo registers that read and
+  A number of Csr registers are pseudo registers that read and
   write subfields within other registers. This module performs the
   transformations needed to handle this behavior.
 *)
@@ -58,7 +58,7 @@ Section CsrInterface.
          "tvm"        :: Bool
        }.
 
-  Record CSRFieldRegister (csrFieldKind : Kind)
+  Record CsrFieldRegister (csrFieldKind : Kind)
     := {
          csrFieldRegisterName : string;
          csrFieldRegisterKind : Kind;
@@ -73,38 +73,38 @@ Section CsrInterface.
              csrFieldRegisterKind @# ty
        }.
 
-  Record CSRField
+  Record CsrField
     := {
          csrFieldName : string;
          csrFieldKind : Kind;
-         csrFieldValue : (ConstT csrFieldKind) + (CSRFieldRegister csrFieldKind)
+         csrFieldValue : (ConstT csrFieldKind) + (CsrFieldRegister csrFieldKind)
        }.
 
   Definition csrKind
-    (fields : list CSRField)
+    (fields : list CsrField)
     :  Kind
     := Struct
          (fun i => csrFieldKind (nth_Fin fields i))
          (fun j => csrFieldName (nth_Fin fields j)).
 
-  Record CSRView
+  Record CsrView
     := {
          csrViewContext    : XlenValue @# ty;
-         csrViewFields     : list CSRField;
+         csrViewFields     : list CsrField;
          csrViewReadXform  : CsrFieldUpdGuard @# ty -> csrKind csrViewFields @# ty -> CsrValue @# ty;
          csrViewWriteXform : CsrFieldUpdGuard @# ty -> csrKind csrViewFields @# ty -> CsrValue @# ty -> csrKind csrViewFields @# ty (* current csr value, input value, new csr value *)
        }.
 
-  Record CSR :=
+  Record Csr :=
     {
       csrName   : string;
       csrAddr   : word CsrIdWidth;
-      csrViews  : list CSRView;
+      csrViews  : list CsrView;
       csrAccess : CsrAccessPkt @# ty -> Bool @# ty
     }.
 
   Definition csrViewReadWrite
-    (view : CSRView)
+    (view : CsrView)
     (upd_pkt : CsrFieldUpdGuard @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty CsrValue
@@ -220,7 +220,7 @@ Section CsrInterface.
   Close Scope local_scope.
 
   Definition csrReadWrite
-    (entries : list CSR)
+    (entries : list Csr)
     (upd_pkt : CsrFieldUpdGuard @# ty)
     (req : LocationReadWriteInputT CsrValue @# ty)
     :  ActionT ty (Maybe CsrValue)
@@ -232,10 +232,10 @@ Section CsrInterface.
        ];
        utila_acts_find_pkt
          (map
-           (fun csr_entry : CSR
+           (fun csr_entry : Csr
              => utila_acts_find_pkt
                   (map
-                    (fun view_entry : CSRView
+                    (fun view_entry : CsrView
                       => LET entry_match
                            :  Bool
                            <- ((req @% "addr") == $$(csrAddr csr_entry) &&
@@ -263,14 +263,14 @@ Section CsrInterface.
            entries).
 
   Definition csrViewDefaultReadXform
-    (fields : list CSRField)
+    (fields : list CsrField)
     (_ : CsrFieldUpdGuard @# ty)
     (data : csrKind fields @# ty)
     :  CsrValue @# ty
     := ZeroExtendTruncLsb CsrValueWidth (pack data).
 
   Definition csrViewDefaultWriteXform
-    (fields : list CSRField)
+    (fields : list CsrField)
     (_ : CsrFieldUpdGuard @# ty)
     (_ : csrKind fields @# ty)
     (data : CsrValue @# ty)
@@ -282,14 +282,14 @@ Section CsrInterface.
            (pack data)).
 
   Definition csrViewUpperReadXform
-    (fields : list CSRField)
+    (fields : list CsrField)
     (_ : CsrFieldUpdGuard @# ty)
     (data : csrKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
          (ZeroExtendTruncMsb 32 (pack data)).
 
   Definition csrViewUpperWriteXform
-    (fields : list CSRField)
+    (fields : list CsrField)
     (_ : CsrFieldUpdGuard @# ty)
     (curr_value : csrKind fields @# ty)
     (data : CsrValue @# ty)
@@ -302,7 +302,7 @@ Section CsrInterface.
 
   (* See 3.1.1 and 3.1.15 *)
   Definition epcReadXform
-    (fields : list CSRField)
+    (fields : list CsrField)
     (context : CsrFieldUpdGuard @# ty)
     (data : csrKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
@@ -316,7 +316,7 @@ Section CsrInterface.
     (name : string)
     (k : Kind)
     (default: ConstT k)
-    :  CSRField
+    :  CsrField
     := {|
          csrFieldName := name;
          csrFieldKind := k;
@@ -327,7 +327,7 @@ Section CsrInterface.
     (name : string)
     (k : Kind)
     (reg_kind : Kind)
-    :  CSRField
+    :  CsrField
     := {| 
          csrFieldName := name;
          csrFieldKind := k;
@@ -346,7 +346,7 @@ Section CsrInterface.
     (name : string)
     (k : Kind)
     (reg_kind : Kind)
-    :  CSRField
+    :  CsrField
     := {|
          csrFieldName := name;
          csrFieldKind := k;
@@ -364,13 +364,13 @@ Section CsrInterface.
 
   Definition extField
     (name : string)
-    :  CSRField
+    :  CsrField
     := if strings_in (fst misa_field_states) name
          then csrFieldAny ^name Bool Bool
          else csrFieldNoReg ^name false.
 
   Definition compressedExtField
-    :  CSRField
+    :  CsrField
     := if strings_in (fst misa_field_states) "C"
          then
            {|
@@ -393,7 +393,7 @@ Section CsrInterface.
 
   Definition xlField
     (prefix : string)
-    :  CSRField
+    :  CsrField
     := {|
          csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
@@ -413,7 +413,7 @@ Section CsrInterface.
   Definition tvecField
     (prefix : string)
     (width : nat)
-    :  CSRField
+    :  CsrField
     := {|
          csrFieldName := (prefix ++ "tvec_base");
          csrFieldKind := Bit width;
@@ -456,12 +456,12 @@ Section CsrInterface.
                (struct_get_field_default (context @% "scounteren") name $$false)
        }.
 
-  Fixpoint repeatCSRView
+  Fixpoint repeatCsrView
     (n : nat)
-    (fields : list CSRField)
+    (fields : list CsrField)
     (readXform : CsrFieldUpdGuard @# ty -> csrKind fields @# ty -> CsrValue @# ty)
     (writeXform : CsrFieldUpdGuard @# ty -> csrKind fields @# ty -> CsrValue @# ty -> csrKind fields @# ty)
-    :  list CSRView
+    :  list CsrView
     := match n with
          | 0 => []
          | S k
@@ -470,53 +470,53 @@ Section CsrInterface.
                  csrViewFields     := fields;
                  csrViewReadXform  := readXform;
                  csrViewWriteXform := writeXform
-               |} :: repeatCSRView k readXform writeXform)
+               |} :: repeatCsrView k readXform writeXform)
          end.
 
-  Definition nilCSR
+  Definition nilCsr
     (name : string)
     (addr : word CsrIdWidth)
     (access : CsrAccessPkt @# ty -> Bool @# ty)
-    :  CSR
+    :  Csr
     := {|
          csrName := name;
          csrAddr := addr;
          csrViews
-           := repeatCSRView 2
+           := repeatCsrView 2
                 (@csrViewDefaultReadXform [])
                 (@csrViewDefaultWriteXform []);
          csrAccess := access
        |}.
 
-  Definition simpleCSR
+  Definition simpleCsr
     (name : string)
     (addr : word CsrIdWidth)
     (width : nat)
     (access : CsrAccessPkt @# ty -> Bool @# ty)
-    :  CSR
+    :  Csr
     := {|
          csrName := name;
          csrAddr := addr;
          csrViews
            := let fields := [ @csrFieldAny name (Bit width) (Bit width) ] in
-              repeatCSRView 2
+              repeatCsrView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
          csrAccess := access
        |}.
 
-  Definition readonlyCSR
+  Definition readonlyCsr
     (name : string)
     (addr : word CsrIdWidth)
     (width : nat)
     (access : CsrAccessPkt @# ty -> Bool @# ty)
-    :  CSR
+    :  Csr
     := {|
          csrName := name;
          csrAddr := addr;
          csrViews
            := let fields := [ @csrFieldReadOnly name (Bit width) (Bit width) ] in
-              repeatCSRView 2
+              repeatCsrView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
          csrAccess := access
@@ -526,7 +526,7 @@ Section CsrInterface.
 
   Section csrs.
 
-    Variable CSRs : list CSR.
+    Variable Csrs : list Csr.
 
     Open Scope kami_scope.
 
@@ -558,15 +558,15 @@ Section CsrInterface.
                            (csrViewFields view))
                     csrs_acc
                     (csrViews csr))
-             [] CSRs).
+             [] Csrs).
 
     Close Scope kami_scope.
 
-    Definition readCSR
+    Definition readCsr
       (upd_pkt : CsrFieldUpdGuard @# ty)
       (csrId : CsrId @# ty)
       :  ActionT ty (Maybe CsrValue)
-      := csrReadWrite CSRs upd_pkt
+      := csrReadWrite Csrs upd_pkt
            (STRUCT {
               "isRd"        ::= $$true;
               "addr"        ::= csrId;
@@ -574,12 +574,12 @@ Section CsrInterface.
               "data"        ::= ($0 : CsrValue @# ty)
             } : LocationReadWriteInputT CsrValue @# ty).
 
-    Definition writeCSR
+    Definition writeCsr
       (upd_pkt : CsrFieldUpdGuard @# ty)
       (csrId : CsrId @# ty)
       (raw_data : CsrValue @# ty)
       :  ActionT ty (Maybe CsrValue)
-      := csrReadWrite CSRs upd_pkt
+      := csrReadWrite Csrs upd_pkt
            (STRUCT {
               "isRd"        ::= $$false;
               "addr"        ::= csrId;
@@ -587,7 +587,7 @@ Section CsrInterface.
               "data"        ::= raw_data
             } : LocationReadWriteInputT CsrValue @# ty).
 
-    Record CSRParams
+    Record CsrParams
       := {
            csr_params_tag          : RoutingTag @# ty;
            csr_params_write_enable : RegId @# ty -> Bool @# ty;
@@ -629,7 +629,7 @@ Section CsrInterface.
       := [csr_params_write; csr_params_set; csr_params_clear].
 
     (* Returns true if an exception occurs *)
-    Definition commitCSRWrite
+    Definition commitCsrWrite
       (mode : PrivMode @# ty)
       (tvm : Bool @# ty)
       (mcounteren : CounterEnType @# ty)
@@ -641,7 +641,7 @@ Section CsrInterface.
       (val : Maybe RoutedReg @# ty)
       :  ActionT ty Bool
       := System [
-           DispString _ "[commitCSRWrite]\n"
+           DispString _ "[commitCsrWrite]\n"
          ];
          If val @% "valid" &&
            (utila_any
@@ -650,11 +650,11 @@ Section CsrInterface.
                csr_params))
            then
              System [
-               DispString _ "[commitCSRWrite] routed reg request received\n"
+               DispString _ "[commitCsrWrite] routed reg request received\n"
              ];
              (* 3.1.6.4 *)
              If !(utila_lookup_table_default
-                   CSRs
+                   Csrs
                    (fun csr => $$(csrAddr csr) == csr_index)
                    (fun csr
                      => csrAccess csr
@@ -668,7 +668,7 @@ Section CsrInterface.
                    $$false)
                then 
                  System [
-                   DispString _ "[commitCSRWrite] none of the csrs have index: \n";
+                   DispString _ "[commitCsrWrite] none of the csrs have index: \n";
                    DispHex csr_index;
                    DispString _ "\n"
                  ];
@@ -676,16 +676,16 @@ Section CsrInterface.
                else
                  LETA csr_val
                    :  Maybe CsrValue
-                   <- readCSR upd_pkt csr_index;
+                   <- readCsr upd_pkt csr_index;
                  System [
-                   DispString _ "[commitCSRWrite] read csr value: \n";
+                   DispString _ "[commitCsrWrite] read csr value: \n";
                    DispHex #csr_val;
                    DispString _ "done\n"
                  ];
                  If rd_index != $0
                    then 
                      System [
-                       DispString _ "[commitCSRWrite] writing to rd (rd index != 0): \n"
+                       DispString _ "[commitCsrWrite] writing to rd (rd index != 0): \n"
                      ];
                      reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
                        (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
@@ -696,12 +696,12 @@ Section CsrInterface.
                       $$false
                    then 
                      System [
-                       DispString _ "[commitCSRWrite] writing to csr: \n";
+                       DispString _ "[commitCsrWrite] writing to csr: \n";
                        DispHex csr_index;
                        DispString _ "\n"
                      ];
                      LETA _
-                       <- writeCSR upd_pkt csr_index 
+                       <- writeCsr upd_pkt csr_index 
                             (utila_lookup_table_default
                               csr_params
                               (fun params => csr_params_tag params == val @% "data" @% "tag")
@@ -714,7 +714,7 @@ Section CsrInterface.
                      Ret $$false
                    else
                      System [
-                       DispString _ "[commitCSRWrite] not writing to any csr.\n"
+                       DispString _ "[commitCsrWrite] not writing to any csr.\n"
                      ];
                      Ret $$false
                    as result;
@@ -726,7 +726,7 @@ Section CsrInterface.
            as result;
          Ret #result.
 
-    Definition commitCSRWrites
+    Definition commitCsrWrites
       (mcounteren : CounterEnType @# ty)
       (scounteren : CounterEnType @# ty)
       (pc : VAddr @# ty)
@@ -751,9 +751,9 @@ Section CsrInterface.
                   ::= #warlUpdateInfo;
                 "cfg" ::= cfg_pkt
               } : CsrFieldUpdGuard @# ty;
-         (* NOTE: only one CSR write can occur per instruction *)
-         LETA result0 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-         LETA result1 <- commitCSRWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+         (* NOTE: only one Csr write can occur per instruction *)
+         LETA result0 <- commitCsrWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+         LETA result1 <- commitCsrWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
          Ret (#result0 || #result1).
 
     Definition CsrUnit
@@ -775,7 +775,7 @@ Section CsrInterface.
            (fun update_pkt : ExecUpdPkt @# ty
              => LETA errored
                   :  Bool
-                  <- commitCSRWrites mcounteren scounteren pc mepc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
+                  <- commitCsrWrites mcounteren scounteren pc mepc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
                 LET exception
                   :  Maybe FullException
                   <- IF #errored
