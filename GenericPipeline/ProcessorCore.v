@@ -76,7 +76,7 @@ Section Params.
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
 
               (* csr registers *)
-              Node (csr_regs (Csrs name _)) with
+              Node (csr_regs (Csrs name)) with
 
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
@@ -213,7 +213,7 @@ Section Params.
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
-                          (Csrs name _)
+                          (Csrs name)
                           #mcounteren
                           #scounteren
                           #pc
@@ -287,6 +287,7 @@ Section Params.
            (Bit Flen)
            (RFNonFile _ None).
 
+    Local Notation lgMemSz := 20.
     Definition memReservationRegFile
       :  RegFileBase
       := @Build_RegFileBase
@@ -311,7 +312,7 @@ Section Params.
                   intRegFile; 
                   floatRegFile; 
                   memReservationRegFile
-                ] ++ (mem_device_files ))))
+                ] ++ (mem_device_files mem_devices))))
            [   
              ^"read_reg_1"; 
              ^"read_reg_2"; 
