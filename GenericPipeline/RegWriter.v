@@ -4,25 +4,9 @@ Import ListNotations.
 
 Section RegWriter.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable ty: Kind -> Type.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation IntRegWrite := (IntRegWrite Xlen_over_8).
-  Local Notation FloatRegWrite := (FloatRegWrite Flen_over_8).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.

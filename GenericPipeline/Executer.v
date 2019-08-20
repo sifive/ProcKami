@@ -4,39 +4,16 @@ Require Import ProcKami.GenericPipeline.Decoder.
 
 Section Executor.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts ty).
-  Local Notation Extensions := (Extensions supported_exts).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-
-  Variable func_units : list FUEntry.
-
-  Local Notation InstId := (@InstId Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
-  Local Notation FuncUnitInputWidth := (@FuncUnitInputWidth Xlen_over_8 Rlen_over_8 supported_exts ty func_units).
+  Variable func_units : list (FUEntry ty).
 
   Local Open Scope kami_expr.
 
   Definition exec
-    (trans_pkt : InputTransPkt @# ty)
+    (trans_pkt : InputTransPkt func_units @# ty)
     :  PktWithException ExecUpdPkt ## ty
     := LETE update_pkt
          :  Maybe (PktWithException ExecUpdPkt)
@@ -69,12 +46,12 @@ Section Executor.
   Local Open Scope kami_action.
 
   Definition execWithException
-    (trans_pkt : PktWithException InputTransPkt @# ty)
+    (trans_pkt : PktWithException (InputTransPkt func_units) @# ty)
     :  ActionT ty (PktWithException ExecUpdPkt)
     := bindException
          (trans_pkt @% "fst")
          (trans_pkt @% "snd")
-         (fun trans_pkt : InputTransPkt @# ty
+         (fun trans_pkt : InputTransPkt func_units @# ty
            => convertLetExprSyntax_ActionT
                 (exec trans_pkt)).
 

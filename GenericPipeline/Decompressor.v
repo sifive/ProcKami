@@ -2,19 +2,10 @@ Require Import Kami.All.
 Require Import ProcKami.FU.
 
 Section Decompressor.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Variable name: string.
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation Extensions := (Extensions supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
 
   Open Scope kami_expr.
 
@@ -31,7 +22,7 @@ Section Decompressor.
     := utila_expr_all (map (raw_comp_inst_match_field raw_comp_inst) inst_id).
 
   Definition raw_comp_inst_match_xlen
-      (comp_inst_entry: CompInstEntry)
+      (comp_inst_entry: CompInstEntry ty)
       (xlen : XlenValue @# ty)
     :  Bool ## ty
     := RetE
@@ -41,7 +32,7 @@ Section Decompressor.
              (comp_inst_xlens comp_inst_entry))).
 
   Definition inst_match_enabled_exts
-             (comp_inst_entry : CompInstEntry)
+             (comp_inst_entry : CompInstEntry ty)
              (exts_pkt : Extensions @# ty)
     :  Bool ## ty
     := utila_expr_any
@@ -64,14 +55,14 @@ Section Decompressor.
             (req_exts comp_inst_entry)).
 
   Definition decompress
-      (comp_inst_db : list CompInstEntry)
+      (comp_inst_db : list (CompInstEntry ty))
       (xlen : XlenValue @# ty)
       (exts_pkt : Extensions @# ty)
       (raw_comp_inst : CompInst @# ty)
     :  Maybe Inst ## ty
     := utila_expr_lookup_table
          comp_inst_db
-         (fun (comp_inst_entry : CompInstEntry)
+         (fun (comp_inst_entry : CompInstEntry ty)
             => LETE inst_match
                  :  Bool
                  <- raw_comp_inst_match_id
@@ -104,7 +95,7 @@ Section Decompressor.
                  nil
                ); *)
                RetE (#inst_match && #xlens_match && #exts_match))
-         (fun (comp_inst_entry : CompInstEntry)
+         (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 
   Close Scope kami_expr.
