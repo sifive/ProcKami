@@ -17,6 +17,7 @@ Section csrs.
   Variable ty: Kind -> Type.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Local Notation Xlen := (Xlen_over_8 * 8).
   Local Notation CSR := (@CSR Xlen_over_8 supported_exts ty).
   Local Notation csrFieldNoReg := (@csrFieldNoReg Xlen_over_8 supported_exts ty).
   Local Notation csrFieldAny := (@csrFieldAny Xlen_over_8 supported_exts ty).
@@ -54,9 +55,9 @@ Section csrs.
              := let fields
                   := [
                        @csrFieldNoReg "reserved0" (Bit 27) (getDefaultConst _);
-                       @csrFieldAny ^"upie" Bool;
+                       @csrFieldAny ^"upie" Bool Bool;
                        @csrFieldNoReg "reserved1" (Bit 3) (getDefaultConst _);
-                       @csrFieldAny ^"uie" Bool
+                       @csrFieldAny ^"uie" Bool Bool
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -68,7 +69,7 @@ Section csrs.
            csrName := ^"utvec";
            csrAddr := natToWord CsrIdWidth 5;
            csrViews
-             := let fields := [ @csrFieldAny ^"utvec_mode" (Bit 2) ] in
+             := let fields := [ @csrFieldAny ^"utvec_mode" (Bit 2) (Bit 2) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
@@ -79,14 +80,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"40";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"uscratch" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"uscratch" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"uscratch" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"uscratch" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
@@ -101,14 +102,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"41";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"uepc" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"uepc" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"uepc" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"uepc" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
@@ -125,8 +126,8 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"ucause_interrupt" Bool;
-                         @csrFieldAny ^"ucause_code" (Bit 31)
+                         @csrFieldAny ^"ucause_interrupt" Bool Bool;
+                         @csrFieldAny ^"ucause_code" (Bit 31) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext    := $1;
@@ -136,8 +137,8 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"ucause_interrupt" Bool;
-                         @csrFieldAny ^"ucause_code" (Bit 63)
+                         @csrFieldAny ^"ucause_interrupt" Bool Bool;
+                         @csrFieldAny ^"ucause_code" (Bit 63) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext    := $2;
@@ -153,14 +154,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"43";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"utval" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"utval" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"utval" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"utval" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
@@ -176,11 +177,11 @@ Section csrs.
            csrViews
              := let fields
                   := [
-                       @csrFieldAny ^"ueip" Bool;
+                       @csrFieldAny ^"ueip" Bool Bool;
                        @csrFieldNoReg ^"reserved0" (Bit 3) (getDefaultConst _);
-                       @csrFieldAny ^"utip" Bool;
+                       @csrFieldAny ^"utip" Bool Bool;
                        @csrFieldNoReg ^"reserved1" (Bit 3) (getDefaultConst _);
-                       @csrFieldAny ^"usip" Bool
+                       @csrFieldAny ^"usip" Bool Bool
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -194,7 +195,7 @@ Section csrs.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 27) (getDefaultConst _);
-                       @csrFieldAny ^"fflags" (Bit 5)
+                       @csrFieldAny ^"fflags" (Bit 5) FflagsValue
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -208,7 +209,7 @@ Section csrs.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 29) (getDefaultConst _);
-                       @csrFieldAny ^"frm" (Bit 3)
+                       @csrFieldAny ^"frm" (Bit 3) FrmValue
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -222,8 +223,8 @@ Section csrs.
              := let fields
                   := [
                        @csrFieldNoReg "reserved" (Bit 24) (getDefaultConst _);
-                       @csrFieldAny ^"frm" (Bit 3);
-                       @csrFieldAny ^"fflags" (Bit 5)
+                       @csrFieldAny ^"frm" (Bit 3) FrmValue;
+                       @csrFieldAny ^"fflags" (Bit 5) FflagsValue
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -237,7 +238,7 @@ Section csrs.
            csrName := ^"cycleh";
            csrAddr := CsrIdWidth 'h"c80";
            csrViews
-             := let fields := [ @csrFieldReadOnly ^"mcycle" (Bit 64) ] in
+             := let fields := [ @csrFieldReadOnly ^"mcycle" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
@@ -247,7 +248,7 @@ Section csrs.
            csrName := ^"instreth";
            csrAddr := CsrIdWidth 'h"c82";
            csrViews
-             := let fields := [ @csrFieldReadOnly ^"minstret" (Bit 64) ] in
+             := let fields := [ @csrFieldReadOnly ^"minstret" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
@@ -326,7 +327,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16)
+                         @csrFieldAny ^"medeleg" (Bit 16) (Bit 16)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -337,7 +338,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16)
+                         @csrFieldAny ^"medeleg" (Bit 16) (Bit 16)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -356,7 +357,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 20) (getDefaultConst _);
-                         @csrFieldAny ^"mideleg" (Bit 12)
+                         @csrFieldAny ^"mideleg" (Bit 12) (Bit 12)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -367,7 +368,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 52) (getDefaultConst _);
-                         @csrFieldAny ^"mideleg" (Bit 12)
+                         @csrFieldAny ^"mideleg" (Bit 12) (Bit 12)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -384,18 +385,18 @@ Section csrs.
            csrViews
              := let fields
                   := [
-                       @csrFieldReadOnly ^"meie" Bool;
+                       @csrFieldReadOnly ^"meie" Bool Bool;
                        @csrFieldNoReg ^"reserved0" Bool (getDefaultConst _);
-                       @csrFieldAny ^"seie" Bool;
-                       @csrFieldAny ^"ueie" Bool;
-                       @csrFieldReadOnly ^"mtie" Bool;
+                       @csrFieldAny ^"seie" Bool Bool;
+                       @csrFieldAny ^"ueie" Bool Bool;
+                       @csrFieldReadOnly ^"mtie" Bool Bool;
                        @csrFieldNoReg ^"reserved1" Bool (getDefaultConst _);
-                       @csrFieldAny ^"stie" Bool;
-                       @csrFieldAny ^"utie" Bool;
-                       @csrFieldReadOnly ^"msie" Bool;
+                       @csrFieldAny ^"stie" Bool Bool;
+                       @csrFieldAny ^"utie" Bool Bool;
+                       @csrFieldReadOnly ^"msie" Bool Bool;
                        @csrFieldNoReg ^"reserved2" Bool (getDefaultConst _);
-                       @csrFieldAny ^"ssie" Bool;
-                       @csrFieldAny ^"usie" Bool
+                       @csrFieldAny ^"ssie" Bool Bool;
+                       @csrFieldAny ^"usie" Bool Bool
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -410,24 +411,24 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved0" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"tsr" Bool;
-                         @csrFieldAny ^"tw" Bool;
-                         @csrFieldAny ^"tvm" Bool;
-                         @csrFieldAny ^"mxr" Bool;
-                         @csrFieldAny ^"sum" Bool;
-                         @csrFieldAny ^"mprv" Bool;
+                         @csrFieldAny ^"tsr" Bool Bool;
+                         @csrFieldAny ^"tw" Bool Bool;
+                         @csrFieldAny ^"tvm" Bool Bool;
+                         @csrFieldAny ^"mxr" Bool Bool;
+                         @csrFieldAny ^"sum" Bool Bool;
+                         @csrFieldAny ^"mprv" Bool Bool;
                          @csrFieldNoReg "reserved1" (Bit 4) (getDefaultConst _);
-                         @csrFieldAny ^"mpp" (Bit 2);
+                         @csrFieldAny ^"mpp" (Bit 2) (Bit 2);
                          @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1);
-                         @csrFieldAny ^"mpie" Bool;
+                         @csrFieldAny ^"spp" (Bit 1) (Bit 1);
+                         @csrFieldAny ^"mpie" Bool Bool;
                          @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool;
-                         @csrFieldAny ^"upie" Bool;
-                         @csrFieldAny ^"mie" Bool;
+                         @csrFieldAny ^"spie" Bool Bool;
+                         @csrFieldAny ^"upie" Bool Bool;
+                         @csrFieldAny ^"mie" Bool Bool;
                          @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool;
-                         @csrFieldAny ^"uie" Bool
+                         @csrFieldAny ^"sie" Bool Bool;
+                         @csrFieldAny ^"uie" Bool Bool
                        ] in
                   {|
                     csrViewContext := $1;
@@ -441,24 +442,24 @@ Section csrs.
                          xlField ^"s";
                          xlField ^"u";
                          @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"tsr" Bool;
-                         @csrFieldAny ^"tw" Bool;
-                         @csrFieldAny ^"tvm" Bool;
-                         @csrFieldAny ^"mxr" Bool;
-                         @csrFieldAny ^"sum" Bool;
-                         @csrFieldAny ^"mprv" Bool;
+                         @csrFieldAny ^"tsr" Bool Bool;
+                         @csrFieldAny ^"tw" Bool Bool;
+                         @csrFieldAny ^"tvm" Bool Bool;
+                         @csrFieldAny ^"mxr" Bool Bool;
+                         @csrFieldAny ^"sum" Bool Bool;
+                         @csrFieldAny ^"mprv" Bool Bool;
                          @csrFieldNoReg "reserved2" (Bit 4) (getDefaultConst _);
-                         @csrFieldAny ^"mpp" (Bit 2);
+                         @csrFieldAny ^"mpp" (Bit 2) (Bit 2);
                          @csrFieldNoReg ^"hpp" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1);
-                         @csrFieldAny ^"mpie" Bool;
+                         @csrFieldAny ^"spp" (Bit 1) (Bit 1);
+                         @csrFieldAny ^"mpie" Bool Bool;
                          @csrFieldNoReg ^"hpie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool;
-                         @csrFieldAny ^"upie" Bool;
-                         @csrFieldAny ^"mie" Bool;
+                         @csrFieldAny ^"spie" Bool Bool;
+                         @csrFieldAny ^"upie" Bool Bool;
+                         @csrFieldAny ^"mie" Bool Bool;
                          @csrFieldNoReg ^"hie" Bool (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool;
-                         @csrFieldAny ^"uie" Bool
+                         @csrFieldAny ^"sie" Bool Bool;
+                         @csrFieldAny ^"uie" Bool Bool
                        ] in
                   {|
                     csrViewContext := $2;
@@ -477,7 +478,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField ^"m" 30;
-                         @csrFieldAny ^"mtvec_mode" (Bit 2)
+                         @csrFieldAny ^"mtvec_mode" (Bit 2) (Bit 2)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -488,7 +489,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField ^"m" 62;
-                         @csrFieldAny ^"mtvec_mode" (Bit 2)
+                         @csrFieldAny ^"mtvec_mode" (Bit 2) (Bit 2)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -505,14 +506,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"340";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mscratch" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"mscratch" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mscratch" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"mscratch" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext    := $2;
                     csrViewFields     := fields;
@@ -527,14 +528,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"341";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mepc" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"mepc" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mepc" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"mepc" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -551,8 +552,8 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"mcause_interrupt" Bool;
-                         @csrFieldAny ^"mcause_code" (Bit 31)
+                         @csrFieldAny ^"mcause_interrupt" Bool Bool;
+                         @csrFieldAny ^"mcause_code" (Bit 31) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext := $1;
@@ -562,8 +563,8 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"mcause_interrupt" Bool;
-                         @csrFieldAny ^"mcause_code" (Bit 63)
+                         @csrFieldAny ^"mcause_interrupt" Bool Bool;
+                         @csrFieldAny ^"mcause_code" (Bit 63) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext := $2;
@@ -579,14 +580,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"343";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mtval" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"mtval" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mtval" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"mtval" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -602,18 +603,18 @@ Section csrs.
            csrViews
              := let fields
                   := [
-                       @csrFieldReadOnly ^"meip" Bool;
+                       @csrFieldReadOnly ^"meip" Bool Bool;
                        @csrFieldNoReg ^"reserved0" Bool (getDefaultConst _);
-                       @csrFieldAny ^"seip" Bool;
-                       @csrFieldAny ^"ueip" Bool;
-                       @csrFieldReadOnly ^"mtip" Bool;
+                       @csrFieldAny ^"seip" Bool Bool;
+                       @csrFieldAny ^"ueip" Bool Bool;
+                       @csrFieldReadOnly ^"mtip" Bool Bool;
                        @csrFieldNoReg ^"reserved1" Bool (getDefaultConst _);
-                       @csrFieldAny ^"stip" Bool;
-                       @csrFieldAny ^"utip" Bool;
-                       @csrFieldReadOnly ^"msip" Bool;
+                       @csrFieldAny ^"stip" Bool Bool;
+                       @csrFieldAny ^"utip" Bool Bool;
+                       @csrFieldReadOnly ^"msip" Bool Bool;
                        @csrFieldNoReg ^"reserved2" Bool (getDefaultConst _);
-                       @csrFieldAny ^"ssip" Bool;
-                       @csrFieldAny ^"usip" Bool
+                       @csrFieldAny ^"ssip" Bool Bool;
+                       @csrFieldAny ^"usip" Bool Bool
                      ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
@@ -627,10 +628,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"pmp3cfg" (Bit 8);
-                         @csrFieldAny ^"pmp2cfg" (Bit 8);
-                         @csrFieldAny ^"pmp1cfg" (Bit 8);
-                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                         @csrFieldAny ^"pmp3cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $1;
@@ -640,14 +641,14 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"pmp7cfg" (Bit 8);
-                         @csrFieldAny ^"pmp6cfg" (Bit 8);
-                         @csrFieldAny ^"pmp5cfg" (Bit 8);
-                         @csrFieldAny ^"pmp4cfg" (Bit 8);
-                         @csrFieldAny ^"pmp3cfg" (Bit 8);
-                         @csrFieldAny ^"pmp2cfg" (Bit 8);
-                         @csrFieldAny ^"pmp1cfg" (Bit 8);
-                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                         @csrFieldAny ^"pmp7cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp6cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp5cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp4cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp3cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $2;
@@ -665,10 +666,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"pmp3cfg" (Bit 8);
-                         @csrFieldAny ^"pmp2cfg" (Bit 8);
-                         @csrFieldAny ^"pmp1cfg" (Bit 8);
-                         @csrFieldAny ^"pmp0cfg" (Bit 8)
+                         @csrFieldAny ^"pmp3cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp2cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp1cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp0cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $1;
@@ -695,10 +696,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"pmp11cfg" (Bit 8);
-                         @csrFieldAny ^"pmp10cfg" (Bit 8);
-                         @csrFieldAny ^"pmp9cfg" (Bit 8);
-                         @csrFieldAny ^"pmp8cfg" (Bit 8)
+                         @csrFieldAny ^"pmp11cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp10cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp9cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp8cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $1;
@@ -708,14 +709,14 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"pmp15cfg" (Bit 8);
-                         @csrFieldAny ^"pmp14cfg" (Bit 8);
-                         @csrFieldAny ^"pmp13cfg" (Bit 8);
-                         @csrFieldAny ^"pmp12cfg" (Bit 8);
-                         @csrFieldAny ^"pmp11cfg" (Bit 8);
-                         @csrFieldAny ^"pmp10cfg" (Bit 8);
-                         @csrFieldAny ^"pmp9cfg" (Bit 8);
-                         @csrFieldAny ^"pmp8cfg" (Bit 8)
+                         @csrFieldAny ^"pmp15cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp14cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp13cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp12cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp11cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp10cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp9cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp8cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $2;
@@ -733,10 +734,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"pmp15cfg" (Bit 8);
-                         @csrFieldAny ^"pmp14cfg" (Bit 8);
-                         @csrFieldAny ^"pmp13cfg" (Bit 8);
-                         @csrFieldAny ^"pmp12cfg" (Bit 8)
+                         @csrFieldAny ^"pmp15cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp14cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp13cfg" (Bit 8) (Bit 8);
+                         @csrFieldAny ^"pmp12cfg" (Bit 8) (Bit 8)
                        ] in
                   {|
                     csrViewContext    := $1;
@@ -780,16 +781,16 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved0" (Bit 12) (getDefaultConst _);
-                         @csrFieldAny ^"mxr" Bool;
-                         @csrFieldAny ^"sum" Bool;
+                         @csrFieldAny ^"mxr" Bool Bool;
+                         @csrFieldAny ^"sum" Bool Bool;
                          @csrFieldNoReg "reserved1" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1);
+                         @csrFieldAny ^"spp" (Bit 1) (Bit 1);
                          @csrFieldNoReg "reserved2" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool;
-                         @csrFieldAny ^"upie" Bool;
+                         @csrFieldAny ^"spie" Bool Bool;
+                         @csrFieldAny ^"upie" Bool Bool;
                          @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool;
-                         @csrFieldAny ^"uie" Bool
+                         @csrFieldAny ^"sie" Bool Bool;
+                         @csrFieldAny ^"uie" Bool Bool
                        ] in
                   {|
                     csrViewContext := $1;
@@ -802,16 +803,16 @@ Section csrs.
                          @csrFieldNoReg "reserved0" (Bit 30) (getDefaultConst _);
                          xlField ^"u";
                          @csrFieldNoReg "reserved1" (Bit 12) (getDefaultConst _);
-                         @csrFieldAny ^"mxr" Bool;
-                         @csrFieldAny ^"sum" Bool;
+                         @csrFieldAny ^"mxr" Bool Bool;
+                         @csrFieldAny ^"sum" Bool Bool;
                          @csrFieldNoReg "reserved2" (Bit 9) (getDefaultConst _);
-                         @csrFieldAny ^"spp" (Bit 1);
+                         @csrFieldAny ^"spp" (Bit 1) (Bit 1);
                          @csrFieldNoReg "reserved3" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"spie" Bool;
-                         @csrFieldAny ^"upie" Bool;
+                         @csrFieldAny ^"spie" Bool Bool;
+                         @csrFieldAny ^"upie" Bool Bool;
                          @csrFieldNoReg "reserved4" (Bit 2) (getDefaultConst _);
-                         @csrFieldAny ^"sie" Bool;
-                         @csrFieldAny ^"uie" Bool
+                         @csrFieldAny ^"sie" Bool Bool;
+                         @csrFieldAny ^"uie" Bool Bool
                        ] in
                   {|
                     csrViewContext := $2;
@@ -830,7 +831,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 16) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16)
+                         @csrFieldAny ^"medeleg" (Bit 16) (Bit 16)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -841,7 +842,7 @@ Section csrs.
                   let fields
                     := [
                          @csrFieldNoReg "reserved" (Bit 48) (getDefaultConst _);
-                         @csrFieldAny ^"medeleg" (Bit 16)
+                         @csrFieldAny ^"medeleg" (Bit 16) (Bit 16)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -860,7 +861,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField ^"s" 30;
-                         @csrFieldAny ^"stvec_mode" (Bit 2)
+                         @csrFieldAny ^"stvec_mode" (Bit 2) (Bit 2)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -871,7 +872,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField ^"s" 62;
-                         @csrFieldAny ^"stvec_mode" (Bit 2)
+                         @csrFieldAny ^"stvec_mode" (Bit 2) (Bit 2)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -888,14 +889,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"140";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"sscratch" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"sscratch" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"sscratch" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"sscratch" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -910,14 +911,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"141";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"sepc" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"sepc" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@epcReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"sepc" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"sepc" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -934,8 +935,8 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"scause_interrupt" Bool;
-                         @csrFieldAny ^"scause_code" (Bit 31)
+                         @csrFieldAny ^"scause_interrupt" Bool Bool;
+                         @csrFieldAny ^"scause_code" (Bit 31) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext := $1;
@@ -945,8 +946,8 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"scause_interrupt" Bool;
-                         @csrFieldAny ^"scause_code" (Bit 63)
+                         @csrFieldAny ^"scause_interrupt" Bool Bool;
+                         @csrFieldAny ^"scause_code" (Bit 63) (Bit (Xlen - 1))
                        ] in
                   {|
                     csrViewContext := $2;
@@ -962,14 +963,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"143";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"stval" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"stval" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"stval" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"stval" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -986,9 +987,9 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny ^"satp_mode" (Bit 1);
-                         @csrFieldAny ^"satp_asid" (Bit 9);
-                         @csrFieldAny ^"satp_ppn" (Bit 22)
+                         @csrFieldAny ^"satp_mode" (Bit 1) (Bit 4);
+                         @csrFieldAny ^"satp_asid" (Bit 9) (Bit 16);
+                         @csrFieldAny ^"satp_ppn" (Bit 22) (Bit 44)
                        ] in
                   {|
                     csrViewContext := $1;
@@ -998,9 +999,9 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny ^"satp_mode" (Bit 4);
-                         @csrFieldAny ^"satp_asid" (Bit 16);
-                         @csrFieldAny ^"satp_ppn" (Bit 44)
+                         @csrFieldAny ^"satp_mode" (Bit 4) (Bit 4);
+                         @csrFieldAny ^"satp_asid" (Bit 16) (Bit 16);
+                         @csrFieldAny ^"satp_ppn" (Bit 44) (Bit 44)
                        ] in
                   {|
                     csrViewContext := $2;
@@ -1019,7 +1020,7 @@ Section csrs.
            csrAddr  := CsrIdWidth 'h"f11";
            csrViews
              := let fields
-                  := [ @csrFieldAny ^"mvendorid" (Bit 32) ] in
+                  := [ @csrFieldAny ^"mvendorid" (Bit 32) (Bit 32) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
@@ -1030,14 +1031,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"f12";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -1052,14 +1053,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"f13";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"marchid" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -1074,14 +1075,14 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"f14";
            csrViews
              := [
-                  let fields := [ @csrFieldAny ^"mhartid" (Bit 32) ] in
+                  let fields := [ @csrFieldAny ^"mhartid" (Bit 32) (Bit Xlen) ] in
                   {|
                     csrViewContext := $1;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform fields)
                   |};
-                  let fields := [ @csrFieldAny ^"mhartid" (Bit 64) ] in
+                  let fields := [ @csrFieldAny ^"mhartid" (Bit 64) (Bit Xlen) ] in
                   {|
                     csrViewContext := $2;
                     csrViewFields  := fields;
@@ -1095,7 +1096,7 @@ Section csrs.
            csrName  := ^"mcycle";
            csrAddr  := CsrIdWidth 'h"b00";
            csrViews
-             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) ] in
+             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
@@ -1105,7 +1106,7 @@ Section csrs.
            csrName  := ^"minstret";
            csrAddr  := CsrIdWidth 'h"b02";
            csrViews
-             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) ] in
+             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
@@ -1144,7 +1145,7 @@ Section csrs.
            csrName  := ^"mcycleh";
            csrAddr  := CsrIdWidth 'h"b80";
            csrViews
-             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) ] in
+             := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
@@ -1154,7 +1155,7 @@ Section csrs.
            csrName  := ^"minstreth";
            csrAddr  := CsrIdWidth 'h"b82";
            csrViews
-             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) ] in
+             := let fields := [ @csrFieldAny ^"minstret" (Bit 64) (Bit 64) ] in
                 repeatCSRView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);

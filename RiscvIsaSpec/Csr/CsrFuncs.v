@@ -15,46 +15,7 @@ Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
-(*
-Open Scope kami_expr. 
 
-Example test_kind := STRUCT_TYPE { "a" :: Bit 5; "b" :: Bool }.
-
-Example test : test_kind @# type := STRUCT { "a" ::= Const type (wones 5); "b" ::= Const type true}.
-
-Definition my_struct_set_field
-  (ty: Kind -> Type)
-  (n : nat)
-  (get_kind : Fin.t n -> Kind)
-  (get_name : Fin.t n -> string)
-  (packet : Expr ty (SyntaxKind (Struct get_kind get_name)))
-  (name : string)
-  (kind : Kind)
-  (value : Expr ty (SyntaxKind kind))
-  :  option (Expr ty (SyntaxKind (Struct get_kind get_name)))
-  := match struct_get_field_index packet name with
-       | Some index
-         => bool_rect
-              (fun b
-                => Kind_decb (get_kind index) kind = b ->
-                     option (Expr ty (SyntaxKind (Struct get_kind get_name))))
-              (fun H : Kind_decb (get_kind index) kind = true
-                => Some
-(*
-                     (UpdateStruct packet index (Const ty (getDefaultConst (get_kind index)))))
-*)
-
-                     (UpdateStruct packet index
-                       (eq_rect_r (fun k => Expr ty (SyntaxKind k)) value
-                         (proj1 (Kind_decb_eq (get_kind index) kind) H))))
-              (fun _ => None)
-              (Kind_decb (get_kind index) kind)
-              eq_refl
-       | None => None
-       end.
-
-Example test2 := my_struct_set_field test "a" (Const type (wzero 5)).
-*)
 Section CsrInterface.
   Variable name: string.
   Variable Xlen_over_8: nat.
@@ -84,7 +45,6 @@ Section CsrInterface.
   Local Notation XlenWidth := (XlenWidth Xlen_over_8).
   Local Notation XlenValue := (XlenValue Xlen_over_8).
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth XlenWidth).
-
 
   Open Scope kami_expr.
 
@@ -169,24 +129,9 @@ Section CsrInterface.
                           | inr interface
                             => Read value : (csrFieldRegisterKind interface)
                                  <- csrFieldRegisterName interface;
-                               LET trans_value : (csrFieldKind field)
-                                 <- csrFieldRegisterReadXform interface upd_pkt #value;
-                               System [
-                                 DispString _ ("[csrViewReadWrite] read the following value from " ++ csrFieldRegisterName interface ++ "\n");
-                                 DispHex #value;
-                                 DispString _ "\n";
-                                 DispString _ "[csrViewReadWrite] applied the read transform to produce:\n";
-                                 DispHex #trans_value;
-                                 DispString _ "\n"
-                               ];
-                               Ret #trans_value
+                               Ret (csrFieldRegisterReadXform interface upd_pkt #value)
                           end;
                    LETA acc : csrKind (csrViewFields view) <- acc_act;
-                   System [
-                     DispString _ "[csrViewReadWrite] acc:\n";
-                     DispHex #acc;
-                     DispString _ "\n"
-                   ];
                    LET result : csrKind (csrViewFields view) <-
                      (BuildStruct
                        (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
@@ -203,11 +148,6 @@ Section CsrInterface.
                                   (Kind_dec (csrFieldKind (nth_Fin (csrViewFields view) i)) (csrFieldKind field))
                               else
                                 ReadStruct #acc i));
-                   System [
-                     DispString _ "[csrViewReadWrite] updated result:\n";
-                     DispHex #result;
-                     DispString _ "\n"
-                   ];
                    Ret #result)
               (Ret $$(getDefaultConst (csrKind (csrViewFields view))))
               (csrViewFields view);
@@ -387,6 +327,7 @@ Section CsrInterface.
   Definition csrFieldAny
     (name : string)
     (k : Kind)
+    (reg_kind : Kind)
     :  CSRField
     := {| 
          csrFieldName := name;
@@ -394,15 +335,18 @@ Section CsrInterface.
          csrFieldValue
            := inr {|
                   csrFieldRegisterName := name;
-                  csrFieldRegisterKind := k;
-                  csrFieldRegisterReadXform := fun _ => id;
-                  csrFieldRegisterWriteXform := fun _ _ => id
+                  csrFieldRegisterKind := reg_kind;
+                  csrFieldRegisterReadXform
+                    := fun _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
+                  csrFieldRegisterWriteXform
+                    := fun _ _ value => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack value));
                 |}
        |}.
 
   Definition csrFieldReadOnly
     (name : string)
     (k : Kind)
+    (reg_kind : Kind)
     :  CSRField
     := {|
          csrFieldName := name;
@@ -410,9 +354,12 @@ Section CsrInterface.
          csrFieldValue
            := inr {|
                   csrFieldRegisterName := name;
-                  csrFieldRegisterKind := k;
-                  csrFieldRegisterReadXform := fun _ => id;
-                  csrFieldRegisterWriteXform := fun _ curr_value _ => curr_value
+                  csrFieldRegisterKind := reg_kind;
+                  csrFieldRegisterReadXform
+                    := fun _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
+                  csrFieldRegisterWriteXform
+                    := fun _ curr_value _
+                         => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack curr_value))
                 |}
        |}.
 
@@ -420,7 +367,7 @@ Section CsrInterface.
     (name : string)
     :  CSRField
     := if strings_in (fst misa_field_states) name
-         then csrFieldAny ^name Bool
+         then csrFieldAny ^name Bool Bool
          else csrFieldNoReg ^name false.
 
   Definition compressedExtField
@@ -454,12 +401,12 @@ Section CsrInterface.
          csrFieldValue
            := inr {| 
                   csrFieldRegisterName := (prefix ++ "xl");
-                  csrFieldRegisterKind := Bit 2;
-                  csrFieldRegisterReadXform := fun _ => id;
+                  csrFieldRegisterKind := XlenValue ; (* TODO: see the sizes of the uxl, sxl, and mxl regs *)
+                  csrFieldRegisterReadXform := fun _ => ZeroExtendTruncLsb XlenWidth;
                   csrFieldRegisterWriteXform
                     := fun _ curr_value input_value
                          => IF input_value == $1 || input_value == $2
-                              then input_value
+                              then ZeroExtendTruncLsb XlenWidth input_value
                               else curr_value
                 |}
        |}.
@@ -552,7 +499,7 @@ Section CsrInterface.
          csrName := name;
          csrAddr := addr;
          csrViews
-           := let fields := [ @csrFieldAny name (Bit width) ] in
+           := let fields := [ @csrFieldAny name (Bit width) (Bit width) ] in
               repeatCSRView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
@@ -569,7 +516,7 @@ Section CsrInterface.
          csrName := name;
          csrAddr := addr;
          csrViews
-           := let fields := [ @csrFieldReadOnly name (Bit width) ] in
+           := let fields := [ @csrFieldReadOnly name (Bit width) (Bit width) ] in
               repeatCSRView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
