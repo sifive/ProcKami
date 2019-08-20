@@ -21,23 +21,11 @@ Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvPipeline.Commit.
 
 Section Params.
-  Variable lgMemSz: nat.
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
-
+  Variable name: string.
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
   Variable pmp_addr_ub : option (word pmp_reg_width).
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
-  Local Notation FetchPkt := (FetchPkt Xlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation XlenWidth := (XlenWidth Xlen_over_8).
 
   Definition napot_granularity : nat
     := match pmp_addr_ub with
@@ -52,7 +40,6 @@ Section Params.
     Local Open Scope kami_expr.
 
     Section Display.
-      Variable ty : Kind -> Type.
 
       Local Definition expWidthMinus2
         :  nat
