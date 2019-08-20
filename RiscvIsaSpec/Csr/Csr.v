@@ -1,4 +1,4 @@
-(* Defines the standard CSRs. *)
+(* Defines the standard Csrs. *)
 Require Import Vector.
 Import VectorNotations.
 Require Import Kami.All.
@@ -18,7 +18,7 @@ Section csrs.
 
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation CSR := (@CSR Xlen_over_8 supported_exts ty).
+  Local Notation Csr := (@Csr Xlen_over_8 supported_exts ty).
   Local Notation csrFieldNoReg := (@csrFieldNoReg Xlen_over_8 supported_exts ty).
   Local Notation csrFieldAny := (@csrFieldAny Xlen_over_8 supported_exts ty).
   Local Notation csrFieldReadOnly := (@csrFieldReadOnly Xlen_over_8 supported_exts ty).
@@ -26,7 +26,7 @@ Section csrs.
   Local Notation csrViewDefaultWriteXform := (@csrViewDefaultWriteXform Xlen_over_8 supported_exts ty).
   Local Notation csrViewUpperReadXform := (@csrViewUpperReadXform Xlen_over_8 supported_exts ty).
   Local Notation csrViewUpperWriteXform := (@csrViewUpperWriteXform Xlen_over_8 supported_exts ty).
-  Local Notation repeatCSRView := (@repeatCSRView Xlen_over_8 supported_exts ty).
+  Local Notation repeatCsrView := (@repeatCsrView Xlen_over_8 supported_exts ty).
   Local Notation epcReadXform := (@epcReadXform Xlen_over_8 supported_exts ty).
   Local Notation extField := (@extField name Xlen_over_8 supported_exts ty).
   Local Notation compressedExtField := (@compressedExtField name Xlen_over_8 supported_exts ty).
@@ -36,17 +36,17 @@ Section csrs.
   Local Notation accessMModeOnly := (@accessMModeOnly Xlen_over_8 ty).
   Local Notation accessSMode := (@accessSMode Xlen_over_8 ty).
   Local Notation accessCounter := (@accessCounter Xlen_over_8 ty).
-  Local Notation nilCSR := (@nilCSR Xlen_over_8 supported_exts ty).
-  Local Notation simpleCSR := (@simpleCSR Xlen_over_8 supported_exts ty).
-  Local Notation readonlyCSR := (@readonlyCSR Xlen_over_8 supported_exts ty).
+  Local Notation nilCsr := (@nilCsr Xlen_over_8 supported_exts ty).
+  Local Notation simpleCsr := (@simpleCsr Xlen_over_8 supported_exts ty).
+  Local Notation readonlyCsr := (@readonlyCsr Xlen_over_8 supported_exts ty).
   Local Notation pmp_reg_width := (@pmp_reg_width Xlen_over_8).
   Local Notation satpCsrName := (@satpCsrName name).
   Local Notation CsrAccessPkt := (@CsrAccessPkt Xlen_over_8).
 
   Open Scope kami_expr.
 
-  Definition CSRs
-    :  list CSR
+  Definition Csrs
+    :  list Csr
     := [
          {|
            csrName := ^"ustatus";
@@ -59,18 +59,18 @@ Section csrs.
                        @csrFieldNoReg "reserved1" (Bit 3) (getDefaultConst _);
                        @csrFieldAny ^"uie" Bool Bool
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
          |};
-         nilCSR ^"uie" (CsrIdWidth 'h"4") accessAny;
+         nilCsr ^"uie" (CsrIdWidth 'h"4") accessAny;
          {|
            csrName := ^"utvec";
            csrAddr := natToWord CsrIdWidth 5;
            csrViews
              := let fields := [ @csrFieldAny ^"utvec_mode" (Bit 2) (Bit 2) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
@@ -183,7 +183,7 @@ Section csrs.
                        @csrFieldNoReg ^"reserved1" (Bit 3) (getDefaultConst _);
                        @csrFieldAny ^"usip" Bool Bool
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
@@ -197,7 +197,7 @@ Section csrs.
                        @csrFieldNoReg "reserved" (Bit 27) (getDefaultConst _);
                        @csrFieldAny ^"fflags" (Bit 5) FflagsValue
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
@@ -211,7 +211,7 @@ Section csrs.
                        @csrFieldNoReg "reserved" (Bit 29) (getDefaultConst _);
                        @csrFieldAny ^"frm" (Bit 3) FrmValue
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
@@ -226,20 +226,20 @@ Section csrs.
                        @csrFieldAny ^"frm" (Bit 3) FrmValue;
                        @csrFieldAny ^"fflags" (Bit 5) FflagsValue
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessAny
          |};
-         simpleCSR ^"mcycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
-         readonlyCSR ^"mtime" (CsrIdWidth 'h"c01") 64 accessAny;
-         simpleCSR ^"minstret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
+         simpleCsr ^"mcycle" (CsrIdWidth 'h"c00") 64 (accessCounter "CY");
+         readonlyCsr ^"mtime" (CsrIdWidth 'h"c01") 64 accessAny;
+         simpleCsr ^"minstret" (CsrIdWidth 'h"c02") 64 (accessCounter "IR");
          {|
            csrName := ^"cycleh";
            csrAddr := CsrIdWidth 'h"c80";
            csrViews
              := let fields := [ @csrFieldReadOnly ^"mcycle" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
            csrAccess := accessAny
@@ -249,7 +249,7 @@ Section csrs.
            csrAddr := CsrIdWidth 'h"c82";
            csrViews
              := let fields := [ @csrFieldReadOnly ^"minstret" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
            csrAccess := accessAny
@@ -398,7 +398,7 @@ Section csrs.
                        @csrFieldAny ^"ssie" Bool Bool;
                        @csrFieldAny ^"usie" Bool Bool
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
@@ -500,7 +500,7 @@ Section csrs.
                 ];
            csrAccess := accessMModeOnly
          |};
-         simpleCSR ^"mcounteren" (CsrIdWidth 'h"306") 32 accessMModeOnly;
+         simpleCsr ^"mcounteren" (CsrIdWidth 'h"306") 32 accessMModeOnly;
          {|
            csrName := ^"mscratch";
            csrAddr := CsrIdWidth 'h"340";
@@ -616,7 +616,7 @@ Section csrs.
                        @csrFieldAny ^"ssip" Bool Bool;
                        @csrFieldAny ^"usip" Bool Bool
                      ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
@@ -757,22 +757,22 @@ Section csrs.
                   => context @% "xlen" == $1 &&
                      context @% "mode" == $MachineMode
          |};
-         simpleCSR ^"pmpaddr0" (CsrIdWidth 'h"3b0") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr1" (CsrIdWidth 'h"3b1") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr2" (CsrIdWidth 'h"3b2") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr3" (CsrIdWidth 'h"3b3") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr4" (CsrIdWidth 'h"3b4") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr5" (CsrIdWidth 'h"3b5") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr6" (CsrIdWidth 'h"3b6") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr7" (CsrIdWidth 'h"3b7") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr8" (CsrIdWidth 'h"3b8") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr9" (CsrIdWidth 'h"3b9") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr10" (CsrIdWidth 'h"3ba") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr11" (CsrIdWidth 'h"3bb") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr12" (CsrIdWidth 'h"3bc") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr13" (CsrIdWidth 'h"3bd") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr14" (CsrIdWidth 'h"3be") pmp_reg_width accessMModeOnly;
-         simpleCSR ^"pmpaddr15" (CsrIdWidth 'h"3bf") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr0" (CsrIdWidth 'h"3b0") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr1" (CsrIdWidth 'h"3b1") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr2" (CsrIdWidth 'h"3b2") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr3" (CsrIdWidth 'h"3b3") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr4" (CsrIdWidth 'h"3b4") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr5" (CsrIdWidth 'h"3b5") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr6" (CsrIdWidth 'h"3b6") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr7" (CsrIdWidth 'h"3b7") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr8" (CsrIdWidth 'h"3b8") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr9" (CsrIdWidth 'h"3b9") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr10" (CsrIdWidth 'h"3ba") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr11" (CsrIdWidth 'h"3bb") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr12" (CsrIdWidth 'h"3bc") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr13" (CsrIdWidth 'h"3bd") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr14" (CsrIdWidth 'h"3be") pmp_reg_width accessMModeOnly;
+         simpleCsr ^"pmpaddr15" (CsrIdWidth 'h"3bf") pmp_reg_width accessMModeOnly;
          {|
            csrName := ^"sstatus";
            csrAddr := CsrIdWidth 'h"100";
@@ -883,7 +883,7 @@ Section csrs.
                 ];
            csrAccess := accessSMode
          |};
-         simpleCSR ^"scounteren" (CsrIdWidth 'h"106") 32 accessSMode;
+         simpleCsr ^"scounteren" (CsrIdWidth 'h"106") 32 accessSMode;
          {|
            csrName := ^"sscratch";
            csrAddr := CsrIdWidth 'h"140";
@@ -1021,7 +1021,7 @@ Section csrs.
            csrViews
              := let fields
                   := [ @csrFieldAny ^"mvendorid" (Bit 32) (Bit 32) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
@@ -1097,7 +1097,7 @@ Section csrs.
            csrAddr  := CsrIdWidth 'h"b00";
            csrViews
              := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
@@ -1107,46 +1107,46 @@ Section csrs.
            csrAddr  := CsrIdWidth 'h"b02";
            csrViews
              := let fields := [ @csrFieldAny ^"minstret" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewDefaultReadXform fields)
                   (@csrViewDefaultWriteXform fields);
            csrAccess := accessMModeOnly
          |};
-         nilCSR ^"mhpmcounter3" (CsrIdWidth 'h"b03") accessMModeOnly;
-         nilCSR ^"mhpmcounter4" (CsrIdWidth 'h"b04") accessMModeOnly;
-         nilCSR ^"mhpmcounter5" (CsrIdWidth 'h"b05") accessMModeOnly;
-         nilCSR ^"mhpmcounter6" (CsrIdWidth 'h"b06") accessMModeOnly;
-         nilCSR ^"mhpmcounter7" (CsrIdWidth 'h"b07") accessMModeOnly;
-         nilCSR ^"mhpmcounter8" (CsrIdWidth 'h"b08") accessMModeOnly;
-         nilCSR ^"mhpmcounter9" (CsrIdWidth 'h"b09") accessMModeOnly;
-         nilCSR ^"mhpmcounter10" (CsrIdWidth 'h"b0a") accessMModeOnly;
-         nilCSR ^"mhpmcounter11" (CsrIdWidth 'h"b0b") accessMModeOnly;
-         nilCSR ^"mhpmcounter12" (CsrIdWidth 'h"b0c") accessMModeOnly;
-         nilCSR ^"mhpmcounter13" (CsrIdWidth 'h"b0d") accessMModeOnly;
-         nilCSR ^"mhpmcounter14" (CsrIdWidth 'h"b03") accessMModeOnly;
-         nilCSR ^"mhpmcounter15" (CsrIdWidth 'h"b0f") accessMModeOnly;
-         nilCSR ^"mhpmcounter16" (CsrIdWidth 'h"b10") accessMModeOnly;
-         nilCSR ^"mhpmcounter17" (CsrIdWidth 'h"b11") accessMModeOnly;
-         nilCSR ^"mhpmcounter18" (CsrIdWidth 'h"b12") accessMModeOnly;
-         nilCSR ^"mhpmcounter19" (CsrIdWidth 'h"b13") accessMModeOnly;
-         nilCSR ^"mhpmcounter20" (CsrIdWidth 'h"b14") accessMModeOnly;
-         nilCSR ^"mhpmcounter21" (CsrIdWidth 'h"b15") accessMModeOnly;
-         nilCSR ^"mhpmcounter22" (CsrIdWidth 'h"b16") accessMModeOnly;
-         nilCSR ^"mhpmcounter23" (CsrIdWidth 'h"b17") accessMModeOnly;
-         nilCSR ^"mhpmcounter24" (CsrIdWidth 'h"b18") accessMModeOnly;
-         nilCSR ^"mhpmcounter25" (CsrIdWidth 'h"b19") accessMModeOnly;
-         nilCSR ^"mhpmcounter26" (CsrIdWidth 'h"b1a") accessMModeOnly;
-         nilCSR ^"mhpmcounter27" (CsrIdWidth 'h"b1b") accessMModeOnly;
-         nilCSR ^"mhpmcounter28" (CsrIdWidth 'h"b1c") accessMModeOnly;
-         nilCSR ^"mhpmcounter29" (CsrIdWidth 'h"b1d") accessMModeOnly;
-         nilCSR ^"mhpmcounter30" (CsrIdWidth 'h"b1e") accessMModeOnly;
-         nilCSR ^"mhpmcounter31" (CsrIdWidth 'h"b1f") accessMModeOnly;
+         nilCsr ^"mhpmcounter3" (CsrIdWidth 'h"b03") accessMModeOnly;
+         nilCsr ^"mhpmcounter4" (CsrIdWidth 'h"b04") accessMModeOnly;
+         nilCsr ^"mhpmcounter5" (CsrIdWidth 'h"b05") accessMModeOnly;
+         nilCsr ^"mhpmcounter6" (CsrIdWidth 'h"b06") accessMModeOnly;
+         nilCsr ^"mhpmcounter7" (CsrIdWidth 'h"b07") accessMModeOnly;
+         nilCsr ^"mhpmcounter8" (CsrIdWidth 'h"b08") accessMModeOnly;
+         nilCsr ^"mhpmcounter9" (CsrIdWidth 'h"b09") accessMModeOnly;
+         nilCsr ^"mhpmcounter10" (CsrIdWidth 'h"b0a") accessMModeOnly;
+         nilCsr ^"mhpmcounter11" (CsrIdWidth 'h"b0b") accessMModeOnly;
+         nilCsr ^"mhpmcounter12" (CsrIdWidth 'h"b0c") accessMModeOnly;
+         nilCsr ^"mhpmcounter13" (CsrIdWidth 'h"b0d") accessMModeOnly;
+         nilCsr ^"mhpmcounter14" (CsrIdWidth 'h"b03") accessMModeOnly;
+         nilCsr ^"mhpmcounter15" (CsrIdWidth 'h"b0f") accessMModeOnly;
+         nilCsr ^"mhpmcounter16" (CsrIdWidth 'h"b10") accessMModeOnly;
+         nilCsr ^"mhpmcounter17" (CsrIdWidth 'h"b11") accessMModeOnly;
+         nilCsr ^"mhpmcounter18" (CsrIdWidth 'h"b12") accessMModeOnly;
+         nilCsr ^"mhpmcounter19" (CsrIdWidth 'h"b13") accessMModeOnly;
+         nilCsr ^"mhpmcounter20" (CsrIdWidth 'h"b14") accessMModeOnly;
+         nilCsr ^"mhpmcounter21" (CsrIdWidth 'h"b15") accessMModeOnly;
+         nilCsr ^"mhpmcounter22" (CsrIdWidth 'h"b16") accessMModeOnly;
+         nilCsr ^"mhpmcounter23" (CsrIdWidth 'h"b17") accessMModeOnly;
+         nilCsr ^"mhpmcounter24" (CsrIdWidth 'h"b18") accessMModeOnly;
+         nilCsr ^"mhpmcounter25" (CsrIdWidth 'h"b19") accessMModeOnly;
+         nilCsr ^"mhpmcounter26" (CsrIdWidth 'h"b1a") accessMModeOnly;
+         nilCsr ^"mhpmcounter27" (CsrIdWidth 'h"b1b") accessMModeOnly;
+         nilCsr ^"mhpmcounter28" (CsrIdWidth 'h"b1c") accessMModeOnly;
+         nilCsr ^"mhpmcounter29" (CsrIdWidth 'h"b1d") accessMModeOnly;
+         nilCsr ^"mhpmcounter30" (CsrIdWidth 'h"b1e") accessMModeOnly;
+         nilCsr ^"mhpmcounter31" (CsrIdWidth 'h"b1f") accessMModeOnly;
          {|
            csrName  := ^"mcycleh";
            csrAddr  := CsrIdWidth 'h"b80";
            csrViews
              := let fields := [ @csrFieldAny ^"mcycle" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
            csrAccess := accessMModeOnly
@@ -1156,40 +1156,40 @@ Section csrs.
            csrAddr  := CsrIdWidth 'h"b82";
            csrViews
              := let fields := [ @csrFieldAny ^"minstret" (Bit 64) (Bit 64) ] in
-                repeatCSRView 2
+                repeatCsrView 2
                   (@csrViewUpperReadXform fields)
                   (@csrViewUpperWriteXform fields);
            csrAccess := accessMModeOnly
          |};
-         nilCSR ^"mhpmevent3" (CsrIdWidth 'h"323") accessMModeOnly;
-         nilCSR ^"mhpmevent4" (CsrIdWidth 'h"324") accessMModeOnly;
-         nilCSR ^"mhpmevent5" (CsrIdWidth 'h"325") accessMModeOnly;
-         nilCSR ^"mhpmevent6" (CsrIdWidth 'h"326") accessMModeOnly;
-         nilCSR ^"mhpmevent7" (CsrIdWidth 'h"327") accessMModeOnly;
-         nilCSR ^"mhpmevent8" (CsrIdWidth 'h"328") accessMModeOnly;
-         nilCSR ^"mhpmevent9" (CsrIdWidth 'h"329") accessMModeOnly;
-         nilCSR ^"mhpmevent10" (CsrIdWidth 'h"32a") accessMModeOnly;
-         nilCSR ^"mhpmevent11" (CsrIdWidth 'h"32b") accessMModeOnly;
-         nilCSR ^"mhpmevent12" (CsrIdWidth 'h"32c") accessMModeOnly;
-         nilCSR ^"mhpmevent13" (CsrIdWidth 'h"32d") accessMModeOnly;
-         nilCSR ^"mhpmevent14" (CsrIdWidth 'h"323") accessMModeOnly;
-         nilCSR ^"mhpmevent15" (CsrIdWidth 'h"32f") accessMModeOnly;
-         nilCSR ^"mhpmevent16" (CsrIdWidth 'h"330") accessMModeOnly;
-         nilCSR ^"mhpmevent17" (CsrIdWidth 'h"331") accessMModeOnly;
-         nilCSR ^"mhpmevent18" (CsrIdWidth 'h"332") accessMModeOnly;
-         nilCSR ^"mhpmevent19" (CsrIdWidth 'h"333") accessMModeOnly;
-         nilCSR ^"mhpmevent20" (CsrIdWidth 'h"334") accessMModeOnly;
-         nilCSR ^"mhpmevent21" (CsrIdWidth 'h"335") accessMModeOnly;
-         nilCSR ^"mhpmevent22" (CsrIdWidth 'h"336") accessMModeOnly;
-         nilCSR ^"mhpmevent23" (CsrIdWidth 'h"337") accessMModeOnly;
-         nilCSR ^"mhpmevent24" (CsrIdWidth 'h"338") accessMModeOnly;
-         nilCSR ^"mhpmevent25" (CsrIdWidth 'h"339") accessMModeOnly;
-         nilCSR ^"mhpmevent26" (CsrIdWidth 'h"33a") accessMModeOnly;
-         nilCSR ^"mhpmevent27" (CsrIdWidth 'h"33b") accessMModeOnly;
-         nilCSR ^"mhpmevent28" (CsrIdWidth 'h"33c") accessMModeOnly;
-         nilCSR ^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
-         nilCSR ^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
-         nilCSR ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly
+         nilCsr ^"mhpmevent3" (CsrIdWidth 'h"323") accessMModeOnly;
+         nilCsr ^"mhpmevent4" (CsrIdWidth 'h"324") accessMModeOnly;
+         nilCsr ^"mhpmevent5" (CsrIdWidth 'h"325") accessMModeOnly;
+         nilCsr ^"mhpmevent6" (CsrIdWidth 'h"326") accessMModeOnly;
+         nilCsr ^"mhpmevent7" (CsrIdWidth 'h"327") accessMModeOnly;
+         nilCsr ^"mhpmevent8" (CsrIdWidth 'h"328") accessMModeOnly;
+         nilCsr ^"mhpmevent9" (CsrIdWidth 'h"329") accessMModeOnly;
+         nilCsr ^"mhpmevent10" (CsrIdWidth 'h"32a") accessMModeOnly;
+         nilCsr ^"mhpmevent11" (CsrIdWidth 'h"32b") accessMModeOnly;
+         nilCsr ^"mhpmevent12" (CsrIdWidth 'h"32c") accessMModeOnly;
+         nilCsr ^"mhpmevent13" (CsrIdWidth 'h"32d") accessMModeOnly;
+         nilCsr ^"mhpmevent14" (CsrIdWidth 'h"323") accessMModeOnly;
+         nilCsr ^"mhpmevent15" (CsrIdWidth 'h"32f") accessMModeOnly;
+         nilCsr ^"mhpmevent16" (CsrIdWidth 'h"330") accessMModeOnly;
+         nilCsr ^"mhpmevent17" (CsrIdWidth 'h"331") accessMModeOnly;
+         nilCsr ^"mhpmevent18" (CsrIdWidth 'h"332") accessMModeOnly;
+         nilCsr ^"mhpmevent19" (CsrIdWidth 'h"333") accessMModeOnly;
+         nilCsr ^"mhpmevent20" (CsrIdWidth 'h"334") accessMModeOnly;
+         nilCsr ^"mhpmevent21" (CsrIdWidth 'h"335") accessMModeOnly;
+         nilCsr ^"mhpmevent22" (CsrIdWidth 'h"336") accessMModeOnly;
+         nilCsr ^"mhpmevent23" (CsrIdWidth 'h"337") accessMModeOnly;
+         nilCsr ^"mhpmevent24" (CsrIdWidth 'h"338") accessMModeOnly;
+         nilCsr ^"mhpmevent25" (CsrIdWidth 'h"339") accessMModeOnly;
+         nilCsr ^"mhpmevent26" (CsrIdWidth 'h"33a") accessMModeOnly;
+         nilCsr ^"mhpmevent27" (CsrIdWidth 'h"33b") accessMModeOnly;
+         nilCsr ^"mhpmevent28" (CsrIdWidth 'h"33c") accessMModeOnly;
+         nilCsr ^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
+         nilCsr ^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
+         nilCsr ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly
        ].
 
   Close Scope kami_expr.

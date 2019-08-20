@@ -97,7 +97,7 @@ Section reg_reader.
            DispString _ "Reg 2 selector: ";
            DispHex (rs2 #raw_inst);
            DispString _ "\n";
-           DispString _ "CSR selector: ";
+           DispString _ "Csr selector: ";
            DispHex (imm #raw_inst);
            DispString _ "\n";
            DispString _ "has RS1: ";

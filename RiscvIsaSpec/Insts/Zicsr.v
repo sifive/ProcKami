@@ -62,7 +62,7 @@ Section zicsr.
                                          (#sem_in_pkt @% "mask_value" @% "data")
                         } : RoutedReg @# ty);
         LETC fstVal <- (STRUCT {
-                       "val1" (* writes to the CSR *)
+                       "val1" (* writes to the Csr *)
                        ::= ITE
                              (#sem_in_pkt @% "mask_value" @% "valid")
                              (Valid #val1)
