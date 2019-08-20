@@ -24,7 +24,7 @@ Section zicsr.
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
   Variable ty : Kind -> Type.
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition ZicsrOpWidth : nat := 2.

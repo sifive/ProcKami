@@ -34,14 +34,13 @@ Section CsrInterface.
   Local Notation PktWithException := (PktWithException Xlen_over_8).
   Local Notation FullException := (FullException Xlen_over_8).
   Local Notation ExceptionInfo := (ExceptionInfo Xlen_over_8).
-  Local Notation CsrFieldUpdGuard := (CsrFieldUpdGuard Xlen_over_8 supported_exts ty).
+  Local Notation CsrFieldUpdGuard := (CsrFieldUpdGuard Xlen_over_8 supported_exts).
   Local Notation RoutedReg := (RoutedReg Rlen_over_8).
   Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
   Local Notation WarlUpdateInfo := (WarlUpdateInfo Xlen_over_8).
   Local Notation isAligned := (isAligned Xlen_over_8).
   Local Notation reg_writer_write_reg := (@reg_writer_write_reg name Xlen_over_8 Rlen_over_8 ty).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
-  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
+  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
   Local Notation XlenWidth := (XlenWidth Xlen_over_8).
   Local Notation XlenValue := (XlenValue Xlen_over_8).
   Local Notation LocationReadWriteInputT := (LocationReadWriteInputT 0 CsrIdWidth XlenWidth).

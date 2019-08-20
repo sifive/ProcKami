@@ -119,105 +119,23 @@ Section Params.
 
               (* csr registers *)
               Node csr_regs with
-(*
-              (* floating point registers *)
-              Register ^"fflags"           : FflagsValue <- ConstBit (natToWord FflagsWidth 0) with
-              Register ^"frm"              : FrmValue    <- ConstBit (natToWord FrmWidth    0) with
-*)
+
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
-(*
-              Register ^"medeleg"          : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"mideleg"          : Bit 12 <- ConstBit (wzero 12) with
-              Register ^"mprv"             : Bool <- ConstBool false with
-              Register ^"mpp"              : Bit 2 <- ConstBit (wzero 2) with
-              Register ^"mpie"             : Bool <- ConstBool false with
-              Register ^"mie"              : Bool <- ConstBool false with
-              Register ^"mtvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
-*)
               Register ^"mtvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-(*
-              Register ^"mscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"mepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"mcause_interrupt" : Bool <- ConstBool false with
-              Register ^"mcause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"mtval"            : Bit Xlen <- ConstBit (wzero Xlen) with
 
-              Register ^"mvendorid"        : Bit 32 <- ConstBit (wzero 32) with
-              Register ^"marchid"          : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"mimpid"           : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"mhartid"          : Bit Xlen <- ConstBit (wzero Xlen) with
-
-              Register ^"usip"             : Bool <- ConstBool false with
-              Register ^"ssip"             : Bool <- ConstBool false with
-              Register ^"msip"             : Bool <- ConstBool false with
-              Register ^"utip"             : Bool <- ConstBool false with
-              Register ^"stip"             : Bool <- ConstBool false with
-              Register ^"mtip"             : Bool <- ConstBool false with
-              Register ^"ueip"             : Bool <- ConstBool false with
-              Register ^"seip"             : Bool <- ConstBool false with
-              Register ^"meip"             : Bool <- ConstBool false with
-              Register ^"usie"             : Bool <- ConstBool false with
-              Register ^"ssie"             : Bool <- ConstBool false with
-              Register ^"msie"             : Bool <- ConstBool false with
-              Register ^"utie"             : Bool <- ConstBool false with
-              Register ^"stie"             : Bool <- ConstBool false with
-              Register ^"mtie"             : Bool <- ConstBool false with
-              Register ^"ueie"             : Bool <- ConstBool false with
-              Register ^"seie"             : Bool <- ConstBool false with
-              Register ^"meie"             : Bool <- ConstBool false with
-*)
               (* supervisor mode registers *)
               Register ^"sxl"              : XlenValue <- initXlen with
-(*
-              Register ^"tsr"              : Bool <- ConstBool false with
-              Register ^"tw"               : Bool <- ConstBool false with
-              Register ^"tvm"              : Bool <- ConstBool false with
-              Register ^"mxr"              : Bool <- ConstBool false with
-              Register ^"sum"              : Bool <- ConstBool false with
-              Register ^"spp"              : Bit 1 <- ConstBit (wzero 1) with
-              Register ^"spie"             : Bool <- ConstBool false with
-              Register ^"sie"              : Bool <- ConstBool false with
-              Register ^"stvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
-*)
+              Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
+              Register ^"sideleg"          : Bit 16 <- ConstBit (wzero 16) with
               Register ^"stvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-(*
-              Register ^"sscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"sepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"scause_interrupt" : Bool <- ConstBool false with
-              Register ^"scause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"stval"            : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"satp_mode"        : Bit 4 <- ConstBit (wzero 4) with
-              Register ^"satp_asid"        : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"satp_ppn"         : Bit 44 <- ConstBit (wzero 44) with
-*)
+
               (* user mode registers *)
               Register ^"uxl"              : XlenValue <- initXlen with
               Register ^"upp"              : Bit 0 <- ConstBit WO with
-(*
-              Register ^"upie"             : Bool <- ConstBool false with
-              Register ^"uie"              : Bool <- ConstBool false with
-              Register ^"utvec_mode"       : Bit 2 <- ConstBit (wzero 2) with
-*)
               Register ^"utvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-(*
-              Register ^"uscratch"         : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"uepc"             : Bit Xlen <- ConstBit (wzero Xlen) with
-              Register ^"ucause_interrupt" : Bool <- ConstBool false with
-              Register ^"ucause_code"      : Bit (Xlen - 1) <- ConstBit (natToWord (Xlen - 1) 0) with
-              Register ^"utval"            : Bit Xlen <- ConstBit (wzero Xlen) with
-*)
               (* preformance monitor registers *)
-(*
-              Register ^"mtime"           : Bit 64 <- ConstBit (wzero 64) with
-*)
               Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
-(*
-              Register ^"mcounteren"      : Bit 32 <- ConstBit (wzero 32) with
-              Register ^"scounteren"      : Bit 32 <- ConstBit (wzero 32) with
-              Register ^"mcycle"          : Bit 64 <- ConstBit (wzero 64) with
-              Register ^"minstret"        : Bit 64 <- ConstBit (wzero 64) with
-*)
               Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
               Register ^"mcountinhibit_ir" : Bool <- ConstBool false with

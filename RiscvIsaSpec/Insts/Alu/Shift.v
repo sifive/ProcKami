@@ -23,7 +23,7 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
+    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition ShiftInputType

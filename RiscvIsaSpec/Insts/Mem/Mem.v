@@ -29,7 +29,7 @@ Section Mem.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts ty).
+    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
     Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
     Definition MemInputAddrType := STRUCT_TYPE {

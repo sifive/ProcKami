@@ -12,7 +12,7 @@ Section Decompressor.
   Local Notation Data := (Bit Rlen).
   Local Notation VAddr := (Bit Xlen).
   Local Notation CompInstEntry := (CompInstEntry ty).
-  Local Notation Extensions := (Extensions supported_exts ty).
+  Local Notation Extensions := (Extensions supported_exts).
   Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).
   Local Notation XlenValue := (XlenValue Xlen_over_8).
 

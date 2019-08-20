@@ -449,11 +449,64 @@ Section Params.
   Definition DeviceTag (mem_devices : list MemDevice)
     := Bit (Nat.log2_up (length mem_devices)).
 
-  Variable ty: Kind -> Type.
-
   Local Open Scope kami_expr.
 
   Local Open Scope kami_action.
+
+  Definition ExtensionsInterface
+    :  {k : Kind &
+         ((forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
+          (forall ty, k @# ty -> string -> Bool @# ty))}%type
+    := existT
+         (fun k
+           => (forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
+              (forall ty, k @# ty -> string -> Bool @# ty))%type
+         (getStruct supported_ext_states)
+         (list_rect
+           (fun states
+             => (forall ty, getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
+                (forall ty, getStruct states @# ty -> string -> Bool @# ty))%type
+           ((fun _ exts _ _ => exts),
+            (fun ty _ _ => Const ty false))
+           (fun state states _
+             => ((fun ty exts name value
+                   => let get_kind index := snd (nth_Fin (state :: states) index) in
+                      let get_name index := fst (nth_Fin (state :: states) index) in
+                      BuildStruct
+                        get_kind
+                        get_name
+                        (fun index
+                          => if String.eqb name (get_name index)
+                               then (* (value : get_kind index @# ty) *)
+                                 match Kind_dec Bool (get_kind index) with
+                                   | left H
+                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
+                                   | right _
+                                     => Const ty (getDefaultConst (get_kind index)) (* impossible case *)
+                                   end
+                               else (ReadStruct exts index : get_kind index @# ty))),
+                 (fun ty exts name
+                   => struct_get_field_default exts name (Const ty false))))
+           supported_ext_states).
+
+  Definition Extensions
+    :  Kind
+    := projT1 ExtensionsInterface.
+
+  Variable ty: Kind -> Type.
+
+  Definition Extensions_set
+    (exts : Extensions @# ty)
+    (name : string)
+    (value : Bool @# ty)
+    :  Extensions @# ty
+    := fst (projT2 ExtensionsInterface) ty exts name value.
+
+  Definition Extensions_get
+    (exts : Extensions @# ty)
+    (name : string)
+    :  Bool @# ty
+    := snd (projT2 ExtensionsInterface) ty exts name.
 
     (*
       Note: we assume that device tags will always be valid given
@@ -517,60 +570,7 @@ Section Params.
     :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
     := fold_right (mem_table_insert (@mtbl_entry_addr mem_devices)) [].
 
-  Definition ExtensionsInterface
-    :  {k : Kind &
-         ((k @# ty -> string -> Bool @# ty -> k @# ty) *
-          (k @# ty -> string -> Bool @# ty))}%type
-    := existT
-         (fun k
-           => (k @# ty -> string -> Bool @# ty -> k @# ty) *
-              (k @# ty -> string -> Bool @# ty))%type
-         (getStruct supported_ext_states)
-         (list_rect
-           (fun states
-             => (getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
-                (getStruct states @# ty -> string -> Bool @# ty))%type
-           ((fun exts _ _ => exts),
-            (fun _ _ => $$false))
-           (fun state states _
-             => ((fun exts name value
-                   => let get_kind index := snd (nth_Fin (state :: states) index) in
-                      let get_name index := fst (nth_Fin (state :: states) index) in
-                      BuildStruct
-                        get_kind
-                        get_name
-                        (fun index
-                          => if String.eqb name (get_name index)
-                               then (* (value : get_kind index @# ty) *)
-                                 match Kind_dec Bool (get_kind index) with
-                                   | left H
-                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
-                                   | right _
-                                     => $$(getDefaultConst (get_kind index)) (* impossible case *)
-                                   end
-                               else (ReadStruct exts index : get_kind index @# ty))),
-                 (fun exts name
-                   => struct_get_field_default exts name $$false)))
-           supported_ext_states).
-
   Close Scope kami_expr.
-
-  Definition Extensions
-    :  Kind
-    := projT1 ExtensionsInterface.
-
-  Definition Extensions_set
-    (exts : Extensions @# ty)
-    (name : string)
-    (value : Bool @# ty)
-    :  Extensions @# ty
-    := fst (projT2 ExtensionsInterface) exts name value.
-
-  Definition Extensions_get
-    (exts : Extensions @# ty)
-    (name : string)
-    :  Bool @# ty
-    := snd (projT2 ExtensionsInterface) exts name.
 
   Definition ContextCfgPkt :=
     STRUCT_TYPE {
