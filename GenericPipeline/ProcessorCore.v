@@ -30,62 +30,20 @@ Require Import ProcKami.GenericPipeline.ProcessorUtils.
 Section Params.
   Variable name: string.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
 
-  (* ^ The width of a general purpose, "x", register for
-     this processor, divided by 8 *)
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation CsrValue := (Bit CsrValueWidth).
-  Local Notation PAddrSz := (Xlen).
-  Local Notation PAddr := (Bit PAddrSz).
-
-  Local Notation pmp_reg_width := (pmp_reg_width Xlen_over_8).
   Variable pmp_addr_ub : option (word pmp_reg_width).
 
-  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
   Variable mem_devices : list MemDevice.
 
-  Local Notation MemTableEntry := (@MemTableEntry Rlen_over_8 PAddrSz mem_devices).
-  Variable mem_table : list MemTableEntry.
+  Variable mem_table : list (MemTableEntry mem_devices).
 
-  (* The width of a general purpose, "x", register for this
-     processor. This also determine the size of, say, the virtual
-     address space. *)
-  Local Notation lgMemSz := 20.
-  Local Notation memSz := (pow2 lgMemSz).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8).
-  Local Notation FetchPkt := (FetchPkt Xlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation DispNF := (DispNF Flen_over_8).
-  Local Notation initXlen := (initXlen Xlen_over_8).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
-  
   Section model.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
     Variable supported_exts : list (string * bool).
-    Variable func_units : forall ty, list (FUEntry supported_exts ty).
-
-    Local Notation misa_field_states := (misa_field_states supported_exts).
-    Local Notation supported_exts_foldr := (supported_exts_foldr supported_exts).
-    Local Notation DecoderPkt := (@DecoderPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
-    Local Notation InputTransPkt := (@InputTransPkt Xlen_over_8 Rlen_over_8 supported_exts _ (func_units _)).
-    Local Notation maskEpc := (@maskEpc Xlen_over_8 supported_exts _).
-    Local Notation mem_device_files := (@mem_device_files Rlen_over_8 PAddrSz mem_devices).
-    Local Notation mem_device_regs := (@mem_device_regs Rlen_over_8 PAddrSz mem_devices).
-    Local Notation Csrs := (@Csrs name Xlen_over_8 supported_exts _).
-    Local Notation csr_regs := (@csr_regs Xlen_over_8 supported_exts type Csrs).
+    Variable func_units : forall ty, list (FUEntry ty).
 
     Local Open Scope kami_scope.
 
@@ -118,7 +76,7 @@ Section Params.
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
 
               (* csr registers *)
-              Node csr_regs with
+              Node (csr_regs (Csrs name _)) with
 
               (* machine mode registers *)
               Register ^"mxl"              : XlenValue <- initXlen with
@@ -140,11 +98,11 @@ Section Params.
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
               Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
               Node pmpRegs with
-              Node mem_device_regs with
+              Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
                    Read pc : VAddr <- ^"pc";
-                   LETA xlen : XlenValue <- readXlen name Xlen_over_8 #mode;
+                   LETA xlen : XlenValue <- readXlen name #mode;
                    System [DispString _ "[trap_interrupt]\n"];
                    interruptAction name #xlen #mode #pc with
               Rule ^"set_time_interrupt"
@@ -193,7 +151,7 @@ Section Params.
                        DispString _ (fold_right String.append "" (snd misa_field_states));
                        DispString _ "\n"
                      ];
-                   LETA cfg_pkt <- readConfig name Xlen_over_8 supported_exts _;
+                   LETA cfg_pkt <- readConfig name _;
                    Read pc : VAddr <- ^"pc";
                    System
                      [
@@ -206,7 +164,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- @fetch name Xlen_over_8 Rlen_over_8 _ mem_devices mem_table (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                     <- fetch name mem_table (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -214,7 +172,7 @@ Section Params.
                        DispString _ "\n"
                      ];
                    LETA decoder_pkt
-                     :  PktWithException DecoderPkt
+                     :  PktWithException (DecoderPkt (func_units _))
                      <- decoderWithException (func_units _) (CompInstDb _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "extensions") #fetch_pkt;
                    System
                      [
@@ -225,7 +183,7 @@ Section Params.
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      :  PktWithException ExecContextPkt
-                     <- readerWithException name Flen_over_8 #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
+                     <- readerWithException name #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
                    System
                      [
                        DispString _ "Reg Reader:\n";
@@ -234,7 +192,7 @@ Section Params.
                      ];
                    System [DispString _ "Trans\n"];
                    LETA trans_pkt
-                     :  PktWithException InputTransPkt
+                     :  PktWithException (InputTransPkt (func_units _))
                      <- transWithException #cfg_pkt (#decoder_pkt @% "fst") #exec_context_pkt;
                    System [DispString _ "Executor\n"];
                    LETA exec_update_pkt
@@ -255,7 +213,7 @@ Section Params.
                      :  PktWithException ExecUpdPkt
                      <- CsrUnit
                           name
-                          Csrs
+                          (Csrs name _)
                           #mcounteren
                           #scounteren
                           #pc
@@ -294,7 +252,6 @@ Section Params.
                      :  Void
                      <- commit
                           name
-                          Flen_over_8
                           #pc
                           (#decoder_pkt @% "fst" @% "inst")
                           #cfg_pkt

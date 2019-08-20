@@ -10,19 +10,10 @@ Require Import List.
 Import ListNotations.
 
 Section ty.
-
-  Variable ty : Kind -> Type.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
-
+  Variable name: string.
+  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Context `{procParams: ProcParams}.
+  Variable ty: Kind -> Type.
   Local Open Scope kami_expr.
 
   Definition neg (n : nat) (x : Bit n @# ty) := (~ x) + $1.
@@ -33,7 +24,7 @@ Section ty.
     :  PktWithException ExecUpdPkt @# ty
     := STRUCT {
          "fst"
-           ::= noUpdPkt@%["val1"
+           ::= (noUpdPkt ty)@%["val1"
                  <- (Valid (STRUCT {
                        "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
                        "data" ::= val
