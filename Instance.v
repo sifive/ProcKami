@@ -13,8 +13,6 @@ Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
 
-Context `{procParams: ProcParams}.
-
 Definition coreExts
   :  list (string * bool)
   := [
