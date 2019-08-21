@@ -8,12 +8,14 @@ Section Alu.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  .    Definition MultInputType
-         := STRUCT_TYPE {
-                "xlen"  :: XlenValue;
-                "arg1" :: Bit (2 * Xlen)%nat;
-                "arg2" :: Bit (2 * Xlen)%nat
-              }.
+  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
+
+  Definition MultInputType
+    := STRUCT_TYPE {
+           "xlen"  :: XlenValue;
+           "arg1" :: Bit (2 * Xlen)%nat;
+           "arg2" :: Bit (2 * Xlen)%nat
+         }.
 
   Definition MultOutputType
     := STRUCT_TYPE {
@@ -37,7 +39,7 @@ Section Alu.
                        (ZeroExtendTruncMsb 64
                                            (unsafeTruncLsb (2 * 64) x)).
 
-  Definition Mult : @FUEntry ty
+  Definition Mult : FUEntry ty
     := {|
         fuName := "mult";
         fuFunc := fun sem_in_pkt_expr : MultInputType ## ty

@@ -3,29 +3,11 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Alu.
 Require Import List.
 
 Section Alu.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation XlenValue := (XlenValue Xlen_over_8).
-  Local Notation XlenWidth := (XlenWidth Xlen_over_8).
+  Context `{procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition BranchInputType :=
@@ -98,7 +80,7 @@ Section Alu.
                                  });
          LETC val
            :  ExecUpdPkt
-           <- (noUpdPkt
+           <- (noUpdPkt ty
                  @%["val2"
                       <- (Valid #val2)]
                  @%["taken?" <- #bOut @% "taken?"]);
@@ -118,7 +100,7 @@ Section Alu.
                   ::= #sndVal};
          RetE #retval.
 
-    Definition Branch: @FUEntry ty :=
+    Definition Branch: FUEntry ty :=
       {| fuName := "branch" ;
          fuFunc := (fun i => LETE x: BranchInputType <- i;
                                LETC a <- #x @% "reg1";

@@ -3,18 +3,9 @@ Require Import ProcKami.FU.
 
 Section mem_devices.
   Variable name: string.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation PAddrSz := (Xlen).
-  Local Notation PAddr := (Bit PAddrSz).
-  Local Notation MemWrite := (MemWrite Rlen_over_8 PAddrSz).
-  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
-  Local Notation LgSize := (LgSize Rlen_over_8).
+  Context `{procParams: ProcParams}.
+
   Local Definition lgMemSz := 20.
 
   Open Scope kami_expr.

@@ -130,6 +130,7 @@ Local Definition param_entries
      ].
 
 Section exts.
+  Context `{procParams: ProcParams}.
 
   Local Definition name := "proc_core".
 
@@ -156,7 +157,6 @@ Section exts.
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
   Section ty.
-
     Variable ty : Kind -> Type.
 
     Open Scope kami_expr.
@@ -164,65 +164,62 @@ Section exts.
     (* IV. Select and tailor function units. *)
     Section func_units.
 
-      Local Notation FUEntry   := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-      Local Notation InstEntry := (InstEntry Xlen_over_8 Rlen_over_8 supported_exts).
-
       Local Definition func_units 
         :  list (FUEntry ty)
         := [
-             MRet      Xlen_over_8 Rlen_over_8 supported_exts _;
-             ECall     Xlen_over_8 Rlen_over_8 supported_exts _;
-             Fence     Xlen_over_8 Rlen_over_8 supported_exts _;
-             EBreak    Xlen_over_8 Rlen_over_8 supported_exts _;
-             Wfi       Xlen_over_8 Rlen_over_8 supported_exts _;
+             MRet   _;
+             ECall  _;
+             Fence  _;
+             EBreak _;
+             Wfi    _;
 
              (* RVI logical instructions. *)
-             Add       Xlen_over_8 Rlen_over_8 supported_exts _;
-             Logical   Xlen_over_8 Rlen_over_8 supported_exts _;
-             Shift     Xlen_over_8 Rlen_over_8 supported_exts _;
-             Branch    Xlen_over_8 Rlen_over_8 supported_exts _;
-             Jump      Xlen_over_8 Rlen_over_8 supported_exts _;
-             Mult      Xlen_over_8 Rlen_over_8 supported_exts _;
-             DivRem    Xlen_over_8 Rlen_over_8 supported_exts _;
+             Add     _;
+             Logical _;
+             Shift   _;
+             Branch  _;
+             Jump    _;
+             Mult    _;
+             DivRem  _;
 
              (* RVI memory instructions. *)
-             Mem       Xlen_over_8 Rlen_over_8 supported_exts _;
-             Amo32     Xlen_over_8 Rlen_over_8 supported_exts _;
-             Amo64     Xlen_over_8 Rlen_over_8 supported_exts _;
-             LrSc32    Xlen_over_8 Rlen_over_8 supported_exts _;
-             LrSc64    Xlen_over_8 Rlen_over_8 supported_exts _;
+             Mem     _;
+             Amo32   _;
+             Amo64   _;
+             LrSc32  _;
+             LrSc64  _;
 
              (* RVF instructions. *)
 
-             Float_double Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single fpu_params_double _;
-             Double_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single fpu_params_double _;
+             Float_double fpu_params_single fpu_params_double _;
+             Double_float fpu_params_single fpu_params_double _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FMv        Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             Word_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             Long_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_single _;
+             Mac        fpu_params_single _;
+             FMinMax    fpu_params_single _;
+             FSgn       fpu_params_single _;
+             FMv        fpu_params_single _;
+             Float_word fpu_params_single _;
+             Float_long fpu_params_single _;
+             Word_float fpu_params_single _;
+             Long_float fpu_params_single _;
+             FCmp       fpu_params_single _;
+             FClass     fpu_params_single _;
+             FDivSqrt   fpu_params_single _;
 
-             Mac        Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FMinMax    Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FSgn       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FMv        Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             Float_word Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             Float_long Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             Word_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             Long_float Xlen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FCmp       Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FClass     Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
-             FDivSqrt   Xlen_over_8 Flen_over_8 Rlen_over_8 supported_exts fpu_params_double _;
+             Mac        fpu_params_double _;
+             FMinMax    fpu_params_double _;
+             FSgn       fpu_params_double _;
+             FMv        fpu_params_double _;
+             Float_word fpu_params_double _;
+             Float_long fpu_params_double _;
+             Word_float fpu_params_double _;
+             Long_float fpu_params_double _;
+             FCmp       fpu_params_double _;
+             FClass     fpu_params_double _;
+             FDivSqrt   fpu_params_double _;
 
              (* RV Zicsr instructions. *)
-             Zicsr     Xlen_over_8 Rlen_over_8 supported_exts _
+             Zicsr _
           ].
 
       Local Definition param_filter_xlens
@@ -276,9 +273,9 @@ Section exts.
 
   Definition mem_devices
     := [
-         mtimeDevice    name Xlen_over_8 Rlen_over_8;
-         mtimecmpDevice name Xlen_over_8 Rlen_over_8;
-         pMemDevice     name Xlen_over_8 Rlen_over_8
+         mtimeDevice    name;
+         mtimecmpDevice name;
+         pMemDevice     name
        ].
 
   Local Definition nat_deviceTag n := @of_nat_lt n (length mem_devices).
@@ -303,20 +300,15 @@ Section exts.
        ].
 
   (* verify tha the memory table is valid *)
-  Goal (mem_regions Xlen_over_8 mem_table) <> [].
+  Goal (mem_regions mem_table) <> [].
   Proof. discriminate. Qed.
 
   (* V. the model generator. *)
 
   Definition generate_model
-    := @processor
+    := processor
          name
-         Xlen_over_8
-         Flen_over_8
-         Rlen_over_8
-         mem_devices
          mem_table
-         supported_exts
          param_func_units.
 
   Close Scope kami_expr.

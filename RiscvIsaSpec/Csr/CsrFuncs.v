@@ -44,7 +44,7 @@ Section CsrInterface.
              csrFieldKind @# ty;
          csrFieldRegisterWriteXform
            : forall ty, CsrFieldUpdGuard @# ty ->
-             csrFieldKind @# ty ->
+             csrFieldRegisterKind @# ty ->
              csrFieldKind @# ty ->
              csrFieldRegisterKind @# ty
        }.
@@ -152,11 +152,11 @@ Section CsrInterface.
                          | inl _ => Retv                                                             
                          | inr interface                                                             
                            => LET curr_value                                                         
-                                :  csrFieldKind field                                                   
+                                :  csrFieldRegisterKind interface
                                 <- struct_get_field_default                                          
                                      #csr_value                                                      
                                      (csrFieldName field)                                            
-                                     $$(getDefaultConst (csrFieldKind field));                       
+                                     $$(getDefaultConst (csrFieldRegisterKind interface));                       
                               LET write_value                                                        
                                 :  csrFieldKind field                                                   
                                 <- struct_get_field_default                                          
@@ -335,8 +335,7 @@ Section CsrInterface.
                   csrFieldRegisterReadXform
                     := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
                   csrFieldRegisterWriteXform
-                    := fun _ _ curr_value _
-                         => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack curr_value))
+                    := fun _ _ curr_value _ => curr_value
                 |}
        |}.
 
@@ -404,7 +403,7 @@ Section CsrInterface.
                   (* isAligned (SignExtendTruncLsb Xlen input_value) $2; *)
                   (* TODO: the test suite seems to assume that we will append two zeros and accept any value. Is this correct? *)
                   csrFieldRegisterWriteXform
-                    := fun _ _ _ => id
+                    := fun _ _ _ => ZeroExtendTruncLsb width
                 |}
        |}.
 

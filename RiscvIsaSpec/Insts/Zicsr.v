@@ -10,21 +10,10 @@ Require Import List.
 Import ListNotations.
 
 Section zicsr.
-  Variable Xlen_over_8 : nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
 
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation CsrValueWidth := (Xlen_over_8 * 8).
-  Local Notation CsrValue := (Bit CsrValueWidth).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
   Variable ty : Kind -> Type.
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
+
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition ZicsrOpWidth : nat := 2.
@@ -41,7 +30,7 @@ Section zicsr.
 
   Local Open Scope kami_expr.
 
-  Definition Zicsr : @FUEntry ty
+  Definition Zicsr : FUEntry ty
     := {|
         fuName := "zicsr";
         fuFunc

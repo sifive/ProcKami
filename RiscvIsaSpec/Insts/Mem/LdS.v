@@ -3,74 +3,16 @@ Require Import List.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Mem.
 
 Section Mem.
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation MemoryInput := (MemoryInput Rlen_over_8).
-  Local Notation MemoryOutput := (MemoryOutput Rlen_over_8).
-  Local Notation MaskedMem := (MaskedMem Rlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-
-  Notation Data := (Bit Rlen).
-  Notation VAddr := (Bit Xlen).
-  Notation DataMask := (Bit Rlen_over_8).
+  Context `{procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt supported_exts ty).           
-
-    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
-
-    Local Notation MemInputAddrType := (@MemInputAddrType Xlen_over_8 Rlen_over_8).
-
-    Local Notation MemOutputAddrType := (@MemOutputAddrType Xlen_over_8 Rlen_over_8).
-
     Local Open Scope kami_expr.
 
-    Local Notation isAligned := (@isAligned Xlen_over_8 ty).
-
-    Local Notation loadInput := (@loadInput Xlen_over_8 Rlen_over_8 supported_exts ty).
-
-    Local Notation loadTag := (@loadTag Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation loadXform := (@loadXform Rlen_over_8 ty).
-
-    Local Notation storeInput := (@storeInput Xlen_over_8 Rlen_over_8 supported_exts ty).
-
-    Local Notation storeTag := (@storeTag Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation storeXform := (@storeXform Rlen_over_8 ty).
-
-    Local Notation amoInput := (@amoInput Xlen_over_8 Rlen_over_8 supported_exts ty).
-
-    Local Notation amoTag := (@amoTag Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation amoXform := (@amoXform Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation lrInput := (@lrInput Xlen_over_8 Rlen_over_8 supported_exts ty).
-
-    Local Notation lrTag := (@lrTag Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation lrXform := (@lrXform Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation scInput := (@scInput Xlen_over_8 Rlen_over_8 supported_exts ty).
-
-    Local Notation scTag := (@scTag Xlen_over_8 Rlen_over_8 ty).
-
-    Local Notation scXform := (@scXform Xlen_over_8 Rlen_over_8 ty).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-  
 
-    Definition Mem: @FUEntry ty :=
+    Definition Mem: FUEntry ty :=
       {| fuName := "mem" ;
          fuFunc
            := fun i
@@ -97,7 +39,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"000") :: nil ;
               inputXform   := loadInput 0 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 0; memXform := loadXform $IntRegTag 8 SignExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
@@ -108,7 +50,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"001") :: nil ;
               inputXform   := loadInput 1 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 1; memXform := loadXform $IntRegTag 16 SignExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
@@ -119,7 +61,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"010") :: nil ;
               inputXform   := loadInput 2 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 2; memXform := loadXform $IntRegTag 32 SignExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
@@ -130,7 +72,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"100") :: nil ;
               inputXform   := loadInput 0 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 0; memXform := loadXform $IntRegTag 8 ZeroExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
@@ -141,7 +83,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"101") :: nil ;
               inputXform   := loadInput 1 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 1; memXform := loadXform $IntRegTag 16 ZeroExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
            |} ::
@@ -152,7 +94,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"000") :: nil ;
               inputXform   := storeInput 0 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 0; memXform := storeXform 0 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
@@ -163,7 +105,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"001") :: nil ;
               inputXform   := storeInput 1 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 1; memXform := storeXform 1 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
@@ -174,7 +116,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"010") :: nil ;
               inputXform   := storeInput 2 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 2; memXform := storeXform 2 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
@@ -185,7 +127,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"110") :: nil ;
               inputXform   := loadInput 2 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 2; memXform := loadXform $IntRegTag 32 ZeroExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
            |} ::
@@ -196,7 +138,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"011") :: nil ;
               inputXform   := loadInput 3 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 3; memXform := loadXform $IntRegTag 64 SignExtendTruncLsb |};
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
            |} ::
@@ -207,7 +149,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"011") :: nil ;
               inputXform   := storeInput 3 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 3; memXform := storeXform 3 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
            |} ::
@@ -218,7 +160,7 @@ Section Mem.
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"010") :: nil;
               inputXform   := loadInput 2 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams
                 := Some {| 
                      accessSize := 2;
@@ -236,7 +178,7 @@ Section Mem.
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"010") :: nil;
               inputXform   := storeInput 2 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 2; memXform := storeXform 2 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
            |} ::
@@ -247,7 +189,7 @@ Section Mem.
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"011") :: nil;
               inputXform   := loadInput 3 ;
-              outputXform  := loadTag ;
+              outputXform  := loadTag (ty := ty) ;
               optMemParams := Some {| accessSize := 3; memXform := loadXform $FloatRegTag 64 SignExtendTruncLsb |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasFrd := true|>
            |} ::
@@ -258,7 +200,7 @@ Section Mem.
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"011") :: nil;
               inputXform   := storeInput 3 ;
-              outputXform  := storeTag ;
+              outputXform  := storeTag (ty := ty) ;
               optMemParams := Some {| accessSize := 3; memXform := storeXform 3 |} ;
               instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
            |} ::

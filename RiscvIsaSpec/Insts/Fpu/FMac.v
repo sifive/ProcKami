@@ -18,27 +18,10 @@ Require Import List.
 Import ListNotations.
 
 Section Fpu.
-
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat. (* the "result" length, specifies the size of values stored in the context and update packets. *)
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
 
   Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).           
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
-  Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
 
   Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
   Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
@@ -56,8 +39,6 @@ Section Fpu.
   Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
   Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
-  Local Notation csr           := (@csr ty Rlen_over_8).
-  Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition add_format_field
@@ -192,7 +173,7 @@ Section Fpu.
           } : PktWithException ExecUpdPkt @# ty).
 
   Definition Mac
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "mac" suffix;
          fuFunc

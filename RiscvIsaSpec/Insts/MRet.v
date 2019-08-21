@@ -8,28 +8,15 @@ Require Import List.
 Import ListNotations.
 
 Section mret.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
+
   Variable ty: Kind -> Type.
 
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).           
-  Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Local Open Scope kami_expr.
 
-  Definition MRet : @FUEntry ty
+  Definition MRet : FUEntry ty
     := {|
          fuName := "mret";
          fuFunc
@@ -38,7 +25,7 @@ Section mret.
                    RetE
                      (STRUCT {
                         "fst"
-                          ::= (noUpdPkt
+                          ::= ((noUpdPkt ty)
                                 @%["val1"
                                     <- (Valid (STRUCT {
                                          "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
@@ -136,7 +123,7 @@ Section mret.
               ]
        |}.
 
-  Definition ECall : @FUEntry ty
+  Definition ECall : FUEntry ty
     := {|
          fuName := "ecall";
          fuFunc
@@ -156,7 +143,7 @@ Section mret.
                                } : FullException @# ty);
                    RetE
                      (STRUCT {
-                        "fst" ::= noUpdPkt;
+                        "fst" ::= noUpdPkt ty;
                         "snd"
                           ::= Valid #sndVal
                       } : PktWithException ExecUpdPkt @# ty));
@@ -183,7 +170,7 @@ Section mret.
               ]
        |}.
 
-  Definition Fence : @FUEntry ty
+  Definition Fence : FUEntry ty
     := {|
          fuName := "fence";
          fuFunc
@@ -191,7 +178,7 @@ Section mret.
                 => LETE inst : Maybe Inst <- in_pkt;
                    RetE
                      (STRUCT {
-                        "fst" ::= noUpdPkt;
+                        "fst" ::= noUpdPkt ty;
                         "snd"
                           ::= IF #inst @% "valid"
                                 then
@@ -262,7 +249,7 @@ Section mret.
               ]
        |}.
 
-  Definition EBreak : @FUEntry ty
+  Definition EBreak : FUEntry ty
     := {|
          fuName := "ebreak";
          fuFunc
@@ -275,7 +262,7 @@ Section mret.
                         } : FullException @# ty);
                   RetE
                     (STRUCT {
-                       "fst" ::= noUpdPkt;
+                       "fst" ::= noUpdPkt ty;
                        "snd" ::= #exception
                      } : PktWithException ExecUpdPkt @# ty));
          fuInsts
@@ -305,7 +292,7 @@ Section mret.
               ]
        |}.
 
-  Definition Wfi : @FUEntry ty
+  Definition Wfi : FUEntry ty
     := {|
          fuName := "wfi";
          fuFunc
@@ -322,7 +309,7 @@ Section mret.
                         } : FullException @# ty);
                    RetE
                      (STRUCT {
-                        "fst" ::= noUpdPkt;
+                        "fst" ::= noUpdPkt ty;
                         "snd"
                           ::= IF #trap
                                 then #exception

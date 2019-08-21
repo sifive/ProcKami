@@ -3,27 +3,11 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Alu.
 Require Import List.
 
 Section Alu.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation intRegTag := (intRegTag Xlen_over_8 Rlen_over_8).
-
+  Context `{procParams: ProcParams}.
+  
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition LogicalType := STRUCT_TYPE {"op" :: Bit 2 ; "arg1" :: Bit Xlen ; "arg2" :: Bit Xlen}.
@@ -33,7 +17,7 @@ Section Alu.
 
     Local Open Scope kami_expr.
 
-    Definition Logical: @FUEntry ty :=
+    Definition Logical: FUEntry ty :=
       {| fuName := "logical" ;
          fuFunc := (fun i
                       => LETE x: LogicalType <- i;
