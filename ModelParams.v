@@ -130,8 +130,6 @@ Local Definition param_entries
      ].
 
 Section exts.
-  Context `{procParams: ProcParams}.
-
   Local Definition name := "proc_core".
 
   Variable supported_xlens : list nat.
@@ -156,6 +154,8 @@ Section exts.
 
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
+  Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8 supported_exts.
+
   Section ty.
     Variable ty : Kind -> Type.
 
@@ -165,7 +165,7 @@ Section exts.
     Section func_units.
 
       Local Definition func_units 
-        :  list (FUEntry ty)
+        :  list (@FUEntry procParams ty)
         := [
              MRet   _;
              ECall  _;
@@ -224,8 +224,8 @@ Section exts.
 
       Local Definition param_filter_xlens
             (fuInputK fuOutputK: Kind)
-        (e: InstEntry ty fuInputK fuOutputK)
-        : InstEntry ty fuInputK fuOutputK
+        (e: @InstEntry procParams ty fuInputK fuOutputK)
+        : @InstEntry procParams ty fuInputK fuOutputK
         := {| instName := instName e ;
               xlens := filter (fun x => existsb (Nat.eqb x) supported_xlens) (xlens e) ;
               extensions := extensions e ;
@@ -237,8 +237,8 @@ Section exts.
 
       Local Definition param_filter_insts
         (fuInputK fuOutputK : Kind)
-        :  list (InstEntry ty fuInputK fuOutputK) ->
-           list (InstEntry ty fuInputK fuOutputK)
+        :  list (@InstEntry procParams ty fuInputK fuOutputK) ->
+           list (@InstEntry procParams ty fuInputK fuOutputK)
         := filter
              (fun inst
                => andb
@@ -260,11 +260,11 @@ Section exts.
            |}.
         
       Local Definition param_filter_func_units
-        :  list (FUEntry ty) -> list (FUEntry ty)
+        :  list (@FUEntry procParams ty) -> list (@FUEntry procParams ty)
         := filter (fun func_unit => negb (emptyb (fuInsts func_unit))).
 
       Definition param_func_units
-        :  list (FUEntry ty)
+        :  list (@FUEntry procParams ty)
         := param_filter_func_units (map param_filter_func_unit func_units).
 
     End func_units.
@@ -272,30 +272,35 @@ Section exts.
   End ty.
 
   Definition mem_devices
+    :  list (@MemDevice procParams)
     := [
          mtimeDevice    name;
          mtimecmpDevice name;
          pMemDevice     name
        ].
 
+  (* nat_lt n m : n < m *)
+  Ltac nat_lt := repeat (try (apply le_n); apply le_S).
+
   Local Definition nat_deviceTag n := @of_nat_lt n (length mem_devices).
 
   Definition mem_table
+    :  list (MemTableEntry mem_devices)
     := [
          {|
            mtbl_entry_addr := 0%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := @nat_deviceTag 2 ltac:(simpl; lia)
+           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt))
          |};
          {|
            mtbl_entry_addr := 8%N;
            mtbl_entry_width := 8%N;
-           mtbl_entry_device := @nat_deviceTag 1 ltac:(simpl; lia)
+           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt))
          |};
          {|
            mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
            mtbl_entry_width := N.pow 2 20;
-           mtbl_entry_device := @nat_deviceTag 0 ltac:(simpl; lia)
+           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt))
          |}
        ].
 
