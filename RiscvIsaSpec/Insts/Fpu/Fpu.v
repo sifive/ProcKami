@@ -91,12 +91,7 @@ Section ty.
   End fpu.
 
   Section fpu.
-
-    Variable Xlen_over_8 : nat.
-    Variable Rlen_over_8 : nat.
-
-    Local Notation Rlen := (Rlen_over_8 * 8).
-    Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
+    Context `{procParams: ProcParams}.
 
     Open Scope kami_expr.
 

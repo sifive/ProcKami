@@ -18,27 +18,10 @@ Require Import List.
 Import ListNotations.
 
 Section Fpu.
-
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
 
   Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation NFToINOutput := (NFToINOutput (Xlen - 2)).
-  Local Notation INToNFInput := (INToNFInput (Xlen - 2)).
 
   Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
   Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
@@ -94,7 +77,7 @@ Section Fpu.
           } : PktWithException ExecUpdPkt @# ty).
 
   Definition FClass
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "fclass" suffix;
          fuFunc

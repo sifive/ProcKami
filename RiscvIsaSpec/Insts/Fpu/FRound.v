@@ -19,26 +19,11 @@ Require Import List.
 Import ListNotations.
 
 Section Fpu.
-
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
 
   Variable fpu_params_single : FpuParamsType.
   Variable fpu_params_double : FpuParamsType.
   Variable ty : Kind -> Type.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
 
   Local Notation single_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_single).
   Local Notation single_sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params_single).
@@ -49,8 +34,6 @@ Section Fpu.
   Local Notation bitToNF := (@bitToNF ty).
   Local Notation NFToBit := (@NFToBit ty).
   Local Notation fp_get_float  := (@fp_get_float ty).
-  Local Notation csr           := (@csr ty Rlen_over_8).
-  Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
@@ -59,7 +42,7 @@ Section Fpu.
   Open Scope kami_expr.
 
   Definition Float_double
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := "float_double";
          fuFunc
@@ -131,7 +114,7 @@ Section Fpu.
        |}.
 
   Definition Double_float
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := "double_float";
          fuFunc

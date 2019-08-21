@@ -9,15 +9,8 @@ Import ListNotations.
 
 Section mmapped.
   Variable name: string.
-  Variable Xlen_over_8 : nat.
-  Variable Rlen_over_8 : nat.
-
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PAddrSz := (Xlen).
-
-  Local Notation MemDevice := (@MemDevice Rlen_over_8 PAddrSz).
+  Context `{procParams: ProcParams}.
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -115,7 +108,7 @@ Section mmapped.
                           Ret (ZeroExtendTruncLsb Rlen #result)];
            mem_device_write
              := fun ty
-                  => [fun (_ : PrivMode @# ty) (write_pkt : MemWrite Rlen_over_8 PAddrSz @# ty)
+                  => [fun (_ : PrivMode @# ty) (write_pkt : MemWrite @# ty)
                          => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
                             LETA _
                               <- mmapped_write #addr

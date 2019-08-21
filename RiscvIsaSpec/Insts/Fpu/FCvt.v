@@ -19,26 +19,10 @@ Require Import List.
 Import ListNotations.
 
 Section Fpu.
-
-  Variable Xlen_over_8: nat.
-  Variable Flen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
+  Context `{procParams: ProcParams}.
 
   Variable fpu_params : FpuParamsType.
   Variable ty : Kind -> Type.
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Flen := (Flen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).           
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
-  Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
 
   Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
   Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
@@ -57,8 +41,6 @@ Section Fpu.
   Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
   Local Notation NFToBit := (@NFToBit ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_get_float  := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
-  Local Notation csr           := (@csr ty Rlen_over_8).
-  Local Notation rounding_mode := (@rounding_mode ty Xlen_over_8 Rlen_over_8).
   Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Open Scope kami_expr.
@@ -109,7 +91,7 @@ Section Fpu.
           } : PktWithException ExecUpdPkt @# ty).
 
   Definition Float_word
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "float_word" suffix;
          fuFunc
@@ -165,7 +147,7 @@ Section Fpu.
       |}.
 
   Definition Float_long
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "float_long" suffix;
          fuFunc
@@ -256,7 +238,7 @@ Section Fpu.
           } : PktWithException ExecUpdPkt @# ty).
 
   Definition Word_float
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "word_float" suffix;
          fuFunc
@@ -328,7 +310,7 @@ Section Fpu.
       |}.
 
   Definition Long_float
-    :  @FUEntry ty
+    :  FUEntry ty
     := {|
          fuName := append "long_float" suffix;
          fuFunc

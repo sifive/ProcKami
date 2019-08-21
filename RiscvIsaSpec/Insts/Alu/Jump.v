@@ -2,27 +2,11 @@ Require Import Kami.All ProcKami.FU ProcKami.Div.
 Require Import List.
 
 Section Alu.
-  Variable Xlen_over_8: nat.
-  Variable Rlen_over_8: nat.
-  Variable supported_exts : list (string * bool).
-
-  Local Notation Rlen := (Rlen_over_8 * 8).
-  Local Notation Xlen := (Xlen_over_8 * 8).
-  Local Notation Data := (Bit Rlen).
-  Local Notation VAddr := (Bit Xlen).
-  Local Notation DataMask := (Bit Rlen_over_8).
-  Local Notation PktWithException := (PktWithException Xlen_over_8).
-  Local Notation ExecUpdPkt := (ExecUpdPkt Rlen_over_8).
-  Local Notation ExecContextPkt := (ExecContextPkt Xlen_over_8 Rlen_over_8).
-  Local Notation FullException := (FullException Xlen_over_8).
-  Local Notation FUEntry := (FUEntry Xlen_over_8 Rlen_over_8 supported_exts).
-  Local Notation RoutedReg := (RoutedReg Rlen_over_8).
+  Context `{procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation ContextCfgPkt := (ContextCfgPkt Xlen_over_8 supported_exts).
-    Local Notation noUpdPkt := (@noUpdPkt Rlen_over_8 ty).
     Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
     Definition JumpInputType :=
@@ -59,7 +43,7 @@ Section Alu.
                                                       "data"  ::= #fullException };
          LETC val
            :  ExecUpdPkt
-           <- (noUpdPkt
+           <- (noUpdPkt ty
                  @%["val1"
                       <- (Valid #val1)]
                  @%["val2"
@@ -84,7 +68,7 @@ Section Alu.
                 >});
          RetE (#sem_output @%["newPc" <- #newPc]).
 
-    Definition Jump: @FUEntry ty
+    Definition Jump: FUEntry ty
       := {|
            fuName := "jump";
            fuFunc
