@@ -74,12 +74,5 @@ Section Params.
            ].
 
     End Display.
-
-    Definition initXlen
-      := ConstBit
-           (natToWord XlenWidth
-              (if Nat.eqb Xlen_over_8 4
-                 then 1
-                 else 2)).
   End model.
 End Params.
