@@ -68,31 +68,11 @@ Section Params.
     Definition processorCore 
       :  BaseModule
       := MODULE {
-              (* extension registers *)
               Node extRegs with
-
-              (* general context registers *)
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
-
-              (* csr registers *)
               Node (csr_regs (Csrs name)) with
-
-              (* machine mode registers *)
-              Register ^"mxl"              : XlenValue <- initXlen with
-              Register ^"mtvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-
-              (* supervisor mode registers *)
-              Register ^"sxl"              : XlenValue <- initXlen with
-              Register ^"sedeleg"          : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"sideleg"          : Bit 16 <- ConstBit (wzero 16) with
-              Register ^"stvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-
-              (* user mode registers *)
-              Register ^"uxl"              : XlenValue <- initXlen with
               Register ^"upp"              : Bit 0 <- ConstBit WO with
-              Register ^"utvec_base"       : Bit (Xlen - 2)%nat <- ConstBit (natToWord (Xlen - 2)%nat 0) with
-              (* preformance monitor registers *)
               Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
               Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
@@ -345,4 +325,3 @@ Section Params.
 
   End model.
 End Params.
-

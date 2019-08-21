@@ -176,6 +176,13 @@ Section ParamDefinitions.
   Definition Xlen32 := 1.
   Definition Xlen64 := 2.
 
+  Definition initXlen
+    := ConstBit
+         (natToWord XlenWidth
+            (if Nat.eqb Xlen_over_8 4
+               then 1
+               else 2)).
+
   (* memory access sizes *)
   Definition sizeWidth := S (Nat.log2_up Rlen_over_8).
   Definition Size := Bit sizeWidth.
