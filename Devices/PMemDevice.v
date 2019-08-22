@@ -63,11 +63,11 @@ Section mem_devices.
            := fun ty => map (fun index => @pMemRead ty index) (seq 0 mem_device_num_reads);
          mem_device_write
            := fun ty
-                => map
-                     (fun (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                       => LETA _ <- pMemWrite index mode pkt;
-                          Ret $$false)
-                     (seq 0 mem_device_num_writes);
+                => [
+                     (fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                       => LETA _ <- pMemWrite 0 mode pkt;
+                            Ret $$false)
+                    ];
          mem_device_file
            := Some
                 (inl [@Build_RegFileBase

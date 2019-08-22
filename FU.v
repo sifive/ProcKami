@@ -377,7 +377,6 @@ Section Params.
          [0; 1; 2; 3].
 
   Definition mem_device_num_reads := 12.
-  Definition mem_device_num_writes := 1.
 
   Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
   Definition mmregs_lgMaskSz := Nat.log2_up 8.
