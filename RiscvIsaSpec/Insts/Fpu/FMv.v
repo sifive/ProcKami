@@ -34,7 +34,6 @@ Section Fpu.
   Local Notation exts_64        := (fpu_params_exts_64 fpu_params).
 
   Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Open Scope kami_expr.
 

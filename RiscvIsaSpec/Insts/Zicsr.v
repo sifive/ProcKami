@@ -14,8 +14,6 @@ Section zicsr.
 
   Variable ty : Kind -> Type.
 
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
   Definition ZicsrOpWidth : nat := 2.
   Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
   Definition zicsrOpWrite := 0.

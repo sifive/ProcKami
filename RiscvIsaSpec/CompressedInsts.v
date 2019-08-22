@@ -60,7 +60,6 @@ Section database.
     :  Bit 5 @# ty
     := (ZeroExtendTruncLsb 5 comp_inst_reg) + (uncomp_inst_reg 8).
 
-  Local Notation xlens_all := ([Xlen32; Xlen64]).
   Let extensions_all := [["C"]].
 
   (*

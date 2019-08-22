@@ -39,7 +39,6 @@ Section Fpu.
   Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
   Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Open Scope kami_expr.
 

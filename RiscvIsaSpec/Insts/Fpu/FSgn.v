@@ -41,7 +41,6 @@ Section Fpu.
   Local Notation NFToBit := (NFToBit ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_extract_float := (@fp_extract_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
   Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition add_format_field
     :  UniqId -> UniqId

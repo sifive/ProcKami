@@ -7,8 +7,6 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
     Definition JumpInputType :=
       STRUCT_TYPE {
         "pc"                   :: VAddr;

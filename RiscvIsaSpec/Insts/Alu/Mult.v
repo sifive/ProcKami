@@ -8,8 +8,6 @@ Section Alu.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
   Definition MultInputType
     := STRUCT_TYPE {
            "xlen"  :: XlenValue;

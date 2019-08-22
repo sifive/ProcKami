@@ -9,8 +9,6 @@ Section Mem.
     Variable ty: Kind -> Type.
 
     Local Open Scope kami_expr.
-
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
   
     Definition Amo32: FUEntry ty :=
       {| fuName := "amo32" ;

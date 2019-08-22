@@ -42,7 +42,6 @@ Section Fpu.
   Local Notation FN_canonical_nan := (@FN_canonical_nan ty expWidthMinus2 sigWidthMinus2).
   Local Notation fp_get_float     := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
   Local Notation csr_invalid_mask := (@csr_invalid_mask ty).
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Definition add_format_field
     :  UniqId -> UniqId

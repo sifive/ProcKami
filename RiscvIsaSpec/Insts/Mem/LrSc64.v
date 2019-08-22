@@ -10,8 +10,6 @@ Section Mem.
 
     Local Open Scope kami_expr.
 
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-  
     Definition LrSc64: FUEntry ty :=
       {| fuName := "lrsc64" ;
          fuFunc := (fun i => LETE x: MemInputAddrType <- i;

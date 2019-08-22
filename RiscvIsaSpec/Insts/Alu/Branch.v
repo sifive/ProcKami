@@ -8,8 +8,6 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
     Definition BranchInputType :=
       STRUCT_TYPE {
         "lt?" :: Bool ;

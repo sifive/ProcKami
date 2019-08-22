@@ -8,8 +8,6 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
     Definition LogicalType := STRUCT_TYPE {"op" :: Bit 2 ; "arg1" :: Bit Xlen ; "arg2" :: Bit Xlen}.
     Definition XorOp := 0.
     Definition OrOp  := 2.

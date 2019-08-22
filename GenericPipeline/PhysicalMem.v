@@ -19,8 +19,6 @@ Section pmem.
 
   Variable mem_table : list (MemTableEntry mem_devices).
 
-  Local Notation DeviceTag := (DeviceTag mem_devices).
-
   Record MemRegion
     := {
          mem_region_width : N;
@@ -137,25 +135,25 @@ Section pmem.
 
     Local Definition getDTag
       (paddr : PAddr @# ty)
-      :  ActionT ty (Maybe (Maybe (Pair DeviceTag PAddr)))
+      :  ActionT ty (Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr)))
       := mem_region_apply
            paddr
            (fun region device_offset
              => Ret
-                  (match mem_region_device region return Maybe (Pair DeviceTag PAddr) @# ty with
+                  (match mem_region_device region return Maybe (Pair (DeviceTag mem_devices) PAddr) @# ty with
                     | None => Invalid
                     | Some dtag
                       => Valid (STRUCT {
                              "fst" ::=  $(proj1_sig (to_nat dtag));
                              "snd" ::= device_offset
-                           } : Pair DeviceTag PAddr @# ty)
+                           } : Pair (DeviceTag mem_devices) PAddr @# ty)
                     end)).
 
     Local Definition checkPMAs
       (access_type : VmAccessType @# ty)
       (paddr : PAddr @# ty)
       (paddr_len : LgSize @# ty)
-      (dtag : DeviceTag @# ty)
+      (dtag : DeviceTag mem_devices @# ty)
       (lrsc : Bool @# ty)
       :  ActionT ty PMAErrorsPkt 
       := mem_device_apply dtag
@@ -206,7 +204,7 @@ Section pmem.
       (paddr : PAddr @# ty)
       (paddr_len : LgSize @# ty)
       (lrsc : Bool @# ty)
-      :  ActionT ty (Pair (Pair DeviceTag PAddr) MemErrorPkt)
+      :  ActionT ty (Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt)
       := LETA pmp_result
            :  Bool
            <- pmp_check_access name access_type mode paddr paddr_len; 
@@ -221,7 +219,7 @@ Section pmem.
                      (paddr >> ($(vm_mode_width vm_mode)
                                 : Bit (Nat.log2_up vm_mode_max_width) @# ty)));
          LETA mresult
-           :  Maybe (Maybe (Pair DeviceTag PAddr))
+           :  Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr))
            <- getDTag paddr;
          LETA pma_result
            :  PMAErrorsPkt
@@ -247,12 +245,12 @@ Section pmem.
          Ret (STRUCT {
            "fst" ::= #mresult @% "data" @% "data";
            "snd" ::= #err_pkt
-         } : Pair (Pair DeviceTag PAddr) MemErrorPkt @# ty).
+         } : Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt @# ty).
 
     Definition mem_region_read
       (index : nat)
       (mode : PrivMode @# ty)
-      (dtag : DeviceTag @# ty)
+      (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (size : LgSize @# ty)
       :  ActionT ty (Maybe Data)
@@ -285,7 +283,7 @@ Section pmem.
     Definition mem_region_write
       (index : nat)
       (mode : PrivMode @# ty)
-      (dtag : DeviceTag @# ty)
+      (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (data : Data @# ty)
       (mask : Array Rlen_over_8 Bool @# ty)

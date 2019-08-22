@@ -176,6 +176,8 @@ Section ParamDefinitions.
   Definition Xlen32 := 1.
   Definition Xlen64 := 2.
 
+  Definition xlens_all := [Xlen32; Xlen64].
+  
   Definition initXlen
     := ConstBit
          (natToWord XlenWidth

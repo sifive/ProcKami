@@ -8,8 +8,6 @@ Section Alu.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
     Definition AddInputType
       := STRUCT_TYPE {
            "xlen"  :: XlenValue;

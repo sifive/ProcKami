@@ -12,8 +12,6 @@ Section mret.
 
   Variable ty: Kind -> Type.
 
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
-
   Local Open Scope kami_expr.
 
   Definition MRet : FUEntry ty

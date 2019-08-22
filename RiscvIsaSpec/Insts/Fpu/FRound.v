@@ -34,7 +34,6 @@ Section Fpu.
   Local Notation bitToNF := (@bitToNF ty).
   Local Notation NFToBit := (@NFToBit ty).
   Local Notation fp_get_float  := (@fp_get_float ty).
-  Local Notation xlens_all := (Xlen32 :: Xlen64 :: nil).
 
   Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
   Local Definition double_Flen := double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1).
