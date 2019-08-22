@@ -13,6 +13,7 @@ Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
+Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import List.
 Import ListNotations.
 
@@ -341,6 +342,29 @@ Section CsrInterface.
                     := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value _ => curr_value
+                |}
+       |}.
+
+  (* pmpcfg register fields. *)
+  Definition pmpField
+    (index : nat)
+    :  CsrField
+    := let name := (^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
+       {|
+         csrFieldName := name;
+         csrFieldKind := Bit 8;
+         csrFieldValue
+           := inr {|
+                  csrFieldRegisterName := name;
+                  csrFieldRegisterKind := Bit 8;
+                  csrFieldRegisterValue := None;
+                  csrFieldRegisterReadXform := fun _ _ => id;
+                  csrFieldRegisterWriteXform
+                    := fun _ _ curr_value input_value
+                         => IF ((input_value$[1:1]) == $1) &&
+                               ((input_value$[0:0]) == $0)
+                              then curr_value (* ignore invalid writes. *)
+                              else input_value
                 |}
        |}.
 

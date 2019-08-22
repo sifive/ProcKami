@@ -601,10 +601,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp3cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp2cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp1cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp0cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 3;
+                         @pmpField name _ 2;
+                         @pmpField name _ 1;
+                         @pmpField name _ 0
                        ] in
                   {|
                     csrViewContext    := fun ty => $1;
@@ -614,14 +614,14 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp7cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp6cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp5cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp4cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp3cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp2cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp1cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp0cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 7;
+                         @pmpField name _ 6;
+                         @pmpField name _ 5;
+                         @pmpField name _ 4;
+                         @pmpField name _ 3;
+                         @pmpField name _ 2;
+                         @pmpField name _ 1;
+                         @pmpField name _ 0
                        ] in
                   {|
                     csrViewContext    := fun ty => $2;
@@ -639,10 +639,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp3cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp2cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp1cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp0cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 3;
+                         @pmpField name _ 2;
+                         @pmpField name _ 1;
+                         @pmpField name _ 0
                        ] in
                   {|
                     csrViewContext    := fun ty => $1;
@@ -669,10 +669,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp11cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp10cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp9cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp8cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 11;
+                         @pmpField name _ 10;
+                         @pmpField name _ 9;
+                         @pmpField name _ 8
                        ] in
                   {|
                     csrViewContext    := fun ty => $1;
@@ -682,14 +682,14 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp15cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp14cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp13cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp12cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp11cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp10cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp9cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp8cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 15;
+                         @pmpField name _ 14;
+                         @pmpField name _ 13;
+                         @pmpField name _ 12;
+                         @pmpField name _ 11;
+                         @pmpField name _ 10;
+                         @pmpField name _ 9;
+                         @pmpField name _ 8
                        ] in
                   {|
                     csrViewContext    := fun ty => $2;
@@ -707,10 +707,10 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ ^"pmp15cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp14cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp13cfg" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ ^"pmp12cfg" (Bit 8) (Bit 8) None
+                         @pmpField name _ 15;
+                         @pmpField name _ 14;
+                         @pmpField name _ 13;
+                         @pmpField name _ 12
                        ] in
                   {|
                     csrViewContext    := fun ty => $1;
