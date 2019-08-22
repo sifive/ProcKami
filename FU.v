@@ -655,13 +655,6 @@ Section Params.
 
     Definition LgPageSize := 12.
 
-    Record MemParamsType
-      := {
-          mem_params_size           : nat; (* log2 num mem bytes *)
-          mem_params_addr_size      : nat; (* physical address size *)
-          mem_params_granularity    : nat  (* pmp (napot) granularity *)
-        }.
-
     (* virtual memory translation params.*)
     Record VmMode
       := { vm_mode_vpn_size: nat ;
