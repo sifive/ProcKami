@@ -303,51 +303,6 @@ Section Params.
        }.
 
   Section Device.
-    Local Definition strings_add xs x
-      := if existsb (String.eqb x) xs
-         then xs
-         else x :: xs.
-
-    Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
-
-    Definition ext_misa_field_name := substring 0 1.
-
-    (* fold over the set of supported extensions *)
-    Definition supported_exts_foldr
-               (A : Type)
-               (f : string -> bool -> A -> A)
-               (init : A)
-      :  A
-      := fold_right
-           (fun ext acc
-            => match 
-                find
-                  (fun state => String.eqb (fst state) ext)
-                  supported_exts
-              with
-              | None => acc
-              | Some state
-                => f ext (snd state) acc
-              end)
-           init ImplExts.
-
-    (* supported and enabled misa extension fields *)
-    Definition misa_field_states
-      :  prod (list string) (list string)
-      := supported_exts_foldr
-           (fun ext enabled acc
-            => (strings_add (fst acc) (ext_misa_field_name ext),
-                if enabled
-                then strings_add (snd acc) (ext_misa_field_name ext)
-                else snd acc))
-           ([], []).
-
-    Definition supported_ext_states
-      :  list (string * Kind)
-      := supported_exts_foldr
-           (fun ext _ => cons (ext, Bool))
-           [].
-
     Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
 
     Record PMA
@@ -466,6 +421,117 @@ Section Params.
     Definition DeviceTag (mem_devices : list MemDevice)
       := Bit (Nat.log2_up (length mem_devices)).
 
+    Local Open Scope kami_action.
+    Local Open Scope kami_expr.
+    (*
+      Note: we assume that device tags will always be valid given
+      the constraints we apply in generating them.
+     *)
+    Definition mem_device_apply ty
+               (mem_devices : list MemDevice)
+               (k : Kind)
+               (tag : DeviceTag mem_devices @# ty)
+               (f : MemDevice -> ActionT ty k)
+      :  ActionT ty k
+      := LETA result
+         :  Maybe k
+                  <- snd
+                  (fold_right
+                     (fun device acc
+                      => (S (fst acc),
+                          LETA acc_result : Maybe k <- snd acc;
+                            (* System [
+                          DispString _ "[mem_device_apply] device tag: ";
+                          DispHex tag;
+                          DispString _ "\n";
+                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
+                        ]; *)
+                            If #acc_result @% "valid" || $(fst acc) != tag
+                          then
+                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
+                            Ret #acc_result
+                          else
+                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
+                            LETA result : k <- f device;
+                            Ret (Valid #result : Maybe k @# ty)
+                              as result;
+                            Ret #result))
+                     (0, Ret Invalid)
+                     mem_devices);
+           Ret (#result @% "data").
+    Local Close Scope kami_expr.
+    Local Close Scope kami_action.
+
+    Record MemTableEntry
+           (mem_devices : list MemDevice)
+      := {
+          mtbl_entry_addr : N;
+          mtbl_entry_width : N;
+          mtbl_entry_device : Fin.t (length mem_devices)
+        }.
+
+    Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
+      :  list A
+      := match ys with
+         | [] => [x]
+         | y0 :: ys
+           => if N.leb (f y0) (f x)
+              then x :: y0 :: ys
+              else y0 :: (mem_table_insert f x ys)
+         end.
+
+    Definition mem_table_sort
+               (mem_devices : list MemDevice)
+      :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
+      := fold_right (mem_table_insert (@mtbl_entry_addr mem_devices)) [].
+  End Device.
+
+  Section Extensions.
+    Local Definition strings_add xs x
+      := if existsb (String.eqb x) xs
+         then xs
+         else x :: xs.
+
+    Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
+
+    Definition ext_misa_field_name := substring 0 1.
+
+    (* fold over the set of supported extensions *)
+    Definition supported_exts_foldr
+               (A : Type)
+               (f : string -> bool -> A -> A)
+               (init : A)
+      :  A
+      := fold_right
+           (fun ext acc
+            => match 
+                find
+                  (fun state => String.eqb (fst state) ext)
+                  supported_exts
+              with
+              | None => acc
+              | Some state
+                => f ext (snd state) acc
+              end)
+           init ImplExts.
+
+    (* supported and enabled misa extension fields *)
+    Definition misa_field_states
+      :  prod (list string) (list string)
+      := supported_exts_foldr
+           (fun ext enabled acc
+            => (strings_add (fst acc) (ext_misa_field_name ext),
+                if enabled
+                then strings_add (snd acc) (ext_misa_field_name ext)
+                else snd acc))
+           ([], []).
+
+    Definition supported_ext_states
+      :  list (string * Kind)
+      := supported_exts_foldr
+           (fun ext _ => cons (ext, Bool))
+           [].
+
     Definition ExtensionsInterface
       :  {k : Kind &
               ((forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
@@ -501,12 +567,25 @@ Section Params.
                    (fun ty exts name
                     => struct_get_field_default exts name (Const ty false))))
               supported_ext_states)%kami_expr.
-  End Device.
 
-  Definition Extensions
-    :  Kind
-    := projT1 ExtensionsInterface.
+    Definition Extensions
+      :  Kind
+      := projT1 ExtensionsInterface.
 
+    Definition Extensions_set ty
+               (exts : Extensions @# ty)
+               (name : string)
+               (value : Bool @# ty)
+      :  Extensions @# ty
+      := fst (projT2 ExtensionsInterface) ty exts name value.
+
+    Definition Extensions_get ty
+               (exts : Extensions @# ty)
+               (name : string)
+      :  Bool @# ty
+      := snd (projT2 ExtensionsInterface) ty exts name.
+  End Extensions.
+  
   Section ty.
     Variable ty: Kind -> Type.
 
@@ -752,83 +831,6 @@ Section Params.
                                else $2)%kami_expr.
     End XlenInterface.
     
-    Definition Extensions_set
-               (exts : Extensions @# ty)
-               (name : string)
-               (value : Bool @# ty)
-      :  Extensions @# ty
-      := fst (projT2 ExtensionsInterface) ty exts name value.
-
-    Definition Extensions_get
-               (exts : Extensions @# ty)
-               (name : string)
-      :  Bool @# ty
-      := snd (projT2 ExtensionsInterface) ty exts name.
-
-    Local Open Scope kami_action.
-    Local Open Scope kami_expr.
-    (*
-      Note: we assume that device tags will always be valid given
-      the constraints we apply in generating them.
-     *)
-    Definition mem_device_apply
-               (mem_devices : list MemDevice)
-               (k : Kind)
-               (tag : DeviceTag mem_devices @# ty)
-               (f : MemDevice -> ActionT ty k)
-      :  ActionT ty k
-      := LETA result
-         :  Maybe k
-                  <- snd
-                  (fold_right
-                     (fun device acc
-                      => (S (fst acc),
-                          LETA acc_result : Maybe k <- snd acc;
-                            (* System [
-                          DispString _ "[mem_device_apply] device tag: ";
-                          DispHex tag;
-                          DispString _ "\n";
-                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
-                        ]; *)
-                            If #acc_result @% "valid" || $(fst acc) != tag
-                          then
-                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
-                            Ret #acc_result
-                          else
-                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
-                            LETA result : k <- f device;
-                            Ret (Valid #result : Maybe k @# ty)
-                              as result;
-                            Ret #result))
-                     (0, Ret Invalid)
-                     mem_devices);
-           Ret (#result @% "data").
-    Local Close Scope kami_expr.
-    Local Close Scope kami_action.
-
-    Record MemTableEntry
-           (mem_devices : list MemDevice)
-      := {
-          mtbl_entry_addr : N;
-          mtbl_entry_width : N;
-          mtbl_entry_device : Fin.t (length mem_devices)
-        }.
-
-    Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
-      :  list A
-      := match ys with
-         | [] => [x]
-         | y0 :: ys
-           => if N.leb (f y0) (f x)
-              then x :: y0 :: ys
-              else y0 :: (mem_table_insert f x ys)
-         end.
-
-    Definition mem_table_sort
-               (mem_devices : list MemDevice)
-      :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
-      := fold_right (mem_table_insert (@mtbl_entry_addr mem_devices)) [].
-
     Definition ContextCfgPkt :=
       STRUCT_TYPE {
           "xlen"        :: XlenValue;
