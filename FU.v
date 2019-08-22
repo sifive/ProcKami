@@ -302,190 +302,6 @@ Section Params.
          "compressed?" :: Bool
        }.
 
-  Section Device.
-    Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
-
-    Record PMA
-      := {
-          pma_width : nat; (* in bytes *)
-          pma_readable : bool;
-          pma_writeable : bool;
-          pma_executable : bool;
-          pma_misaligned : bool;
-          pma_lrsc : bool;
-          pma_amo : PMAAmoClass
-        }.
-
-    Inductive MemDeviceType := main_memory | io_device.
-
-    Definition pmas_default
-      := map
-           (fun x
-            => {|
-                pma_width      := x;
-                pma_readable   := true;
-                pma_writeable  := true;
-                pma_executable := true;
-                pma_misaligned := true;
-                pma_lrsc       := true;
-                pma_amo        := AMOArith
-              |})
-           [0; 1; 2; 3].
-
-    Definition mem_device_num_reads := 12.
-
-    Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
-    Definition mmregs_lgMaskSz := Nat.log2_up 8.
-
-    Record MMRegs
-      := {
-          mmregs_dev_lgNumRegs : nat;
-          mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
-        }.
-
-    Definition mmregs_regs (mmregs : MMRegs)
-      := map
-           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-            => (Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x))))%kami
-           (mmregs_dev_regs mmregs).
-
-    Record MemDevice
-      := {
-          mem_device_name : string;
-          mem_device_type : MemDeviceType; (* 3.5.1 *)
-          mem_device_pmas : list PMA;
-          mem_device_read
-          : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
-          mem_device_write
-          : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
-          mem_device_file
-          : option ((list RegFileBase) + MMRegs)%type
-        }.
-
-    Local Open Scope kami_action.
-
-    Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
-      :  ActionT ty Data 
-      := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
-           Ret $0.
-
-    Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
-      :  ActionT ty Bool
-      := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
-           Ret $$false.
-
-    Local Close Scope kami_action.
-
-    Definition mem_device_read_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
-      := List.nth_error (mem_device_read device ty) index.
-
-    Definition mem_device_write_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
-      := List.nth_error (mem_device_write device ty) index.
-
-    Definition mem_device_files
-      :  list MemDevice -> list RegFileBase
-      := fold_right
-           (fun device acc
-            => match mem_device_file device with
-               | Some res
-                 => match res with
-                    | inl files => files ++ acc
-                    | _ => acc
-                    end
-               | _ => acc
-               end)
-           [].
-
-    Definition mem_device_regs
-      :  list MemDevice -> list (Tree ModuleElt)
-      := fold_right
-           (fun device acc
-            => match mem_device_file device with
-               | Some res
-                 => match res with
-                    | inr mmregs => (mmregs_regs mmregs) ++ acc
-                    | _ => acc
-                    end
-               | _ => acc
-               end)
-           [].
-
-    Definition DeviceTag (mem_devices : list MemDevice)
-      := Bit (Nat.log2_up (length mem_devices)).
-
-    Local Open Scope kami_action.
-    Local Open Scope kami_expr.
-    (*
-      Note: we assume that device tags will always be valid given
-      the constraints we apply in generating them.
-     *)
-    Definition mem_device_apply ty
-               (mem_devices : list MemDevice)
-               (k : Kind)
-               (tag : DeviceTag mem_devices @# ty)
-               (f : MemDevice -> ActionT ty k)
-      :  ActionT ty k
-      := LETA result
-         :  Maybe k
-                  <- snd
-                  (fold_right
-                     (fun device acc
-                      => (S (fst acc),
-                          LETA acc_result : Maybe k <- snd acc;
-                            (* System [
-                          DispString _ "[mem_device_apply] device tag: ";
-                          DispHex tag;
-                          DispString _ "\n";
-                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
-                        ]; *)
-                            If #acc_result @% "valid" || $(fst acc) != tag
-                          then
-                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
-                            Ret #acc_result
-                          else
-                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
-                            LETA result : k <- f device;
-                            Ret (Valid #result : Maybe k @# ty)
-                              as result;
-                            Ret #result))
-                     (0, Ret Invalid)
-                     mem_devices);
-           Ret (#result @% "data").
-    Local Close Scope kami_expr.
-    Local Close Scope kami_action.
-
-    Record MemTableEntry
-           (mem_devices : list MemDevice)
-      := {
-          mtbl_entry_addr : N;
-          mtbl_entry_width : N;
-          mtbl_entry_device : Fin.t (length mem_devices)
-        }.
-
-    Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
-      :  list A
-      := match ys with
-         | [] => [x]
-         | y0 :: ys
-           => if N.leb (f y0) (f x)
-              then x :: y0 :: ys
-              else y0 :: (mem_table_insert f x ys)
-         end.
-
-    Definition mem_table_sort
-               (mem_devices : list MemDevice)
-      :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
-      := fold_right (mem_table_insert (@mtbl_entry_addr mem_devices)) [].
-  End Device.
-
   Section Extensions.
     Local Definition strings_add xs x
       := if existsb (String.eqb x) xs
@@ -517,7 +333,7 @@ Section Params.
 
     (* supported and enabled misa extension fields *)
     Definition misa_field_states
-      :  prod (list string) (list string)
+      :  (list string * list string)
       := supported_exts_foldr
            (fun ext enabled acc
             => (strings_add (fst acc) (ext_misa_field_name ext),
@@ -527,7 +343,7 @@ Section Params.
            ([], []).
 
     Definition supported_ext_states
-      :  list (string * Kind)
+      :  list (Attribute Kind)
       := supported_exts_foldr
            (fun ext _ => cons (ext, Bool))
            [].
@@ -893,4 +709,173 @@ Section Params.
         fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
   End ty.
+
+  Section Device.
+    Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+
+    Record PMA
+      := {
+          pma_width : nat; (* in bytes *)
+          pma_readable : bool;
+          pma_writeable : bool;
+          pma_executable : bool;
+          pma_misaligned : bool;
+          pma_lrsc : bool;
+          pma_amo : PMAAmoClass
+        }.
+
+    Inductive MemDeviceType := main_memory | io_device.
+
+    Definition pmas_default
+      := map
+           (fun x
+            => {|
+                pma_width      := x;
+                pma_readable   := true;
+                pma_writeable  := true;
+                pma_executable := true;
+                pma_misaligned := true;
+                pma_lrsc       := true;
+                pma_amo        := AMOArith
+              |})
+           [0; 1; 2; 3].
+
+    Definition mem_device_num_reads := 12.
+
+    Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
+    Definition mmregs_lgMaskSz := Nat.log2_up 8.
+
+    Record MMRegs
+      := {
+          mmregs_dev_lgNumRegs : nat;
+          mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
+        }.
+
+    Definition mmregs_regs (mmregs : MMRegs)
+      := map
+           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
+            => (Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x))))%kami
+           (mmregs_dev_regs mmregs).
+
+    Record MemDevice
+      := {
+          mem_device_name : string;
+          mem_device_type : MemDeviceType; (* 3.5.1 *)
+          mem_device_pmas : list PMA;
+          mem_device_read
+          : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
+          mem_device_write
+          : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+          mem_device_file
+          : option ((list RegFileBase) + MMRegs)%type
+        }.
+
+    Local Open Scope kami_action.
+
+    Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
+      :  ActionT ty Data 
+      := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
+           Ret $0.
+
+    Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
+      :  ActionT ty Bool
+      := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
+           Ret $$false.
+
+    Local Close Scope kami_action.
+
+    Definition mem_device_read_nth
+               (ty : Kind -> Type)
+               (device : MemDevice)
+               (index : nat)
+      :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
+      := List.nth_error (mem_device_read device ty) index.
+
+    Definition mem_device_write_nth
+               (ty : Kind -> Type)
+               (device : MemDevice)
+               (index : nat)
+      :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
+      := List.nth_error (mem_device_write device ty) index.
+
+    Definition mem_device_files
+      :  list MemDevice -> list RegFileBase
+      := fold_right
+           (fun device acc
+            => match mem_device_file device with
+               | Some res
+                 => match res with
+                    | inl files => files ++ acc
+                    | _ => acc
+                    end
+               | _ => acc
+               end)
+           [].
+
+    Definition mem_device_regs
+      :  list MemDevice -> list (Tree ModuleElt)
+      := fold_right
+           (fun device acc
+            => match mem_device_file device with
+               | Some res
+                 => match res with
+                    | inr mmregs => (mmregs_regs mmregs) ++ acc
+                    | _ => acc
+                    end
+               | _ => acc
+               end)
+           [].
+
+    Definition DeviceTag (mem_devices : list MemDevice)
+      := Bit (Nat.log2_up (length mem_devices)).
+
+    Local Open Scope kami_action.
+    Local Open Scope kami_expr.
+    (*
+      Note: we assume that device tags will always be valid given
+      the constraints we apply in generating them.
+     *)
+    Definition mem_device_apply ty
+               (mem_devices : list MemDevice)
+               (tag : DeviceTag mem_devices @# ty)
+               (k : Kind)
+               (f : MemDevice -> ActionT ty k)
+      :  ActionT ty k
+      := LETA result
+         :  Maybe k
+                  <- snd
+                  (fold_right
+                     (fun device acc
+                      => (S (fst acc),
+                          LETA acc_result : Maybe k <- snd acc;
+                            (* System [
+                          DispString _ "[mem_device_apply] device tag: ";
+                          DispHex tag;
+                          DispString _ "\n";
+                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
+                        ]; *)
+                            If #acc_result @% "valid" || $(fst acc) != tag
+                          then
+                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
+                            Ret #acc_result
+                          else
+                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
+                            LETA result : k <- f device;
+                            Ret (Valid #result : Maybe k @# ty)
+                              as result;
+                            Ret #result))
+                     (0, Ret Invalid)
+                     mem_devices);
+           Ret (#result @% "data").
+    Local Close Scope kami_expr.
+    Local Close Scope kami_action.
+
+    Record MemTableEntry
+           (mem_devices : list MemDevice)
+      := {
+          mtbl_entry_addr : N;
+          mtbl_entry_width : N;
+          mtbl_entry_device : Fin.t (length mem_devices)
+        }.
+  End Device.
 End Params.

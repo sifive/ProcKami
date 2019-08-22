@@ -4,6 +4,8 @@
 Require Import Kami.All.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
+Require Import StdLibKami.RegStruct.
+Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
 Require Import BinNums.
@@ -54,6 +56,20 @@ Section pmem.
                        end
                 end)
          (Some (0%N, [])).
+
+  Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
+    :  list A
+    := match ys with
+       | [] => [x]
+       | y0 :: ys
+         => if N.leb (f y0) (f x)
+            then x :: y0 :: ys
+            else y0 :: (mem_table_insert f x ys)
+       end.
+
+  Definition mem_table_sort
+    :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
+    := fold_right (mem_table_insert (@mtbl_entry_addr _ mem_devices)) [].
 
   Definition mem_regions
     := match mem_table_regions (mem_table_sort mem_table) with

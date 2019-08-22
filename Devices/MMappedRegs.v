@@ -40,15 +40,15 @@ Section mmapped.
 
       Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
 
-      Local Definition MmappedReq
+      Local Definition MmReq
         := STRUCT_TYPE {
              "isRd" :: Bool;
              "addr" :: Bit mmregs_realAddrSz;
              "data" :: Bit dataSz
            }.
 
-      Local Definition readWriteMMappedReg
-        (request : MmappedReq @# ty)
+      Local Definition readWriteMmReg
+        (request : MmReq @# ty)
         :  ActionT ty (Bit 64)
         := LET rq_info
              :  RegMapT
@@ -67,21 +67,21 @@ Section mmapped.
              <- readWriteGranules_GroupReg (Valid #rq) mmregs;
            Ret (ZeroExtendTruncLsb 64 #result).
 
-      Local Definition mmapped_read
+      Local Definition mm_read
         (addr : Bit mmregs_realAddrSz @# ty) 
         :  ActionT ty (Bit 64)
-        := readWriteMMappedReg
+        := readWriteMmReg
              (STRUCT {
                 "isRd" ::= $$true;
                 "addr" ::= addr;
                 "data" ::= $0
               }).
 
-      Local Definition mmapped_write
+      Local Definition mm_write
         (addr : Bit mmregs_realAddrSz @# ty)
         (data : Bit dataSz @# ty)
         :  ActionT ty (Bit 64)
-        := readWriteMMappedReg
+        := readWriteMmReg
              (STRUCT {
                 "isRd" ::= $$false;
                 "addr" ::= addr;
@@ -104,14 +104,14 @@ Section mmapped.
                        => System [
                             DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
                           ];
-                          LETA result : Bit 64 <- mmapped_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                          LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
                           Ret (ZeroExtendTruncLsb Rlen #result)];
            mem_device_write
              := fun ty
                   => [fun (_ : PrivMode @# ty) (write_pkt : MemWrite @# ty)
                          => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
                             LETA _
-                              <- mmapped_write #addr
+                              <- mm_write #addr
                                    (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
                             Ret $$false];
            mem_device_file
