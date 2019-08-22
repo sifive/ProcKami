@@ -154,7 +154,7 @@ Section exts.
 
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
-  Local Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8 supported_exts.
+  Local Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8 supported_xlens supported_exts.
 
   Section ty.
     Variable ty : Kind -> Type.

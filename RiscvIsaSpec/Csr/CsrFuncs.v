@@ -416,7 +416,7 @@ Section CsrInterface.
                   csrFieldRegisterReadXform := fun _ _ => ZeroExtendTruncLsb XlenWidth;
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value input_value
-                         => IF input_value == $1 || input_value == $2
+                         => IF (fold_left (fun acc xlen => acc || input_value == $xlen) supported_xlens $$false)
                               then ZeroExtendTruncLsb XlenWidth input_value
                               else curr_value
                 |}

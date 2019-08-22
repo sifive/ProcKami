@@ -144,6 +144,7 @@ Definition SatpModeSv48 := 9.
 Class ProcParams :=
   { Xlen_over_8: nat ;
     Flen_over_8: nat ;
+    supported_xlens: list nat;
     supported_exts: list (string * bool) }.
 
 Class FpuParams
