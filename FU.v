@@ -203,10 +203,8 @@ Section ParamDefinitions.
                else 2)).
 
   (* memory access sizes *)
-  Definition sizeWidth := S (Nat.log2_up Rlen_over_8).
-  Definition Size := Bit sizeWidth.
-  Definition lgSizeWidth := S (Nat.log2_up sizeWidth).
-  Definition LgSize := Bit lgSizeWidth.
+  Definition MemRqSize := S (Nat.log2_up Rlen_over_8).
+  Definition MemRqLgSize := Bit (Nat.log2_up MemRqSize).
 
   Definition expWidthMinus1 := expWidthMinus2 + 1.
   Definition expWidth := expWidthMinus1 + 1.
@@ -283,7 +281,7 @@ Section Params.
                              "addr" :: PAddr ;
                              "data" :: Data ;
                              "mask" :: Array Rlen_over_8 Bool ;
-                             "size" :: LgSize }.
+                             "size" :: MemRqLgSize }.
   
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
@@ -406,7 +404,7 @@ Section Params.
          mem_device_type : MemDeviceType; (* 3.5.1 *)
          mem_device_pmas : list PMA;
          mem_device_read
-           : forall ty, list (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data);
+           : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
          mem_device_write
            : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
          mem_device_file
@@ -415,7 +413,7 @@ Section Params.
 
   Open Scope kami_action.
 
-  Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : LgSize @# ty)
+  Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
     :  ActionT ty Data 
     := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
        Ret $0.
@@ -431,7 +429,7 @@ Section Params.
     (ty : Kind -> Type)
     (device : MemDevice)
     (index : nat)
-    :  option (PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Data)
+    :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
     := List.nth_error (mem_device_read device ty) index.
 
   Definition mem_device_write_nth

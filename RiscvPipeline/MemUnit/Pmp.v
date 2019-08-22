@@ -110,7 +110,7 @@ Section pmp.
     (check : pmp_check_type @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
-    (addr_len : LgSize @# ty)
+    (addr_len : MemRqLgSize @# ty)
     :  ActionT ty Bool
     := (* System [
          DispString _ "[pmp_check] addr: ";
@@ -179,8 +179,8 @@ Section pmp.
                              <- fold_left
                                   (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
                                     => LET offset
-                                         :  Size
-                                         <- Const ty (natToWord sizeWidth (4 * index)%nat);
+                                         :  Bit MemRqSize
+                                         <- Const ty (natToWord MemRqSize (4 * index)%nat);
                                        (* System [
                                          DispString _ "[pmp_check] --------------------------------------------------\n";
                                          DispString _ "[pmp_check] offset: ";
@@ -306,7 +306,7 @@ Section pmp.
 
   Definition pmp_check_access
     (access_type : VmAccessType @# ty)
-    :  PrivMode @# ty -> PAddr @# ty -> LgSize @# ty -> ActionT ty Bool
+    :  PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Bool
     := pmp_check
          (Switch access_type Retn pmp_check_type With {
             ($VmAccessInst : VmAccessType @# ty)

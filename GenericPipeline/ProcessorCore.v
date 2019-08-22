@@ -25,7 +25,6 @@ Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.RiscvPipeline.Commit.
-Require Import ProcKami.GenericPipeline.ProcessorUtils.
 
 Section Params.
   Variable name: string.

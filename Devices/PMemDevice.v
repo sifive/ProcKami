@@ -15,7 +15,7 @@ Section mem_devices.
 
     Variable ty: Kind -> Type.
 
-    Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty) (_ : LgSize @# ty)
+    Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty) (_ : MemRqLgSize @# ty)
       : ActionT ty Data
       := Call result
            : Array Rlen_over_8 (Bit 8)

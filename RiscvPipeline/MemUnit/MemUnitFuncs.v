@@ -237,7 +237,7 @@ Section mem_unit.
                     func_unit_id
                     inst_id);
            LETA msize
-             :  Maybe (@LgSize procParams)
+             :  Maybe (@MemRqLgSize procParams)
              <-  convertLetExprSyntax_ActionT
                    (inst_db_get_pkt
                      (fun _ _ tagged_inst

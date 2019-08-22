@@ -152,7 +152,7 @@ Section pmem.
     Local Definition checkPMAs
       (access_type : VmAccessType @# ty)
       (paddr : PAddr @# ty)
-      (paddr_len : LgSize @# ty)
+      (paddr_len : MemRqLgSize @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (lrsc : Bool @# ty)
       :  ActionT ty PMAErrorsPkt 
@@ -202,7 +202,7 @@ Section pmem.
       (satp_mode : Bit SatpModeWidth @# ty)
       (mode : PrivMode @# ty)
       (paddr : PAddr @# ty)
-      (paddr_len : LgSize @# ty)
+      (paddr_len : MemRqLgSize @# ty)
       (lrsc : Bool @# ty)
       :  ActionT ty (Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt)
       := LETA pmp_result
@@ -252,7 +252,7 @@ Section pmem.
       (mode : PrivMode @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
-      (size : LgSize @# ty)
+      (size : MemRqLgSize @# ty)
       :  ActionT ty (Maybe Data)
       := mem_device_apply dtag 
            (fun device
@@ -287,7 +287,7 @@ Section pmem.
       (daddr : PAddr @# ty)
       (data : Data @# ty)
       (mask : Array Rlen_over_8 Bool @# ty)
-      (size : LgSize @# ty)
+      (size : MemRqLgSize @# ty)
       :  ActionT ty Bool
       := mem_device_apply dtag
            (fun device
