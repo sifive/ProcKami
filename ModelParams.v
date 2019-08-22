@@ -35,7 +35,7 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FDivSqrt.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FRound.
 Require Import ProcKami.RiscvIsaSpec.Insts.Zicsr.
 Require Import ProcKami.RiscvIsaSpec.Insts.MRet.
-Require Import ProcKami.GenericPipeline.PhysicalMem.
+Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.Devices.PMemDevice.
 Require Import ProcKami.Devices.MMappedRegs.
 

@@ -302,70 +302,71 @@ Section Params.
          "compressed?" :: Bool
        }.
 
-  Local Definition strings_add xs x
-    := if existsb (String.eqb x) xs
+  Section Device.
+    Local Definition strings_add xs x
+      := if existsb (String.eqb x) xs
          then xs
          else x :: xs.
 
-  Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
+    Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
 
-  Definition ext_misa_field_name := substring 0 1.
+    Definition ext_misa_field_name := substring 0 1.
 
-  (* fold over the set of supported extensions *)
-  Definition supported_exts_foldr
-    (A : Type)
-    (f : string -> bool -> A -> A)
-    (init : A)
-    :  A
-    := fold_right
-         (fun ext acc
-           => match 
+    (* fold over the set of supported extensions *)
+    Definition supported_exts_foldr
+               (A : Type)
+               (f : string -> bool -> A -> A)
+               (init : A)
+      :  A
+      := fold_right
+           (fun ext acc
+            => match 
                 find
                   (fun state => String.eqb (fst state) ext)
                   supported_exts
-                with
-                | None => acc
-                | Some state
-                  => f ext (snd state) acc
-                end)
-         init ImplExts.
+              with
+              | None => acc
+              | Some state
+                => f ext (snd state) acc
+              end)
+           init ImplExts.
 
-  (* supported and enabled misa extension fields *)
-  Definition misa_field_states
-    :  prod (list string) (list string)
-    := supported_exts_foldr
-         (fun ext enabled acc
-           => (strings_add (fst acc) (ext_misa_field_name ext),
-               if enabled
-                 then strings_add (snd acc) (ext_misa_field_name ext)
-                 else snd acc))
-         ([], []).
+    (* supported and enabled misa extension fields *)
+    Definition misa_field_states
+      :  prod (list string) (list string)
+      := supported_exts_foldr
+           (fun ext enabled acc
+            => (strings_add (fst acc) (ext_misa_field_name ext),
+                if enabled
+                then strings_add (snd acc) (ext_misa_field_name ext)
+                else snd acc))
+           ([], []).
 
-  Definition supported_ext_states
-    :  list (string * Kind)
-    := supported_exts_foldr
-         (fun ext _ => cons (ext, Bool))
-         [].
+    Definition supported_ext_states
+      :  list (string * Kind)
+      := supported_exts_foldr
+           (fun ext _ => cons (ext, Bool))
+           [].
 
-  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+    Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
 
-  Record PMA
-    := {
-         pma_width : nat; (* in bytes *)
-         pma_readable : bool;
-         pma_writeable : bool;
-         pma_executable : bool;
-         pma_misaligned : bool;
-         pma_lrsc : bool;
-         pma_amo : PMAAmoClass
-       }.
+    Record PMA
+      := {
+          pma_width : nat; (* in bytes *)
+          pma_readable : bool;
+          pma_writeable : bool;
+          pma_executable : bool;
+          pma_misaligned : bool;
+          pma_lrsc : bool;
+          pma_amo : PMAAmoClass
+        }.
 
-  Inductive MemDeviceType := main_memory | io_device.
+    Inductive MemDeviceType := main_memory | io_device.
 
-  Definition pmas_default
-    := map
-         (fun x
-           => {|
+    Definition pmas_default
+      := map
+           (fun x
+            => {|
                 pma_width      := x;
                 pma_readable   := true;
                 pma_writeable  := true;
@@ -374,140 +375,133 @@ Section Params.
                 pma_lrsc       := true;
                 pma_amo        := AMOArith
               |})
-         [0; 1; 2; 3].
+           [0; 1; 2; 3].
 
-  Definition mem_device_num_reads := 12.
+    Definition mem_device_num_reads := 12.
 
-  Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
-  Definition mmregs_lgMaskSz := Nat.log2_up 8.
+    Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
+    Definition mmregs_lgMaskSz := Nat.log2_up 8.
 
-  Record MMRegs
-    := {
-         mmregs_dev_lgNumRegs : nat;
-         mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
-       }.
+    Record MMRegs
+      := {
+          mmregs_dev_lgNumRegs : nat;
+          mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
+        }.
 
-  Open Scope kami_scope.
+    Definition mmregs_regs (mmregs : MMRegs)
+      := map
+           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
+            => (Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x))))%kami
+           (mmregs_dev_regs mmregs).
 
-  Definition mmregs_regs (mmregs : MMRegs)
-    := map
-         (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-           => Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x)))
-         (mmregs_dev_regs mmregs).
+    Record MemDevice
+      := {
+          mem_device_name : string;
+          mem_device_type : MemDeviceType; (* 3.5.1 *)
+          mem_device_pmas : list PMA;
+          mem_device_read
+          : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
+          mem_device_write
+          : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+          mem_device_file
+          : option ((list RegFileBase) + MMRegs)%type
+        }.
 
-  Close Scope kami_scope.
+    Local Open Scope kami_action.
 
-  Record MemDevice
-    := {
-         mem_device_name : string;
-         mem_device_type : MemDeviceType; (* 3.5.1 *)
-         mem_device_pmas : list PMA;
-         mem_device_read
-           : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
-         mem_device_write
-           : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
-         mem_device_file
-           : option ((list RegFileBase) + MMRegs)%type
-       }.
+    Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
+      :  ActionT ty Data 
+      := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
+           Ret $0.
 
-  Open Scope kami_action.
+    Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
+      :  ActionT ty Bool
+      := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
+           Ret $$false.
 
-  Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
-    :  ActionT ty Data 
-    := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
-       Ret $0.
+    Local Close Scope kami_action.
 
-  Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
-    :  ActionT ty Bool
-    := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
-       Ret $$false.
+    Definition mem_device_read_nth
+               (ty : Kind -> Type)
+               (device : MemDevice)
+               (index : nat)
+      :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
+      := List.nth_error (mem_device_read device ty) index.
 
-  Close Scope kami_action.
+    Definition mem_device_write_nth
+               (ty : Kind -> Type)
+               (device : MemDevice)
+               (index : nat)
+      :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
+      := List.nth_error (mem_device_write device ty) index.
 
-  Definition mem_device_read_nth
-    (ty : Kind -> Type)
-    (device : MemDevice)
-    (index : nat)
-    :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
-    := List.nth_error (mem_device_read device ty) index.
+    Definition mem_device_files
+      :  list MemDevice -> list RegFileBase
+      := fold_right
+           (fun device acc
+            => match mem_device_file device with
+               | Some res
+                 => match res with
+                    | inl files => files ++ acc
+                    | _ => acc
+                    end
+               | _ => acc
+               end)
+           [].
 
-  Definition mem_device_write_nth
-    (ty : Kind -> Type)
-    (device : MemDevice)
-    (index : nat)
-    :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
-    := List.nth_error (mem_device_write device ty) index.
+    Definition mem_device_regs
+      :  list MemDevice -> list (Tree ModuleElt)
+      := fold_right
+           (fun device acc
+            => match mem_device_file device with
+               | Some res
+                 => match res with
+                    | inr mmregs => (mmregs_regs mmregs) ++ acc
+                    | _ => acc
+                    end
+               | _ => acc
+               end)
+           [].
 
-  Definition mem_device_files
-    :  list MemDevice -> list RegFileBase
-    := fold_right
-         (fun device acc
-           => match mem_device_file device with
-                | Some res
-                  => match res with
-                       | inl files => files ++ acc
-                       | _ => acc
-                       end
-                | _ => acc
-                end)
-         [].
+    Definition DeviceTag (mem_devices : list MemDevice)
+      := Bit (Nat.log2_up (length mem_devices)).
 
-  Definition mem_device_regs
-    :  list MemDevice -> list (Tree ModuleElt)
-    := fold_right
-         (fun device acc
-           => match mem_device_file device with
-                | Some res
-                  => match res with
-                       | inr mmregs => (mmregs_regs mmregs) ++ acc
-                       | _ => acc
-                       end
-                | _ => acc
-                end)
-         [].
-
-  Definition DeviceTag (mem_devices : list MemDevice)
-    := Bit (Nat.log2_up (length mem_devices)).
-
-  Local Open Scope kami_expr.
-
-  Local Open Scope kami_action.
-
-  Definition ExtensionsInterface
-    :  {k : Kind &
-         ((forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
-          (forall ty, k @# ty -> string -> Bool @# ty))}%type
-    := existT
-         (fun k
-           => (forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
-              (forall ty, k @# ty -> string -> Bool @# ty))%type
-         (getStruct supported_ext_states)
-         (list_rect
-           (fun states
-             => (forall ty, getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
-                (forall ty, getStruct states @# ty -> string -> Bool @# ty))%type
-           ((fun _ exts _ _ => exts),
-            (fun ty _ _ => Const ty false))
-           (fun state states _
-             => ((fun ty exts name value
-                   => let get_kind index := snd (nth_Fin (state :: states) index) in
-                      let get_name index := fst (nth_Fin (state :: states) index) in
-                      BuildStruct
-                        get_kind
-                        get_name
-                        (fun index
+    Definition ExtensionsInterface
+      :  {k : Kind &
+              ((forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
+               (forall ty, k @# ty -> string -> Bool @# ty))}%type
+      := existT
+           (fun k
+            => (forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
+               (forall ty, k @# ty -> string -> Bool @# ty))%type
+           (getStruct supported_ext_states)
+           (list_rect
+              (fun states
+               => (forall ty, getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
+                  (forall ty, getStruct states @# ty -> string -> Bool @# ty))%type
+              ((fun _ exts _ _ => exts),
+               (fun ty _ _ => Const ty false))
+              (fun state states _
+               => ((fun ty exts name value
+                    => let get_kind index := snd (nth_Fin (state :: states) index) in
+                       let get_name index := fst (nth_Fin (state :: states) index) in
+                       BuildStruct
+                         get_kind
+                         get_name
+                         (fun index
                           => if String.eqb name (get_name index)
-                               then (* (value : get_kind index @# ty) *)
-                                 match Kind_dec Bool (get_kind index) with
-                                   | left H
-                                     => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
-                                   | right _
-                                     => Const ty (getDefaultConst (get_kind index)) (* impossible case *)
-                                   end
-                               else (ReadStruct exts index : get_kind index @# ty))),
-                 (fun ty exts name
-                   => struct_get_field_default exts name (Const ty false))))
-           supported_ext_states).
+                             then (* (value : get_kind index @# ty) *)
+                               match Kind_dec Bool (get_kind index) with
+                               | left H
+                                 => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
+                               | right _
+                                 => Const ty (getDefaultConst (get_kind index)) (* impossible case *)
+                               end
+                             else (ReadStruct exts index : get_kind index @# ty))),
+                   (fun ty exts name
+                    => struct_get_field_default exts name (Const ty false))))
+              supported_ext_states)%kami_expr.
+  End Device.
 
   Definition Extensions
     :  Kind
@@ -516,6 +510,248 @@ Section Params.
   Section ty.
     Variable ty: Kind -> Type.
 
+    Definition LgPageSize := 12.
+
+    (* virtual memory translation params.*)
+    Record VmMode
+      := { vm_mode_vpn_size: nat ;
+           vm_mode_shift_num: nat ;
+           vm_mode_sizes: list nat ;
+           vm_mode_mode: word SatpModeWidth
+         }.
+
+    (* See 4.3.1 *)
+    Definition vm_mode_sv32
+      := {| vm_mode_vpn_size := 10 ;
+            vm_mode_shift_num := 2 ;
+            vm_mode_sizes := [12 ; 10 ];
+            vm_mode_mode := $SatpModeSv32 |}.
+
+    Definition vm_mode_sv39
+      := {| vm_mode_vpn_size := 9 ;
+            vm_mode_shift_num := 3 ;
+            vm_mode_sizes := [26 ; 9; 9 ];
+            vm_mode_mode := $SatpModeSv39 |}.
+
+    Definition vm_mode_sv48
+      := {| vm_mode_vpn_size := 9 ;
+            vm_mode_shift_num := 4 ;
+            vm_mode_sizes := [17 ; 9; 9; 9 ];
+            vm_mode_mode := $SatpModeSv48 |}.
+
+    Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
+
+    Definition vm_mode_width vm_mode
+      := (((vm_mode_vpn_size vm_mode) * (vm_mode_shift_num vm_mode)) + 12)%nat.
+
+    Definition vm_mode_max_width
+      := fold_right Nat.max 0 (map vm_mode_width vmModes).
+
+    Definition VmAccessType := Bit 2.
+    Definition VmAccessInst := 0.
+    Definition VmAccessLoad := 1.
+    Definition VmAccessSAmo := 2.
+
+    Local Open Scope kami_expr.
+    Definition faultException
+               (access_type : VmAccessType @# ty)
+               (value : ExceptionInfo @# ty)
+      :  FullException @# ty
+      := STRUCT {
+             "exception"
+             ::= Switch access_type Retn Exception With {
+                          ($VmAccessInst : VmAccessType @# ty)
+                          ::= ($InstPageFault : Exception @# ty);
+                          ($VmAccessLoad : VmAccessType @# ty)
+                          ::= ($LoadPageFault : Exception @# ty);
+                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ::= ($SAmoPageFault : Exception @# ty)
+                        };
+             "value" ::= value
+           } : FullException @# ty.
+
+    Definition accessException
+               (access_type : VmAccessType @# ty)
+               (value : ExceptionInfo @# ty)
+      :  FullException @# ty
+      := STRUCT {
+             "exception"
+             ::= Switch access_type Retn Exception With {
+                          ($VmAccessInst : VmAccessType @# ty)
+                          ::= ($InstAccessFault : Exception @# ty);
+                          ($VmAccessLoad : VmAccessType @# ty)
+                          ::= ($LoadAccessFault : Exception @# ty);
+                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ::= ($SAmoAccessFault : Exception @# ty)
+                        };
+             "value" ::= value
+           } : FullException @# ty.
+
+    Definition misalignedException
+               (access_type : VmAccessType @# ty)
+               (value : ExceptionInfo @# ty)
+      :  FullException @# ty
+      := STRUCT {
+             "exception"
+             ::= Switch access_type Retn Exception With {
+                          ($VmAccessInst : VmAccessType @# ty)
+                          ::= ($InstAddrMisaligned : Exception @# ty);
+                          ($VmAccessLoad : VmAccessType @# ty)
+                          ::= ($LoadAddrMisaligned : Exception @# ty);
+                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ::= ($SAmoAddrMisaligned : Exception @# ty)
+                        };
+             "value" ::= value
+           } : FullException @# ty.
+
+    Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
+      Switch satp_mode Retn k With {
+               ($SatpModeSv32 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv32;
+               ($SatpModeSv39 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv39;
+               ($SatpModeSv48 : Bit SatpModeWidth @# ty)
+               ::= f vm_mode_sv48
+             }.
+
+    Definition bindException
+               (input_kind output_kind : Kind)
+               (input : input_kind @# ty)
+               (exception : Maybe FullException @# ty)
+               (act : input_kind @# ty -> ActionT ty (PktWithException output_kind))
+      :  ActionT ty (PktWithException output_kind)
+      := (If exception @% "valid"
+          then
+            Ret (STRUCT {
+                     "fst" ::= $$(getDefaultConst output_kind);
+                     "snd" ::= exception
+                   } : PktWithException output_kind @# ty)
+          else act input
+           as output;
+            Ret #output)%kami_action.
+
+    Definition noUpdPkt: ExecUpdPkt @# ty :=
+      (STRUCT {
+           "val1" ::= @Invalid ty _ ;
+           "val2" ::= @Invalid ty _ ;
+           "memBitMask" ::= $$ (getDefaultConst DataMask) ;
+           "taken?" ::= $$ false ;
+           "aq" ::= $$ false ;
+           "rl" ::= $$ false ;
+           "fence.i" ::= $$ false}).
+
+    Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
+      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+    Local Close Scope kami_expr.
+
+    Definition CsrUpdateCodeWidth := 2.
+    Definition CsrUpdateCodeNone := 0.
+    Definition CsrUpdateCodeMCycle := 1.
+    Definition CsrUpdateCodeMInstRet := 2.
+
+    Definition MemUpdateCodeWidth := 2.
+    Definition MemUpdateCodeNone := 0.
+    Definition MemUpdateCodeTime := 1.
+    Definition MemUpdateCodeTimeCmp := 2.
+
+    Definition CounterEnType
+      := STRUCT_TYPE {
+             "hpm_flags" :: Bit 29;
+             "IR" :: Bool;
+             "TM" :: Bool;
+             "CY" :: Bool
+           }.
+
+    Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
+
+    Definition MemErrorPkt
+      := STRUCT_TYPE {
+             "pmp"        :: Bool; (* request failed pmp check *)
+             "paddr"      :: Bool; (* paddr exceeded virtual memory mode upper bound *)
+             "range"      :: Bool; (* paddr failed to match any device range *)
+             "width"      :: Bool; (* unsupported access width *)
+             "pma"        :: Bool; (* failed device pma check *)
+             "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
+             "lrsc"       :: Bool  (* does not support lrsc operations *) 
+           }.
+
+    Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
+      := (err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
+          err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned" ||
+          err_pkt @% "lrsc")%kami_expr.
+
+    Section Fields.
+      Local Open Scope kami_expr.
+      Variable inst: Inst @# ty.
+      
+      Definition instSize := inst$[fst instSizeField: snd instSizeField].
+      Definition opcode := inst$[fst opcodeField: snd opcodeField].
+      Definition funct3 := inst$[fst funct3Field: snd funct3Field].
+      Definition funct7 := inst$[fst funct7Field: snd funct7Field].
+      Definition funct6 := inst$[fst funct6Field: snd funct6Field].
+      Definition funct5 := inst$[fst funct5Field: snd funct5Field].
+      Definition rs1 := inst$[fst rs1Field: snd rs1Field].
+      Definition rs2 := inst$[fst rs2Field: snd rs2Field].
+      Definition rd := inst$[fst rdField: snd rdField].
+      Definition imm := inst$[fst immField: snd immField].
+      Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
+      Definition rm := inst$[fst rmField: snd rmField].
+      Definition fmt := inst$[fst fmtField: snd fmtField].
+      Definition rs3 := inst$[fst rs3Field: snd rs3Field].
+      Definition fcsr_frm (fcsr : CsrValue @# ty)
+        := ZeroExtendTruncLsb CsrValueWidth
+                              (ZeroExtendTruncMsb
+                                 ((fst fcsr_frmField) + 1 - (snd fcsr_frmField))%nat
+                                 (ZeroExtendTruncLsb
+                                    (fst fcsr_frmField + 1)%nat
+                                    fcsr)).
+
+    End Fields.
+
+    Section XlenInterface.
+
+      (* warning: must be n <= m. *)
+      Definition unsafeTruncLsb
+                 (n m : nat)
+                 (x : Bit n @# ty)
+      :  Bit m @# ty
+        := ZeroExtendTruncLsb m x.
+
+      Definition extendTruncLsb
+                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
+                 (n m k : nat)
+                 (x : Bit n @# ty)
+        :  Bit k @# ty
+        := f m k (@unsafeTruncLsb n m x).
+
+      Definition zero_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
+
+      Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
+
+      Definition extendMsbWithFunc
+                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
+                 (n m : nat)
+                 (w : XlenValue @# ty)
+                 (x : Bit n @# ty)
+        :  Bit m @# ty
+        := (IF w == $Xlen32
+            then f 32 m (@unsafeTruncLsb n 32 x)
+            else f 64 m (@unsafeTruncLsb n 64 x))%kami_expr.
+
+      Definition xlen_trunc_msb := extendMsbWithFunc (@ZeroExtendTruncMsb ty).
+
+      Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
+
+      Definition xlen_sign_extend := extendMsbWithFunc (@SignExtendTruncLsb ty).
+
+      Definition flen_one_extend
+                 (n m : nat)
+        := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
+                              (if Nat.eqb Flen_over_8 4
+                               then $1
+                               else $2)%kami_expr.
+    End XlenInterface.
+    
     Definition Extensions_set
                (exts : Extensions @# ty)
                (name : string)
@@ -529,6 +765,8 @@ Section Params.
       :  Bool @# ty
       := snd (projT2 ExtensionsInterface) ty exts name.
 
+    Local Open Scope kami_action.
+    Local Open Scope kami_expr.
     (*
       Note: we assume that device tags will always be valid given
       the constraints we apply in generating them.
@@ -565,9 +803,8 @@ Section Params.
                      (0, Ret Invalid)
                      mem_devices);
            Ret (#result @% "data").
+    Local Close Scope kami_expr.
     Local Close Scope kami_action.
-
-    Close Scope kami_expr.
 
     Record MemTableEntry
            (mem_devices : list MemDevice)
@@ -653,248 +890,5 @@ Section Params.
         fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
         fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
-    Definition LgPageSize := 12.
-
-    (* virtual memory translation params.*)
-    Record VmMode
-      := { vm_mode_vpn_size: nat ;
-           vm_mode_shift_num: nat ;
-           vm_mode_sizes: list nat ;
-           vm_mode_mode: word SatpModeWidth
-         }.
-
-    (* See 4.3.1 *)
-    Definition vm_mode_sv32
-      := {| vm_mode_vpn_size := 10 ;
-            vm_mode_shift_num := 2 ;
-            vm_mode_sizes := [12 ; 10 ];
-            vm_mode_mode := $SatpModeSv32 |}.
-
-    Definition vm_mode_sv39
-      := {| vm_mode_vpn_size := 9 ;
-            vm_mode_shift_num := 3 ;
-            vm_mode_sizes := [26 ; 9; 9 ];
-            vm_mode_mode := $SatpModeSv39 |}.
-
-    Definition vm_mode_sv48
-      := {| vm_mode_vpn_size := 9 ;
-            vm_mode_shift_num := 4 ;
-            vm_mode_sizes := [17 ; 9; 9; 9 ];
-            vm_mode_mode := $SatpModeSv48 |}.
-
-    Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
-
-    Definition vm_mode_width vm_mode
-      := (((vm_mode_vpn_size vm_mode) * (vm_mode_shift_num vm_mode)) + 12)%nat.
-
-    Definition vm_mode_max_width
-      := fold_right Nat.max 0 (map vm_mode_width vmModes).
-
-    Definition VmAccessType := Bit 2.
-    Definition VmAccessInst := 0.
-    Definition VmAccessLoad := 1.
-    Definition VmAccessSAmo := 2.
-
-    Local Open Scope kami_expr.
-    Local Open Scope kami_action.
-
-    Definition faultException
-               (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
-                          ::= ($InstPageFault : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
-                          ::= ($LoadPageFault : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
-                          ::= ($SAmoPageFault : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
-
-    Definition accessException
-               (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
-                          ::= ($InstAccessFault : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
-                          ::= ($LoadAccessFault : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
-                          ::= ($SAmoAccessFault : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
-
-    Definition misalignedException
-               (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
-                          ::= ($InstAddrMisaligned : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
-                          ::= ($LoadAddrMisaligned : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
-                          ::= ($SAmoAddrMisaligned : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
-
-    Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
-      Switch satp_mode Retn k With {
-               ($SatpModeSv32 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv32;
-               ($SatpModeSv39 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv39;
-               ($SatpModeSv48 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv48
-             }.
-
-    Definition bindException
-               (input_kind output_kind : Kind)
-               (input : input_kind @# ty)
-               (exception : Maybe FullException @# ty)
-               (act : input_kind @# ty -> ActionT ty (PktWithException output_kind))
-      :  ActionT ty (PktWithException output_kind)
-      := If exception @% "valid"
-    then
-      Ret (STRUCT {
-               "fst" ::= $$(getDefaultConst output_kind);
-               "snd" ::= exception
-             } : PktWithException output_kind @# ty)
-    else act input
-    as output;
-      Ret #output.
-
-    Close Scope kami_action.
-
-    Definition noUpdPkt: ExecUpdPkt @# ty :=
-      (STRUCT {
-           "val1" ::= @Invalid ty _ ;
-           "val2" ::= @Invalid ty _ ;
-           "memBitMask" ::= $$ (getDefaultConst DataMask) ;
-           "taken?" ::= $$ false ;
-           "aq" ::= $$ false ;
-           "rl" ::= $$ false ;
-           "fence.i" ::= $$ false}).
-
-    Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
-
-    Definition CsrUpdateCodeWidth := 2.
-    Definition CsrUpdateCodeNone := 0.
-    Definition CsrUpdateCodeMCycle := 1.
-    Definition CsrUpdateCodeMInstRet := 2.
-
-    Definition MemUpdateCodeWidth := 2.
-    Definition MemUpdateCodeNone := 0.
-    Definition MemUpdateCodeTime := 1.
-    Definition MemUpdateCodeTimeCmp := 2.
-
-    Definition CounterEnType
-      := STRUCT_TYPE {
-             "hpm_flags" :: Bit 29;
-             "IR" :: Bool;
-             "TM" :: Bool;
-             "CY" :: Bool
-           }.
-
-    Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
-
-    Definition MemErrorPkt
-      := STRUCT_TYPE {
-             "pmp"        :: Bool; (* request failed pmp check *)
-             "paddr"      :: Bool; (* paddr exceeded virtual memory mode upper bound *)
-             "range"      :: Bool; (* paddr failed to match any device range *)
-             "width"      :: Bool; (* unsupported access width *)
-             "pma"        :: Bool; (* failed device pma check *)
-             "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
-             "lrsc"       :: Bool  (* does not support lrsc operations *) 
-           }.
-
-    Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
-      := err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
-                 err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned" ||
-                 err_pkt @% "lrsc".
-
-    Section Fields.    
-      Variable inst: Inst @# ty.
-      
-      Definition instSize := inst$[fst instSizeField: snd instSizeField].
-      Definition opcode := inst$[fst opcodeField: snd opcodeField].
-      Definition funct3 := inst$[fst funct3Field: snd funct3Field].
-      Definition funct7 := inst$[fst funct7Field: snd funct7Field].
-      Definition funct6 := inst$[fst funct6Field: snd funct6Field].
-      Definition funct5 := inst$[fst funct5Field: snd funct5Field].
-      Definition rs1 := inst$[fst rs1Field: snd rs1Field].
-      Definition rs2 := inst$[fst rs2Field: snd rs2Field].
-      Definition rd := inst$[fst rdField: snd rdField].
-      Definition imm := inst$[fst immField: snd immField].
-      Definition mem_sub_opcode := {< (inst$[5:5]), (inst$[3:3])>}.
-      Definition rm := inst$[fst rmField: snd rmField].
-      Definition fmt := inst$[fst fmtField: snd fmtField].
-      Definition rs3 := inst$[fst rs3Field: snd rs3Field].
-      Definition fcsr_frm (fcsr : CsrValue @# ty)
-        := ZeroExtendTruncLsb CsrValueWidth
-                              (ZeroExtendTruncMsb
-                                 ((fst fcsr_frmField) + 1 - (snd fcsr_frmField))%nat
-                                 (ZeroExtendTruncLsb
-                                    (fst fcsr_frmField + 1)%nat
-                                    fcsr)).
-
-    End Fields.
-
-    Section XlenInterface.
-
-      (* warning: must be n <= m. *)
-      Definition unsafeTruncLsb
-                 (n m : nat)
-                 (x : Bit n @# ty)
-      :  Bit m @# ty
-        := ZeroExtendTruncLsb m x.
-
-      Definition extendTruncLsb
-                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
-                 (n m k : nat)
-                 (x : Bit n @# ty)
-        :  Bit k @# ty
-        := f m k (@unsafeTruncLsb n m x).
-
-      Definition zero_extend_trunc := extendTruncLsb (@ZeroExtendTruncLsb ty).
-
-      Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
-
-      Definition extendMsbWithFunc
-                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
-                 (n m : nat)
-                 (w : XlenValue @# ty)
-                 (x : Bit n @# ty)
-        :  Bit m @# ty
-        := IF w == $Xlen32
-      then f 32 m (@unsafeTruncLsb n 32 x)
-      else f 64 m (@unsafeTruncLsb n 64 x).
-
-      Definition xlen_trunc_msb := extendMsbWithFunc (@ZeroExtendTruncMsb ty).
-
-      Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
-
-      Definition xlen_sign_extend := extendMsbWithFunc (@SignExtendTruncLsb ty).
-
-      Definition flen_one_extend
-                 (n m : nat)
-        := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
-                              (if Nat.eqb Flen_over_8 4
-                               then $1
-                               else $2).
-    End XlenInterface.
   End ty.
 End Params.

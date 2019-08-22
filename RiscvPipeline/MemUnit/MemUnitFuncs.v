@@ -6,7 +6,7 @@ Require Import Kami.All.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
-Require Import ProcKami.GenericPipeline.PhysicalMem.
+Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
 Require Import List.
 Import ListNotations.
