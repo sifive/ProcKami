@@ -122,15 +122,18 @@ Section pmp.
        ]; *)
        LETA result
          :  pmp_entry_acc_kind
-         <- fold_right
-              (fun entry_index (acc_act : ActionT ty pmp_entry_acc_kind)
+         <- fold_left
+              (fun (acc_act : ActionT ty pmp_entry_acc_kind) entry_index
                 => LETA acc <- acc_act;
-                   (* System [
+(*
+                   System [
                      DispString _ "[pmp_check] ==================================================\n";
+                     DispString _ ("[pmp_check] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
                      DispString _ "[pmp_check] acc: ";
                      DispHex #acc;
                      DispString _ "\n"
-                   ]; *)
+                   ];
+*)
                    If #acc @% "matched" 
                      then Ret #acc
                      else
@@ -276,13 +279,13 @@ Section pmp.
                        Ret #result
                      as result;
                    Ret #result)
+              (seq 0 16)
               (Ret (STRUCT {
                  "any_on"  ::= $$false;
                  "addr"    ::= $0;
                  "matched" ::= $$false;
                  "pmp_cfg" ::= $0
-               } : pmp_entry_acc_kind @# ty))
-              (seq 0 16);
+               } : pmp_entry_acc_kind @# ty));
        (* System [
          DispString _ "[pmp_check] ##################################################\n";
          DispString _ "[pmp_check] result: ";
