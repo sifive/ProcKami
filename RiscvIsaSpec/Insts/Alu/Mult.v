@@ -1,5 +1,5 @@
 Require Import Kami.All ProcKami.FU ProcKami.Div.
-Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Alu.
+Require Import ProcKami.RiscvIsaSpec.Insts.Alu.AluFuncs.
 Require Import List.
 
 Section Alu.

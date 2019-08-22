@@ -14,7 +14,7 @@ Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import FpuKami.Round.
 Require Import ProcKami.FU.
-Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.Fpu.
+Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
 Require Import List.
 Import ListNotations.
 

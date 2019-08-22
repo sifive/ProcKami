@@ -1,6 +1,6 @@
 Require Import Kami.All ProcKami.FU.
 Require Import List.
-Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Mem.
+Require Import ProcKami.RiscvIsaSpec.Insts.Mem.MemFuncs.
 
 Section Mem.
   Context `{procParams: ProcParams}.
