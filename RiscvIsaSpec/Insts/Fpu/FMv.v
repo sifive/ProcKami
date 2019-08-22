@@ -18,29 +18,15 @@ Import ListNotations.
 
 Section Fpu.
   Context `{procParams: ProcParams}.
-
-  Variable fpu_params : FpuParamsType.
+  Context `{fpu_params : FpuParams}.
   Variable ty : Kind -> Type.
-
-  Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
-  Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
-  Local Notation exp_valid      := (fpu_params_exp_valid fpu_params).
-  Local Notation sig_valid      := (fpu_params_sig_valid fpu_params).
-  Local Notation suffix         := (fpu_params_suffix fpu_params).
-  Local Notation int_suffix     := (fpu_params_int_suffix fpu_params).
-  Local Notation format_field   := (fpu_params_format_field fpu_params).
-  Local Notation exts           := (fpu_params_exts fpu_params).
-  Local Notation exts_32        := (fpu_params_exts_32 fpu_params).
-  Local Notation exts_64        := (fpu_params_exts_64 fpu_params).
-
-  Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
 
   Open Scope kami_expr.
 
   Definition FMv
     :  FUEntry ty
     := {|
-         fuName := append "fmv" suffix;
+         fuName := append "fmv" fpu_suffix;
          fuFunc
            := fun sem_in_pkt : Pair Bool (Bit Rlen) ## ty
                 => LETE inp <- sem_in_pkt;
@@ -56,12 +42,12 @@ Section Fpu.
                                                       then SignExtendTruncLsb
                                                              Rlen
                                                              (ZeroExtendTruncLsb
-                                                               len
+                                                               fpu_len
                                                                ((#inp @% "snd") : Bit Rlen @# ty))
                                                       else OneExtendTruncLsb
                                                              Rlen
                                                              (ZeroExtendTruncLsb
-                                                               len
+                                                               fpu_len
                                                                ((#inp @% "snd") : Bit Rlen @# ty)))
                                     }: RoutedReg @# ty));
                    LETC fstVal <-  (STRUCT {
@@ -84,12 +70,12 @@ Section Fpu.
          fuInsts
            := [
                 {|
-                  instName   := append "fmv.x" int_suffix;
+                  instName   := append "fmv.x" fpu_int_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"000");
@@ -111,12 +97,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
-                  instName   := append (append "fmv" int_suffix) ".x";
+                  instName   := append (append "fmv" fpu_int_suffix) ".x";
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal funct3Field   ('b"000");

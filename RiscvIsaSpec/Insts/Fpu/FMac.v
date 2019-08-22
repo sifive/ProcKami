@@ -19,30 +19,12 @@ Import ListNotations.
 
 Section Fpu.
   Context `{procParams: ProcParams}.
-
-  Variable fpu_params : FpuParamsType.
+  Context `{fpuParams: FpuParams}.
   Variable ty : Kind -> Type.
-
-  Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
-  Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
-  Local Notation exp_valid      := (fpu_params_exp_valid fpu_params).
-  Local Notation sig_valid      := (fpu_params_sig_valid fpu_params).
-  Local Notation suffix         := (fpu_params_suffix fpu_params).
-  Local Notation int_suffix     := (fpu_params_int_suffix fpu_params).
-  Local Notation format_field   := (fpu_params_format_field fpu_params).
-  Local Notation exts           := (fpu_params_exts fpu_params).
-  Local Notation exts_32        := (fpu_params_exts_32 fpu_params).
-  Local Notation exts_64        := (fpu_params_exts_64 fpu_params).
-
-  Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-
-  Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
-  Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
-  Local Notation fp_get_float := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
 
   Definition add_format_field
     :  UniqId -> UniqId
-    := cons (fieldVal fmtField format_field).
+    := cons (fieldVal fmtField fpu_format_field).
 
   Definition MacInputType
     :  Kind
@@ -81,9 +63,9 @@ Section Fpu.
               <- context_pkt_expr;
        LETC muladd_in <- (STRUCT {
                      "op" ::= op;
-                     "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
-                     "b"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
-                     "c"  ::= bitToNF (fp_get_float (#context_pkt @% "reg3"));
+                     "a"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
+                     "b"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
+                     "c"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg3"));
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty);
@@ -104,9 +86,9 @@ Section Fpu.
               <- context_pkt_expr;
        LETC muladd_in <- (STRUCT {
                      "op" ::= op;
-                     "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
+                     "a"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
                      "b"  ::= NF_const_1;
-                     "c"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
+                     "c"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
                    } : MulAdd_Input expWidthMinus2 sigWidthMinus2 @# ty);
@@ -127,8 +109,8 @@ Section Fpu.
               <- context_pkt_expr;
        LETC muladd_in <- (STRUCT {
                      "op" ::= op;
-                     "a"  ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
-                     "b"  ::= bitToNF (fp_get_float (#context_pkt @% "reg2"));
+                     "a"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
+                     "b"  ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
                      "c"  ::= bitToNF ($0);
                      "roundingMode"   ::= rounding_mode (#context_pkt);
                      "detectTininess" ::= $$true
@@ -174,7 +156,7 @@ Section Fpu.
   Definition Mac
     :  FUEntry ty
     := {|
-         fuName := append "mac" suffix;
+         fuName := append "mac" fpu_suffix;
          fuFunc
            := fun sem_in_pkt_expr : MacInputType ## ty
                 => LETE sem_in_pkt
@@ -191,12 +173,12 @@ Section Fpu.
          fuInsts
            := [
                 {|
-                  instName   := append "fmadd" suffix;
+                  instName   := append "fmadd" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10000")
                        ];
@@ -206,12 +188,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fmsub" suffix;
+                  instName   := append "fmsub" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10001")
                        ];
@@ -221,12 +203,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fnmsub" suffix;
+                  instName   := append "fnmsub" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10010")
                        ];
@@ -236,12 +218,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fnmadd" suffix;
+                  instName   := append "fnmadd" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10011")
                        ];
@@ -251,12 +233,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrs3 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fadd" suffix;
+                  instName   := append "fadd" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs3Field      ('b"00000")
@@ -267,12 +249,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fsub" suffix;
+                  instName   := append "fsub" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs3Field      ('b"00001")
@@ -283,12 +265,12 @@ Section Fpu.
                   instHints := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append "fmul" suffix;
+                  instName   := append "fmul" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs3Field      ('b"00010")

@@ -146,8 +146,25 @@ Class ProcParams :=
     Flen_over_8: nat ;
     supported_exts: list (string * bool) }.
 
+Class FpuParams
+  := {
+      expWidthMinus2     : nat;
+      sigWidthMinus2     : nat; 
+      fpu_exp_valid      : (expWidthMinus2 >= 2)%nat;
+      fpu_sig_valid      : (pow2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
+      fpu_suffix         : string;
+      fpu_int_suffix     : string;
+      fpu_format_field   : word 2;
+      fpu_exts           : list string;
+      fpu_exts_32        : list string;
+      fpu_exts_64        : list string
+    }.
+
+
+
 Section ParamDefinitions.
   Context `{procParams: ProcParams}.
+  Context `{fpuParams: FpuParams}.
   Definition Rlen_over_8 := Nat.max Xlen_over_8 Flen_over_8.
 
   Definition Xlen := (Xlen_over_8 * 8).
@@ -190,6 +207,12 @@ Section ParamDefinitions.
   Definition Size := Bit sizeWidth.
   Definition lgSizeWidth := S (Nat.log2_up sizeWidth).
   Definition LgSize := Bit lgSizeWidth.
+
+  Definition expWidthMinus1 := expWidthMinus2 + 1.
+  Definition expWidth := expWidthMinus1 + 1.
+  Definition sigWidthMinus1 := sigWidthMinus2 + 1.
+  Definition sigWidth := sigWidthMinus1 + 1.
+  Definition fpu_len := expWidth + sigWidth.
 End ParamDefinitions.
 
 Section Params.
@@ -626,26 +649,6 @@ Section Params.
         optMemParams : option MemInstParams ;
         instHints    : InstHints }.
 
-    Record IntParamsType
-      := {
-          int_params_exts : list string;
-          int_params_xlen : nat
-        }.
-
-    Record FpuParamsType
-      := {
-          fpu_params_expWidthMinus2 : nat;
-          fpu_params_sigWidthMinus2 : nat; 
-          fpu_params_exp_valid      : (fpu_params_expWidthMinus2 >= 2)%nat;
-          fpu_params_sig_valid      : (pow2 fpu_params_expWidthMinus2 + 4 > fpu_params_sigWidthMinus2 + 1 + 1)%nat;
-          fpu_params_suffix         : string;
-          fpu_params_int_suffix     : string;
-          fpu_params_format_field   : word 2;
-          fpu_params_exts           : list string;
-          fpu_params_exts_32        : list string;
-          fpu_params_exts_64        : list string
-        }.
-
     Record FUEntry :=
       { fuName    : string ;
         fuInputK  : Kind ;
@@ -653,12 +656,14 @@ Section Params.
         fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
         fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
-    Definition LgPageSize := 12.  Record MemParamsType
-                                    := {
-                                        mem_params_size           : nat; (* log2 num mem bytes *)
-                                        mem_params_addr_size      : nat; (* physical address size *)
-                                        mem_params_granularity    : nat  (* pmp (napot) granularity *)
-                                      }.
+    Definition LgPageSize := 12.
+
+    Record MemParamsType
+      := {
+          mem_params_size           : nat; (* log2 num mem bytes *)
+          mem_params_addr_size      : nat; (* physical address size *)
+          mem_params_granularity    : nat  (* pmp (napot) granularity *)
+        }.
 
     (* virtual memory translation params.*)
     Record VmMode

@@ -11,8 +11,6 @@ Import ListNotations.
 
 Section database.
   Variable ty : Kind -> Type.
-
-  Local Notation CompInstEntry := (CompInstEntry ty).
   
   Local Open Scope kami_expr.
 
@@ -69,7 +67,7 @@ Section database.
   TODO: verify immediate values - are these multiplied by 4, 8, etc?
    *)
   Definition CompInstDb
-    :  list CompInstEntry
+    :  list (CompInstEntry ty)
     := [
         (* C.ADDI4SPN  => ADDI *)
         Build_CompInstEntry

@@ -45,30 +45,30 @@ Require Import ProcKami.Devices.MMappedRegs.
 
 Definition fpu_params_single
   := {|
-       fpu_params_expWidthMinus2 := 6;
-       fpu_params_sigWidthMinus2 := 22;
-       fpu_params_exp_valid      := ltac:(cbv; lia);
-       fpu_params_sig_valid      := ltac:(cbv; lia);
-       fpu_params_suffix         := ".s";
-       fpu_params_int_suffix     := ".w";
-       fpu_params_format_field   := 'b"00";
-       fpu_params_exts           := ["F"];
-       fpu_params_exts_32        := ["F"];
-       fpu_params_exts_64        := ["F"]
+       expWidthMinus2     := 6;
+       sigWidthMinus2     := 22;
+       fpu_exp_valid      := ltac:(cbv; lia);
+       fpu_sig_valid      := ltac:(cbv; lia);
+       fpu_suffix         := ".s";
+       fpu_int_suffix     := ".w";
+       fpu_format_field   := 'b"00";
+       fpu_exts           := ["F"];
+       fpu_exts_32        := ["F"];
+       fpu_exts_64        := ["F"]
      |}.
 
 Definition fpu_params_double
   := {|
-       fpu_params_expWidthMinus2 := 9;
-       fpu_params_sigWidthMinus2 := 51;
-       fpu_params_exp_valid      := ltac:(cbv; lia);
-       fpu_params_sig_valid      := ltac:(cbv; lia);
-       fpu_params_suffix         := ".d";
-       fpu_params_int_suffix     := ".d";
-       fpu_params_format_field   := 'b"01";
-       fpu_params_exts           := ["D"];
-       fpu_params_exts_32        := ["D"];
-       fpu_params_exts_64        := ["D"]
+       expWidthMinus2     := 9;
+       sigWidthMinus2     := 51;
+       fpu_exp_valid      := ltac:(cbv; lia);
+       fpu_sig_valid      := ltac:(cbv; lia);
+       fpu_suffix         := ".d";
+       fpu_int_suffix     := ".d";
+       fpu_format_field   := 'b"01";
+       fpu_exts           := ["D"];
+       fpu_exts_32        := ["D"];
+       fpu_exts_64        := ["D"]
      |}.
 
 (* III. Processor extension table entries. *)
@@ -154,7 +154,7 @@ Section exts.
 
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
-  Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8 supported_exts.
+  Local Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8 supported_exts.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -194,29 +194,29 @@ Section exts.
              Float_double fpu_params_single fpu_params_double _;
              Double_float fpu_params_single fpu_params_double _;
 
-             Mac        fpu_params_single _;
-             FMinMax    fpu_params_single _;
-             FSgn       fpu_params_single _;
-             FMv        fpu_params_single _;
-             Float_word fpu_params_single _;
-             Float_long fpu_params_single _;
-             Word_float fpu_params_single _;
-             Long_float fpu_params_single _;
-             FCmp       fpu_params_single _;
-             FClass     fpu_params_single _;
-             FDivSqrt   fpu_params_single _;
+             @Mac        _ fpu_params_single _;
+             @FMinMax    _ fpu_params_single _;
+             @FSgn       _ fpu_params_single _;
+             @FMv        _ fpu_params_single _;
+             @Float_word _ fpu_params_single _;
+             @Float_long _ fpu_params_single _;
+             @Word_float _ fpu_params_single _;
+             @Long_float _ fpu_params_single _;
+             @FCmp       _ fpu_params_single _;
+             @FClass     _ fpu_params_single _;
+             @FDivSqrt   _ fpu_params_single _;
 
-             Mac        fpu_params_double _;
-             FMinMax    fpu_params_double _;
-             FSgn       fpu_params_double _;
-             FMv        fpu_params_double _;
-             Float_word fpu_params_double _;
-             Float_long fpu_params_double _;
-             Word_float fpu_params_double _;
-             Long_float fpu_params_double _;
-             FCmp       fpu_params_double _;
-             FClass     fpu_params_double _;
-             FDivSqrt   fpu_params_double _;
+             @Mac        _ fpu_params_double _;
+             @FMinMax    _ fpu_params_double _;
+             @FSgn       _ fpu_params_double _;
+             @FMv        _ fpu_params_double _;
+             @Float_word _ fpu_params_double _;
+             @Float_long _ fpu_params_double _;
+             @Word_float _ fpu_params_double _;
+             @Long_float _ fpu_params_double _;
+             @FCmp       _ fpu_params_double _;
+             @FClass     _ fpu_params_double _;
+             @FDivSqrt   _ fpu_params_double _;
 
              (* RV Zicsr instructions. *)
              Zicsr _

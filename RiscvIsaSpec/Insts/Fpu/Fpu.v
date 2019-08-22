@@ -10,33 +10,28 @@ Require Import List.
 Import ListNotations.
 
 Section ty.
-
+  Context `{fpuParams: FpuParams}.
   Variable ty : Kind -> Type.
 
   Section fpu.
 
-    Variable expWidthMinus2 : nat.
-    Variable sigWidthMinus2 : nat.
-
-    Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-
     Open Scope kami_expr.
 
-    Definition bitToFN (x : Bit len @# ty)
+    Definition bitToFN (x : Bit fpu_len @# ty)
       :  FN expWidthMinus2 sigWidthMinus2 @# ty
       := unpack (FN expWidthMinus2 sigWidthMinus2) (ZeroExtendTruncLsb (size (FN expWidthMinus2 sigWidthMinus2)) x).
 
-    Definition bitToNF (x : Bit len @# ty)
+    Definition bitToNF (x : Bit fpu_len @# ty)
       :  NF expWidthMinus2 sigWidthMinus2 @# ty
       := getNF_from_FN (bitToFN x).
 
     Definition NFToBit (x : NF expWidthMinus2 sigWidthMinus2 @# ty)
-      :  Bit len @# ty
-      := ZeroExtendTruncLsb len (pack (getFN_from_NF x)).
+      :  Bit fpu_len @# ty
+      := ZeroExtendTruncLsb fpu_len (pack (getFN_from_NF x)).
 
     Definition FN_canonical_nan
-      :  Bit len @# ty
-      := ZeroExtendTruncLsb len
+      :  Bit fpu_len @# ty
+      := ZeroExtendTruncLsb fpu_len
            (pack
              (STRUCT {
                 "sign" ::= $$false;
@@ -56,8 +51,8 @@ Section ty.
       value is properly NaN-boxed.
     *)
     Definition fp_extract_float (Rlen Flen : nat) (x : Bit Rlen @# ty)
-      :  Bit len @# ty
-      := OneExtendTruncLsb len x.
+      :  Bit fpu_len @# ty
+      := OneExtendTruncLsb fpu_len x.
 
     (*
       Accepts a bus value that contains a floating point value
@@ -66,8 +61,8 @@ Section ty.
     *)
     Definition fp_is_nan_boxed (Rlen Flen : nat) (x : Bit Rlen @# ty)
       :  Bool @# ty
-      := $$(wones (Flen - len)%nat) ==
-         (ZeroExtendTruncMsb (Flen - len)
+      := $$(wones (Flen - fpu_len)%nat) ==
+         (ZeroExtendTruncMsb (Flen - fpu_len)
            (ZeroExtendTruncLsb Flen x)).
 
     (*
@@ -81,9 +76,9 @@ Section ty.
       substitutions.
     *)
     Definition fp_get_float (Rlen Flen : nat) (x : Bit Rlen @# ty)
-      :  Bit len @# ty
+      :  Bit fpu_len @# ty
       := IF (fp_is_nan_boxed Flen x)
-           then OneExtendTruncLsb len x
+           then OneExtendTruncLsb fpu_len x
            else FN_canonical_nan.
 
     Close Scope kami_expr.
@@ -118,4 +113,3 @@ Section ty.
   End fpu.
 
 End ty.
-

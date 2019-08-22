@@ -21,19 +21,14 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
 
-  Variable fpu_params_single : FpuParamsType.
-  Variable fpu_params_double : FpuParamsType.
+  Variable fpuParamsSingle : FpuParams.
+  Variable fpuParamsDouble : FpuParams.
   Variable ty : Kind -> Type.
 
-  Local Notation single_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_single).
-  Local Notation single_sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params_single).
-  Local Notation double_expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params_double).
-  Local Notation double_sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params_double).
-
-  Local Notation bitToFN := (@bitToFN ty).
-  Local Notation bitToNF := (@bitToNF ty).
-  Local Notation NFToBit := (@NFToBit ty).
-  Local Notation fp_get_float  := (@fp_get_float ty).
+  Local Notation single_expWidthMinus2 := (@expWidthMinus2 fpuParamsSingle).
+  Local Notation single_sigWidthMinus2 := (@sigWidthMinus2 fpuParamsSingle).
+  Local Notation double_expWidthMinus2 := (@expWidthMinus2 fpuParamsDouble).
+  Local Notation double_sigWidthMinus2 := (@sigWidthMinus2 fpuParamsDouble).
 
   Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
   Local Definition double_Flen := double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1).
@@ -69,11 +64,10 @@ Section Fpu.
                              RetE
                                (STRUCT {
                                   "in" 
-                                    ::= bitToNF single_expWidthMinus2 single_sigWidthMinus2
-                                          (fp_get_float
-                                             single_expWidthMinus2
-                                             single_sigWidthMinus2
+                                    ::= @bitToNF fpuParamsSingle ty
+                                          (@fp_get_float fpuParamsSingle ty
                                              Rlen
+                                             Flen            
                                              (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
@@ -141,11 +135,10 @@ Section Fpu.
                              RetE
                                (STRUCT {
                                   "in"
-                                    ::= bitToNF double_expWidthMinus2 double_sigWidthMinus2
-                                          (fp_get_float
-                                             double_expWidthMinus2
-                                             double_sigWidthMinus2
+                                    ::= @bitToNF fpuParamsDouble ty
+                                          (@fp_get_float fpuParamsDouble ty
                                              Rlen
+                                             Flen            
                                              (#context_pkt @% "reg1"));
                                   "afterRounding" ::= $$false;
                                   "roundingMode"  ::= rounding_mode (#context_pkt)

@@ -20,28 +20,8 @@ Import ListNotations.
 
 Section Fpu.
   Context `{procParams: ProcParams}.
-
-  Variable fpu_params : FpuParamsType.
+  Context `{fpuParams : FpuParams}.
   Variable ty : Kind -> Type.
-
-  Local Notation expWidthMinus2 := (fpu_params_expWidthMinus2 fpu_params).
-  Local Notation sigWidthMinus2 := (fpu_params_sigWidthMinus2 fpu_params).
-  Local Notation exp_valid      := (fpu_params_exp_valid fpu_params).
-  Local Notation sig_valid      := (fpu_params_sig_valid fpu_params).
-  Local Notation suffix         := (fpu_params_suffix fpu_params).
-  Local Notation int_suffix     := (fpu_params_int_suffix fpu_params).
-  Local Notation format_field   := (fpu_params_format_field fpu_params).
-  Local Notation exts           := (fpu_params_exts fpu_params).
-  Local Notation exts_32        := (fpu_params_exts_32 fpu_params).
-  Local Notation exts_64        := (fpu_params_exts_64 fpu_params).
-
-  Local Notation len := ((expWidthMinus2 + 1 + 1) + (sigWidthMinus2 + 1 + 1))%nat.
-
-  Local Notation bitToFN := (@bitToFN ty expWidthMinus2 sigWidthMinus2).
-  Local Notation bitToNF := (@bitToNF ty expWidthMinus2 sigWidthMinus2).
-  Local Notation NFToBit := (@NFToBit ty expWidthMinus2 sigWidthMinus2).
-  Local Notation fp_get_float  := (@fp_get_float ty expWidthMinus2 sigWidthMinus2 Rlen Flen).
-
   Open Scope kami_expr.
 
   Definition Float_Int_Input
@@ -53,7 +33,7 @@ Section Fpu.
          <- context_pkt_expr;
        RetE
          (STRUCT {
-            "inNF"         ::= bitToNF (fp_get_float (#context_pkt @% "reg1"));
+            "inNF"         ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
             "roundingMode" ::= rounding_mode (#context_pkt);
             "signedOut"    ::= signed
           } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
@@ -92,7 +72,7 @@ Section Fpu.
   Definition Float_word
     :  FUEntry ty
     := {|
-         fuName := append "float_word" suffix;
+         fuName := append "float_word" fpu_suffix;
          fuFunc
            := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
                 => LETE sem_in_pkt
@@ -102,19 +82,19 @@ Section Fpu.
                      (32 - 2)
                      expWidthMinus2
                      sigWidthMinus2
-                     exp_valid
-                     sig_valid
+                     fpu_exp_valid
+                     fpu_sig_valid
                      ty
                      (#sem_in_pkt);
          fuInsts
            := [
                 {|
-                  instName   := append "fcvt.w" suffix;
+                  instName   := append "fcvt.w" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00000");
@@ -126,12 +106,12 @@ Section Fpu.
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
-                  instName   := append "fcvt.wu" suffix;
+                  instName   := append "fcvt.wu" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00001");
@@ -148,7 +128,7 @@ Section Fpu.
   Definition Float_long
     :  FUEntry ty
     := {|
-         fuName := append "float_long" suffix;
+         fuName := append "float_long" fpu_suffix;
          fuFunc
            := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
                 => LETE sem_in_pkt
@@ -158,19 +138,19 @@ Section Fpu.
                      (64 - 2)
                      expWidthMinus2
                      sigWidthMinus2
-                     exp_valid
-                     sig_valid
+                     fpu_exp_valid
+                     fpu_sig_valid
                      ty
                      (#sem_in_pkt);
          fuInsts
            := [
                 {|
-                  instName   := append "fcvt.l" suffix;
+                  instName   := append "fcvt.l" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00010");
@@ -182,12 +162,12 @@ Section Fpu.
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
                 {|
-                  instName   := append "fcvt.lu" suffix;
+                  instName   := append "fcvt.lu" fpu_suffix;
                   xlens      := xlens_all;
-                  extensions := exts;
+                  extensions := fpu_exts;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00011");
@@ -212,7 +192,7 @@ Section Fpu.
                                ::= OneExtendTruncLsb Rlen
                                      (NFToBit
                                         ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
-                                      : Bit len @# ty)
+                                      : Bit fpu_len @# ty)
                                });
        LETC val2: RoutedReg <- (STRUCT {
                              "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
@@ -239,7 +219,7 @@ Section Fpu.
   Definition Word_float
     :  FUEntry ty
     := {|
-         fuName := append "word_float" suffix;
+         fuName := append "word_float" fpu_suffix;
          fuFunc
            := fun sem_in_pkt_expr : INToNFInput (32 - 2) ## ty
                 => LETE sem_in_pkt
@@ -252,12 +232,12 @@ Section Fpu.
          fuInsts
            := [
                 {|
-                  instName   := append (append "fcvt" suffix) ".w";
+                  instName   := append (append "fcvt" fpu_suffix) ".w";
                   xlens      := xlens_all;
-                  extensions := exts_32;
+                  extensions := fpu_exts_32;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00000");
@@ -279,12 +259,12 @@ Section Fpu.
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append (append "fcvt" suffix) ".wu";
+                  instName   := append (append "fcvt" fpu_suffix) ".wu";
                   xlens      := xlens_all;
-                  extensions := exts_32;
+                  extensions := fpu_exts_32;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00001");
@@ -311,7 +291,7 @@ Section Fpu.
   Definition Long_float
     :  FUEntry ty
     := {|
-         fuName := append "long_float" suffix;
+         fuName := append "long_float" fpu_suffix;
          fuFunc
            := fun sem_in_pkt_expr : INToNFInput (64 - 2) ## ty
                 => LETE sem_in_pkt
@@ -324,12 +304,12 @@ Section Fpu.
          fuInsts
            := [
                 {|
-                  instName   := append (append "fcvt" suffix) ".l";
+                  instName   := append (append "fcvt" fpu_suffix) ".l";
                   xlens      := xlens_all;
-                  extensions := exts_64;
+                  extensions := fpu_exts_64;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00010");
@@ -351,12 +331,12 @@ Section Fpu.
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
                 {|
-                  instName   := append (append "fcvt" suffix) ".lu";
+                  instName   := append (append "fcvt" fpu_suffix) ".lu";
                   xlens      := xlens_all;
-                  extensions := exts_64;
+                  extensions := fpu_exts_64;
                   uniqId
                     := [
-                         fieldVal fmtField format_field;
+                         fieldVal fmtField fpu_format_field;
                          fieldVal instSizeField ('b"11");
                          fieldVal opcodeField   ('b"10100");
                          fieldVal rs2Field      ('b"00011");
