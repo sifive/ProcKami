@@ -3,7 +3,7 @@
   a list of processor extensions to enable and returns a Kami module
   that represents the procesor model.
 *)
-Require Import Kami.AllDefn.
+Require Import Kami.AllDefn Kami.Notations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import Vector.

@@ -4,7 +4,7 @@
 
   TODO: check new_csr_value write conditions based on immediate and RS1 values.
  *)
-Require Import Kami.AllDefn.
+Require Import Kami.AllDefn Kami.Notations.
 Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.

@@ -3,7 +3,7 @@
   by the functional units that perform arithmetic integer operations.
 *)
 
-Require Import Kami.AllDefn.
+Require Import Kami.AllDefn Kami.Notations.
 Require Import FpuKami.Definitions.
 Require Import ProcKami.FU.
 Require Import List.

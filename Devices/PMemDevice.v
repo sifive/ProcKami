@@ -1,4 +1,4 @@
-Require Import Kami.AllDefn.
+Require Import Kami.AllDefn Kami.Notations.
 Require Import ProcKami.FU.
 
 Section mem_devices.
