@@ -5,7 +5,7 @@
 *)
 Require Import Vector.
 Import VectorNotations.
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.

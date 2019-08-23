@@ -1,7 +1,7 @@
 (*
   This module implements the physical memory protection interface.
 *)
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import Kami.Utila.
 Require Import ProcKami.FU.
 Require Import Vector.

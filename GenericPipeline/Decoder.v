@@ -1,4 +1,4 @@
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decompressor.
 

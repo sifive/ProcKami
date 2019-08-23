@@ -3,7 +3,7 @@
   memory addresses into physical memory addresses.
   TODO: Replace references to VAddr with PAddr.
 *)
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import Vector.

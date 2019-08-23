@@ -1,5 +1,5 @@
 (* This module defines the memory mapped register interface. *)
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.

@@ -6,7 +6,7 @@
 *)
 Require Import Vector.
 Import VectorNotations.
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
 Require Import FpuKami.Compare.

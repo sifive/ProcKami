@@ -3,7 +3,7 @@
 
   TODO: verify that the exception priorities outlined in table 3.7 are respected.
 *)
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Import ListNotations.

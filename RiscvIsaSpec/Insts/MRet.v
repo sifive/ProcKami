@@ -2,7 +2,7 @@
   This module defines the functional unit that processes the MRet
   instruction.
 *)
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.

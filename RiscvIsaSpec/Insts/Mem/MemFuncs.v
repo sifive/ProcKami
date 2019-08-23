@@ -1,4 +1,4 @@
-Require Import Kami.All ProcKami.FU.
+Require Import Kami.AllDefn ProcKami.FU.
 Require Import List.
 Import ListNotations.
 

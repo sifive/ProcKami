@@ -3,7 +3,7 @@
   into a single pipeline processor model.
 *)
 
-Require Import Kami.All.
+Require Import Kami.AllDefn.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
