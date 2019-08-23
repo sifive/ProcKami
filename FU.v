@@ -3,8 +3,6 @@
   of circuit components are combined to form the processor core,
   and include units such as the fetch, decode, and memory elements.
 *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
@@ -349,58 +347,23 @@ Section Params.
            (fun ext _ => cons (ext, Bool))
            [].
 
-    Definition ExtensionsInterface
-      :  {k : Kind &
-              ((forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
-               (forall ty, k @# ty -> string -> Bool @# ty))}%type
-      := existT
-           (fun k
-            => (forall ty, k @# ty -> string -> Bool @# ty -> k @# ty) *
-               (forall ty, k @# ty -> string -> Bool @# ty))%type
-           (getStruct supported_ext_states)
-           (list_rect
-              (fun states
-               => (forall ty, getStruct states @# ty -> string -> Bool @# ty -> getStruct states @# ty) *
-                  (forall ty, getStruct states @# ty -> string -> Bool @# ty))%type
-              ((fun _ exts _ _ => exts),
-               (fun ty _ _ => Const ty false))
-              (fun state states _
-               => ((fun ty exts name value
-                    => let get_kind index := snd (nth_Fin (state :: states) index) in
-                       let get_name index := fst (nth_Fin (state :: states) index) in
-                       BuildStruct
-                         get_kind
-                         get_name
-                         (fun index
-                          => if String.eqb name (get_name index)
-                             then (* (value : get_kind index @# ty) *)
-                               match Kind_dec Bool (get_kind index) with
-                               | left H
-                                 => eq_rect Bool (fun k => k @# ty) value (get_kind index) H
-                               | right _
-                                 => Const ty (getDefaultConst (get_kind index)) (* impossible case *)
-                               end
-                             else (ReadStruct exts index : get_kind index @# ty))),
-                   (fun ty exts name
-                    => struct_get_field_default exts name (Const ty false))))
-              supported_ext_states)%kami_expr.
-
+    
     Definition Extensions
       :  Kind
-      := projT1 ExtensionsInterface.
+      := getStruct supported_ext_states.
 
     Definition Extensions_set ty
                (exts : Extensions @# ty)
                (name : string)
                (value : Bool @# ty)
       :  Extensions @# ty
-      := fst (projT2 ExtensionsInterface) ty exts name value.
+      := struct_set_field_default exts name value.
 
     Definition Extensions_get ty
                (exts : Extensions @# ty)
                (name : string)
       :  Bool @# ty
-      := snd (projT2 ExtensionsInterface) ty exts name.
+      := struct_get_field_default exts name ($$ false)%kami_expr.
   End Extensions.
   
   Section ty.

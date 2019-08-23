@@ -111,21 +111,7 @@ Section CsrInterface.
                           end;
                    LETA acc : csrKind (csrViewFields view) <- acc_act;
                    LET result : csrKind (csrViewFields view) <-
-                     (BuildStruct
-                       (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
-                       (fun i => csrFieldName (nth_Fin (csrViewFields view) i))
-                       (fun i
-                         => let name := csrFieldName (nth_Fin (csrViewFields view) i) in
-                            if String.eqb name (csrFieldName field)
-                              then
-                                sumbool_rect
-                                  (fun _ => csrFieldKind (nth_Fin (csrViewFields view) i) @# ty)
-                                  (fun H : csrFieldKind (nth_Fin (csrViewFields view) i) = (csrFieldKind field)
-                                    => eq_rect_r (fun k => Expr ty (SyntaxKind k)) #value H)
-                                  (fun _ => ReadStruct #acc i)
-                                  (Kind_dec (csrFieldKind (nth_Fin (csrViewFields view) i)) (csrFieldKind field))
-                              else
-                                ReadStruct #acc i));
+                                        struct_set_field_default #acc (csrFieldName field) #value;
                    Ret #result)
               (Ret $$(getDefaultConst (csrKind (csrViewFields view))))
               (csrViewFields view);
