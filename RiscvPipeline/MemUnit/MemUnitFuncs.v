@@ -2,7 +2,7 @@
   This module defines the memory unit. This unit accepts a memory
   update packet and performs the requested memory writes.
 *)
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.

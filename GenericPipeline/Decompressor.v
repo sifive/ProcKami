@@ -1,4 +1,4 @@
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
 Section Decompressor.

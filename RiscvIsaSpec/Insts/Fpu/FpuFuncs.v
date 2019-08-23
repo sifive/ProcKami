@@ -3,7 +3,7 @@
   by the functional units that perform floating point operations.
 *)
 
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
 Require Import ProcKami.FU.
 Require Import List.

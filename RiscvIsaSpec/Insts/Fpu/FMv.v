@@ -4,7 +4,7 @@
 
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
 Require Import FpuKami.Compare.

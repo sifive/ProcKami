@@ -1,4 +1,4 @@
-Require Import Kami.AllDefn Kami.Notations ProcKami.FU.
+Require Import Kami.AllNotations ProcKami.FU.
 Require Import List.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.MemFuncs.
 

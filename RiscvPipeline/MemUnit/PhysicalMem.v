@@ -1,7 +1,7 @@
 (*
   This module defines the physical memory interface.
 *)
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import StdLibKami.RegStruct.

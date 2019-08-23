@@ -1,7 +1,7 @@
 (* Defines the standard Csrs. *)
 Require Import Vector.
 Import VectorNotations.
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.

@@ -1,4 +1,4 @@
-Require Import Kami.AllDefn Kami.Notations ProcKami.FU ProcKami.Div.
+Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
 Require Import List.
 
 Section Alu.

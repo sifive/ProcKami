@@ -1,4 +1,4 @@
-Require Import Kami.AllDefn Kami.Notations FpuKami.ModDivSqrt.
+Require Import Kami.AllNotations FpuKami.ModDivSqrt.
 
 Fixpoint iterator A (f: nat -> A -> A) (val: A) (max: nat) :=
   match max with

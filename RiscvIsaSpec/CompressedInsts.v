@@ -4,7 +4,7 @@
   string transformations needed to convert them into their equivalent
   uncompressed RISC-V instructions.
  *)
-Require Import Kami.AllDefn Kami.Notations.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.
