@@ -23,7 +23,7 @@ Section device.
          mem_device_name := "uart device";
          mem_device_type := io_device;
          mem_device_pmas (* only byte access is supported *)
-           := [{|
+           := {|
                  pma_width      := 0;
                  pma_readable   := true;
                  pma_writeable  := true;
@@ -31,7 +31,19 @@ Section device.
                  pma_misaligned := true;
                  pma_lrsc       := true;
                  pma_amo        := AMOArith
-               |}];
+               |} ::
+               (map
+                 (fun width
+                   => {|
+                        pma_width      := width;
+                        pma_readable   := false;
+                        pma_writeable  := false;
+                        pma_executable := false;
+                        pma_misaligned := false;
+                        pma_lrsc       := false;
+                        pma_amo        := AMONone
+                      |})
+                 (seq 1 4));
          mem_device_read
            := fun ty
                 => [fun mode paddr _
