@@ -280,7 +280,7 @@ Section Params.
                              "addr" :: PAddr ;
                              "data" :: Data ;
                              "mask" :: Array Rlen_over_8 Bool ;
-                             "size" :: MemRqLgSize }.
+                             "size" :: MemRqLgSize }. (* the number of bytes to be read or written - PMA *)
   
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
