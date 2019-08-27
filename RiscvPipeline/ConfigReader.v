@@ -34,23 +34,6 @@ Section config_reader.
            then #mxl
            else IF mode == $SupervisorMode then #sxl else #uxl).
 
-  Local Definition readExtensions
-    :  ActionT ty Extensions
-    := supported_exts_foldr
-         (fun ext _ acc
-           => LETA exts : Extensions <- acc;
-              Read enabled : Bool <- ^(ext_misa_field_name ext);
-              (* System [
-                DispString _ ("[readExtensions] reading extension register " ++ ^(ext_misa_field_name ext) ++ " for " ++ ext ++ " enabled?: ");
-                DispBinary #enabled;
-                DispString _ "\n";
-                DispString _ "[readExtensions] acc: ";
-                DispHex #exts;
-                DispString _ "\n"
-              ]; *)
-              Ret (Extensions_set #exts ext #enabled))
-         (Ret $$(getDefaultConst Extensions)).
-
   Definition readConfig
     :  ActionT ty ContextCfgPkt
     := Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
@@ -58,9 +41,9 @@ Section config_reader.
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
-       LETA extensions
+       Read extensions
          :  Extensions
-         <- readExtensions;
+         <- ^"extRegs";
        Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";

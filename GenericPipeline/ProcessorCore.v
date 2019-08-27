@@ -46,12 +46,6 @@ Section Params.
 
     Local Open Scope kami_scope.
 
-    Local Definition extRegs
-      := supported_exts_foldr
-           (fun ext enabled acc
-             => (Register ^(ext_misa_field_name ext) : Bool <- ConstBool enabled) :: acc)
-           [].
-
     Local Definition pmpRegs
       := fold_right
            (fun n regs
@@ -67,7 +61,6 @@ Section Params.
     Definition processorCore 
       :  BaseModule
       := MODULE {
-              Node extRegs with
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
               Node (csr_regs (Csrs name)) with
@@ -118,18 +111,6 @@ Section Params.
                    Retv with
               Rule ^"pipeline"
                 := 
-                   System
-                     [
-                       DispString _ "created the following extension registers: \n";
-                       DispString _ (fold_right String.append "" (fst misa_field_states));
-                       DispString _ "\n";
-                       DispString _ "the following extension registers were initialized to enabled: \n";
-                       DispString _ (fold_right String.append "" (fst misa_field_states));
-                       DispString _ "\n";
-                       DispString _ "the following misa field names are considered valid by the csr interface: \n";
-                       DispString _ (fold_right String.append "" (snd misa_field_states));
-                       DispString _ "\n"
-                     ];
                    LETA cfg_pkt <- readConfig name _;
                    Read pc : VAddr <- ^"pc";
                    System

@@ -231,44 +231,13 @@ Section csrs.
            csrName := ^"misa";
            csrAddr := CsrIdWidth 'h"301";
            csrViews
-             := let ext_fields
-                  := [
-                       @extField name _ "Z";
-                       @extField name _ "Y";
-                       @extField name _ "X";
-                       @extField name _ "W";
-                       @extField name _ "V";
-                       @extField name _ "U";
-                       @extField name _ "T";
-                       @extField name _ "S";
-                       @extField name _ "R";
-                       @extField name _ "Q";
-                       @extField name _ "P";
-                       @extField name _ "O";
-                       @extField name _ "N";
-                       @extField name _ "M";
-                       @extField name _ "L";
-                       @extField name _ "K";
-                       @extField name _ "J";
-                       @extField name _ "I";
-                       @extField name _ "H";
-                       @extField name _ "G";
-                       @extField name _ "F";
-                       @extField name _ "E";
-                       @extField name _ "D";
-                       @compressedExtField name _;
-                       @extField name _ "B";
-                       @extField name _ "A"
-                     ] in
-                [
+             := [
                   let fields
                     := [
                          xlField ^"m";
                          @csrFieldNoReg _ "misa_reserved32" (Bit 4) (getDefaultConst _);
-                         @csrFieldNoReg _
-                           "extensions" (Bit 26)
-                           (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] (* ++ ext_fields *) in
+                         misa name
+                       ] in
                   {|
                     csrViewContext := fun ty => $1;
                     csrViewFields  := fields;
@@ -279,10 +248,8 @@ Section csrs.
                     := [
                          xlField ^"m";
                          @csrFieldNoReg _ "misa_reserved64" (Bit 36) (getDefaultConst _);
-                         @csrFieldNoReg _
-                           "extensions" (Bit 26)
-                           (ConstBit WO~1~0~1~1~0~1~0~0~1~0~0~0~1~0~0~0~0~0~0~0~0~0~0~0~0~1) (* TODO *)
-                       ] (* ++ ext_fields *) in
+                         misa name
+                       ] in
                   {|
                     csrViewContext := fun ty => $2;
                     csrViewFields  := fields;

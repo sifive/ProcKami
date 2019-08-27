@@ -302,55 +302,15 @@ Section Params.
        }.
 
   Section Extensions.
-    Local Definition strings_add xs x
-      := if existsb (String.eqb x) xs
-         then xs
-         else x :: xs.
+    Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
 
-    Definition ImplExts := ["A"; "C"; "D"; "F"; "I"; "M"; "S"; "U"; "Zicsr"; "Zifencei"].
-
-    Definition ext_misa_field_name := substring 0 1.
-
-    (* fold over the set of supported extensions *)
-    Definition supported_exts_foldr
-               (A : Type)
-               (f : string -> bool -> A -> A)
-               (init : A)
-      :  A
-      := fold_right
-           (fun ext acc
-            => match 
-                find
-                  (fun state => String.eqb (fst state) ext)
-                  supported_exts
-              with
-              | None => acc
-              | Some state
-                => f ext (snd state) acc
-              end)
-           init ImplExts.
-
-    (* supported and enabled misa extension fields *)
-    Definition misa_field_states
-      :  (list string * list string)
-      := supported_exts_foldr
-           (fun ext enabled acc
-            => (strings_add (fst acc) (ext_misa_field_name ext),
-                if enabled
-                then strings_add (snd acc) (ext_misa_field_name ext)
-                else snd acc))
-           ([], []).
-
-    Definition supported_ext_states
-      :  list (Attribute Kind)
-      := supported_exts_foldr
-           (fun ext _ => cons (ext, Bool))
-           [].
-
+    Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (fst y) i) supported_exts with
+                                                           | None => acc
+                                                           | Some x => x :: acc
+                                                           end) ImplExts [].
     
-    Definition Extensions
-      :  Kind
-      := getStruct supported_ext_states.
+    Definition Extensions :=
+      Struct (fun i => Bool) (fun j => fst (nth_Fin InitExtsValTuple j)).
 
     Definition Extensions_set ty
                (exts : Extensions @# ty)
@@ -364,6 +324,33 @@ Section Params.
                (name : string)
       :  Bool @# ty
       := struct_get_field_default exts name ($$ false)%kami_expr.
+
+    Definition InitExtsVal :=
+      (ConstStruct (fun i => Bool)
+                   (fun j => fst (nth_Fin InitExtsValTuple j))
+                   (fun k => snd (nth_Fin InitExtsValTuple k))).
+
+    Definition ext_misa_field_char (i: Fin.t 26) :=
+      substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
+
+    Definition misa_ext_match i j :=
+      String.eqb (ext_misa_field_char i) (substring 0 1 (fst (nth_Fin InitExtsValTuple j))).
+
+    Definition misaToExtFind (i: Fin.t 26) :=
+      filter (fun j => misa_ext_match i j) (getFins (length InitExtsValTuple)).
+
+    Definition extToMisaFind (i: Fin.t (length InitExtsValTuple)) :=
+      find (fun j => misa_ext_match j i) (getFins 26).
+
+    Definition extToMisa ty (exts: Extensions @# ty): Array 26 Bool @# ty :=
+      BuildArray (fun i => CABool Or (@map _ (Bool @# ty) (fun j => ReadStruct exts j)
+                                           (misaToExtFind i))).
+
+    Definition misaToExt ty (arr: Array 26 Bool @# ty): Extensions @# ty :=
+      BuildStruct _ _ (fun i => match extToMisaFind i with
+                                | None => $$ false
+                                | Some j => ReadArrayConst arr j
+                                end)%kami_expr.
   End Extensions.
   
   Section ty.

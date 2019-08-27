@@ -308,7 +308,23 @@ Section CsrInterface.
                   csrFieldRegisterWriteXform
                     := fun _ _ _ value => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack value));
                 |}
+      |}.
+
+  Definition misa: CsrField
+    := {| csrFieldName := ^"extensions";
+          csrFieldKind := Array 26 Bool ;
+          csrFieldValue :=
+            inr {| csrFieldRegisterName := ^"extRegs";
+                   csrFieldRegisterKind := Extensions ;
+                   csrFieldRegisterValue := Some InitExtsVal;
+                   csrFieldRegisterReadXform
+                   := fun _ _ value => extToMisa value;
+                   csrFieldRegisterWriteXform
+                   := fun _ _ old _ => old
+                |}
        |}.
+                            
+             
 
   Definition csrFieldReadOnly
     (name : string)
@@ -363,30 +379,6 @@ Section CsrInterface.
          | None
            => csrFieldNoReg ^name false
          end.
-
-  Definition compressedExtField
-    :  CsrField
-    := match find (fun ext => String.eqb "C" (fst ext)) supported_exts with
-         | Some ext
-           => {|
-                csrFieldName := ^"C";
-                csrFieldKind := Bool;
-                csrFieldValue
-                  := inr {|
-                         csrFieldRegisterName  := ^"C";
-                         csrFieldRegisterKind  := Bool;
-                         csrFieldRegisterValue := Some (ConstBool (snd ext));
-                         csrFieldRegisterReadXform := fun _ _ => id;
-                         csrFieldRegisterWriteXform
-                           := fun ty field curr_value input_value
-                                => IF $0 == ((ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "pc")) |
-                                             (ZeroExtendTruncLsb 2 (field @% "warlUpdateInfo" @% "mepc")))
-                                     then input_value
-                                     else curr_value
-                       |}
-              |}
-       | None => csrFieldNoReg ^"C" false
-       end.
 
   Definition xlField
     (prefix : string)
