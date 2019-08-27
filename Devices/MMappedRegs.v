@@ -1,5 +1,5 @@
 (* This module defines the memory mapped register interface. *)
-Require Import Kami.AllNotations.
+Require Import Kami.All.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.
@@ -128,6 +128,17 @@ Section mmapped.
 
   End params.
 
+  Definition msipDevice
+    := @gen_reg_device
+         (Nat.log2_up 1)
+         [
+           {|
+             gr_addr := $0%word;
+             gr_kind := Bit 64;
+             gr_name := ^"msip"
+           |}
+         ] "msip" false.
+
   Definition mtimeDevice
     := @gen_reg_device
          (Nat.log2_up 1)
@@ -144,7 +155,7 @@ Section mmapped.
          (Nat.log2_up 1)
          [
            {|
-             gr_addr := $8%word;
+             gr_addr := $0%word;
              gr_kind := Bit 64;
              gr_name := ^"mtimecmp"
            |}

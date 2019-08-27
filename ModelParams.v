@@ -3,7 +3,7 @@
   a list of processor extensions to enable and returns a Kami module
   that represents the procesor model.
 *)
-Require Import Kami.AllNotations.
+Require Import Kami.All.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import Vector.
@@ -36,8 +36,10 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FRound.
 Require Import ProcKami.RiscvIsaSpec.Insts.Zicsr.
 Require Import ProcKami.RiscvIsaSpec.Insts.MRet.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
+Require Import ProcKami.Devices.BootRomDevice.
 Require Import ProcKami.Devices.PMemDevice.
 Require Import ProcKami.Devices.MMappedRegs.
+Require Import ProcKami.Devices.UARTDevice.
 
 (* I. device parameters *)
 
@@ -274,9 +276,12 @@ Section exts.
   Definition mem_devices
     :  list (@MemDevice procParams)
     := [
-         mtimeDevice    name;
+         bootRomDevice  name;
+         msipDevice     name;
          mtimecmpDevice name;
-         pMemDevice     name
+         mtimeDevice    name;
+         pMemDevice     name;
+         uartDevice     name
        ].
 
   (* nat_lt n m : n < m *)
@@ -288,18 +293,33 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
-           mtbl_entry_addr := 0%N;
-           mtbl_entry_width := 8%N;
-           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt))
+           mtbl_entry_addr := 4096%N; (* 0x1000 *)
+           mtbl_entry_width := 4096%N;
+           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
-           mtbl_entry_addr := 8%N;
+           mtbl_entry_addr := 33554432%N; (* 0x2000000 *)
            mtbl_entry_width := 8%N;
+           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt)) (* msip *) 
+         |};
+         {|
+           mtbl_entry_addr := 33570816%N; (* 0x2004000 *)
+           mtbl_entry_width := 8%N;
+           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtimecmp *)
+         |};
+         {|
+           mtbl_entry_addr := 33603576%N; (* 0x200bff8 *)
+           mtbl_entry_width := 8%N;
+           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtime *)
+         |};
+         {|
+           mtbl_entry_addr := N.pow 2 31; (* 0x80000000 *)
+           mtbl_entry_width := N.pow 2 20;
            mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt))
          |};
          {|
-           mtbl_entry_addr := N.pow 2 31; (* 80000000 *)
-           mtbl_entry_width := N.pow 2 20;
+           mtbl_entry_addr := 32212254725%N; (* 0xC0000000 *)
+           mtbl_entry_width := 128%N; (* 0x80 *)
            mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt))
          |}
        ].
