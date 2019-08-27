@@ -219,7 +219,6 @@ Section Params.
                           (#mem_update_pkt @% "fst")
                           (#mem_update_pkt @% "snd");
                    System [DispString _ "Inc PC\n"];
-                   Call ^"pc"(#pc: VAddr); (* for test verification *)
                    Retv
          }.
 
