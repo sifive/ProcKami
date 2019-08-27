@@ -41,46 +41,8 @@ Definition kami_model64 := snd (separateModRemove model64Val).
 
 Separate Extraction
 
-  MayStruct_RegReads
-
   model32
   model64
 
   kami_model32
-  kami_model64
-
-  UpdateStruct
-  Kind_dec
-  size
-  wordToNat
-  EclecticLib.getBool
-  Base
-  getFins
-  getCallsWithSignPerRule
-  getRegisters
-  getRules
-  Fin.to_nat
-  Fin.t_rect
-  fullFormatHex
-  fullFormatBinary
-  fullFormatDecimal
-  List.find
-  List.fold_left
-  List.hd
-  List.in_dec
-  List.last
-  Mod
-  readReqName
-  readResName
-  readRegName
-  rfIsWrMask
-  rfNum
-  rfDataArray
-  rfRead
-  rfWrite
-  rfIdxNum
-  rfData
-  rfInit
-  separateModRemove
-  pack
-  unpack.
+  kami_model64.
