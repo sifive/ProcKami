@@ -48,9 +48,9 @@ Section device.
            := fun ty
                 => [fun mode paddr _
                      => Call result
-                          :  Array Rlen_over_8 (Bit 8)
+                          :  Bit 8
                           <- ^"readUART" (SignExtendTruncLsb _ paddr : Bit lgMemSz);
-                        Ret (pack #result)];
+                        Ret (ZeroExtendTruncLsb Rlen #result)];
          mem_device_read_resv
            := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
          mem_device_write_resv
