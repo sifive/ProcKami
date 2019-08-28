@@ -171,6 +171,7 @@ Section ParamDefinitions.
   Definition Rlen := (Rlen_over_8 * 8).
   Definition Data := Bit Rlen.
   Definition DataMask := (Array Rlen_over_8 Bool).
+  Definition Reservation := (Array Rlen_over_8 Bool).
   Definition VAddr := Bit Xlen.
   Definition CsrValueWidth := Xlen.
   Definition CsrValue := Bit CsrValueWidth.
@@ -717,6 +718,10 @@ Section Params.
           : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
           mem_device_write
           : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+          mem_device_read_resv
+          : forall ty, PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
+          mem_device_write_resv
+          : forall ty, PrivMode @# ty -> PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
           mem_device_file
           : option ((list RegFileBase) + MMRegs)%type
         }.

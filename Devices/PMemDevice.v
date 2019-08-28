@@ -68,6 +68,17 @@ Section mem_devices.
                        => LETA _ <- pMemWrite 0 mode pkt;
                             Ret $$false)
                     ];
+         mem_device_read_resv
+           := (fun ty _ addr _ => Call result: Array Rlen_over_8 Bool
+                                                     <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
+                                    Ret #result);
+         mem_device_write_resv
+           := (fun ty _ addr mask resv _ =>
+                 LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
+                                                                               "data" ::= resv ;
+                                                                               "mask" ::= mask } ;
+                   Call ^"writeMemReservation" (#writeRq: _);
+                   Retv);
          mem_device_file
            := Some
                 (inl [@Build_RegFileBase

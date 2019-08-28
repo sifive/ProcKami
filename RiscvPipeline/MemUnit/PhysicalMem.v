@@ -302,7 +302,7 @@ Section pmem.
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (data : Data @# ty)
-      (mask : Array Rlen_over_8 Bool @# ty)
+      (mask : DataMask @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty Bool
       := mem_device_apply dtag
@@ -319,22 +319,28 @@ Section pmem.
                           } : MemWrite @# ty)
                   end).
 
-    Local Notation lgMemSz := 20.
-    Definition pMemReadReservation (addr: PAddr @# ty)
-      : ActionT ty (Array Rlen_over_8 Bool)
-      := Call result: Array Rlen_over_8 Bool
-                            <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-           Ret #result.
+    Definition mem_region_read_resv
+      (mode : PrivMode @# ty)
+      (dtag : DeviceTag mem_devices @# ty)
+      (daddr : PAddr @# ty)
+      (size : MemRqLgSize @# ty)
+      :  ActionT ty (Array Rlen_over_8 Bool)
+      := mem_device_apply dtag 
+           (fun device
+            => LETA result <- mem_device_read_resv device mode daddr size;
+                 Ret #result).
 
-    Definition pMemWriteReservation (addr: PAddr @# ty)
-               (mask rsv: Array Rlen_over_8 Bool @# ty)
-      : ActionT ty Void
-      := LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
-                                                                       "data" ::= rsv ;
-                                                                       "mask" ::= mask } ;
-           Call ^"writeMemReservation" (#writeRq: _);
-           Retv.
-
+    Definition mem_region_write_resv
+      (mode : PrivMode @# ty)
+      (dtag : DeviceTag mem_devices @# ty)
+      (daddr : PAddr @# ty)
+      (mask : DataMask @# ty)
+      (resv : Reservation @# ty)
+      (size : MemRqLgSize @# ty)
+      :  ActionT ty Void
+      := mem_device_apply dtag
+           (fun device
+            => mem_device_write_resv device mode daddr mask resv size).
   End ty.
 
   Close Scope kami_action.

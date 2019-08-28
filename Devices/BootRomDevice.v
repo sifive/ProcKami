@@ -41,6 +41,10 @@ Section device.
                           Ret (pack #result))
                      (seq 0 mem_device_num_reads);
          mem_device_write := fun ty => [];
+         mem_device_read_resv
+           := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
+         mem_device_write_resv
+           := fun ty _ addr _ _ _ => Retv;
          mem_device_file
            := Some
                 (inl [

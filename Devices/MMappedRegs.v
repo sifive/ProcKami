@@ -114,6 +114,10 @@ Section mmapped.
                               <- mm_write #addr
                                    (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
                             Ret $$false];
+           mem_device_read_resv
+             := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
+           mem_device_write_resv
+             := fun ty _ addr _ _ _ => Retv;
            mem_device_file
              := if gen_regs
                   then

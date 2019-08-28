@@ -311,7 +311,11 @@ Section mem_unit.
                        (* TODO: should we place reservations on failed reads? *)
                        LETA read_reservation_result
                          :  Array Rlen_over_8 Bool
-                         <- pMemReadReservation name (unsafeTruncLsb PAddrSz (#mpaddr @% "fst"));
+                         <- mem_region_read_resv mode
+                             (#pmp_result @% "fst" @% "fst")
+                             (#pmp_result @% "fst" @% "snd")
+                             (#msize @% "data");
+                             (* #mpaddr @% "fst" *)
                        (* VI. apply the memory transform to compute the write value *)
                        LETA mwrite_value
                          :  Maybe MemoryOutput
@@ -347,7 +351,7 @@ Section mem_unit.
                                   (#pmp_result @% "fst" @% "fst")
                                   (#pmp_result @% "fst" @% "snd")
                                   (#mwrite_value @% "data" @% "data" : Data @# ty)
-                                  (#write_mask : Array Rlen_over_8 Bool @# ty)
+                                  (#write_mask : DataMask @# ty)
                                   (#msize @% "data");
                            Ret
                              (IF #write_result
@@ -365,10 +369,15 @@ Section mem_unit.
                          DispString _ "\n"
                        ];
                        If #mwrite_value @% "data" @% "isLrSc"
-                         then pMemWriteReservation name
-                                (#mpaddr @% "fst")
-                                (#mwrite_value @% "data" @% "mask")
-                                (#mwrite_value @% "data" @% "reservation");
+                         then
+                           mem_region_write_resv mode
+                             (#pmp_result @% "fst" @% "fst")
+                             (#pmp_result @% "fst" @% "snd")
+                             (#mwrite_value @% "data" @% "mask" : DataMask @# ty)
+                             (#mwrite_value @% "data" @% "reservation")
+                             (#msize @% "data");
+                             (* #mpaddr @% "fst" *)
+                             (* (#mwrite_value @% "data" @% "mask") *)
                        LET memRet
                          :  MemRet
                          <- STRUCT {
