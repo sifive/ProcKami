@@ -303,7 +303,7 @@ Section Params.
        }.
 
   Section Extensions.
-    Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
+    Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; (* "S"; "U"; *) "Zicsr"; "Zifencei"].
 
     Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (fst y) i) supported_exts with
                                                            | None => acc
@@ -332,7 +332,7 @@ Section Params.
                    (fun k => snd (nth_Fin InitExtsValTuple k))).
 
     Definition ext_misa_field_char (i: Fin.t 26) :=
-      substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
+      substring (proj1_sig (Fin.to_nat i)) 1 (string_rev "ABCDEFGHIJKLMNOPQRSTUVWXYZ").
 
     Definition misa_ext_match i j :=
       String.eqb (ext_misa_field_char i) (substring 0 1 (fst (nth_Fin InitExtsValTuple j))).
