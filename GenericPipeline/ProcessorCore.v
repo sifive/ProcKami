@@ -62,7 +62,7 @@ Section Params.
       :  BaseModule
       := MODULE {
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
-              Register ^"pc"               : VAddr <- ConstBit (Xlen 'h"80000000") with
+              Register ^"pc"               : VAddr <- ConstBit pc_init with
               Node (csr_regs (Csrs name)) with
               Register ^"upp"              : Bit 0 <- ConstBit WO with
               Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
