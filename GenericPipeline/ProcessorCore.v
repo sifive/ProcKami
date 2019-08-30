@@ -140,6 +140,9 @@ Section Params.
                        DispHex #decoder_pkt;
                        DispString _ "\n"
                      ];
+                   System [ DispString _ "Decoded string: " ];
+                   LETA _ <- printFuncUnitInstName (#decoder_pkt @% "fst" @% "funcUnitTag") (#decoder_pkt @% "fst" @% "instTag");
+                   System [ DispString _ "\n" ];
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      :  PktWithException ExecContextPkt

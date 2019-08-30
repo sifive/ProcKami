@@ -262,6 +262,16 @@ Section decoder.
              (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).
 
     Variable CompInstDb: list (CompInstEntry ty).
+
+    Definition printFuncUnitInstName (fu: FuncUnitId @# ty) (inst: InstId @# ty): ActionT ty Void :=
+      (GatherActions (map (fun i =>
+                             If ($ (fst i) == fu)
+                             then (System [DispString _ (fuName (snd i)); DispString _ "."];
+                                     (GatherActions (map (fun j =>
+                                                            If ($ (fst j) == inst)
+                                                            then (System [DispString _ (instName (snd j))]; Retv)
+                                                            else Retv; Retv) (tag (fuInsts (snd i)))) as _; Retv))
+                             else Retv; Retv) (tag func_units)) as _; Retv)%kami_action.
     
     Definition decoder
       (xlen : XlenValue @# ty)
