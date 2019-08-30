@@ -320,7 +320,7 @@ Section CsrInterface.
                    csrFieldRegisterReadXform
                    := fun _ _ value => extToMisa value;
                    csrFieldRegisterWriteXform
-                   := fun _ _ old _ => old
+                   := fun _ guard old new => old
                 |}
        |}.
                             
