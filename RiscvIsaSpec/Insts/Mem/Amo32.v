@@ -31,6 +31,7 @@ Section Mem.
            {| instName     := "amoswap.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -43,6 +44,7 @@ Section Mem.
            {| instName     := "amoadd.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -55,6 +57,7 @@ Section Mem.
            {| instName     := "amoxor.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -67,6 +70,7 @@ Section Mem.
            {| instName     := "amoand.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -79,6 +83,7 @@ Section Mem.
            {| instName     := "amoor.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -91,6 +96,7 @@ Section Mem.
            {| instName     := "amomin.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -103,6 +109,7 @@ Section Mem.
            {| instName     := "amomax.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -115,6 +122,7 @@ Section Mem.
            {| instName     := "amominu.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::
@@ -127,6 +135,7 @@ Section Mem.
            {| instName     := "amomaxu.w" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"010") ::

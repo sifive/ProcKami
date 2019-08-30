@@ -44,6 +44,7 @@ Section mret.
                   instName   := "mret";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0011000");
@@ -70,6 +71,7 @@ Section mret.
                   instName   := "sret";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001000");
@@ -96,6 +98,7 @@ Section mret.
                   instName   := "uret";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -151,6 +154,7 @@ Section mret.
                   instName   := "ecall";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -192,6 +196,7 @@ Section mret.
                   instName   := "fence.i";
                   xlens      := xlens_all;
                   extensions := ["Zifencei"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct3Field ('b"001");
@@ -209,6 +214,7 @@ Section mret.
                   instName   := "fence";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct3Field ('b"000");
@@ -224,6 +230,7 @@ Section mret.
                   instName   := "sfence";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001001");
@@ -269,6 +276,7 @@ Section mret.
                   instName   := "ebreak";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0000000");
@@ -319,6 +327,7 @@ Section mret.
                   instName := "wfi";
                   xlens      := xlens_all;
                   extensions := ["I"];
+                  ext_ctxt_off := nil;
                   uniqId
                     := [
                          fieldVal funct7Field ('b"0001000");

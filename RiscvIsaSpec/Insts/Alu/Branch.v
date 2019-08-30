@@ -126,6 +126,7 @@ Section Alu.
          fuInsts := {| instName     := "beq" ; 
                        xlens        := xlens_all;
                        extensions   := "I" :: nil;
+                       ext_ctxt_off := nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"11000") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
@@ -137,6 +138,7 @@ Section Alu.
                        {| instName     := "bne" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"001") :: nil ;
@@ -148,6 +150,7 @@ Section Alu.
                        {| instName     := "blt" ;  
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"100") :: nil ;
@@ -159,6 +162,7 @@ Section Alu.
                        {| instName     := "bge" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"101") :: nil ;
@@ -170,6 +174,7 @@ Section Alu.
                        {| instName     := "bltu" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"110") :: nil ;
@@ -181,6 +186,7 @@ Section Alu.
                        {| instName     := "bgeu" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"11000") ::
                                                    fieldVal funct3Field ('b"111") :: nil ;

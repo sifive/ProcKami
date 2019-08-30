@@ -609,6 +609,8 @@ Section Params.
           "tvm"         :: Bool;
           "tw"          :: Bool;
           "extensions"  :: Extensions;
+          "fs"          :: Bit 2;
+          "xs"          :: Bit 2;
           "instMisalignedException?" :: Bool ;
           "memMisalignedException?"  :: Bool ;
           "accessException?"         :: Bool
@@ -648,6 +650,7 @@ Section Params.
       { instName     : string ;
         xlens        : list nat ;
         extensions   : list string ;
+        ext_ctxt_off : list string ;
         uniqId       : UniqId ;        
         inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
         outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;

@@ -37,6 +37,7 @@ Section Alu.
          fuInsts := {| instName     := "addi" ;
                        xlens        := xlens_all;
                        extensions   := "I" :: nil;
+                       ext_ctxt_off := nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
@@ -54,6 +55,7 @@ Section Alu.
                        {| instName     := "slti" ;
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"010") :: nil ;
@@ -73,6 +75,7 @@ Section Alu.
                        {| instName     := "sltiu" ;
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"011") :: nil ;
@@ -94,6 +97,7 @@ Section Alu.
                        {| instName     := "add" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
@@ -112,6 +116,7 @@ Section Alu.
                        {| instName     := "sub" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
@@ -130,6 +135,7 @@ Section Alu.
                        {| instName     := "slt" ;
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"010") ::
@@ -149,6 +155,7 @@ Section Alu.
                        {| instName     := "sltu" ;
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"011") ::
@@ -170,6 +177,7 @@ Section Alu.
                        {| instName     := "addiw" ; 
                           xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
                                fieldVal opcodeField ('b"00110") ::
@@ -196,6 +204,7 @@ Section Alu.
                        {| instName     := "addw" ; 
                           xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") :: 
@@ -214,6 +223,7 @@ Section Alu.
                        {| instName     := "subw" ; 
                           xlens        :=  (Xlen64 :: nil);
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") ::
@@ -232,6 +242,7 @@ Section Alu.
                        {| instName     := "lui" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
                                fieldVal opcodeField ('b"01101") ::
@@ -263,6 +274,7 @@ Section Alu.
                        {| instName     := "auipc" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId
                             := fieldVal instSizeField ('b"11") ::
                                fieldVal opcodeField ('b"00101") ::

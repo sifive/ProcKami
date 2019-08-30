@@ -33,6 +33,7 @@ Section Mem.
            {| instName     := "lb" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"000") :: nil ;
@@ -44,6 +45,7 @@ Section Mem.
            {| instName     := "lh" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"001") :: nil ;
@@ -55,6 +57,7 @@ Section Mem.
            {| instName     := "lw" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"010") :: nil ;
@@ -66,6 +69,7 @@ Section Mem.
            {| instName     := "lbu" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"100") :: nil ;
@@ -77,6 +81,7 @@ Section Mem.
            {| instName     := "lhu" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"101") :: nil ;
@@ -88,6 +93,7 @@ Section Mem.
            {| instName     := "sb" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"000") :: nil ;
@@ -99,6 +105,7 @@ Section Mem.
            {| instName     := "sh" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"001") :: nil ;
@@ -110,6 +117,7 @@ Section Mem.
            {| instName     := "sw" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"010") :: nil ;
@@ -121,6 +129,7 @@ Section Mem.
            {| instName     := "lwu" ;
               xlens        := xlens_all;
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"110") :: nil ;
@@ -132,6 +141,7 @@ Section Mem.
            {| instName     := "ld" ;
               xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"00000") ::
                                        fieldVal funct3Field ('b"011") :: nil ;
@@ -143,6 +153,7 @@ Section Mem.
            {| instName     := "sd" ;
               xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01000") ::
                                        fieldVal funct3Field ('b"011") :: nil ;
@@ -154,6 +165,7 @@ Section Mem.
            {| instName     := "flw";
               xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -172,6 +184,7 @@ Section Mem.
            {| instName     := "fsw";
               xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -183,6 +196,7 @@ Section Mem.
            {| instName     := "fld";
               xlens        := xlens_all;
               extensions   := "D" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"011") :: nil;
@@ -194,6 +208,7 @@ Section Mem.
            {| instName     := "fsd";
               xlens        := xlens_all;
               extensions   := "D" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"011") :: nil;

@@ -27,6 +27,7 @@ Section Alu.
          fuInsts := {| instName     := "xori" ; 
                        xlens        := xlens_all;
                        extensions   := "I" :: nil;
+                       ext_ctxt_off := nil;
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"100") :: nil ;
@@ -43,6 +44,7 @@ Section Alu.
                        {| instName     := "ori" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"110") :: nil ;
@@ -59,6 +61,7 @@ Section Alu.
                        {| instName     := "andi" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"111") :: nil ;
@@ -75,6 +78,7 @@ Section Alu.
                        {| instName     := "xor" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"100") ::
@@ -92,6 +96,7 @@ Section Alu.
                        {| instName     := "or" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"110") ::
@@ -110,6 +115,7 @@ Section Alu.
                        {| instName     := "and" ; 
                           xlens        := xlens_all;
                           extensions   := "I" :: nil;
+                          ext_ctxt_off := nil;
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"111") ::

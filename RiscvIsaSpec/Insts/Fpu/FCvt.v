@@ -92,6 +92,7 @@ Section Fpu.
                   instName   := append "fcvt.w" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -109,6 +110,7 @@ Section Fpu.
                   instName   := append "fcvt.wu" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -148,6 +150,7 @@ Section Fpu.
                   instName   := append "fcvt.l" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -165,6 +168,7 @@ Section Fpu.
                   instName   := append "fcvt.lu" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -235,6 +239,7 @@ Section Fpu.
                   instName   := append (append "fcvt" fpu_suffix) ".w";
                   xlens      := xlens_all;
                   extensions := fpu_exts_32;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -262,6 +267,7 @@ Section Fpu.
                   instName   := append (append "fcvt" fpu_suffix) ".wu";
                   xlens      := xlens_all;
                   extensions := fpu_exts_32;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -307,6 +313,7 @@ Section Fpu.
                   instName   := append (append "fcvt" fpu_suffix) ".l";
                   xlens      := xlens_all;
                   extensions := fpu_exts_64;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -334,6 +341,7 @@ Section Fpu.
                   instName   := append (append "fcvt" fpu_suffix) ".lu";
                   xlens      := xlens_all;
                   extensions := fpu_exts_64;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;

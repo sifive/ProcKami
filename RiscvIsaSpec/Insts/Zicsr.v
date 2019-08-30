@@ -74,6 +74,7 @@ Section zicsr.
               instName   := "csrrw";
               xlens      := xlens_all;
               extensions := ["Zicsr"];
+              ext_ctxt_off := nil;
               uniqId
               := [
                   fieldVal instSizeField ('b"11");
@@ -101,6 +102,7 @@ Section zicsr.
                 instName   := "csrrs";
                 xlens      := xlens_all;
                 extensions := ["Zicsr"];
+                ext_ctxt_off := nil;
                 uniqId
                 := [
                     fieldVal instSizeField ('b"11");
@@ -128,6 +130,7 @@ Section zicsr.
                 instName   := "csrrc";
                 xlens      := xlens_all;
                 extensions := ["Zicsr"];
+                ext_ctxt_off := nil;
                 uniqId
                 := [
                     fieldVal instSizeField ('b"11");
@@ -155,6 +158,7 @@ Section zicsr.
                 instName   := "csrrwi";
                 xlens      := xlens_all;
                 extensions := ["Zicsr"];
+                ext_ctxt_off := nil;
                 uniqId
                 := [
                     fieldVal instSizeField ('b"11");
@@ -182,6 +186,7 @@ Section zicsr.
                 instName   := "csrrsi";
                 xlens      := xlens_all;
                 extensions := ["Zicsr"];
+                ext_ctxt_off := nil;
                 uniqId
                 := [
                     fieldVal instSizeField ('b"11");
@@ -209,6 +214,7 @@ Section zicsr.
                 instName   := "csrrci";
                 xlens      := xlens_all;
                 extensions := ["Zicsr"];
+                ext_ctxt_off := nil;
                 uniqId
                 := [
                     fieldVal instSizeField ('b"11");

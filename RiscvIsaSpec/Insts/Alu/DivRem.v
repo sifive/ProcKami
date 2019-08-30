@@ -72,6 +72,7 @@ Section Alu.
                instName   := "div";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -95,6 +96,7 @@ Section Alu.
                instName   := "divu";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -118,6 +120,7 @@ Section Alu.
                instName   := "divw";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01110") ::
@@ -142,6 +145,7 @@ Section Alu.
                instName   := "divuw";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01110") ::
@@ -166,6 +170,7 @@ Section Alu.
                instName   := "rem";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -189,6 +194,7 @@ Section Alu.
                instName   := "remu";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01100") ::
@@ -212,6 +218,7 @@ Section Alu.
                instName   := "remw";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01110") ::
@@ -235,6 +242,7 @@ Section Alu.
                instName   := "remuw";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                  := fieldVal instSizeField ('b"11")  ::
                     fieldVal opcodeField ('b"01110") ::

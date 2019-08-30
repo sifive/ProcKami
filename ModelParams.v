@@ -234,6 +234,7 @@ Section exts.
         := {| instName := instName e ;
               xlens := filter (fun x => existsb (Nat.eqb x) supported_xlens) (xlens e) ;
               extensions := extensions e ;
+              ext_ctxt_off := ext_ctxt_off e ;
               uniqId := uniqId e ;
               inputXform := inputXform e ;
               outputXform := outputXform e ;

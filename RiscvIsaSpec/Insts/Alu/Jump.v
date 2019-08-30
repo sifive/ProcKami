@@ -94,6 +94,7 @@ Section Alu.
                   instName     := "jal" ; 
                   xlens        := xlens_all;
                   extensions   := "I" :: nil;
+                  ext_ctxt_off := nil;
                   uniqId       := fieldVal instSizeField ('b"11") ::
                                   fieldVal opcodeField ('b"11011") ::
                                   nil;
@@ -127,6 +128,7 @@ Section Alu.
                 {| instName     := "jalr" ; 
                    xlens        := xlens_all;
                    extensions   := "I" :: nil;
+                   ext_ctxt_off := nil;
                    uniqId       := fieldVal instSizeField ('b"11") ::
                                    fieldVal opcodeField ('b"11001") ::
                                    nil;

@@ -74,6 +74,7 @@ Section Fpu.
                   instName   := append "fclass" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;

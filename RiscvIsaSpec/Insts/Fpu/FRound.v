@@ -51,6 +51,7 @@ Section Fpu.
                   instName   := "fcvt.d.s";
                   xlens      := xlens_all;
                   extensions := ["D"];
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal instSizeField ('b"11");
@@ -122,6 +123,7 @@ Section Fpu.
                   instName   := "fcvt.s.d";
                   xlens      := xlens_all;
                   extensions := ["D"];
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal instSizeField ('b"11");

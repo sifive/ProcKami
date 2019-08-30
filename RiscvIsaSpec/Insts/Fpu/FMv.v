@@ -73,6 +73,7 @@ Section Fpu.
                   instName   := append "fmv.x" fpu_int_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -100,6 +101,7 @@ Section Fpu.
                   instName   := append (append "fmv" fpu_int_suffix) ".x";
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;

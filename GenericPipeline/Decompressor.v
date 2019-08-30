@@ -56,8 +56,7 @@ Section Decompressor.
 
   Definition decompress
       (comp_inst_db : list (CompInstEntry ty))
-      (xlen : XlenValue @# ty)
-      (exts_pkt : Extensions @# ty)
+      (ctxt : ContextCfgPkt @# ty)
       (raw_comp_inst : CompInst @# ty)
     :  Maybe Inst ## ty
     := utila_expr_lookup_table
@@ -72,12 +71,12 @@ Section Decompressor.
                  :  Bool
                  <- raw_comp_inst_match_xlen
                       comp_inst_entry
-                      xlen;
+                      (ctxt @% "xlen");
                LETE exts_match
                  :  Bool
                  <- inst_match_enabled_exts
                       comp_inst_entry
-                      exts_pkt;
+                      (ctxt @% "extensions");
                (* SystemE (
                  DispString _ ("[decompress] ===== ") ::
                  DispString _ ("[decompress] inst match: ") ::

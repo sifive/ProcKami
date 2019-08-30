@@ -160,20 +160,32 @@ Section decoder.
                  => RetE (Extensions_get exts_pkt ext))
               (extensions inst)).
 
+    Definition decode_match_enabled_exts_on
+               (sem_input_kind sem_output_kind : Kind)
+               (inst : InstEntry ty sem_input_kind sem_output_kind)
+               (ctxt : ContextCfgPkt @# ty)
+      :  Bool ## ty
+      := utila_expr_any
+           (map
+              (fun ext : string
+                 => RetE (struct_get_field_default ctxt ext (Const ty (natToWord 2 1)) != $0))
+              (ext_ctxt_off inst)).
+
     Definition decode_match_inst
                (sem_input_kind sem_output_kind : Kind)
                (inst : InstEntry ty sem_input_kind sem_output_kind)
-               (xlen : XlenValue @# ty)
-               (exts_pkt : Extensions @# ty)
+               (ctxt : ContextCfgPkt @# ty)
                (raw_inst : Inst @# ty)
       :  Bool ## ty
       := LETE inst_id_match : Bool
            <- decode_match_fields raw_inst (uniqId inst);
          LETE xlens_match : Bool
-           <- decode_match_xlen inst xlen;
+           <- decode_match_xlen inst (ctxt @% "xlen");
          LETE exts_match : Bool
-           <- decode_match_enabled_exts inst exts_pkt;
-(*
+           <- decode_match_enabled_exts inst (ctxt @% "extensions");
+         LETE enabled_exts_on : Bool
+           <- decode_match_enabled_exts_on inst ctxt;
+         (*
          SystemE (
            DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
            DispBinary (#inst_id_match && #xlens_match && #exts_match) ::
@@ -188,16 +200,14 @@ Section decoder.
       instruction and decodes it.
     *)
     Definition decode 
-        (xlen : XlenValue @# ty)
-        (exts_pkt : Extensions @# ty)
+        (ctxt : ContextCfgPkt @# ty)
         (raw_inst : Inst @# ty)
       :  Maybe DecoderPktInternal ## ty
       := inst_db_find_pkt 
            (fun _ _ tagged_inst
               => decode_match_inst
                    (snd tagged_inst)
-                   xlen
-                   exts_pkt
+                   ctxt
                    raw_inst)
            (fun _ func_unit_id tagged_inst
               => RetE
@@ -215,8 +225,7 @@ Section decoder.
     *)
     Definition decode_bstring
                (comp_inst_db : list (CompInstEntry ty))
-               (xlen : XlenValue @# ty)
-               (exts_pkt : Extensions @# ty)
+               (ctxt : ContextCfgPkt @# ty)
                (bit_string : Inst @# ty)
       :  Maybe DecoderPktInternal ## ty
       := LETC prefix
@@ -224,8 +233,8 @@ Section decoder.
            <- bit_string $[15:0];
          LETE opt_uncomp_inst
            :  Maybe Inst
-           <- decompress comp_inst_db xlen exts_pkt #prefix;
-         (decode xlen exts_pkt
+           <- decompress comp_inst_db ctxt #prefix;
+         (decode ctxt
            (ITE ((#opt_uncomp_inst) @% "valid")
                 ((#opt_uncomp_inst) @% "data")
                 bit_string)).
@@ -242,12 +251,11 @@ Section decoder.
     *)
     Definition decode_full
                (comp_inst_db : list (CompInstEntry ty))
-               (xlen : XlenValue @# ty)
-               (exts_pkt : Extensions @# ty)
+               (ctxt : ContextCfgPkt @# ty)
                (fetch_pkt : FetchPkt @# ty)
       :  Maybe DecoderPkt ## ty
       := LETC raw_inst: Inst <- fetch_pkt @% "inst";
-           LETE opt_decoder_pkt : Maybe DecoderPktInternal <- decode_bstring comp_inst_db xlen exts_pkt #raw_inst;
+           LETE opt_decoder_pkt : Maybe DecoderPktInternal <- decode_bstring comp_inst_db ctxt #raw_inst;
            LETC decoder_pkt : DecoderPktInternal <- #opt_decoder_pkt @% "data" ;
            LETC decoder_ext_pkt
            : DecoderPkt
@@ -255,7 +263,7 @@ Section decoder.
                (STRUCT {
                     "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
                     "instTag"     ::= #decoder_pkt @% "instTag" ;
-                    "pc"          ::= xlen_sign_extend Xlen xlen (fetch_pkt @% "pc" : VAddr @# ty) ;
+                    "pc"          ::= xlen_sign_extend Xlen (ctxt @% "xlen") (fetch_pkt @% "pc" : VAddr @# ty) ;
                     "inst"        ::= #decoder_pkt @% "inst"
                   } : DecoderPkt @# ty) ;
            (utila_expr_opt_pkt #decoder_ext_pkt
@@ -274,13 +282,12 @@ Section decoder.
                              else Retv; Retv) (tag func_units)) as _; Retv)%kami_action.
     
     Definition decoder
-      (xlen : XlenValue @# ty)
-      (exts_pkt : Extensions @# ty)
+      (ctxt : ContextCfgPkt @# ty)
       (fetch_pkt : FetchPkt @# ty)
       :  PktWithException DecoderPkt ## ty
       := LETE decoder_pkt
            :  Maybe DecoderPkt
-           <- decode_full CompInstDb xlen exts_pkt fetch_pkt;
+           <- decode_full CompInstDb ctxt fetch_pkt;
          LETC exception
            :  Maybe FullException
            <- IF #decoder_pkt @% "valid"
@@ -297,8 +304,7 @@ Section decoder.
     Local Open Scope kami_action.
 
     Definition decoderWithException
-      (xlen : XlenValue @# ty)
-      (exts_pkt : Extensions @# ty)
+      (ctxt : ContextCfgPkt @# ty)
       (fetch_pkt : PktWithException FetchPkt @# ty)
       :  ActionT ty (PktWithException DecoderPkt)
       := bindException
@@ -306,7 +312,7 @@ Section decoder.
            (fetch_pkt @% "snd")
            (fun fetch_pkt : FetchPkt @# ty
               => convertLetExprSyntax_ActionT
-                   (decoder xlen exts_pkt fetch_pkt)).
+                   (decoder ctxt fetch_pkt)).
 
     Close Scope kami_action.
 

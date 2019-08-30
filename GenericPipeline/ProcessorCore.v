@@ -133,7 +133,7 @@ Section Params.
                      ];
                    LETA decoder_pkt
                      :  PktWithException (DecoderPkt (func_units _))
-                     <- decoderWithException (func_units _) (CompInstDb _) (#cfg_pkt @% "xlen") (#cfg_pkt @% "extensions") #fetch_pkt;
+                     <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt;
                    System
                      [
                        DispString _ "Decode:\n";

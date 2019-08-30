@@ -56,6 +56,7 @@ Section Alu.
             instName   := "mul";
             xlens      := xlens_all;
             extensions := "M" :: nil;
+            ext_ctxt_off := nil;
             uniqId
             := fieldVal instSizeField ('b"11")  ::
                         fieldVal opcodeField ('b"01100") ::
@@ -83,6 +84,7 @@ Section Alu.
                instName   := "mulh";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                := fieldVal instSizeField ('b"11")  ::
                            fieldVal opcodeField ('b"01100") ::
@@ -110,6 +112,7 @@ Section Alu.
                instName   := "mulhsu";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                := fieldVal instSizeField ('b"11")  ::
                            fieldVal opcodeField ('b"01100") ::
@@ -137,6 +140,7 @@ Section Alu.
                instName   := "mulhu";
                xlens      := xlens_all;
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                := fieldVal instSizeField ('b"11")  ::
                            fieldVal opcodeField ('b"01100") ::
@@ -164,6 +168,7 @@ Section Alu.
                instName   := "mulw";
                xlens      :=  (Xlen64 :: nil);
                extensions := "M" :: nil;
+               ext_ctxt_off := nil;
                uniqId
                := fieldVal instSizeField ('b"11")  ::
                            fieldVal opcodeField ('b"01110") ::

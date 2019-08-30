@@ -176,6 +176,7 @@ Section Fpu.
                   instName   := append "fmadd" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -191,6 +192,7 @@ Section Fpu.
                   instName   := append "fmsub" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -206,6 +208,7 @@ Section Fpu.
                   instName   := append "fnmsub" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -221,6 +224,7 @@ Section Fpu.
                   instName   := append "fnmadd" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -236,6 +240,7 @@ Section Fpu.
                   instName   := append "fadd" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -252,6 +257,7 @@ Section Fpu.
                   instName   := append "fsub" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -268,6 +274,7 @@ Section Fpu.
                   instName   := append "fmul" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;

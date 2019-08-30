@@ -347,7 +347,17 @@ Section csrs.
            csrName := ^"mstatus";
            csrAddr := CsrIdWidth 'h"300";
            csrViews
-             := [
+             := let hasFloat := existsb (fun '(x, _) => (x =? "F") ||
+                                                        (x =? "D"))%bool
+                                        InitExtsValTuple in
+                let hasFloatInit := existsb (fun '(x, y) => (((x =? "F") ||
+                                                              (x =? "D")) && (Bool.eqb y true)))%bool
+                                            InitExtsValTuple in
+                let fsInit := ConstBit (natToWord 2 (if hasFloatInit then 1 else 0)) in
+                let fs := if hasFloat
+                          then @csrFieldAny _ ^"fs" (Bit 2) (Bit 2) (Some fsInit)
+                          else @csrFieldNoReg _ ^"fs" (Bit 2) (ConstBit (wzero _)) in
+                [
                   let fields
                     := [
                          @csrFieldNoReg _ "reserved0" (Bit 9) (getDefaultConst _);
@@ -357,7 +367,8 @@ Section csrs.
                          @csrFieldAny _ ^"mxr" Bool Bool None;
                          @csrFieldAny _ ^"sum" Bool Bool None;
                          @csrFieldAny _ ^"mprv" Bool Bool None;
-                         @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
+                         fs;
+                         @csrFieldNoReg _ ^"xs" (Bit 2) (ConstBit (wzero _));
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
@@ -388,7 +399,8 @@ Section csrs.
                          @csrFieldAny _ ^"mxr" Bool Bool None;
                          @csrFieldAny _ ^"sum" Bool Bool None;
                          @csrFieldAny _ ^"mprv" Bool Bool None;
-                         @csrFieldNoReg _ "reserved2" (Bit 4) (getDefaultConst _);
+                         fs;
+                         @csrFieldNoReg _ ^"xs" (Bit 2) (ConstBit (wzero _));
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;

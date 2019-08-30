@@ -31,6 +31,7 @@ Section Mem.
            {| instName     := "lr.d" ;
               xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
@@ -45,6 +46,7 @@ Section Mem.
            {| instName     := "sc.d" ;
               xlens        :=  (Xlen64 :: nil);
               extensions   := "I" :: nil;
+              ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::

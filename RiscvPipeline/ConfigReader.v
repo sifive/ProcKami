@@ -47,6 +47,8 @@ Section config_reader.
        Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";
+       Read fs : Bit 2 <- ^"fs";
+       LET xs : Bit 2 <- $0;
        System
          [
            DispString _ "Start\n";
@@ -69,6 +71,8 @@ Section config_reader.
             "tvm"        ::= #tvm;
             "tw"         ::= #tw;
             "extensions" ::= #extensions;
+            "fs"         ::= #fs;
+            "xs"         ::= #xs;
             "instMisalignedException?" ::= $$false ;
             "memMisalignedException?"  ::= $$false ;
             "accessException?"         ::= $$false

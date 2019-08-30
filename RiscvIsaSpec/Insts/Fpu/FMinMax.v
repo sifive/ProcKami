@@ -143,6 +143,7 @@ Section Fpu.
                   instName   := append "fmin" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
@@ -160,6 +161,7 @@ Section Fpu.
                   instName   := append "fmax" fpu_suffix;
                   xlens      := xlens_all;
                   extensions := fpu_exts;
+                  ext_ctxt_off := ["fs"];
                   uniqId
                     := [
                          fieldVal fmtField fpu_format_field;
