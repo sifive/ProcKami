@@ -367,8 +367,8 @@ Section csrs.
                          @csrFieldAny _ ^"mxr" Bool Bool None;
                          @csrFieldAny _ ^"sum" Bool Bool None;
                          @csrFieldAny _ ^"mprv" Bool Bool None;
-                         fs;
                          @csrFieldNoReg _ ^"xs" (Bit 2) (ConstBit (wzero _));
+                         fs;
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
@@ -399,8 +399,8 @@ Section csrs.
                          @csrFieldAny _ ^"mxr" Bool Bool None;
                          @csrFieldAny _ ^"sum" Bool Bool None;
                          @csrFieldAny _ ^"mprv" Bool Bool None;
-                         fs;
                          @csrFieldNoReg _ ^"xs" (Bit 2) (ConstBit (wzero _));
+                         fs;
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
