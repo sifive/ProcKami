@@ -333,7 +333,7 @@ Section Params.
                    (fun k => snd (nth_Fin InitExtsValTuple k))).
 
     Definition ext_misa_field_char (i: Fin.t 26) :=
-      substring (proj1_sig (Fin.to_nat i)) 1 (string_rev "ABCDEFGHIJKLMNOPQRSTUVWXYZ").
+      substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 
     Definition misa_ext_match i j :=
       String.eqb (ext_misa_field_char i) (substring 0 1 (fst (nth_Fin InitExtsValTuple j))).
