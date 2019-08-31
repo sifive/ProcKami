@@ -165,11 +165,12 @@ Section decoder.
                (inst : InstEntry ty sem_input_kind sem_output_kind)
                (ctxt : ContextCfgPkt @# ty)
       :  Bool ## ty
-      := utila_expr_any
-           (map
-              (fun ext : string
-                 => RetE (struct_get_field_default ctxt ext (Const ty (natToWord 2 1)) != $0))
-              (ext_ctxt_off inst)).
+      := LETE ret : Bool <- (utila_expr_any
+                               (map
+                                  (fun ext : string
+                                   => RetE (struct_get_field_default ctxt ext (Const ty (natToWord 2 0)) == $0))
+                                  (ext_ctxt_off inst)));
+           RetE (!#ret).
 
     Definition decode_match_inst
                (sem_input_kind sem_output_kind : Kind)
@@ -185,15 +186,19 @@ Section decoder.
            <- decode_match_enabled_exts inst (ctxt @% "extensions");
          LETE enabled_exts_on : Bool
            <- decode_match_enabled_exts_on inst ctxt;
-         (*
          SystemE (
            DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
-           DispBinary (#inst_id_match && #xlens_match && #exts_match) ::
+           DispBinary #inst_id_match ::
+           DispString _ " & " ::
+           DispBinary #xlens_match ::
+           DispString _ " & " ::
+           DispBinary #exts_match ::
+           DispString _ " & " ::
+           DispBinary #enabled_exts_on ::
            DispString _ "\n" ::
            nil
          );
-*)
-         RetE (#inst_id_match && #xlens_match && #exts_match).
+         RetE (#inst_id_match && #xlens_match && #exts_match && #enabled_exts_on).
 
     (*
       Accepts a 32 bit string that represents an uncompressed RISC-V

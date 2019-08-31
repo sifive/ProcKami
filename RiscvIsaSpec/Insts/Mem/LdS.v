@@ -165,7 +165,7 @@ Section Mem.
            {| instName     := "flw";
               xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
-              ext_ctxt_off := nil;
+              ext_ctxt_off := ["fs"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -184,7 +184,7 @@ Section Mem.
            {| instName     := "fsw";
               xlens        := xlens_all;
               extensions   := "F" :: "D" :: nil;
-              ext_ctxt_off := nil;
+              ext_ctxt_off := ["fs"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"010") :: nil;
@@ -196,7 +196,7 @@ Section Mem.
            {| instName     := "fld";
               xlens        := xlens_all;
               extensions   := "D" :: nil;
-              ext_ctxt_off := nil;
+              ext_ctxt_off := ["fs"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"00001") ::
                               fieldVal funct3Field ('b"011") :: nil;
@@ -208,7 +208,7 @@ Section Mem.
            {| instName     := "fsd";
               xlens        := xlens_all;
               extensions   := "D" :: nil;
-              ext_ctxt_off := nil;
+              ext_ctxt_off := ["fs"];
               uniqId       := fieldVal instSizeField ('b"11") ::
                               fieldVal opcodeField ('b"01001") ::
                               fieldVal funct3Field ('b"011") :: nil;
