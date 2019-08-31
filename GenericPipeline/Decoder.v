@@ -186,7 +186,7 @@ Section decoder.
            <- decode_match_enabled_exts inst (ctxt @% "extensions");
          LETE enabled_exts_on : Bool
            <- decode_match_enabled_exts_on inst ctxt;
-         SystemE (
+         (* SystemE (
            DispString _ ("[decode_match_inst] " ++ instName inst ++ " matched? ") ::
            DispBinary #inst_id_match ::
            DispString _ " & " ::
@@ -197,7 +197,7 @@ Section decoder.
            DispBinary #enabled_exts_on ::
            DispString _ "\n" ::
            nil
-         );
+         ); *)
          RetE (#inst_id_match && #xlens_match && #exts_match && #enabled_exts_on).
 
     (*
