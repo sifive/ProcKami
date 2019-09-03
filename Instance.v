@@ -28,7 +28,7 @@ Definition coreExts
        ("U", true)
      ].
 
-Definition model (xlen : list nat) : Mod := generate_model xlen coreExts  (64'h"80000000").
+Definition model (xlen : list nat) : Mod := generate_model xlen coreExts  (64'h"1000").
 
 Definition model32Val := model [Xlen32].
 Definition model64Val := model [Xlen32; Xlen64].
