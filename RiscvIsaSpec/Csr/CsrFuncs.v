@@ -95,30 +95,14 @@ Section CsrInterface.
          DispHex upd_pkt;
          DispString _ "\n"
        ];
-       LETA csr_value
-         :  csrKind (csrViewFields view)
-         <- list_rect
-              (fun fields => ActionT ty (csrKind fields))
-              (Ret $$(getDefaultConst (csrKind [])))
-              (fun field fields acc_act
-                => let get_kind := fun i => csrFieldKind (nth_Fin (field :: fields) i) in
-                   let get_name := fun i => csrFieldName (nth_Fin (field :: fields) i) in
-                   struct_foldr ty get_kind get_name 
-                     (fun fieldIndex _ _ acc_act
-                       => let currField := nth_Fin (field :: fields) fieldIndex in
-                          LETA acc <- acc_act;
-                          LETA value : get_kind fieldIndex
-                            <- match csrFieldValue currField return ActionT ty (get_kind fieldIndex) with
-                                 | inl value
-                                   => Ret $$value
-                                 | inr interface
-                                   => Read value : (csrFieldRegisterKind interface)
-                                        <- csrFieldRegisterName interface;
-                                      Ret (csrFieldRegisterReadXform interface upd_pkt #value)
-                                 end;
-                          Ret (UpdateStruct #acc fieldIndex #value)) 
-                     (Ret $$(getDefaultConst (csrKind (field :: fields)))))
-              (csrViewFields view);
+       LETA csr_value <- BuildStructAction (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
+                           (fun i => csrFieldName (nth_Fin (csrViewFields view) i))
+                           (fun i => match csrFieldValue (nth_Fin (csrViewFields view) i) with
+                                     | inl value => Ret $$ value
+                                     | inr interface =>
+                                       Read value : (csrFieldRegisterKind interface) <- csrFieldRegisterName interface;
+                                         Ret (csrFieldRegisterReadXform interface upd_pkt #value)
+                                     end);
        System [
          DispString _ "[csrViewReadWrite] csr value: \n";
          DispHex #csr_value;
