@@ -347,16 +347,22 @@ Section csrs.
            csrName := ^"mstatus";
            csrAddr := CsrIdWidth 'h"300";
            csrViews
-             := let hasFloat := existsb (fun '(x, _) => (x =? "F") ||
-                                                        (x =? "D"))%bool
+           := let hasFloat := existsb (fun '(Build_SupportedExt x _ _) =>
+                                         (x =? "F") ||
+                                         (x =? "D"))%bool
                                         InitExtsValTuple in
-                let hasFloatInit := existsb (fun '(x, y) => (((x =? "F") ||
-                                                              (x =? "D")) && (Bool.eqb y true)))%bool
+                let hasFloatInit := existsb (fun '(Build_SupportedExt x y _) =>
+                                               (((x =? "F") ||
+                                                 (x =? "D")) && y))%bool
                                             InitExtsValTuple in
+                let hasFloatEdit := existsb (fun '(Build_SupportedExt x _ z) =>
+                                               (((x =? "F") ||
+                                                 (x =? "D")) && z))%bool
+                                        InitExtsValTuple in
                 let fsInit := ConstBit (natToWord 2 (if hasFloatInit then 1 else 0)) in
-                let fs := if hasFloat
+                let fs := if hasFloatEdit
                           then @csrFieldAny _ ^"fs" (Bit 2) (Bit 2) (Some fsInit)
-                          else @csrFieldNoReg _ ^"fs" (Bit 2) (ConstBit (wzero _)) in
+                          else @csrFieldNoReg _ ^"fs" (Bit 2) fsInit in
                 [
                   let fields
                     := [

@@ -139,12 +139,17 @@ Definition SatpModeSv32 := 1.
 Definition SatpModeSv39 := 8.
 Definition SatpModeSv48 := 9.
 
+Record SupportedExt :=
+  { ext_name : string ;
+    ext_init : bool ;
+    ext_edit : bool }.
+
 Class ProcParams :=
   { Xlen_over_8: nat ;
     Flen_over_8: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
-    supported_exts: list (string * bool) }.
+    supported_exts: list SupportedExt }.
 
 Class FpuParams
   := {
@@ -306,20 +311,22 @@ Section Params.
   Section Extensions.
     Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; (* "S"; "U"; *) "Zicsr"; "Zifencei"].
 
-    Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (fst y) i) supported_exts with
+    Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (ext_name y) i) supported_exts with
                                                            | None => acc
                                                            | Some x => x :: acc
                                                            end) ImplExts [].
     
     Definition Extensions :=
-      Struct (fun i => Bool) (fun j => fst (nth_Fin InitExtsValTuple j)).
+      Struct (fun i => Bool) (fun j => ext_name (nth_Fin InitExtsValTuple j)).
 
     Definition Extensions_set ty
                (exts : Extensions @# ty)
                (name : string)
                (value : Bool @# ty)
       :  Extensions @# ty
-      := struct_set_field_default exts name value.
+      := if existsb (fun x => String.eqb (ext_name x) name && ext_edit x)%bool InitExtsValTuple
+         then struct_set_field_default exts name value
+         else exts.
 
     Definition Extensions_get ty
                (exts : Extensions @# ty)
@@ -329,14 +336,14 @@ Section Params.
 
     Definition InitExtsVal :=
       (ConstStruct (fun i => Bool)
-                   (fun j => fst (nth_Fin InitExtsValTuple j))
-                   (fun k => snd (nth_Fin InitExtsValTuple k))).
+                   (fun j => ext_name (nth_Fin InitExtsValTuple j))
+                   (fun k => ext_init (nth_Fin InitExtsValTuple k))).
 
     Definition ext_misa_field_char (i: Fin.t 26) :=
       substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 
     Definition misa_ext_match i j :=
-      String.eqb (ext_misa_field_char i) (substring 0 1 (fst (nth_Fin InitExtsValTuple j))).
+      String.eqb (ext_misa_field_char i) (ext_name (nth_Fin InitExtsValTuple j)).
 
     Definition misaToExtFind (i: Fin.t 26) :=
       filter (fun j => misa_ext_match i j) (getFins (length InitExtsValTuple)).
@@ -349,10 +356,15 @@ Section Params.
                                            (misaToExtFind i))).
 
     Definition misaToExt ty (arr: Array 26 Bool @# ty): Extensions @# ty :=
-      BuildStruct _ _ (fun i => match extToMisaFind i with
-                                | None => $$ false
-                                | Some j => ReadArrayConst arr j
-                                end)%kami_expr.
+      BuildStruct _ _ (fun i =>
+                         match extToMisaFind i with
+                         | None => match find (fun x => String.eqb (ext_name x) (ext_name (nth_Fin InitExtsValTuple i)))
+                                              InitExtsValTuple with
+                                   | None => $$ false
+                                   | Some (Build_SupportedExt name init edit) => $$ init
+                                   end
+                         | Some j => ReadArrayConst arr j
+                         end)%kami_expr.
   End Extensions.
   
   Section ty.

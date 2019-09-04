@@ -137,13 +137,13 @@ Section exts.
   Variable supported_xlens : list nat.
 
   (* The names of the supported extensions. *)
-  Variable supported_exts : list (string * bool).
+  Variable supported_exts : list SupportedExt.
 
   (* The supported extension entries. *)
   Local Definition entries
     :  list param_entry
     := filter
-         (fun entry => strings_in (map fst supported_exts) (param_entry_name entry))
+         (fun entry => strings_in (map ext_name supported_exts) (param_entry_name entry))
          param_entries.
 
   Local Definition Xlen_over_8 : nat := if existsb (Nat.eqb Xlen64) supported_xlens then 8 else 4.
@@ -249,7 +249,7 @@ Section exts.
              (fun inst
                => andb
                     (negb (emptyb (xlens inst)))
-                    (strings_any_in (map fst supported_exts) (extensions inst))).
+                    (strings_any_in (map ext_name supported_exts) (extensions inst))).
 
       (*
         Accepts a functional unit and removes all of the instruction

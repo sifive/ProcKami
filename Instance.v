@@ -13,22 +13,22 @@ Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
 
-Definition coreExts
-  :  list (string * bool)
+Definition supportedExts
+  :  list SupportedExt
   := [
-       ("I", true);
-       ("Zicsr", true);
-       ("Zifencei", true); 
-       ("M", true);
-       ("A", true);
-       ("F", true);
-       ("D", true);
-       ("C", true);
-       ("S", true);
-       ("U", true)
-     ].
+      Build_SupportedExt "I" true true ;
+        Build_SupportedExt "M" true true ;
+        Build_SupportedExt "A" true true ;
+        Build_SupportedExt "F" true true ;
+        Build_SupportedExt "D" true true ;
+        Build_SupportedExt "C" true true ;
+        Build_SupportedExt "S" true true ;
+        Build_SupportedExt "U" true true ;
+        Build_SupportedExt "Zicsr" true false ;
+        Build_SupportedExt "Zifencei" true false
+    ].
 
-Definition model (xlen : list nat) : Mod := generate_model xlen coreExts  (64'h"1000").
+Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts  (64'h"1000").
 
 Definition model32Val := model [Xlen32].
 Definition model64Val := model [Xlen32; Xlen64].

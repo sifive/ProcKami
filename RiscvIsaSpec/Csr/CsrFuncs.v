@@ -355,16 +355,6 @@ Section CsrInterface.
                 |}
        |}.
 
-  Definition extField
-    (name : string)
-    :  CsrField
-    := match find (fun ext => String.eqb name (fst ext)) supported_exts with
-         | Some ext
-           => csrFieldAny ^name Bool (Some (ConstBool (snd ext)))
-         | None
-           => csrFieldNoReg ^name false
-         end.
-
   Definition xlField
     (prefix : string)
     :  CsrField
