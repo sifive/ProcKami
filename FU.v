@@ -309,7 +309,7 @@ Section Params.
        }.
 
   Section Extensions.
-    Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; (* "S"; "U"; *) "Zicsr"; "Zifencei"].
+    Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
 
     Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (ext_name y) i) supported_exts with
                                                            | None => acc
