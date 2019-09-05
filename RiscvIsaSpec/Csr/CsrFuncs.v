@@ -305,11 +305,14 @@ Section CsrInterface.
                    csrFieldRegisterReadXform
                    := fun _ _ value => extToMisa value;
                    csrFieldRegisterWriteXform
-                   := fun _ guard old new => old
+                   := fun _ guard old new =>
+                        IF !(Extensions_get (misaToExt new) "C") &&
+                           (guard @% "warlUpdateInfo" @% "compressed?" ==
+                            isAligned (guard @% "warlUpdateInfo" @% "pc") $2)
+                        then Extensions_set (misaToExt new) "C" ($$false)
+                        else misaToExt new
                 |}
        |}.
-                            
-             
 
   Definition csrFieldReadOnly
     (name : string)
