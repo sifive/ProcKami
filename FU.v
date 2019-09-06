@@ -309,62 +309,73 @@ Section Params.
        }.
 
   Section Extensions.
+    
     Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
 
-    Definition InitExtsValTuple := fold_left (fun acc i => match find (fun y => String.eqb (ext_name y) i) supported_exts with
-                                                           | None => acc
-                                                           | Some x => x :: acc
-                                                           end) ImplExts [].
     
+    Definition InitExtsAll := filter (fun i => existsb (String.eqb (ext_name i)) ImplExts) supported_exts.
+
+    Definition InitExtsReg := filter ext_edit InitExtsAll.
+
+    Local Definition names inits := (fun j => ext_name (nth_Fin inits j)). 
+
     Definition Extensions :=
-      Struct (fun i => Bool) (fun j => ext_name (nth_Fin InitExtsValTuple j)).
+      Struct (fun _ => Bool) (names InitExtsAll).
 
-    Definition Extensions_set ty
-               (exts : Extensions @# ty)
-               (name : string)
-               (value : Bool @# ty)
-      :  Extensions @# ty
-      := if existsb (fun x => String.eqb (ext_name x) name && ext_edit x)%bool InitExtsValTuple
-         then struct_set_field_default exts name value
-         else exts.
+    Definition ExtensionsReg :=
+      Struct (fun _ => Bool) (names InitExtsReg).
 
-    Definition Extensions_get ty
-               (exts : Extensions @# ty)
-               (name : string)
-      :  Bool @# ty
-      := struct_get_field_default exts name ($$ false)%kami_expr.
-
-    Definition InitExtsVal :=
+    Definition InitExtsAllVal :=
       (ConstStruct (fun i => Bool)
-                   (fun j => ext_name (nth_Fin InitExtsValTuple j))
-                   (fun k => ext_init (nth_Fin InitExtsValTuple k))).
+                   (names InitExtsAll)
+                   (fun k => ext_init (nth_Fin InitExtsAll k))).
 
-    Definition ext_misa_field_char (i: Fin.t 26) :=
+    Definition InitExtsRegVal :=
+      (ConstStruct (fun i => Bool)
+                   (names InitExtsReg)
+                   (fun k => ext_init (nth_Fin InitExtsReg k))).
+
+    Definition extReg_misa_field_char (i: Fin.t 26) :=
       substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 
-    Definition misa_ext_match i j :=
-      String.eqb (ext_misa_field_char i) (ext_name (nth_Fin InitExtsValTuple j)).
+    Definition misa_extReg_match i j :=
+      String.eqb (extReg_misa_field_char i) (ext_name (nth_Fin InitExtsReg j)).
 
-    Definition misaToExtFind (i: Fin.t 26) :=
-      filter (fun j => misa_ext_match i j) (getFins (length InitExtsValTuple)).
+    Definition misaToExtRegFind (i: Fin.t 26) :=
+      filter (fun j => misa_extReg_match i j) (getFins (length InitExtsReg)).
 
-    Definition extToMisaFind (i: Fin.t (length InitExtsValTuple)) :=
-      find (fun j => misa_ext_match j i) (getFins 26).
+    Definition extRegToMisaFind (i: Fin.t (length InitExtsReg)) :=
+      find (fun j => misa_extReg_match j i) (getFins 26).
 
-    Definition extToMisa ty (exts: Extensions @# ty): Array 26 Bool @# ty :=
+    Definition extRegToMisa ty (exts: ExtensionsReg @# ty): Array 26 Bool @# ty :=
       BuildArray (fun i => CABool Or (@map _ (Bool @# ty) (fun j => ReadStruct exts j)
-                                           (misaToExtFind i))).
+                                           (misaToExtRegFind i))).
 
-    Definition misaToExt ty (arr: Array 26 Bool @# ty): Extensions @# ty :=
+    Definition misaToExtReg ty (arr: Array 26 Bool @# ty): ExtensionsReg @# ty :=
       BuildStruct _ _ (fun i =>
-                         match extToMisaFind i with
-                         | None => match find (fun x => String.eqb (ext_name x) (ext_name (nth_Fin InitExtsValTuple i)))
-                                              InitExtsValTuple with
-                                   | None => $$ false
-                                   | Some (Build_SupportedExt name init edit) => $$ init
-                                   end
+                         match extRegToMisaFind i with
+                         | None => $$ false
                          | Some j => ReadArrayConst arr j
                          end)%kami_expr.
+
+    Definition ExtRegToExt ty (exts: ExtensionsReg @# ty): Extensions @# ty :=
+      BuildStruct _ _ (fun i =>
+                         match struct_get_field exts (names _ i) Bool with
+                         | None => match find (fun j => String.eqb (ext_name j) (names _ i))
+                                              InitExtsAll with
+                                   | None => $$ false
+                                   | Some (Build_SupportedExt _ init _) => $$ init
+                                   end
+                         | Some y => y
+                         end)%kami_expr.
+
+    Definition ExtToExtReg ty (exts: Extensions @# ty): ExtensionsReg @# ty :=
+      BuildStruct _ _ (fun i =>
+                         match struct_get_field exts (names _ i) Bool with
+                         | None => $$ false
+                         | Some y => y
+                         end)%kami_expr.
+
   End Extensions.
   
   Section ty.
@@ -633,7 +644,7 @@ Section Params.
     (* See 3.1.1 and 3.1.15 *)
     Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
       :  VAddr @# ty
-      := let shiftAmount := (IF Extensions_get (cfg_pkt @% "extensions") "C" then $1 else $2): Bit 2 @# ty in
+      := let shiftAmount := (IF struct_get_field_default (cfg_pkt @% "extensions") "C" ($$ false) then $1 else $2): Bit 2 @# ty in
          (epc >> shiftAmount) << shiftAmount.
 
     Local Close Scope kami_expr.

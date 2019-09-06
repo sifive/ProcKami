@@ -157,7 +157,7 @@ Section decoder.
       := utila_expr_any
            (map
               (fun ext : string
-                 => RetE (Extensions_get exts_pkt ext))
+                 => RetE (struct_get_field_default exts_pkt ext $$false))
               (extensions inst)).
 
     Definition decode_match_enabled_exts_on

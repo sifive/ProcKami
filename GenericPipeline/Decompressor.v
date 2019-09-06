@@ -50,7 +50,7 @@ Section Decompressor.
                            DispBinary (Extensions_get exts_pkt ext);
                            DispString _ "\n"
                          ]; *)
-                         RetE (Extensions_get exts_pkt ext))
+                         RetE (struct_get_field_default exts_pkt ext ($$false)))
                      exts))
             (req_exts comp_inst_entry)).
 

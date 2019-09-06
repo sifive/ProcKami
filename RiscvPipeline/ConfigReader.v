@@ -41,9 +41,10 @@ Section config_reader.
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
-       Read extensions
-         :  Extensions
+       Read extensionsReg
+         :  ExtensionsReg
          <- ^"extRegs";
+       LET extensions : Extensions <- ExtRegToExt #extensionsReg;
        Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";

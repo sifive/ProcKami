@@ -259,7 +259,7 @@ Section CsrInterface.
     (context : CsrFieldUpdGuard @# ty)
     (data : csrKind fields @# ty)
     := ZeroExtendTruncLsb CsrValueWidth
-         (IF Extensions_get (context @% "cfg" @% "extensions") "C"
+         (IF struct_get_field_default (context @% "cfg" @% "extensions") "C" ($$false)
            then pack data >> ($1 : Bit 2 @# ty) << ($1 : Bit 2 @# ty)
            else pack data >> ($2 : Bit 2 @# ty) << ($2 : Bit 2 @# ty)).
 
@@ -300,17 +300,17 @@ Section CsrInterface.
           csrFieldKind := Array 26 Bool ;
           csrFieldValue :=
             inr {| csrFieldRegisterName := ^"extRegs";
-                   csrFieldRegisterKind := Extensions ;
-                   csrFieldRegisterValue := Some InitExtsVal;
+                   csrFieldRegisterKind := ExtensionsReg ;
+                   csrFieldRegisterValue := Some InitExtsRegVal;
                    csrFieldRegisterReadXform
-                   := fun _ _ value => extToMisa value;
+                   := fun _ _ value => extRegToMisa value;
                    csrFieldRegisterWriteXform
                    := fun _ guard old new =>
-                        IF !(Extensions_get (misaToExt new) "C") &&
+                        IF !(struct_get_field_default (misaToExtReg new) "C" ($$false)) &&
                            (guard @% "warlUpdateInfo" @% "compressed?" ==
                             isAligned (guard @% "warlUpdateInfo" @% "pc") $2)
-                        then Extensions_set (misaToExt new) "C" ($$false)
-                        else misaToExt new
+                        then struct_set_field_default (misaToExtReg new) "C" ($$false)
+                        else misaToExtReg new
                 |}
        |}.
 
