@@ -51,16 +51,10 @@ Section mem_unit.
        Read mxr : Bool <- ^"mxr";
        Read sum : Bool <- ^"sum";
        Read satp_ppn : Bit 44 <- ^"satp_ppn";
-       LET transMode
-         :  Maybe PrivMode
-         <- IF mode == $MachineMode
-              then
-                (* See 3.1.9 *)
-                IF #mprv
-                  then Valid #mpp
-                  else Invalid
-              else Valid mode;
-       If #transMode @% "valid" && (!(satp_mode == $SatpModeBare))
+       LET effective_mode : PrivMode
+         <- IF access_type != $VmAccessInst && #mprv (* see mmu.cc in Spike *)
+              then #mpp else mode;
+       If #effective_mode != $MachineMode && satp_mode != $SatpModeBare
          then
            LETA paddr : PktWithException PAddr
              <- pt_walker
@@ -71,7 +65,7 @@ Section mem_unit.
                   satp_mode
                   #mxr
                   #sum
-                  (#transMode @% "data")
+                  #effective_mode
                   (ppnToPAddr (ZeroExtendTruncLsb 44 #satp_ppn))
                   access_type
                   vaddr;
@@ -256,6 +250,14 @@ Section mem_unit.
                     then $VmAccessSAmo
                     else $VmAccessLoad)
                   addr;
+           System [
+             DispString _ "[mem_unit_exec] writing to vaddr: ";
+             DispHex addr;
+             DispString _ "\n";
+             DispString _ "[mem_unit_exec] writing to paddr: ";
+             DispHex #mpaddr;
+             DispString _ "\n"
+           ];
            If #mpaddr @% "snd" @% "valid"
              then
                System [
