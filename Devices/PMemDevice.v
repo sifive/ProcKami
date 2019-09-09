@@ -6,7 +6,7 @@ Section mem_devices.
   Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
-  Local Definition lgMemSz := 29.
+  Local Definition lgMemSz := 20.
 
   Open Scope kami_expr.
   Open Scope kami_action.
