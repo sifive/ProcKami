@@ -460,6 +460,22 @@ Section csrs.
          |};
          simpleCsr ^"mcounteren" (CsrIdWidth 'h"306") 32 accessMModeOnly;
          {|
+           csrName := ^"mcountinhibit";
+           csrAddr := CsrIdWidth 'h"320";
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldNoReg _ ^"reserved0" (Bit 28) (getDefaultConst _);
+                       @csrFieldAny _ ^"mcountinhibit_ir" Bool Bool None;
+                       @csrFieldNoReg _ ^"reserved1" (Bit 1)  (getDefaultConst _);
+                       @csrFieldAny _ ^"mcountinhibit_cy" Bool Bool None
+                     ] in
+                repeatCsrView 2
+                  (@csrViewDefaultReadXform _ fields)
+                  (@csrViewDefaultWriteXform _ fields);
+           csrAccess := accessMModeOnly
+         |};
+         {|
            csrName := ^"mscratch";
            csrAddr := CsrIdWidth 'h"340";
            csrViews
@@ -686,7 +702,7 @@ Section csrs.
            csrAccess := accessMModeOnly
          |};
          {|
-           csrName := ^"pmpcfg1";
+           csrName := ^"pmpcfg3";
            csrAddr := CsrIdWidth 'h"3a3";
            csrViews
              := [
@@ -970,7 +986,7 @@ Section csrs.
          |};
          {|
            csrName := satpCsrName name;
-           csrAddr := CsrIdWidth 'h"180"; (* TODO *)
+           csrAddr := CsrIdWidth 'h"180";
            csrViews
              := [
                   let fields
