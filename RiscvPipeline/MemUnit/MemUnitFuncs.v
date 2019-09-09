@@ -129,7 +129,7 @@ Section mem_unit.
              else
                LETA inst
                  :  Maybe Data
-                 <- mem_region_read index mode
+                 <- mem_region_read index
                       (#pmp_result @% "fst" @% "fst") 
                       (#pmp_result @% "fst" @% "snd")
                       $2;
@@ -302,7 +302,7 @@ Section mem_unit.
                    (* IV. read the current value and place reservation *)
                    LETA read_result
                      :  Maybe Data
-                     <- mem_region_read 0 mode
+                     <- mem_region_read 0
                           (#pmp_result @% "fst" @% "fst")
                           (#pmp_result @% "fst" @% "snd")
                           (#msize @% "data");
@@ -311,7 +311,7 @@ Section mem_unit.
                        (* TODO: should we place reservations on failed reads? *)
                        LETA read_reservation_result
                          :  Array Rlen_over_8 Bool
-                         <- mem_region_read_resv mode
+                         <- mem_region_read_resv
                              (#pmp_result @% "fst" @% "fst")
                              (#pmp_result @% "fst" @% "snd")
                              (#msize @% "data");
@@ -347,7 +347,7 @@ Section mem_unit.
                              <- #mwrite_value @% "data" @% "mask";
                            LETA write_result
                              :  Bool
-                             <- mem_region_write 0 mode
+                             <- mem_region_write 0
                                   (#pmp_result @% "fst" @% "fst")
                                   (#pmp_result @% "fst" @% "snd")
                                   (#mwrite_value @% "data" @% "data" : Data @# ty)
@@ -370,7 +370,7 @@ Section mem_unit.
                        ];
                        If #mwrite_value @% "data" @% "isLrSc"
                          then
-                           mem_region_write_resv mode
+                           mem_region_write_resv
                              (#pmp_result @% "fst" @% "fst")
                              (#pmp_result @% "fst" @% "snd")
                              (#mwrite_value @% "data" @% "mask" : DataMask @# ty)

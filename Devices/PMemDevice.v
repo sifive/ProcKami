@@ -15,7 +15,7 @@ Section mem_devices.
 
     Variable ty: Kind -> Type.
 
-    Local Definition pMemRead (index: nat) (mode : PrivMode @# ty) (addr: PAddr @# ty) (_ : MemRqLgSize @# ty)
+    Local Definition pMemRead (index: nat) (addr: PAddr @# ty) (_ : MemRqLgSize @# ty)
       : ActionT ty Data
       := Call result
            : Array Rlen_over_8 (Bit 8)
@@ -31,7 +31,7 @@ Section mem_devices.
          ];
          Ret (pack #result).
 
-    Local Definition pMemWrite (index : nat) (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+    Local Definition pMemWrite (index : nat) (pkt : MemWrite @# ty)
       : ActionT ty Void
       := LET writeRq
            :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
@@ -64,16 +64,16 @@ Section mem_devices.
          mem_device_write
            := fun ty
                 => [
-                     (fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
-                       => LETA _ <- pMemWrite 0 mode pkt;
+                     (fun (pkt : MemWrite @# ty)
+                       => LETA _ <- pMemWrite 0 pkt;
                             Ret $$false)
                     ];
          mem_device_read_resv
-           := (fun ty _ addr _ => Call result: Array Rlen_over_8 Bool
+           := (fun ty addr _ => Call result: Array Rlen_over_8 Bool
                                                      <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
                                     Ret #result);
          mem_device_write_resv
-           := (fun ty _ addr mask resv _ =>
+           := (fun ty addr mask resv _ =>
                  LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
                                                                                "data" ::= resv ;
                                                                                "mask" ::= mask } ;

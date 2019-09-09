@@ -265,7 +265,6 @@ Section pmem.
 
     Definition mem_region_read
       (index : nat)
-      (mode : PrivMode @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (size : MemRqLgSize @# ty)
@@ -287,7 +286,7 @@ Section pmem.
                          DispString _ "\n";
                          DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
                        ];
-                       LETA result : Data <- read mode daddr size;
+                       LETA result : Data <- read daddr size;
                        System [
                          DispString _ "[mem_region_read] result: ";
                          DispHex #result;
@@ -298,7 +297,6 @@ Section pmem.
 
     Definition mem_region_write
       (index : nat)
-      (mode : PrivMode @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (data : Data @# ty)
@@ -310,7 +308,7 @@ Section pmem.
              => match mem_device_write_nth ty device index with
                   | None => Ret $$false
                   | Some write
-                    => write mode
+                    => write
                          (STRUCT {
                             "addr" ::= daddr;
                             "data" ::= data;
@@ -320,18 +318,16 @@ Section pmem.
                   end).
 
     Definition mem_region_read_resv
-      (mode : PrivMode @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty (Array Rlen_over_8 Bool)
       := mem_device_apply dtag 
            (fun device
-            => LETA result <- mem_device_read_resv device mode daddr size;
+            => LETA result <- mem_device_read_resv device daddr size;
                  Ret #result).
 
     Definition mem_region_write_resv
-      (mode : PrivMode @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (mask : DataMask @# ty)
@@ -340,7 +336,7 @@ Section pmem.
       :  ActionT ty Void
       := mem_device_apply dtag
            (fun device
-            => mem_device_write_resv device mode daddr mask resv size).
+            => mem_device_write_resv device daddr mask resv size).
   End ty.
 
   Close Scope kami_action.

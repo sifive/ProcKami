@@ -100,7 +100,7 @@ Section mmapped.
            mem_device_pmas := pmas_default;
            mem_device_read
              := fun ty
-                  => [fun _ addr _
+                  => [fun addr _
                        => System [
                             DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
                           ];
@@ -108,16 +108,16 @@ Section mmapped.
                           Ret (ZeroExtendTruncLsb Rlen #result)];
            mem_device_write
              := fun ty
-                  => [fun (_ : PrivMode @# ty) (write_pkt : MemWrite @# ty)
+                  => [fun (write_pkt : MemWrite @# ty)
                          => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
                             LETA _
                               <- mm_write #addr
                                    (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
                             Ret $$false];
            mem_device_read_resv
-             := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
+             := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
            mem_device_write_resv
-             := fun ty _ addr _ _ _ => Retv;
+             := fun ty addr _ _ _ => Retv;
            mem_device_file
              := if gen_regs
                   then

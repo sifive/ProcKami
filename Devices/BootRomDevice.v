@@ -34,7 +34,7 @@ Section device.
          mem_device_read
            := fun ty
                 => map
-                     (fun index mode paddr _ 
+                     (fun index paddr _ 
                        => Call result
                             :  Array Rlen_over_8 (Bit 8)
                             <- (read_name index) (SignExtendTruncLsb _ paddr : Bit lgMemSz);
@@ -42,9 +42,9 @@ Section device.
                      (seq 0 mem_device_num_reads);
          mem_device_write := fun ty => [];
          mem_device_read_resv
-           := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
+           := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
          mem_device_write_resv
-           := fun ty _ addr _ _ _ => Retv;
+           := fun ty addr _ _ _ => Retv;
          mem_device_file
            := Some
                 (inl [

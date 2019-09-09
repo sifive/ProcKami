@@ -218,7 +218,6 @@ Section pt_walker.
                        : Maybe Data
                        <- mem_region_read
                             (baseIndex + ((maxPageLevels - 1) * callIndex) + index)%nat
-                            mode
                             (#pmp_result @% "fst" @% "fst")
                             (#pmp_result @% "fst" @% "snd")
                             $(Nat.log2_up Xlen_over_8);

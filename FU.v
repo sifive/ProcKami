@@ -742,13 +742,13 @@ Section Params.
           mem_device_type : MemDeviceType; (* 3.5.1 *)
           mem_device_pmas : list PMA;
           mem_device_read
-          : forall ty, list (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
+          : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
           mem_device_write
-          : forall ty, list (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool);
+          : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
           mem_device_read_resv
-          : forall ty, PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
+          : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
           mem_device_write_resv
-          : forall ty, PrivMode @# ty -> PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
+          : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
           mem_device_file
           : option ((list RegFileBase) + MMRegs)%type
         }.
@@ -771,14 +771,14 @@ Section Params.
                (ty : Kind -> Type)
                (device : MemDevice)
                (index : nat)
-      :  option (PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
+      :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
       := List.nth_error (mem_device_read device ty) index.
 
     Definition mem_device_write_nth
                (ty : Kind -> Type)
                (device : MemDevice)
                (index : nat)
-      :  option (PrivMode @# ty -> MemWrite @# ty -> ActionT ty Bool)
+      :  option (MemWrite @# ty -> ActionT ty Bool)
       := List.nth_error (mem_device_write device ty) index.
 
     Definition mem_device_files

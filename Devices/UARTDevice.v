@@ -44,7 +44,7 @@ Section device.
                 (seq 0 4));
          mem_device_read
            := fun ty
-                => [fun mode paddr size
+                => [fun paddr size
                      => LET readRq
                           :  UARTRead
                           <- (STRUCT {
@@ -56,12 +56,12 @@ Section device.
                           <- ^"readUART" (#readRq : UARTRead);
                         Ret (ZeroExtendTruncLsb Rlen #result)];
          mem_device_read_resv
-           := fun ty _ addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
+           := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
          mem_device_write_resv
-           := fun ty _ addr _ _ _ => Retv;
+           := fun ty addr _ _ _ => Retv;
          mem_device_write
            := fun ty
-                => [fun (mode : PrivMode @# ty) (pkt : MemWrite @# ty)
+                => [fun (pkt : MemWrite @# ty)
                      => LET writeRq
                           :  UARTWrite
                           <- (STRUCT {
