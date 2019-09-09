@@ -54,9 +54,6 @@ Section Params.
               Node (csr_regs (Csrs name)) with
               Register ^"upp"              : Bit 0 <- ConstBit WO with
               Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
-              Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
-              Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
-              Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
               Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";

@@ -309,7 +309,7 @@ Section CsrInterface.
                         IF !(struct_get_field_default (misaToExtReg new) "C" ($$false)) &&
                            (guard @% "warlUpdateInfo" @% "compressed?" ==
                             isAligned (guard @% "warlUpdateInfo" @% "pc") $2)
-                        then struct_set_field_default (misaToExtReg new) "C" ($$false)
+                        then struct_set_field_default (misaToExtReg new) "C" ($$true)
                         else misaToExtReg new
                 |}
        |}.
