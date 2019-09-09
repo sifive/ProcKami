@@ -83,8 +83,10 @@ Section reg_reader.
     := LET raw_inst
          :  Inst
          <- decoder_pkt @% "inst";
-       LETA reg1_val  : Data <- reg_reader_read_reg  1 (cfg_pkt @% "xlen") (rs1 #raw_inst);
-       LETA reg2_val  : Data <- reg_reader_read_reg  2 (cfg_pkt @% "xlen") (rs2 #raw_inst);
+       LETA reg1_val  : Data <- reg_reader_read_reg  1 (cfg_pkt @% "xlen")
+                             (rs1 #raw_inst);
+       LETA reg2_val  : Data <- reg_reader_read_reg  2 (cfg_pkt @% "xlen")
+                             (rs2 #raw_inst);
        LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
        LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
        LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);

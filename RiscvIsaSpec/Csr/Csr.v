@@ -686,7 +686,7 @@ Section csrs.
            csrAccess := accessMModeOnly
          |};
          {|
-           csrName := ^"pmpcfg1";
+           csrName := ^"pmpcfg3";
            csrAddr := CsrIdWidth 'h"3a3";
            csrViews
              := [

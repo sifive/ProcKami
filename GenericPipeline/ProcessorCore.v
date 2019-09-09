@@ -44,18 +44,6 @@ Section Params.
     Variable supported_exts : list (string * bool).
     Variable func_units : forall ty, list (FUEntry ty).
 
-    Local Open Scope kami_scope.
-
-    Local Definition pmpRegs
-      := fold_right
-           (fun n regs
-             => (Register (^"pmp" ++ nat_decimal_string n ++ "cfg") : Bit 8 <- ConstBit (wzero 8)) ::
-                (Register (^"pmpaddr" ++ nat_decimal_string n) : Bit pmp_reg_width <- ConstBit (wzero pmp_reg_width)) ::
-                regs)
-           [] (seq 0 16).
-
-    Close Scope kami_scope.
-
     Local Open Scope list.
 
     Definition processorCore 
@@ -64,12 +52,10 @@ Section Params.
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit pc_init with
               Node (csr_regs (Csrs name)) with
-              Register ^"upp"              : Bit 0 <- ConstBit WO with
-              Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Register ^"mcountinhibit_cy" : Bool <- ConstBool false with
               Register ^"mcountinhibit_tm" : Bool <- ConstBool false with
               Register ^"mcountinhibit_ir" : Bool <- ConstBool false with
-              Node pmpRegs with
               Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
