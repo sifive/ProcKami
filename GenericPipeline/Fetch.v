@@ -25,6 +25,7 @@ Section fetch.
     (pc: VAddr @# ty)
     :  ActionT ty (PktWithException FetchPkt)
     := If checkAligned exts pc
+            (IF struct_get_field_default exts "C" $$false then $1 else $2)
        then 
          LETA inst_lower
            :  PktWithException Data

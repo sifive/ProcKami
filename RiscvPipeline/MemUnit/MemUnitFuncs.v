@@ -231,20 +231,20 @@ Section mem_unit.
                       => RetE (if writeMem (instHints (snd tagged_inst)) then $$true else $$false))
                     func_unit_id
                     inst_id);
-           If checkAligned exts addr
+           LETA msize
+             :  Maybe (@MemRqLgSize procParams)
+             <-  convertLetExprSyntax_ActionT
+                   (inst_db_get_pkt
+                     (fun _ _ tagged_inst
+                       => RetE
+                            (match optMemParams (snd tagged_inst) with
+                              | Some params => $(accessSize params)
+                              | _ => $0
+                              end))
+                     func_unit_id
+                     inst_id);
+           If checkAligned exts addr (#msize @% "data")
              then
-               LETA msize
-                 :  Maybe (@MemRqLgSize procParams)
-                 <-  convertLetExprSyntax_ActionT
-                       (inst_db_get_pkt
-                         (fun _ _ tagged_inst
-                           => RetE
-                                (match optMemParams (snd tagged_inst) with
-                                  | Some params => $(accessSize params)
-                                  | _ => $0
-                                  end))
-                         func_unit_id
-                         inst_id);
                (* III. get the physical address *)
                LETA mpaddr
                  :  PktWithException PAddr
