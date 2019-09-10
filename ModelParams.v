@@ -139,6 +139,8 @@ Section exts.
   (* The names of the supported extensions. *)
   Variable supported_exts : list SupportedExt.
 
+  Variable allow_misaligned : bool.
+
   (* The supported extension entries. *)
   Local Definition entries
     :  list param_entry
@@ -158,8 +160,12 @@ Section exts.
 
   Variable pc_init_val: word 64.
 
-  Local Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8
-                                                  (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val))) supported_xlens supported_exts.
+  Local Definition procParams
+    := Build_ProcParams Xlen_over_8 Flen_over_8
+         (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
+         supported_xlens
+         supported_exts
+         allow_misaligned.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -297,33 +303,33 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
-           mtbl_entry_addr := 4096%N; (* 0x1000 *)
-           mtbl_entry_width := 4096%N;
+           mtbl_entry_addr := 64'h"1000"; (* 4096%N *)
+           mtbl_entry_width := 64'h"1000"; (* 4096%N; *)
            mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
-           mtbl_entry_addr := 33554432%N; (* 0x2000000 *)
-           mtbl_entry_width := 8%N;
+           mtbl_entry_addr := 64'h"2000000"; (* 33554432%N; *)
+           mtbl_entry_width := 64'h"8"; (* 8%N; *)
            mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt)) (* msip *) 
          |};
          {|
-           mtbl_entry_addr := 33570816%N; (* 0x2004000 *)
-           mtbl_entry_width := 8%N;
+           mtbl_entry_addr := 64'h"2004000"; (* 33570816%N; *)
+           mtbl_entry_width := 64'h"8"; (* 8%N; *)
            mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtimecmp *)
          |};
          {|
-           mtbl_entry_addr := 33603576%N; (* 0x200bff8 *)
-           mtbl_entry_width := 8%N;
+           mtbl_entry_addr := 64'h"200bff8"; (* 33603576%N; *)
+           mtbl_entry_width := 64'h"8"; (* 8%N; *)
            mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtime *)
          |};
          {|
-           mtbl_entry_addr := N.pow 2 31; (* 0x80000000 *)
-           mtbl_entry_width := N.pow 2 20;
+           mtbl_entry_addr := 64'h"80000000"; (* N.pow 2 31; *)
+           mtbl_entry_width := 64'h"100000"; (* N.pow 2 20; *)
            mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt))
          |};
          {|
-           mtbl_entry_addr := 32212254725%N; (* 0xC0000000 *)
-           mtbl_entry_width := 128%N; (* 0x80 *)
+           mtbl_entry_addr := 64'h"C0000000"; (* 32212254725%N; *)
+           mtbl_entry_width := 64'h"80"; (* 128%N; *)
            mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt))
          |}
        ].

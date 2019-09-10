@@ -330,11 +330,11 @@ Section csrs.
                        @csrFieldAny _ ^"seie" Bool Bool None;
                        @csrFieldAny _ ^"ueie" Bool Bool None;
                        @csrFieldReadOnly _ ^"mtie" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"htie" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"stie" Bool Bool None;
                        @csrFieldAny _ ^"utie" Bool Bool None;
                        @csrFieldReadOnly _ ^"msie" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"hsie" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"ssie" Bool Bool None;
                        @csrFieldAny _ ^"usie" Bool Bool None
                      ] in
@@ -378,6 +378,7 @@ Section csrs.
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
+                         @csrFieldAny _ ^"upp" (Bit 0) (Bit 0) None;
                          @csrFieldAny _ ^"mpie" Bool Bool None;
                          @csrFieldNoReg _ ^"hpie" Bool (getDefaultConst _);
                          @csrFieldAny _ ^"spie" Bool Bool None;
@@ -410,6 +411,7 @@ Section csrs.
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
+                         @csrFieldAny _ ^"upp" (Bit 0) (Bit 0) None;
                          @csrFieldAny _ ^"mpie" Bool Bool None;
                          @csrFieldNoReg _ ^"hpie" Bool (getDefaultConst _);
                          @csrFieldAny _ ^"spie" Bool Bool None;
@@ -582,11 +584,11 @@ Section csrs.
                        @csrFieldAny _ ^"seip" Bool Bool None;
                        @csrFieldAny _ ^"ueip" Bool Bool None;
                        @csrFieldReadOnly _ ^"mtip" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"htip" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"stip" Bool Bool None;
                        @csrFieldAny _ ^"utip" Bool Bool None;
                        @csrFieldReadOnly _ ^"msip" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"hsip" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"ssip" Bool Bool None;
                        @csrFieldAny _ ^"usip" Bool Bool None
                      ] in
@@ -858,6 +860,40 @@ Section csrs.
            csrAccess := accessSMode
          |};
          {|
+           csrName := ^"sie";
+           csrAddr := CsrIdWidth 'h"104";
+           csrViews
+             := let lower_fields
+                  := [
+                       
+                       @csrFieldAny _ ^"seie" Bool Bool None;
+                       @csrFieldAny _ ^"ueie" Bool Bool None;
+                       @csrFieldNoReg _ "reserved1" (Bit 2) (getDefaultConst _);
+                       @csrFieldAny _ ^"stie" Bool Bool None;
+                       @csrFieldAny _ ^"utie" Bool Bool None;
+                       @csrFieldNoReg _ "reserved2" (Bit 2)  (getDefaultConst _);
+                       @csrFieldAny _ ^"ssie" Bool Bool None;
+                       @csrFieldAny _ ^"usie" Bool Bool None
+                     ] in
+                [
+                  let fields := @csrFieldNoReg _ "reserved0" (Bit 22) (getDefaultConst _) :: lower_fields in
+                  {|
+                    csrViewContext := fun ty => $1;
+                    csrViewFields  := fields;
+                    csrViewReadXform := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := @csrFieldNoReg _ "reserved0" (Bit 54) (getDefaultConst _) :: lower_fields in
+                  {|
+                    csrViewContext := fun ty => $2;
+                    csrViewFields  := fields;
+                    csrViewReadXform := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := accessSMode
+         |};
+         {|
            csrName := ^"stvec";
            csrAddr := CsrIdWidth 'h"105";
            csrViews
@@ -979,6 +1015,40 @@ Section csrs.
                     csrViewContext := fun ty => $2;
                     csrViewFields  := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := accessSMode
+         |};
+         {|
+           csrName := ^"sip";
+           csrAddr := CsrIdWidth 'h"144";
+           csrViews
+             := let lower_fields
+                  := [
+                       
+                       @csrFieldAny _ ^"seip" Bool Bool None;
+                       @csrFieldAny _ ^"ueip" Bool Bool None;
+                       @csrFieldNoReg _ "reserved1" (Bit 2) (getDefaultConst _);
+                       @csrFieldAny _ ^"stip" Bool Bool None;
+                       @csrFieldAny _ ^"utip" Bool Bool None;
+                       @csrFieldNoReg _ "reserved2" (Bit 2)  (getDefaultConst _);
+                       @csrFieldAny _ ^"ssip" Bool Bool None;
+                       @csrFieldAny _ ^"usip" Bool Bool None
+                     ] in
+                [
+                  let fields := @csrFieldNoReg _ "reserved0" (Bit 22) (getDefaultConst _) :: lower_fields in
+                  {|
+                    csrViewContext := fun ty => $1;
+                    csrViewFields  := fields;
+                    csrViewReadXform := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := @csrFieldNoReg _ "reserved0" (Bit 54) (getDefaultConst _) :: lower_fields in
+                  {|
+                    csrViewContext := fun ty => $2;
+                    csrViewFields  := fields;
+                    csrViewReadXform := (@csrViewDefaultReadXform _ fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
                   |}
                 ];

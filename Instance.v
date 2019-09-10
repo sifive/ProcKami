@@ -28,7 +28,9 @@ Definition supportedExts
         Build_SupportedExt "Zifencei" true false
     ].
 
-Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts  (64'h"1000").
+Definition allow_misaligned := false.
+
+Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts  allow_misaligned (64'h"1000").
 
 Definition model32Val := model [Xlen32].
 Definition model64Val := model [Xlen32; Xlen64].

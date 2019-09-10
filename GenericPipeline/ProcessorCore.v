@@ -52,8 +52,7 @@ Section Params.
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit pc_init with
               Node (csr_regs (Csrs name)) with
-              Register ^"upp"              : Bit 0 <- ConstBit WO with
-              Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";
@@ -108,7 +107,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name mem_table (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                     <- fetch name mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -181,6 +180,7 @@ Section Params.
                    LETA mem_update_pkt
                      :  PktWithException ExecUpdPkt
                      <- MemUnit name mem_table
+                          (#cfg_pkt @% "extensions")
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "satp_mode")
                           (#cfg_pkt @% "mode")
