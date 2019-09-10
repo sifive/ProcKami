@@ -52,8 +52,7 @@ Section Params.
               Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit pc_init with
               Node (csr_regs (Csrs name)) with
-              Register ^"upp"              : Bit 0 <- ConstBit WO with
-              Register ^"mtimecmp"        : Bit 64 <- ConstBit (wzero 64) with
+              Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
                 := Read mode : PrivMode <- ^"mode";

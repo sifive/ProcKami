@@ -378,6 +378,7 @@ Section csrs.
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
+                         @csrFieldAny _ ^"upp" (Bit 0) (Bit 0) None;
                          @csrFieldAny _ ^"mpie" Bool Bool None;
                          @csrFieldNoReg _ ^"hpie" Bool (getDefaultConst _);
                          @csrFieldAny _ ^"spie" Bool Bool None;
@@ -410,6 +411,7 @@ Section csrs.
                          @csrFieldAny _ ^"mpp" (Bit 2) (Bit 2) None;
                          @csrFieldNoReg _ ^"hpp" (Bit 2) (getDefaultConst _);
                          @csrFieldAny _ ^"spp" (Bit 1) (Bit 1) None;
+                         @csrFieldAny _ ^"upp" (Bit 0) (Bit 0) None;
                          @csrFieldAny _ ^"mpie" Bool Bool None;
                          @csrFieldNoReg _ ^"hpie" Bool (getDefaultConst _);
                          @csrFieldAny _ ^"spie" Bool Bool None;
