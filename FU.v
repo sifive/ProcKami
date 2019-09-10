@@ -149,7 +149,9 @@ Class ProcParams :=
     Flen_over_8: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
-    supported_exts: list SupportedExt }.
+    supported_exts: list SupportedExt;
+    allow_misaligned : bool
+  }.
 
 Class FpuParams
   := {
@@ -525,6 +527,14 @@ Section Params.
 
     Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
       ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+
+    Definition checkAligned (exts : Extensions @# ty) (addr : VAddr @# ty)
+      :  Bool @# ty
+      := if allow_misaligned
+           then $$true
+           else isAligned addr (IF struct_get_field_default exts "C" $$false then $1 else $2).
+
+
     Local Close Scope kami_expr.
 
     Definition CsrUpdateCodeWidth := 2.

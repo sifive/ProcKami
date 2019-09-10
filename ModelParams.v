@@ -139,6 +139,8 @@ Section exts.
   (* The names of the supported extensions. *)
   Variable supported_exts : list SupportedExt.
 
+  Variable allow_misaligned : bool.
+
   (* The supported extension entries. *)
   Local Definition entries
     :  list param_entry
@@ -158,8 +160,12 @@ Section exts.
 
   Variable pc_init_val: word 64.
 
-  Local Definition procParams := Build_ProcParams Xlen_over_8 Flen_over_8
-                                                  (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val))) supported_xlens supported_exts.
+  Local Definition procParams
+    := Build_ProcParams Xlen_over_8 Flen_over_8
+         (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
+         supported_xlens
+         supported_exts
+         allow_misaligned.
 
   Section ty.
     Variable ty : Kind -> Type.

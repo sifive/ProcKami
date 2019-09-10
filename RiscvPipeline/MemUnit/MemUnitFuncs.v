@@ -187,6 +187,7 @@ Section mem_unit.
          } : FullException @# ty)).
 
   Definition mem_unit_exec
+    (exts : Extensions @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (addr : VAddr @# ty)
@@ -230,169 +231,184 @@ Section mem_unit.
                       => RetE (if writeMem (instHints (snd tagged_inst)) then $$true else $$false))
                     func_unit_id
                     inst_id);
-           LETA msize
-             :  Maybe (@MemRqLgSize procParams)
-             <-  convertLetExprSyntax_ActionT
-                   (inst_db_get_pkt
-                     (fun _ _ tagged_inst
-                       => RetE
-                            (match optMemParams (snd tagged_inst) with
-                              | Some params => $(accessSize params)
-                              | _ => $0
-                              end))
-                     func_unit_id
-                     inst_id);
-           (* III. get the physical address *)
-           LETA mpaddr
-             :  PktWithException PAddr
-             <- memTranslate 2 satp_mode mode
-                  (IF #mis_write @% "data"
-                    then $VmAccessSAmo
-                    else $VmAccessLoad)
-                  addr;
-           System [
-             DispString _ "[mem_unit_exec] writing to vaddr: ";
-             DispHex addr;
-             DispString _ "\n";
-             DispString _ "[mem_unit_exec] writing to paddr: ";
-             DispHex #mpaddr;
-             DispString _ "\n"
-           ];
-           If #mpaddr @% "snd" @% "valid"
+           If checkAligned exts addr
              then
-               System [
-                 DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
-               ];
-               Ret (STRUCT {
-                   "fst" ::= $$(getDefaultConst MemRet);
-                   "snd" ::= #mpaddr @% "snd"
-                 } : PktWithException MemRet @# ty)
-             else
-               LETA pmp_result
-                 :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                 <- checkForFault name mem_table
+               LETA msize
+                 :  Maybe (@MemRqLgSize procParams)
+                 <-  convertLetExprSyntax_ActionT
+                       (inst_db_get_pkt
+                         (fun _ _ tagged_inst
+                           => RetE
+                                (match optMemParams (snd tagged_inst) with
+                                  | Some params => $(accessSize params)
+                                  | _ => $0
+                                  end))
+                         func_unit_id
+                         inst_id);
+               (* III. get the physical address *)
+               LETA mpaddr
+                 :  PktWithException PAddr
+                 <- memTranslate 2 satp_mode mode
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
                         else $VmAccessLoad)
-                      satp_mode
-                      mode
-                      (#mpaddr @% "fst")
-                      (#msize @% "data")
-                      (input_pkt @% "aq" || input_pkt @% "rl");
-               If mem_error (#pmp_result @% "snd")
-                 then (* TODO: return misaligned exception if mem error is misaligned. *)
+                      addr;
+               System [
+                 DispString _ "[mem_unit_exec] writing to vaddr: ";
+                 DispHex addr;
+                 DispString _ "\n";
+                 DispString _ "[mem_unit_exec] writing to paddr: ";
+                 DispHex #mpaddr;
+                 DispString _ "\n"
+               ];
+               If #mpaddr @% "snd" @% "valid"
+                 then
                    System [
-                     DispString _ "[mem_unit_exec] the pmp check failed\n"
+                     DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
                    ];
-                   LET exception
-                     :  Maybe FullException
-                     <- Valid (STRUCT {
-                          "exception"
-                            ::= IF #pmp_result @% "snd" @% "misaligned"
-                                  then
-                                    (IF #mis_write @% "data"
-                                      then $SAmoAddrMisaligned
-                                      else $LoadAddrMisaligned)
-                                  else
-                                    (IF #mis_write @% "data"
-                                      then $SAmoAccessFault
-                                      else $LoadAccessFault);
-                          "value" ::= ZeroExtendTruncLsb Xlen (#mpaddr @% "fst")
-                        } : FullException @# ty);
-                   mem_unit_exec_pkt_def #exception
+                   Ret (STRUCT {
+                       "fst" ::= $$(getDefaultConst MemRet);
+                       "snd" ::= #mpaddr @% "snd"
+                     } : PktWithException MemRet @# ty)
                  else
-                   (* IV. read the current value and place reservation *)
-                   LETA read_result
-                     :  Maybe Data
-                     <- mem_region_read 0
-                          (#pmp_result @% "fst" @% "fst")
-                          (#pmp_result @% "fst" @% "snd")
-                          (#msize @% "data");
-                   If #read_result @% "valid"
-                     then
-                       (* TODO: should we place reservations on failed reads? *)
-                       LETA read_reservation_result
-                         :  Array Rlen_over_8 Bool
-                         <- mem_region_read_resv
-                             (#pmp_result @% "fst" @% "fst")
-                             (#pmp_result @% "fst" @% "snd")
-                             (#msize @% "data");
-                             (* #mpaddr @% "fst" *)
-                       (* VI. apply the memory transform to compute the write value *)
-                       LETA mwrite_value
-                         :  Maybe MemoryOutput
-                         <- convertLetExprSyntax_ActionT
-                              (inst_db_get_pkt
-                                (fun _ _ tagged_inst
-                                  => let inst := snd (tagged_inst) in
-                                     match optMemParams inst return MemoryOutput ## ty with
-                                       | Some params
-                                         => (((memXform params)
-                                              (RetE
-                                                (STRUCT {
-                                                  "aq" ::= input_pkt @% "aq" ;
-                                                  "rl" ::= input_pkt @% "rl" ;
-                                                  "reservation" ::= #read_reservation_result;
-                                                  "mem" ::= #read_result @% "data";
-                                                  "reg_data" ::= input_pkt @% "reg_data"
-                                                 } : MemoryInput @# ty))) : MemoryOutput ## ty)
-                                       | None (* impossible case *)
-                                         => RetE $$(getDefaultConst MemoryOutput)
-                                       end)
-                                func_unit_id
-                                inst_id);
-                       If #mwrite_value @% "data" @% "isWr"
-                         then
-                           (* VII. write to memory. *)
-                           LET write_mask
-                             :  Array Rlen_over_8 Bool
-                             <- #mwrite_value @% "data" @% "mask";
-                           LETA write_result
-                             :  Bool
-                             <- mem_region_write 0
-                                  (#pmp_result @% "fst" @% "fst")
-                                  (#pmp_result @% "fst" @% "snd")
-                                  (#mwrite_value @% "data" @% "data" : Data @# ty)
-                                  (#write_mask : DataMask @# ty)
-                                  (#msize @% "data");
-                           Ret
-                             (IF #write_result
-                               then
-                                 Valid (STRUCT {
-                                     "exception" ::= $SAmoAccessFault;
-                                     "value" ::= addr
-                                   } : FullException @# ty)
-                               else Invalid)
-                         else Ret Invalid
-                         as write_result;
+                   LETA pmp_result
+                     :  Pair (Pair DeviceTag PAddr) MemErrorPkt
+                     <- checkForFault name mem_table
+                          (IF #mis_write @% "data"
+                            then $VmAccessSAmo
+                            else $VmAccessLoad)
+                          satp_mode
+                          mode
+                          (#mpaddr @% "fst")
+                          (#msize @% "data")
+                          (input_pkt @% "aq" || input_pkt @% "rl");
+                   If mem_error (#pmp_result @% "snd")
+                     then (* TODO: return misaligned exception if mem error is misaligned. *)
                        System [
-                         DispString _ "[mem_unit_exec] write result:\n";
-                         DispHex #write_result;
-                         DispString _ "\n"
+                         DispString _ "[mem_unit_exec] the pmp check failed\n"
                        ];
-                       If #mwrite_value @% "data" @% "isLrSc"
+                       LET exception
+                         :  Maybe FullException
+                         <- Valid (STRUCT {
+                              "exception"
+                                ::= IF #pmp_result @% "snd" @% "misaligned"
+                                      then
+                                        (IF #mis_write @% "data"
+                                          then $SAmoAddrMisaligned
+                                          else $LoadAddrMisaligned)
+                                      else
+                                        (IF #mis_write @% "data"
+                                          then $SAmoAccessFault
+                                          else $LoadAccessFault);
+                              "value" ::= ZeroExtendTruncLsb Xlen (#mpaddr @% "fst")
+                            } : FullException @# ty);
+                       mem_unit_exec_pkt_def #exception
+                     else
+                       (* IV. read the current value and place reservation *)
+                       LETA read_result
+                         :  Maybe Data
+                         <- mem_region_read 0
+                              (#pmp_result @% "fst" @% "fst")
+                              (#pmp_result @% "fst" @% "snd")
+                              (#msize @% "data");
+                       If #read_result @% "valid"
                          then
-                           mem_region_write_resv
-                             (#pmp_result @% "fst" @% "fst")
-                             (#pmp_result @% "fst" @% "snd")
-                             (#mwrite_value @% "data" @% "mask" : DataMask @# ty)
-                             (#mwrite_value @% "data" @% "reservation")
-                             (#msize @% "data");
-                             (* #mpaddr @% "fst" *)
-                             (* (#mwrite_value @% "data" @% "mask") *)
-                       LET memRet
-                         :  MemRet
-                         <- STRUCT {
-                              "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
-                              "tag"  ::= #mwrite_value @% "data" @% "tag";
-                              "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
-                            } : MemRet @# ty;
-                       mem_unit_exec_pkt #memRet #write_result
-                     else mem_unit_exec_pkt_access_fault addr $$false
+                           (* TODO: should we place reservations on failed reads? *)
+                           LETA read_reservation_result
+                             :  Array Rlen_over_8 Bool
+                             <- mem_region_read_resv
+                                 (#pmp_result @% "fst" @% "fst")
+                                 (#pmp_result @% "fst" @% "snd")
+                                 (#msize @% "data");
+                                 (* #mpaddr @% "fst" *)
+                           (* VI. apply the memory transform to compute the write value *)
+                           LETA mwrite_value
+                             :  Maybe MemoryOutput
+                             <- convertLetExprSyntax_ActionT
+                                  (inst_db_get_pkt
+                                    (fun _ _ tagged_inst
+                                      => let inst := snd (tagged_inst) in
+                                         match optMemParams inst return MemoryOutput ## ty with
+                                           | Some params
+                                             => (((memXform params)
+                                                  (RetE
+                                                    (STRUCT {
+                                                      "aq" ::= input_pkt @% "aq" ;
+                                                      "rl" ::= input_pkt @% "rl" ;
+                                                      "reservation" ::= #read_reservation_result;
+                                                      "mem" ::= #read_result @% "data";
+                                                      "reg_data" ::= input_pkt @% "reg_data"
+                                                     } : MemoryInput @# ty))) : MemoryOutput ## ty)
+                                           | None (* impossible case *)
+                                             => RetE $$(getDefaultConst MemoryOutput)
+                                           end)
+                                    func_unit_id
+                                    inst_id);
+                           If #mwrite_value @% "data" @% "isWr"
+                             then
+                               (* VII. write to memory. *)
+                               LET write_mask
+                                 :  Array Rlen_over_8 Bool
+                                 <- #mwrite_value @% "data" @% "mask";
+                               LETA write_result
+                                 :  Bool
+                                 <- mem_region_write 0
+                                      (#pmp_result @% "fst" @% "fst")
+                                      (#pmp_result @% "fst" @% "snd")
+                                      (#mwrite_value @% "data" @% "data" : Data @# ty)
+                                      (#write_mask : DataMask @# ty)
+                                      (#msize @% "data");
+                               Ret
+                                 (IF #write_result
+                                   then
+                                     Valid (STRUCT {
+                                         "exception" ::= $SAmoAccessFault;
+                                         "value" ::= addr
+                                       } : FullException @# ty)
+                                   else Invalid)
+                             else Ret Invalid
+                             as write_result;
+                           System [
+                             DispString _ "[mem_unit_exec] write result:\n";
+                             DispHex #write_result;
+                             DispString _ "\n"
+                           ];
+                           If #mwrite_value @% "data" @% "isLrSc"
+                             then
+                               mem_region_write_resv
+                                 (#pmp_result @% "fst" @% "fst")
+                                 (#pmp_result @% "fst" @% "snd")
+                                 (#mwrite_value @% "data" @% "mask" : DataMask @# ty)
+                                 (#mwrite_value @% "data" @% "reservation")
+                                 (#msize @% "data");
+                                 (* #mpaddr @% "fst" *)
+                                 (* (#mwrite_value @% "data" @% "mask") *)
+                           LET memRet
+                             :  MemRet
+                             <- STRUCT {
+                                  "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
+                                  "tag"  ::= #mwrite_value @% "data" @% "tag";
+                                  "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
+                                } : MemRet @# ty;
+                           mem_unit_exec_pkt #memRet #write_result
+                         else mem_unit_exec_pkt_access_fault addr $$false
+                         as result;
+                       Ret #result
                      as result;
                    Ret #result
                  as result;
                Ret #result
+             else
+               LET exception
+                 :  Maybe FullException
+                 <- Valid (STRUCT {
+                      "exception"
+                        ::= IF #mis_write @% "data"
+                              then $SAmoAddrMisaligned
+                              else $LoadAddrMisaligned;
+                      "value" ::= addr
+                    } : FullException @# ty);
+               (mem_unit_exec_pkt_def #exception)
              as result;
            Ret #result
          else
@@ -409,6 +425,7 @@ Section mem_unit.
        Ret #result.
 
   Definition MemUnit
+    (exts : Extensions @# ty)
     (xlen : XlenValue @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
@@ -429,6 +446,7 @@ Section mem_unit.
               LETA memRet
                 :  PktWithException MemRet
                 <- mem_unit_exec
+                     exts
                      satp_mode
                      mode
                      (xlen_sign_extend Xlen xlen

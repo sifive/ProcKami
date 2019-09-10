@@ -107,7 +107,7 @@ Section Params.
                      ];
                    LETA fetch_pkt
                      :  PktWithException FetchPkt
-                     <- fetch name mem_table (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                     <- fetch name mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                    System
                      [
                        DispString _ "Fetch:\n";
@@ -180,6 +180,7 @@ Section Params.
                    LETA mem_update_pkt
                      :  PktWithException ExecUpdPkt
                      <- MemUnit name mem_table
+                          (#cfg_pkt @% "extensions")
                           (#cfg_pkt @% "xlen")
                           (#cfg_pkt @% "satp_mode")
                           (#cfg_pkt @% "mode")
