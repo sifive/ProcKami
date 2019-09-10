@@ -30,12 +30,11 @@ Section mem_unit.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  (* TODO: should this be sign extended? *)
   Definition pMemTranslate
     (vaddr : VAddr @# ty)
     :  PktWithException PAddr @# ty
     := STRUCT {
-         "fst" ::= ZeroExtendTruncLsb PAddrSz vaddr;
+         "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
          "snd" ::= Invalid
        } : PktWithException PAddr @# ty.
 
@@ -52,7 +51,7 @@ Section mem_unit.
        Read sum : Bool <- ^"sum";
        Read satp_ppn : Bit 44 <- ^"satp_ppn";
        LET effective_mode : PrivMode
-         <- IF access_type != $VmAccessInst && #mprv (* see mmu.cc in Spike *)
+         <- IF access_type != $VmAccessInst && #mprv
               then #mpp else mode;
        If #effective_mode != $MachineMode && satp_mode != $SatpModeBare
          then

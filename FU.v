@@ -381,12 +381,10 @@ Section Params.
   End Extensions.
   
   Section Xlen.
-    Variable ty: Kind -> Type.
-
     Definition ImplXlens :=
       filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && (0 <? x)) supported_xlens.
     
-    Definition xlenFix (xlen: XlenValue @# ty): XlenValue @# ty :=
+    Definition xlenFix ty (xlen: XlenValue @# ty): XlenValue @# ty :=
       (IF utila_any (map (fun x => xlen == $x) ImplXlens)
        then xlen
        else $(Nat.log2_up Xlen_over_8 - 1))%kami_expr.
