@@ -330,11 +330,11 @@ Section csrs.
                        @csrFieldAny _ ^"seie" Bool Bool None;
                        @csrFieldAny _ ^"ueie" Bool Bool None;
                        @csrFieldReadOnly _ ^"mtie" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"htie" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"stie" Bool Bool None;
                        @csrFieldAny _ ^"utie" Bool Bool None;
                        @csrFieldReadOnly _ ^"msie" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"hsie" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"ssie" Bool Bool None;
                        @csrFieldAny _ ^"usie" Bool Bool None
                      ] in
@@ -584,11 +584,11 @@ Section csrs.
                        @csrFieldAny _ ^"seip" Bool Bool None;
                        @csrFieldAny _ ^"ueip" Bool Bool None;
                        @csrFieldReadOnly _ ^"mtip" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved1" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"htip" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"stip" Bool Bool None;
                        @csrFieldAny _ ^"utip" Bool Bool None;
                        @csrFieldReadOnly _ ^"msip" Bool Bool None;
-                       @csrFieldNoReg _ ^"reserved2" Bool (getDefaultConst _);
+                       @csrFieldNoReg _ ^"hsip" Bool (getDefaultConst _);
                        @csrFieldAny _ ^"ssip" Bool Bool None;
                        @csrFieldAny _ ^"usip" Bool Bool None
                      ] in
