@@ -13,7 +13,7 @@ Section fetch.
 
   Open Scope kami_expr.
 
-  Definition fetch_decompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
+  Definition is_fetch_uncompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
 
   Open Scope kami_action.
 
@@ -28,7 +28,7 @@ Section fetch.
             (IF struct_get_field_default exts "C" $$false then $1 else $2)
        then 
          LETA inst_lower
-           :  PktWithException Data
+           :  PktWithException CompInst
            <- memFetch name mem_table 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
          If #inst_lower @% "snd" @% "valid"
            then
@@ -43,36 +43,30 @@ Section fetch.
                   } : PktWithException FetchPkt @# ty;
              Ret #result
            else
-             LET decompressed
+             LET uncompressed
                :  Bool
-               <- fetch_decompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
-             If #decompressed
+               <- is_fetch_uncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
+             If #uncompressed
                then memFetch name mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
                else
                  Ret (STRUCT {
                      "fst" ::= $0;
                      "snd" ::= Invalid
-                   } : PktWithException Data @# ty)
+                   } : PktWithException CompInst @# ty)
                as inst_upper;
              LET fetch_pkt
                :  FetchPkt
                <- STRUCT {
                     "pc" ::= xlen_sign_extend Xlen xlen pc;
-                    "inst"
-                      ::= (zero_extend_trunc 16 InstSz (#inst_lower @% "fst") |
-                           (IF #decompressed
-                              then 
-                                ((zero_extend_trunc 16 InstSz (#inst_upper @% "fst")) <<
-                                 ($16 : Bit 32 @# ty))
-                              else $0));
-                    "compressed?" ::= !#decompressed
+                    "inst" ::= {< #inst_upper @% "fst", #inst_lower @% "fst" >};
+                    "compressed?" ::= !#uncompressed
                   } : FetchPkt @# ty;
              System [
                DispString _ "[fetch] lower bits: ";
-               DispHex (zero_extend_trunc 16 InstSz (#inst_lower @% "fst"));
+               DispHex (#inst_lower @% "fst");
                DispString _ "\n";
                DispString _ "[fetch] upper bits: ";
-               DispHex ((zero_extend_trunc 16 InstSz (#inst_upper @% "fst")) << ($16 : Bit 32 @# ty));
+               DispHex (#inst_upper @% "fst");
                DispString _ "\n"
              ];
              Ret (STRUCT {

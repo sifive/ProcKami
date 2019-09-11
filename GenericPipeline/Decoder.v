@@ -26,18 +26,10 @@ Section decoder.
 
   (* decoder packets *)
 
-  (* Represents the kind of packets used "internally" by the decoder. *)
-  Definition DecoderPktInternal := STRUCT_TYPE {
-                                       "funcUnitTag" :: FuncUnitId;
-                                       "instTag"     :: InstId;
-                                       "inst"        :: Inst (* Todo: Temporary for debugging -
-                                                                remove when done. *) }.
-
   (* Represents the kind of packets output by the decoder. *)
   Definition DecoderPkt := STRUCT_TYPE {
                                "funcUnitTag" :: FuncUnitId;
                                "instTag"     :: InstId;
-                               "pc"          :: VAddr;
                                "inst"        :: Inst }.
 
   Definition FuncUnitInputWidth :=
@@ -124,42 +116,6 @@ Section decoder.
                     ($(func_unit_id)    == sel_func_unit_id)))
            f.
 
-    Definition decode_match_field
-               (raw_inst : Inst @# ty)
-               (field : FieldRange)
-      :  Bool ## ty
-      := LETE x <- extractArbitraryRange (RetE raw_inst) (projT1 field);
-         RetE (#x == $$(projT2 field)).
-
-    Definition decode_match_fields
-               (raw_inst : Inst @# ty)
-               (fields : list FieldRange)
-      :  Bool ## ty
-      := utila_expr_all (map (decode_match_field raw_inst) fields).
-
-    Definition decode_match_xlen
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry ty sem_input_kind sem_output_kind)
-               (xlen : XlenValue @# ty)
-      :  Bool ## ty
-      := RetE
-           (utila_any
-             (map
-               (fun supported_xlen : nat
-                 => xlen == $supported_xlen)
-               (xlens inst))).
-
-    Definition decode_match_enabled_exts
-               (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry ty sem_input_kind sem_output_kind)
-               (exts_pkt : Extensions @# ty)
-      :  Bool ## ty
-      := utila_expr_any
-           (map
-              (fun ext : string
-                 => RetE (struct_get_field_default exts_pkt ext $$false))
-              (extensions inst)).
-
     Definition decode_match_enabled_exts_on
                (sem_input_kind sem_output_kind : Kind)
                (inst : InstEntry ty sem_input_kind sem_output_kind)
@@ -168,7 +124,7 @@ Section decoder.
       := LETE ret : Bool <- (utila_expr_any
                                (map
                                   (fun ext : string
-                                   => RetE (struct_get_field_default ctxt ext (Const ty (natToWord 2 0)) == $0))
+                                   => RetE ((struct_get_field_default ctxt ext (Const ty (natToWord 2 0))) == $0))
                                   (ext_ctxt_off inst)));
            RetE (!#ret).
 
@@ -179,11 +135,11 @@ Section decoder.
                (raw_inst : Inst @# ty)
       :  Bool ## ty
       := LETE inst_id_match : Bool
-           <- decode_match_fields raw_inst (uniqId inst);
+           <- inst_match_id raw_inst (uniqId inst);
          LETE xlens_match : Bool
-           <- decode_match_xlen inst (ctxt @% "xlen");
+           <- inst_match_xlen (xlens inst) (ctxt @% "xlen");
          LETE exts_match : Bool
-           <- decode_match_enabled_exts inst (ctxt @% "extensions");
+           <- inst_match_enabled_exts (extensions inst) (ctxt @% "extensions");
          LETE enabled_exts_on : Bool
            <- decode_match_enabled_exts_on inst ctxt;
          (* SystemE (
@@ -207,7 +163,7 @@ Section decoder.
     Definition decode 
         (ctxt : ContextCfgPkt @# ty)
         (raw_inst : Inst @# ty)
-      :  Maybe DecoderPktInternal ## ty
+      :  Maybe DecoderPkt ## ty
       := inst_db_find_pkt 
            (fun _ _ tagged_inst
               => decode_match_inst
@@ -220,7 +176,7 @@ Section decoder.
                       "funcUnitTag" ::= $func_unit_id;
                       "instTag"     ::= $(fst tagged_inst);
                       "inst"        ::= raw_inst
-                    } : DecoderPktInternal @# ty)).
+                    } : DecoderPkt @# ty)).
 
     (*
       Accepts a 32 bit string whose prefix may encode a compressed RISC-V
@@ -232,7 +188,7 @@ Section decoder.
                (comp_inst_db : list (CompInstEntry ty))
                (ctxt : ContextCfgPkt @# ty)
                (bit_string : Inst @# ty)
-      :  Maybe DecoderPktInternal ## ty
+      :  Maybe DecoderPkt ## ty
       := LETC prefix
            :  CompInst
            <- bit_string $[15:0];
@@ -260,18 +216,9 @@ Section decoder.
                (fetch_pkt : FetchPkt @# ty)
       :  Maybe DecoderPkt ## ty
       := LETC raw_inst: Inst <- fetch_pkt @% "inst";
-           LETE opt_decoder_pkt : Maybe DecoderPktInternal <- decode_bstring comp_inst_db ctxt #raw_inst;
-           LETC decoder_pkt : DecoderPktInternal <- #opt_decoder_pkt @% "data" ;
-           LETC decoder_ext_pkt
-           : DecoderPkt
-               <-
-               (STRUCT {
-                    "funcUnitTag" ::= #decoder_pkt @% "funcUnitTag" ;
-                    "instTag"     ::= #decoder_pkt @% "instTag" ;
-                    "pc"          ::= xlen_sign_extend Xlen (ctxt @% "xlen") (fetch_pkt @% "pc" : VAddr @# ty) ;
-                    "inst"        ::= #decoder_pkt @% "inst"
-                  } : DecoderPkt @# ty) ;
-           (utila_expr_opt_pkt #decoder_ext_pkt
+           LETE opt_decoder_pkt : Maybe DecoderPkt <- decode_bstring comp_inst_db ctxt #raw_inst;
+           LETC decoder_pkt : DecoderPkt <- #opt_decoder_pkt @% "data" ;
+           (utila_expr_opt_pkt #decoder_pkt
              (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).
 
     Variable CompInstDb: list (CompInstEntry ty).

@@ -58,8 +58,6 @@ Section database.
     :  Bit 5 @# ty
     := (ZeroExtendTruncLsb 5 comp_inst_reg) + (uncomp_inst_reg 8).
 
-  Let extensions_all := [["C"]].
-
   (*
   pg 106 for compressed instructions (122)
   pg 148 for uncompressed instruction (164)
@@ -72,7 +70,7 @@ Section database.
         (* C.ADDI4SPN  => ADDI *)
         Build_CompInstEntry
           xlens_all
-          extensions_all
+          []
           ([
              fieldVal comp_inst_opcode_field ('b"00");
              fieldVal comp_inst_funct3_field ('b"000")
@@ -96,7 +94,7 @@ Section database.
           (* C.FLD => FLD *)
           Build_CompInstEntry
             xlens_all
-            [["C"; "D"]]
+            ["D"]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"001")
@@ -114,7 +112,7 @@ Section database.
           (* C.LW => LW *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"010")
@@ -132,7 +130,7 @@ Section database.
           (* C.FLW => FLW *)
           Build_CompInstEntry
             [Xlen32]
-            [["F"; "C"]]
+            ["F"]
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -150,7 +148,7 @@ Section database.
           (* C.LD => LD *)
           Build_CompInstEntry
             [Xlen64]
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"00");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -168,9 +166,7 @@ Section database.
           (* C.FSD => FSD *)
           Build_CompInstEntry
             xlens_all
-            [
-              ["D"; "C"]
-            ]
+            ["D"]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"101")
@@ -191,7 +187,7 @@ Section database.
           (* C.SW => SW *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"110")
@@ -212,7 +208,7 @@ Section database.
           (* C.FSW => FSW *)
           Build_CompInstEntry
             [Xlen32]
-            [["F"; "C"]]
+            ["F"]
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -233,7 +229,7 @@ Section database.
           (* C.SD => SD *)
           Build_CompInstEntry
             [Xlen64]
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"00");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -258,7 +254,7 @@ Section database.
           *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"000")
@@ -277,7 +273,7 @@ Section database.
           (* C.JAL => JAL *)
           Build_CompInstEntry
             [Xlen32]
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"001")
@@ -310,7 +306,7 @@ Section database.
           (* C.ADDIW => ADDIW *)
           Build_CompInstEntry
             [Xlen64]
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"001")
@@ -329,7 +325,7 @@ Section database.
           (* C.LI => ADDI *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"010")
@@ -351,7 +347,7 @@ Section database.
           *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"011")
@@ -385,7 +381,7 @@ Section database.
           (* C.SRLI => SRLI *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -408,7 +404,7 @@ Section database.
           (* C.SRAI => SRAI *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -431,7 +427,7 @@ Section database.
           (* C.ANDI => ANDI *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -453,7 +449,7 @@ Section database.
           (* C.SUB => SUB *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -478,7 +474,7 @@ Section database.
           (* C.XOR => XOR *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -503,7 +499,7 @@ Section database.
           (* C.OR => OR *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -528,7 +524,7 @@ Section database.
           (* C.AND => AND *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -553,7 +549,7 @@ Section database.
           (* C.SUBW => SUB *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -578,7 +574,7 @@ Section database.
           (* C.ADDW => ADDW *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"01");
                   fieldVal comp_inst_funct3_field ('b"100");
@@ -603,7 +599,7 @@ Section database.
           (* C.J => JAL *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"101")
@@ -636,7 +632,7 @@ Section database.
           (* C.BEQZ => BEQ *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"110")
@@ -670,7 +666,7 @@ Section database.
           (* C.BNEZ => BNE checked*)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"01");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -704,7 +700,7 @@ Section database.
           (* C.SLLI => SLLI *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"000")
@@ -725,8 +721,7 @@ Section database.
           (* C.FLDSP => FLD *)
           Build_CompInstEntry
             xlens_all
-            [["D"; "C"];
-             ["D"; "C"]]
+            ["D"]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"001")
@@ -744,7 +739,7 @@ Section database.
           (* C.LWSP => LW checked*)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"010")
@@ -762,7 +757,7 @@ Section database.
           (* C.FLWSP => FLW *)
           Build_CompInstEntry
             [Xlen32]
-            [["F"; "C"]]
+            ["F"]
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                 fieldVal comp_inst_funct3_field ('b"011")
@@ -780,7 +775,7 @@ Section database.
           (* C.LDSP => LD *)
           Build_CompInstEntry
             [Xlen64]
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"011")
@@ -801,7 +796,7 @@ Section database.
           *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -835,7 +830,7 @@ Section database.
           *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"100");
@@ -872,7 +867,7 @@ Section database.
           (* C.FSDSP => FSD *)
           Build_CompInstEntry
             xlens_all
-            [["D"; "C"]]
+            ["D"]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"101")
@@ -898,7 +893,7 @@ Section database.
           (* C.SWSP => SW *)
           Build_CompInstEntry
             xlens_all
-            extensions_all
+            []
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"110")
@@ -918,7 +913,7 @@ Section database.
           (* C.FSWSP => FSW *)
           Build_CompInstEntry
             [Xlen32]
-            [["F"; "C"]]
+            ["F"]
             ([
                fieldVal comp_inst_opcode_field ('b"10");
                fieldVal comp_inst_funct3_field ('b"111")
@@ -938,7 +933,7 @@ Section database.
           (* C.SDSP => SD *)
           Build_CompInstEntry
             [Xlen64]
-            extensions_all
+            []
             ([
                 fieldVal comp_inst_opcode_field ('b"10");
                   fieldVal comp_inst_funct3_field ('b"111")

@@ -9,51 +9,6 @@ Section Decompressor.
 
   Open Scope kami_expr.
 
-  Definition raw_comp_inst_match_field
-             (raw_comp_inst: CompInst @# ty)
-             (field: FieldRange)
-    := LETE x <- extractArbitraryRange (RetE raw_comp_inst) (projT1 field);
-         RetE (#x == $$ (projT2 field)).
-
-  Definition raw_comp_inst_match_id
-             (raw_comp_inst: CompInst @# ty)
-             (inst_id : UniqId)
-    :  Bool ## ty
-    := utila_expr_all (map (raw_comp_inst_match_field raw_comp_inst) inst_id).
-
-  Definition raw_comp_inst_match_xlen
-      (comp_inst_entry: CompInstEntry ty)
-      (xlen : XlenValue @# ty)
-    :  Bool ## ty
-    := RetE
-         (utila_any
-           (map
-             (fun supported_xlen => xlen == $supported_xlen)
-             (comp_inst_xlens comp_inst_entry))).
-
-  Definition inst_match_enabled_exts
-             (comp_inst_entry : CompInstEntry ty)
-             (exts_pkt : Extensions @# ty)
-    :  Bool ## ty
-    := utila_expr_any
-         (map 
-            (fun exts : list string
-             => utila_expr_all
-                  (map
-                     (fun ext : string
-                      => (* SystemE [
-                           DispString _ ("[inst_match_enabled_exts] ext: " ++ ext ++ "\n");
-                           DispString _ "[inst_match_enabled_exts] exts_pkt: ";
-                           DispHex exts_pkt;
-                           DispString _ "\n";
-                           DispString _ "[inst_match_enabled_exts] ext match result: ";
-                           DispBinary (Extensions_get exts_pkt ext);
-                           DispString _ "\n"
-                         ]; *)
-                         RetE (struct_get_field_default exts_pkt ext ($$false)))
-                     exts))
-            (req_exts comp_inst_entry)).
-
   Definition decompress
       (comp_inst_db : list (CompInstEntry ty))
       (ctxt : ContextCfgPkt @# ty)
@@ -64,18 +19,18 @@ Section Decompressor.
          (fun (comp_inst_entry : CompInstEntry ty)
             => LETE inst_match
                  :  Bool
-                 <- raw_comp_inst_match_id
+                 <- inst_match_id
                       raw_comp_inst
                       (comp_inst_id comp_inst_entry);
                LETE xlens_match
                  :  Bool
-                 <- raw_comp_inst_match_xlen
-                      comp_inst_entry
+                 <- inst_match_xlen
+                      (comp_inst_xlens comp_inst_entry)
                       (ctxt @% "xlen");
                LETE exts_match
                  :  Bool
                  <- inst_match_enabled_exts
-                      comp_inst_entry
+                      (req_exts comp_inst_entry)
                       (ctxt @% "extensions");
                (* SystemE (
                  DispString _ ("[decompress] ===== ") ::
@@ -93,7 +48,8 @@ Section Decompressor.
                  DispString _ "\n" ::
                  nil
                ); *)
-               RetE (#inst_match && #xlens_match && #exts_match))
+               RetE (#inst_match && #xlens_match && #exts_match &&
+                      struct_get_field_default (ctxt @% "extensions") "C" ($$false)))
          (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 

@@ -129,7 +129,7 @@ Section Params.
                    System [DispString _ "Reg Read\n"];
                    LETA exec_context_pkt
                      :  PktWithException ExecContextPkt
-                     <- readerWithException name #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
+                     <- readerWithException name #pc #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
                    System
                      [
                        DispString _ "Reg Reader:\n";

@@ -88,7 +88,7 @@ Section mret.
                             RetE
                               (STRUCT {
                                  "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tsr"
+                                 "snd" ::= (cfg_pkt @% "mode" == $SupervisorMode) && cfg_pkt @% "tsr"
                                } : Pair Inst Bool @# ty);
                   outputXform := id;
                   optMemParams := None;
@@ -140,7 +140,7 @@ Section mret.
                                          Const ty (natToWord 2 UserMode)
                                            ::= Const ty (natToWord 4 ECallU)
                                        };
-                                 "value"     ::= Const ty (natToWord Xlen 0)
+                                 "value"     ::= $0
                                } : FullException @# ty);
                    RetE
                      (STRUCT {

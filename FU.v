@@ -43,6 +43,7 @@ Definition CsrId := Bit CsrIdWidth.
 
 Definition PrivMode := (Bit 2).
 Definition MachineMode    := 3.
+Definition HypervisorMode := 2.
 Definition SupervisorMode := 1.
 Definition UserMode       := 0.
 
@@ -382,13 +383,64 @@ Section Params.
   
   Section Xlen.
     Definition ImplXlens :=
-      filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && (0 <? x)) supported_xlens.
+      filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && negb (0 =? x)%nat) supported_xlens.
     
     Definition xlenFix ty (xlen: XlenValue @# ty): XlenValue @# ty :=
       (IF utila_any (map (fun x => xlen == $x) ImplXlens)
        then xlen
        else $(Nat.log2_up Xlen_over_8 - 1))%kami_expr.
   End Xlen.
+
+  Section PrivModes.
+    Variable ty: Kind -> Type.
+    Variable ext: Extensions @# ty.
+    Variable mode: PrivMode @# ty.
+    Definition modeSet := ((mode == $MachineMode)
+                           || (mode == $HypervisorMode && struct_get_field_default ext "H" ($$false))
+                           || (mode == $SupervisorMode && struct_get_field_default ext "S" ($$false))
+                           || (mode == $UserMode && struct_get_field_default ext "U" ($$false)))%kami_expr.
+    Definition modeFix :=
+      (IF modeSet
+       then mode
+       else $MachineMode)%kami_expr.
+  End PrivModes.
+
+  Section DecoderHelpers.
+    Variable ty: Kind -> Type.
+    Variable n: nat.
+    
+    Definition inst_match_field
+               (inst: Bit n @# ty)
+               (field: FieldRange)
+      := (LETE x <- extractArbitraryRange (RetE inst) (projT1 field);
+            RetE (#x == $$ (projT2 field)))%kami_expr.
+
+    Definition inst_match_id
+               (inst: Bit n @# ty)
+               (inst_id : UniqId)
+      :  Bool ## ty
+      := utila_expr_all (map (inst_match_field inst) inst_id).
+
+    Definition inst_match_xlen
+               (supp_xlens: list nat)
+               (xlen : XlenValue @# ty)
+      :  Bool ## ty
+      := (RetE
+            (utila_any
+               (map
+                  (fun supported_xlen => xlenFix xlen == $supported_xlen)
+                  supp_xlens)))%kami_expr.
+
+    Definition inst_match_enabled_exts
+               (exts: list string)
+               (exts_pkt : Extensions @# ty)
+      :  Bool ## ty
+      := utila_expr_any
+           (map
+              (fun ext : string
+                 => RetE (struct_get_field_default exts_pkt ext $$false))
+              exts)%kami_expr.
+  End DecoderHelpers.
   
   Section ty.
     Variable ty: Kind -> Type.
@@ -619,7 +671,7 @@ Section Params.
 
       Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
 
-      Definition extendMsbWithFunc
+      Definition extendMsbWithFuncNoFix
                  (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
                  (n m : nat)
                  (w : XlenValue @# ty)
@@ -629,6 +681,14 @@ Section Params.
             then f 32 m (@unsafeTruncLsb n 32 x)
             else f 64 m (@unsafeTruncLsb n 64 x))%kami_expr.
 
+      Definition extendMsbWithFunc
+                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
+                 (n m : nat)
+                 (w : XlenValue @# ty)
+                 (x : Bit n @# ty)
+        :  Bit m @# ty
+        := @extendMsbWithFuncNoFix f n m (xlenFix w) x.
+
       Definition xlen_trunc_msb := extendMsbWithFunc (@ZeroExtendTruncMsb ty).
 
       Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
@@ -637,10 +697,10 @@ Section Params.
 
       Definition flen_one_extend
                  (n m : nat)
-        := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
-                              (if Nat.eqb Flen_over_8 4
-                               then $1
-                               else $2)%kami_expr.
+        := @extendMsbWithFuncNoFix (@OneExtendTruncLsb ty) n m
+                                   (if Nat.eqb Flen_over_8 4
+                                    then $Xlen32
+                                    else $Xlen64)%kami_expr.
     End XlenInterface.
     
     Definition ContextCfgPkt :=
@@ -678,7 +738,7 @@ Section Params.
     Record CompInstEntry
       := {
           comp_inst_xlens: list nat;
-          req_exts: list (list string);
+          req_exts: list string;
           comp_inst_id: UniqId;
           decompressFn: (CompInst @# ty) -> (Inst ## ty)
         }.
