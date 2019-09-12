@@ -459,17 +459,36 @@ Section Params.
   End Xlen.
 
   Section PrivModes.
-    Variable ty: Kind -> Type.
-    Variable ext: Extensions @# ty.
-    Variable mode: PrivMode @# ty.
-    Definition modeSet := ((mode == $MachineMode)
-                           || (mode == $HypervisorMode && struct_get_field_default ext "H" ($$false))
-                           || (mode == $SupervisorMode && struct_get_field_default ext "S" ($$false))
-                           || (mode == $UserMode && struct_get_field_default ext "U" ($$false)))%kami_expr.
-    Definition modeFix :=
-      (IF modeSet
-       then mode
-       else $MachineMode)%kami_expr.
+    Section Ty.
+      Variable ty: Kind -> Type.
+      Variable ext: Extensions @# ty.
+      Section Mode.
+        Variable mode: PrivMode @# ty.
+        Definition modeSet := ((mode == $MachineMode)
+                               || (mode == $HypervisorMode && struct_get_field_default ext "H" ($$false))
+                               || (mode == $SupervisorMode && struct_get_field_default ext "S" ($$false))
+                               || (mode == $UserMode && struct_get_field_default ext "U" ($$false)))%kami_expr.
+        Definition modeFix :=
+          (IF modeSet
+           then mode
+           else $MachineMode)%kami_expr.
+      End Mode.
+    End Ty.
+    
+    Lemma modeFix_idempotent ext: forall mode, evalExpr (modeFix ext (modeFix ext mode)) =  evalExpr (modeFix ext mode).
+    Proof.
+      unfold modeFix.
+      unfold HypervisorMode, SupervisorMode, UserMode, MachineMode in *.
+      simpl; intros.
+      repeat match goal with
+             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
+                                          try solve [rewrite ?e in *; exfalso; word_omega]
+             | H: context [if ?P then _ else _] |- _ => let G := fresh "G" in
+                                                        destruct P eqn: G;
+                                                          try solve [rewrite ?e1 in *; exfalso; word_omega]
+                                                                                                      
+             end; auto.
+    Qed.
   End PrivModes.
 
   Section DecoderHelpers.
