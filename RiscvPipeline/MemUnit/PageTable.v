@@ -194,7 +194,6 @@ Section pt_walker.
 
     Definition translatePteLoop
       (index : nat)
-      (indexValid : (index < maxPageLevels - 1)%nat)
       (acc: Pair Bool (PktWithException PAddr) @# ty)
       :  ActionT ty (Pair Bool (PktWithException PAddr))
       := If acc @% "fst"
@@ -241,6 +240,20 @@ Section pt_walker.
            as result;
          Ret #result.
 
+    Section LoopFn.
+      Variable k: Kind.
+      Variable loopFn: nat -> k @# ty -> ActionT ty k.
+      Variable init: k @# ty.
+      Fixpoint action_loop n :=
+        match n with
+        | 0 => loopFn 0 init
+        | S m => LETA x <- action_loop m;
+                   LETA y <- loopFn (S m) #x;
+                   Ret #y
+        end.
+    End LoopFn.
+
+    
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
       LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
@@ -250,19 +263,9 @@ Section pt_walker.
              "snd" ::= Invalid
            } : PktWithException PAddr @# ty;
       LETA result: Pair Bool (PktWithException PAddr)
-        <- nat_rect
-             (fun index => index < maxPageLevels - 1 -> ActionT ty (Pair Bool (PktWithException PAddr)))%nat
-             (fun H
-               => translatePteLoop H
-                    (STRUCT {
-                       "fst" ::= $$false;
-                       "snd" ::= #init
-                     }))
-             (fun index acc H
-               => LETA acc_result <- acc (Nat.lt_succ_l index (maxPageLevels - 1) H);
-                  translatePteLoop H #acc_result)%nat
-             (maxPageLevels - 2)
-             (ltac:(simpl; lia));
+         <- action_loop translatePteLoop (STRUCT {
+                                              "fst" ::= $$false;
+                                              "snd" ::= #init}) (maxPageLevels - 2);
       System [
         DispString _ "[pt_walker] the resulting paddr: ";
         DispHex (#result @% "snd");
