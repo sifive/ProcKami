@@ -671,7 +671,7 @@ Section Params.
 
       Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
 
-      Definition extendMsbWithFuncNoFix
+      Definition extendMsbWithFunc
                  (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
                  (n m : nat)
                  (w : XlenValue @# ty)
@@ -681,14 +681,6 @@ Section Params.
             then f 32 m (@unsafeTruncLsb n 32 x)
             else f 64 m (@unsafeTruncLsb n 64 x))%kami_expr.
 
-      Definition extendMsbWithFunc
-                 (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
-                 (n m : nat)
-                 (w : XlenValue @# ty)
-                 (x : Bit n @# ty)
-        :  Bit m @# ty
-        := @extendMsbWithFuncNoFix f n m (xlenFix w) x.
-
       Definition xlen_trunc_msb := extendMsbWithFunc (@ZeroExtendTruncMsb ty).
 
       Definition xlen_zero_extend := extendMsbWithFunc (@ZeroExtendTruncLsb ty).
@@ -697,10 +689,10 @@ Section Params.
 
       Definition flen_one_extend
                  (n m : nat)
-        := @extendMsbWithFuncNoFix (@OneExtendTruncLsb ty) n m
-                                   (if Nat.eqb Flen_over_8 4
-                                    then $Xlen32
-                                    else $Xlen64)%kami_expr.
+        := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
+                              (if Nat.eqb Flen_over_8 4
+                               then $Xlen32
+                               else $Xlen64)%kami_expr.
     End XlenInterface.
     
     Definition ContextCfgPkt :=

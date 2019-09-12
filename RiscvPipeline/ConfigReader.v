@@ -29,22 +29,23 @@ Section config_reader.
            DispHex #uxl;
            DispString _ "\n"
        ]; *)
-       Ret
-         (IF mode == $MachineMode
-           then #mxl
-           else IF mode == $SupervisorMode then #sxl else #uxl).
+       Ret (xlenFix
+              (IF mode == $MachineMode
+               then #mxl
+               else IF mode == $SupervisorMode then #sxl else #uxl)).
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
     := Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
-       Read mode : PrivMode <- ^"mode";
-       LETA xlen
-         :  XlenValue
-         <- readXlen #mode;
+       Read modeRaw : PrivMode <- ^"mode";
        Read extensionsReg
          :  ExtensionsReg
          <- ^"extRegs";
        LET extensions : Extensions <- ExtRegToExt #extensionsReg;
+       LET mode : PrivMode <- modeFix #extensions #modeRaw;
+       LETA xlen
+         :  XlenValue
+         <- readXlen #mode;
        Read tsr : Bool <- ^"tsr";
        Read tvm : Bool <- ^"tvm";
        Read tw : Bool <- ^"tw";

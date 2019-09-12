@@ -55,7 +55,10 @@ Section Params.
               Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
               Rule ^"trap_interrupt"
-                := Read mode : PrivMode <- ^"mode";
+                := Read modeRaw : PrivMode <- ^"mode";
+                   Read extRegs: ExtensionsReg <- ^"extRegs";
+                   LET ext: Extensions <- ExtRegToExt #extRegs;
+                   LET mode: PrivMode <- modeFix #ext #modeRaw;
                    Read pc : VAddr <- ^"pc";
                    LETA xlen : XlenValue <- readXlen name #mode;
                    System [DispString _ "[trap_interrupt]\n"];
