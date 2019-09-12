@@ -133,11 +133,11 @@ Section mret.
                     LETC sndVal <- (STRUCT {
                                  "exception"
                                    ::= Switch #mode Retn Exception With {
-                                         Const ty (natToWord 2 MachineMode)
+                                         Const ty (natToWord PrivModeWidth MachineMode)
                                            ::= Const ty (natToWord 4 ECallM);
-                                         Const ty (natToWord 2 SupervisorMode)
+                                         Const ty (natToWord PrivModeWidth SupervisorMode)
                                            ::= Const ty (natToWord 4 ECallS);
-                                         Const ty (natToWord 2 UserMode)
+                                         Const ty (natToWord PrivModeWidth UserMode)
                                            ::= Const ty (natToWord 4 ECallU)
                                        };
                                  "value"     ::= Const ty (natToWord Xlen 0)

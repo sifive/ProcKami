@@ -404,6 +404,12 @@ Section CsrInterface.
     (_ : CsrAccessPkt @# ty)
     := $$true.
 
+  Definition accessDMode ty
+    (context : CsrAccessPkt @# ty)
+    := if support_debug
+       then context @% "mode" == $DebugMode
+       else $$false.
+
   Definition accessMModeOnly ty
     (context : CsrAccessPkt @# ty)
     := context @% "mode" == $MachineMode.

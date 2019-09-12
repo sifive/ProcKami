@@ -41,11 +41,6 @@ Definition RegId := Bit RegIdWidth.
 Definition CsrIdWidth := 12.
 Definition CsrId := Bit CsrIdWidth.
 
-Definition PrivMode := (Bit 2).
-Definition MachineMode    := 3.
-Definition SupervisorMode := 1.
-Definition UserMode       := 0.
-
 Definition InstAddrMisaligned := 0.
 Definition InstAccessFault    := 1.
 Definition IllegalInst        := 2.
@@ -150,7 +145,8 @@ Class ProcParams :=
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
-    allow_misaligned : bool
+    allow_misaligned : bool;
+    support_debug : bool
   }.
 
 Class FpuParams
@@ -224,6 +220,13 @@ End ParamDefinitions.
 Section Params.
   Context `{procPrams: ProcParams}.
   
+  Definition PrivModeWidth  := if support_debug then 3 else 2.
+  Definition PrivMode       := Bit PrivModeWidth.
+  Definition DebugMode      := 4.
+  Definition MachineMode    := 3.
+  Definition SupervisorMode := 1.
+  Definition UserMode       := 0.
+
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst ;

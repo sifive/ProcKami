@@ -42,16 +42,16 @@ Section mem_unit.
     (index : nat) (* 0 based index specifying which call to the page table walker this is. *)
     (satp_mode : Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
+    (mprv : Bool @# ty)
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
     := Read mpp : PrivMode <- ^"mpp";
-       Read mprv : Bool <- ^"mprv";
        Read mxr : Bool <- ^"mxr";
        Read sum : Bool <- ^"sum";
        Read satp_ppn : Bit 44 <- ^"satp_ppn";
        LET effective_mode : PrivMode
-         <- IF access_type != $VmAccessInst && #mprv
+         <- IF access_type != $VmAccessInst && mprv
               then #mpp else mode;
        If #effective_mode != $MachineMode && satp_mode != $SatpModeBare
          then
@@ -85,9 +85,10 @@ Section mem_unit.
          DispHex vaddr;
          DispString _ "\n"
        ];
+       Read mprv : Bool <- ^"mprv";
        LETA paddr
          :  PktWithException PAddr
-         <- memTranslate index satp_mode mode $VmAccessInst vaddr;
+         <- memTranslate index satp_mode mode #mprv $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
@@ -189,6 +190,7 @@ Section mem_unit.
     (exts : Extensions @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
+    (mprv : Bool @# ty)
     (addr : VAddr @# ty)
     (func_unit_id : FuncUnitId func_units @# ty)
     (inst_id : InstId func_units @# ty)
@@ -247,7 +249,7 @@ Section mem_unit.
                (* III. get the physical address *)
                LETA mpaddr
                  :  PktWithException PAddr
-                 <- memTranslate 2 satp_mode mode
+                 <- memTranslate 2 satp_mode mode mprv
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
                         else $VmAccessLoad)
@@ -442,12 +444,14 @@ Section mem_unit.
                      "rl"       ::= update_pkt @% "rl";
                      "reg_data" ::= exec_context_pkt @% "reg2"
                      } : MemUnitInput @# ty;
+              Read mprv : Bool <- ^"mprv";
               LETA memRet
                 :  PktWithException MemRet
                 <- mem_unit_exec
                      exts
                      satp_mode
                      mode
+                     #mprv
                      (xlen_sign_extend Xlen xlen
                        (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                      (decoder_pkt @% "funcUnitTag")

@@ -124,6 +124,18 @@ Section decoder.
                     ($(func_unit_id)    == sel_func_unit_id)))
            f.
 
+    Definition inst_db_func_unit_id (name : string)
+      :  Maybe FuncUnitId ## ty
+      := inst_db_find_pkt
+           (fun func_unit _ _ => RetE $$(String.eqb (fuName func_unit) name))
+           (fun _ func_unit_id _ => RetE ($func_unit_id : FuncUnitId @# ty)).
+
+    Definition inst_db_inst_id (name : string)
+      :  Maybe InstId ## ty
+      := inst_db_find_pkt
+           (fun _ _ tagged_inst => RetE $$(String.eqb (instName (snd tagged_inst)) name))
+           (fun _ _ tagged_inst => RetE ($(fst tagged_inst) : InstId @# ty)).
+
     Definition decode_match_field
                (raw_inst : Inst @# ty)
                (field : FieldRange)

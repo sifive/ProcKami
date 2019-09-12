@@ -147,7 +147,7 @@ Section trap_handling.
          :  Bit pp_width
          <- ^(prefix ++ "pp");
        Write ^(prefix ++ "ie") <- #pie;
-       Write ^"mode" : PrivMode <- ZeroExtendTruncLsb 2 #pp;
+       Write ^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth #pp;
        Write ^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
        Write ^(prefix ++ "pp")
          :  Bit pp_width

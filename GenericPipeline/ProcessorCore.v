@@ -25,6 +25,7 @@ Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.RiscvPipeline.Commit.
+Require Import ProcKami.Debug.Debug.
 
 Section Params.
   Variable name: string.
@@ -49,17 +50,33 @@ Section Params.
     Definition processorCore 
       :  BaseModule
       := MODULE {
-              Register ^"mode"             : PrivMode <- ConstBit (natToWord 2 MachineMode) with
+              Register ^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
               Register ^"pc"               : VAddr <- ConstBit pc_init with
               Node (csr_regs (Csrs name)) with
               Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
+              Node
+                (if support_debug
+                  then
+                    (debug_internal_regs name) ++
+                    (csr_regs (debug_csrs name)) ++
+                    [
+                      Rule ^"debug_send_halt_req"   := debug_send_halt_req name _;
+                      Rule ^"debug_send_resume_req" := debug_send_resume_req name _;
+                      Rule ^"debug_hart_halt"       := debug_hart_halt name _;
+                      Rule ^"debug_hart_resume"     := debug_hart_resume name _
+                    ]
+                  else []) with
               Rule ^"trap_interrupt"
-                := Read mode : PrivMode <- ^"mode";
-                   Read pc : VAddr <- ^"pc";
-                   LETA xlen : XlenValue <- readXlen name #mode;
-                   System [DispString _ "[trap_interrupt]\n"];
-                   interruptAction name #xlen #mode #pc with
+                := LETA run : Bool <- debug_run name _;
+                   If #run
+                     then
+                       Read mode : PrivMode <- ^"mode";
+                       Read pc : VAddr <- ^"pc";
+                       LETA xlen : XlenValue <- readXlen name #mode;
+                       System [DispString _ "[trap_interrupt]\n"];
+                       interruptAction name #xlen #mode #pc;
+                   Retv with
               Rule ^"set_time_interrupt"
                 := Read mtime : Bit 64 <- ^"mtime";
                    Read mtimecmp : Bit 64 <- ^"mtimecmp";
@@ -93,119 +110,122 @@ Section Params.
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
               Rule ^"pipeline"
-                := 
-                   LETA cfg_pkt <- readConfig name _;
-                   Read pc : VAddr <- ^"pc";
-                   System
-                     [
-                       DispString _ "config: ";
-                       DispHex #cfg_pkt;
-                       DispString _ "\n";
-                       DispString _ "PC: ";
-                       DispHex #pc;
-                       DispString _ "\n"
-                     ];
-                   LETA fetch_pkt
-                     :  PktWithException FetchPkt
-                     <- fetch name mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
-                   System
-                     [
-                       DispString _ "Fetch:\n";
-                       DispBinary #fetch_pkt;
-                       DispString _ "\n"
-                     ];
-                   LETA decoder_pkt
-                     :  PktWithException (DecoderPkt (func_units _))
-                     <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt;
-                   System
-                     [
-                       DispString _ "Decode:\n";
-                       DispHex #decoder_pkt;
-                       DispString _ "\n"
-                     ];
-                   System [ DispString _ "Decoded string: " ];
-                   LETA _ <- printFuncUnitInstName (#decoder_pkt @% "fst" @% "funcUnitTag") (#decoder_pkt @% "fst" @% "instTag");
-                   System [ DispString _ "\n" ];
-                   System [DispString _ "Reg Read\n"];
-                   LETA exec_context_pkt
-                     :  PktWithException ExecContextPkt
-                     <- readerWithException name #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
-                   System
-                     [
-                       DispString _ "Reg Reader:\n";
-                       DispHex #exec_context_pkt;    
-                       DispString _ "\n"
-                     ];
-                   System [DispString _ "Trans\n"];
-                   LETA trans_pkt
-                     :  PktWithException (InputTransPkt (func_units _))
-                     <- transWithException #cfg_pkt (#decoder_pkt @% "fst") #exec_context_pkt;
-                   System [DispString _ "Executor\n"];
-                   LETA exec_update_pkt
-                     :  PktWithException ExecUpdPkt
-                     <- execWithException #trans_pkt;
-                   System
-                     [
-                       DispString _ "New Reg Vals\n";
-                       DispHex #exec_update_pkt;
-                       DispString _ "\n"
-                     ];
-                   System [DispString _ "Csr Write\n"];
-                   LETA mcounteren <- read_counteren _ ^"mcounteren";
-                   LETA scounteren <- read_counteren _ ^"scounteren";
-                   Read mepc_raw : VAddr <- ^"mepc";
-                   LET  mepc : VAddr <- maskEpc #cfg_pkt #mepc_raw;
-                   LETA csr_update_pkt
-                     :  PktWithException ExecUpdPkt
-                     <- CsrUnit
-                          name
-                          (Csrs name)
-                          #mcounteren
-                          #scounteren
-                          #pc
-                          #mepc
-                          (#decoder_pkt @% "fst" @% "inst")
-                          (#fetch_pkt @% "fst" @% "compressed?")
-                          #cfg_pkt
-                          (rd (#exec_context_pkt @% "fst" @% "inst"))
-                          (rs1 (#exec_context_pkt @% "fst" @% "inst"))
-                          (imm (#exec_context_pkt @% "fst" @% "inst"))
-                          #exec_update_pkt;
-                   System
-                     [
-                       DispString _ "Csr Unit:\n";
-                       DispHex #csr_update_pkt;    
-                       DispString _ "\n"
-                     ];
-                   LETA mem_update_pkt
-                     :  PktWithException ExecUpdPkt
-                     <- MemUnit name mem_table
-                          (#cfg_pkt @% "extensions")
-                          (#cfg_pkt @% "xlen")
-                          (#cfg_pkt @% "satp_mode")
-                          (#cfg_pkt @% "mode")
-                          (#decoder_pkt @% "fst")
-                          (#exec_context_pkt @% "fst")
-                          (#exec_update_pkt @% "fst")
-                          (#csr_update_pkt @% "snd");
-                   System
-                     [
-                       DispString _ "Memory Unit:\n";
-                       DispHex #mem_update_pkt;    
-                       DispString _ "\n"
-                     ];
-                   System [DispString _ "Reg Write\n"];
-                   LETA commit_pkt
-                     :  Void
-                     <- commit
-                          name
-                          #pc
-                          (#decoder_pkt @% "fst" @% "inst")
-                          #cfg_pkt
-                          (#exec_context_pkt @% "fst")
-                          (#mem_update_pkt @% "fst")
-                          (#mem_update_pkt @% "snd");
-                   System [DispString _ "Inc PC\n"];
+                := LETA run : Bool <- debug_run name _;
+                   If #run
+                     then
+                       LETA cfg_pkt <- readConfig name _;
+                       Read pc : VAddr <- ^"pc";
+                       System
+                         [
+                           DispString _ "config: ";
+                           DispHex #cfg_pkt;
+                           DispString _ "\n";
+                           DispString _ "PC: ";
+                           DispHex #pc;
+                           DispString _ "\n"
+                         ];
+                       LETA fetch_pkt
+                         :  PktWithException FetchPkt
+                         <- fetch name mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                       System
+                         [
+                           DispString _ "Fetch:\n";
+                           DispBinary #fetch_pkt;
+                           DispString _ "\n"
+                         ];
+                       LETA decoder_pkt
+                         :  PktWithException (DecoderPkt (func_units _))
+                         <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt;
+                       System
+                         [
+                           DispString _ "Decode:\n";
+                           DispHex #decoder_pkt;
+                           DispString _ "\n"
+                         ];
+                       System [ DispString _ "Decoded string: " ];
+                       LETA _ <- printFuncUnitInstName (#decoder_pkt @% "fst" @% "funcUnitTag") (#decoder_pkt @% "fst" @% "instTag");
+                       System [ DispString _ "\n" ];
+                       System [DispString _ "Reg Read\n"];
+                       LETA exec_context_pkt
+                         :  PktWithException ExecContextPkt
+                         <- readerWithException name #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
+                       System
+                         [
+                           DispString _ "Reg Reader:\n";
+                           DispHex #exec_context_pkt;    
+                           DispString _ "\n"
+                         ];
+                       System [DispString _ "Trans\n"];
+                       LETA trans_pkt
+                         :  PktWithException (InputTransPkt (func_units _))
+                         <- transWithException #cfg_pkt (#decoder_pkt @% "fst") #exec_context_pkt;
+                       System [DispString _ "Executor\n"];
+                       LETA exec_update_pkt
+                         :  PktWithException ExecUpdPkt
+                         <- execWithException #trans_pkt;
+                       System
+                         [
+                           DispString _ "New Reg Vals\n";
+                           DispHex #exec_update_pkt;
+                           DispString _ "\n"
+                         ];
+                       System [DispString _ "Csr Write\n"];
+                       LETA mcounteren <- read_counteren _ ^"mcounteren";
+                       LETA scounteren <- read_counteren _ ^"scounteren";
+                       Read mepc_raw : VAddr <- ^"mepc";
+                       LET  mepc : VAddr <- maskEpc #cfg_pkt #mepc_raw;
+                       LETA csr_update_pkt
+                         :  PktWithException ExecUpdPkt
+                         <- CsrUnit
+                              name
+                              (Csrs name)
+                              #mcounteren
+                              #scounteren
+                              #pc
+                              #mepc
+                              (#decoder_pkt @% "fst" @% "inst")
+                              (#fetch_pkt @% "fst" @% "compressed?")
+                              #cfg_pkt
+                              (rd (#exec_context_pkt @% "fst" @% "inst"))
+                              (rs1 (#exec_context_pkt @% "fst" @% "inst"))
+                              (imm (#exec_context_pkt @% "fst" @% "inst"))
+                              #exec_update_pkt;
+                       System
+                         [
+                           DispString _ "Csr Unit:\n";
+                           DispHex #csr_update_pkt;    
+                           DispString _ "\n"
+                         ];
+                       LETA mem_update_pkt
+                         :  PktWithException ExecUpdPkt
+                         <- MemUnit name mem_table
+                              (#cfg_pkt @% "extensions")
+                              (#cfg_pkt @% "xlen")
+                              (#cfg_pkt @% "satp_mode")
+                              (#cfg_pkt @% "mode")
+                              (#decoder_pkt @% "fst")
+                              (#exec_context_pkt @% "fst")
+                              (#exec_update_pkt @% "fst")
+                              (#csr_update_pkt @% "snd");
+                       System
+                         [
+                           DispString _ "Memory Unit:\n";
+                           DispHex #mem_update_pkt;    
+                           DispString _ "\n"
+                         ];
+                       System [DispString _ "Reg Write\n"];
+                       LETA commit_pkt
+                         :  Void
+                         <- commit
+                              name
+                              #pc
+                              (#decoder_pkt @% "fst" @% "inst")
+                              #cfg_pkt
+                              (#exec_context_pkt @% "fst")
+                              (#mem_update_pkt @% "fst")
+                              (#mem_update_pkt @% "snd");
+                       System [DispString _ "Inc PC\n"];
+                       Retv;
                    Retv
          }.
 
@@ -215,7 +235,7 @@ Section Params.
            false
            1
            (^"int_data_reg")
-           (Async [(^"read_reg_1"); (^"read_reg_2")])
+           (Async [(^"read_reg_1"); (^"read_reg_2"); (^"debug_read_reg")])
            (^"regWrite")
            32
            (Bit Xlen)
