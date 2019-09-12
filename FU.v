@@ -382,13 +382,80 @@ Section Params.
   End Extensions.
   
   Section Xlen.
-    Definition ImplXlens :=
+    Definition ImplXlens' :=
       filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && negb (0 =? x)%nat) supported_xlens.
-    
+
+    Definition maxXlen := (Nat.log2_up Xlen_over_8 - 1).
+
+    Definition ImplXlens := if existsb (Nat.eqb maxXlen) ImplXlens'
+                            then ImplXlens'
+                            else maxXlen :: ImplXlens'.
+
+    Lemma ImplXlens_contains_max:
+      In maxXlen ImplXlens.
+    Proof.
+      unfold ImplXlens.
+      induction ImplXlens'; simpl; auto.
+      destruct (maxXlen =? a)%nat eqn: G; simpl in *.
+      - left.
+        rewrite Nat.eqb_eq in G; congruence.
+      - destruct (existsb (Nat.eqb maxXlen) l); simpl; auto.
+    Qed.
+
     Definition xlenFix ty (xlen: XlenValue @# ty): XlenValue @# ty :=
       (IF utila_any (map (fun x => xlen == $x) ImplXlens)
        then xlen
-       else $(Nat.log2_up Xlen_over_8 - 1))%kami_expr.
+       else $maxXlen)%kami_expr.
+
+    Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => $x) ImplXlens).
+    Proof.
+      unfold xlenFix; simpl; intros.
+      match goal with
+      | |- context [if ?P then _ else _] => destruct P eqn: G
+      end.
+      - rewrite utila_any_correct in G.
+        rewrite Exists_exists in G.
+        dest.
+        repeat (rewrite in_map_iff in *; dest); subst.
+        simpl in *.
+        exists x0; repeat constructor; auto.
+        destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
+      - rewrite utila_any_correct_false in G.
+        rewrite Forall_forall in G.
+        repeat (rewrite in_map_iff in *; dest); subst.
+        exists maxXlen.
+        split; auto.
+        apply ImplXlens_contains_max.
+    Qed.
+
+    Lemma xlen_in_xlenFix: forall xlen: XlenValue @# _,
+        In (evalExpr xlen) (map (fun x => $x) ImplXlens) -> evalExpr (xlenFix xlen) = evalExpr xlen.
+    Proof.
+      intros.
+      unfold xlenFix.
+      simpl.
+      match goal with
+      | |- context [if ?P then _ else _] => destruct P eqn: G
+      end; auto.
+      rewrite utila_any_correct_false in G.
+      rewrite Forall_forall in *.
+      rewrite in_map_iff in H; dest.
+      specialize (G (xlen == Const type ($x)%word)%kami_expr); simpl in *.
+      destruct (weq (evalExpr xlen) $x); simpl in *; [|congruence].
+      match type of G with
+      | ?P -> _ => assert P as sth;[|specialize (G sth); discriminate]
+      end.
+      rewrite in_map_iff.
+      exists x.
+      repeat split; auto.
+    Qed.
+    
+    Lemma xlenFix_idempotent: forall xlen , evalExpr (xlenFix (xlenFix xlen)) =  evalExpr (xlenFix xlen).
+    Proof.
+      intros.
+      apply xlen_in_xlenFix.
+      apply xlenFix_in_ImplXlens.
+    Qed.
   End Xlen.
 
   Section PrivModes.
