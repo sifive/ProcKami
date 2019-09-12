@@ -9,6 +9,16 @@ Section Decompressor.
 
   Open Scope kami_expr.
 
+  Definition compressed_inst_match_enabled_exts
+             (exts: list string)
+             (exts_pkt : Extensions @# ty)
+    :  Bool ## ty
+    := utila_expr_all
+         (map
+            (fun ext : string
+               => RetE (struct_get_field_default exts_pkt ext $$false))
+            exts)%kami_expr.
+
   Definition decompress
       (comp_inst_db : list (CompInstEntry ty))
       (ctxt : ContextCfgPkt @# ty)
@@ -29,8 +39,8 @@ Section Decompressor.
                       (ctxt @% "xlen");
                LETE exts_match
                  :  Bool
-                 <- inst_match_enabled_exts
-                      (req_exts comp_inst_entry)
+                 <- compressed_inst_match_enabled_exts
+                      ("C" :: req_exts comp_inst_entry)
                       (ctxt @% "extensions");
                (* SystemE (
                  DispString _ ("[decompress] ===== ") ::
@@ -48,8 +58,7 @@ Section Decompressor.
                  DispString _ "\n" ::
                  nil
                ); *)
-               RetE (#inst_match && #xlens_match && #exts_match &&
-                      struct_get_field_default (ctxt @% "extensions") "C" ($$false)))
+               RetE (#inst_match && #xlens_match && #exts_match))
          (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 
