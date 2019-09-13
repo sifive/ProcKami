@@ -158,7 +158,7 @@ Section exts.
 
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
-  Variable pc_init_val: word 64.
+  Variable pc_init_val: word (Xlen_over_8 * 8).
 
   Local Definition procParams
     := Build_ProcParams Xlen_over_8 Flen_over_8
@@ -303,40 +303,36 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
-           mtbl_entry_addr := 64'h"1000"; (* 4096%N *)
-           mtbl_entry_width := 64'h"1000"; (* 4096%N; *)
-           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt)) (* boot rom *)
+           mtbl_entry_addr := _ 'h"1000";
+           mtbl_entry_width := _ 'h"1000";
+           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
-           mtbl_entry_addr := 64'h"2000000"; (* 33554432%N; *)
-           mtbl_entry_width := 64'h"8"; (* 8%N; *)
-           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt)) (* msip *) 
+           mtbl_entry_addr := _ 'h"2000000";
+           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* msip *) 
          |};
          {|
-           mtbl_entry_addr := 64'h"2004000"; (* 33570816%N; *)
-           mtbl_entry_width := 64'h"8"; (* 8%N; *)
-           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtimecmp *)
+           mtbl_entry_addr := _ 'h"2004000";
+           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtimecmp *)
          |};
          {|
-           mtbl_entry_addr := 64'h"200bff8"; (* 33603576%N; *)
-           mtbl_entry_width := 64'h"8"; (* 8%N; *)
-           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtime *)
+           mtbl_entry_addr := _ 'h"200bff8";
+           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtime *)
          |};
          {|
-           mtbl_entry_addr := 64'h"80000000"; (* N.pow 2 31; *)
-           mtbl_entry_width := 64'h"100000"; (* N.pow 2 20; *)
-           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt))
+           mtbl_entry_addr := _ 'h"80000000";
+           mtbl_entry_width := _ 'h"100000";
+           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt))
          |};
          {|
-           mtbl_entry_addr := 64'h"C0000000"; (* 32212254725%N; *)
-           mtbl_entry_width := 64'h"80"; (* 128%N; *)
-           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt))
+           mtbl_entry_addr := _ 'h"C0000000";
+           mtbl_entry_width := _ 'h"80";
+           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
          |}
        ].
-
-  (* verify tha the memory table is valid *)
-  Goal (mem_regions mem_table) <> [].
-  Proof. discriminate. Qed.
 
   (* V. the model generator. *)
 

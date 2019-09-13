@@ -970,52 +970,11 @@ Section Params.
     Definition DeviceTag (mem_devices : list MemDevice)
       := Bit (Nat.log2_up (length mem_devices)).
 
-    Local Open Scope kami_action.
-    Local Open Scope kami_expr.
-    (*
-      Note: we assume that device tags will always be valid given
-      the constraints we apply in generating them.
-     *)
-    Definition mem_device_apply ty
-               (mem_devices : list MemDevice)
-               (tag : DeviceTag mem_devices @# ty)
-               (k : Kind)
-               (f : MemDevice -> ActionT ty k)
-      :  ActionT ty k
-      := LETA result
-         :  Maybe k
-                  <- snd
-                  (fold_right
-                     (fun device acc
-                      => (S (fst acc),
-                          LETA acc_result : Maybe k <- snd acc;
-                            (* System [
-                          DispString _ "[mem_device_apply] device tag: ";
-                          DispHex tag;
-                          DispString _ "\n";
-                          DispString _ ("[mem_device_apply] device: " ++ match mem_device_type device with main_memory => "main memory" | io_device => "io device" end ++ "\n")
-                        ]; *)
-                            If #acc_result @% "valid" || $(fst acc) != tag
-                          then
-                            (* System [DispString _ "[mem_device_apply] did not match\n"]; *)
-                            Ret #acc_result
-                          else
-                            System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
-                            LETA result : k <- f device;
-                            Ret (Valid #result : Maybe k @# ty)
-                              as result;
-                            Ret #result))
-                     (0, Ret Invalid)
-                     mem_devices);
-           Ret (#result @% "data").
-    Local Close Scope kami_expr.
-    Local Close Scope kami_action.
-
     Record MemTableEntry
            (mem_devices : list MemDevice)
       := {
-          mtbl_entry_addr : word 64;
-          mtbl_entry_width : word 64;
+          mtbl_entry_addr : word PAddrSz;
+          mtbl_entry_width : word PAddrSz;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
   End Device.
