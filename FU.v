@@ -220,10 +220,12 @@ End ParamDefinitions.
 Section Params.
   Context `{procPrams: ProcParams}.
   
-  Definition PrivModeWidth  := if support_debug then 3 else 2.
+  (* Definition PrivModeWidth  := if support_debug then 3 else 2. *)
+  Definition PrivModeWidth  := 3.
   Definition PrivMode       := Bit PrivModeWidth.
   Definition DebugMode      := 4.
   Definition MachineMode    := 3.
+  Definition HypervisorMode := 2.
   Definition SupervisorMode := 1.
   Definition UserMode       := 0.
 
@@ -384,14 +386,152 @@ Section Params.
   End Extensions.
   
   Section Xlen.
-    Definition ImplXlens :=
-      filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && (0 <? x)) supported_xlens.
-    
+    Definition ImplXlens' :=
+      filter (fun x => ((Nat.pow 2 (S x)) <=? Xlen_over_8) && negb (0 =? x)%nat) supported_xlens.
+
+    Definition maxXlen := (Nat.log2_up Xlen_over_8 - 1).
+
+    Definition ImplXlens := if existsb (Nat.eqb maxXlen) ImplXlens'
+                            then ImplXlens'
+                            else maxXlen :: ImplXlens'.
+
+    Lemma ImplXlens_contains_max:
+      In maxXlen ImplXlens.
+    Proof.
+      unfold ImplXlens.
+      induction ImplXlens'; simpl; auto.
+      destruct (maxXlen =? a)%nat eqn: G; simpl in *.
+      - left.
+        rewrite Nat.eqb_eq in G; congruence.
+      - destruct (existsb (Nat.eqb maxXlen) l); simpl; auto.
+    Qed.
+
     Definition xlenFix ty (xlen: XlenValue @# ty): XlenValue @# ty :=
       (IF utila_any (map (fun x => xlen == $x) ImplXlens)
        then xlen
-       else $(Nat.log2_up Xlen_over_8 - 1))%kami_expr.
+       else $maxXlen)%kami_expr.
+
+    Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => $x) ImplXlens).
+    Proof.
+      unfold xlenFix; simpl; intros.
+      match goal with
+      | |- context [if ?P then _ else _] => destruct P eqn: G
+      end.
+      - rewrite utila_any_correct in G.
+        rewrite Exists_exists in G.
+        dest.
+        repeat (rewrite in_map_iff in *; dest); subst.
+        simpl in *.
+        exists x0; repeat constructor; auto.
+        destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
+      - rewrite utila_any_correct_false in G.
+        rewrite Forall_forall in G.
+        repeat (rewrite in_map_iff in *; dest); subst.
+        exists maxXlen.
+        split; auto.
+        apply ImplXlens_contains_max.
+    Qed.
+
+    Lemma xlen_in_xlenFix: forall xlen: XlenValue @# _,
+        In (evalExpr xlen) (map (fun x => $x) ImplXlens) -> evalExpr (xlenFix xlen) = evalExpr xlen.
+    Proof.
+      intros.
+      unfold xlenFix.
+      simpl.
+      match goal with
+      | |- context [if ?P then _ else _] => destruct P eqn: G
+      end; auto.
+      rewrite utila_any_correct_false in G.
+      rewrite Forall_forall in *.
+      rewrite in_map_iff in H; dest.
+      specialize (G (xlen == Const type ($x)%word)%kami_expr); simpl in *.
+      destruct (weq (evalExpr xlen) $x); simpl in *; [|congruence].
+      match type of G with
+      | ?P -> _ => assert P as sth;[|specialize (G sth); discriminate]
+      end.
+      rewrite in_map_iff.
+      exists x.
+      repeat split; auto.
+    Qed.
+    
+    Lemma xlenFix_idempotent: forall xlen , evalExpr (xlenFix (xlenFix xlen)) =  evalExpr (xlenFix xlen).
+    Proof.
+      intros.
+      apply xlen_in_xlenFix.
+      apply xlenFix_in_ImplXlens.
+    Qed.
   End Xlen.
+
+  Section PrivModes.
+    Section Ty.
+      Variable ty: Kind -> Type.
+      Variable ext: Extensions @# ty.
+      Section Mode.
+        Variable mode: PrivMode @# ty.
+        Definition modeSet := ((mode == $MachineMode)
+                               || (mode == $DebugMode)
+                               || (mode == $HypervisorMode && struct_get_field_default ext "H" ($$false))
+                               || (mode == $SupervisorMode && struct_get_field_default ext "S" ($$false))
+                               || (mode == $UserMode && struct_get_field_default ext "U" ($$false)))%kami_expr.
+        Definition modeFix :=
+          (IF modeSet
+           then mode
+           else $MachineMode)%kami_expr.
+      End Mode.
+    End Ty.
+    
+    Lemma modeFix_idempotent ext: forall mode, evalExpr (modeFix ext (modeFix ext mode)) =  evalExpr (modeFix ext mode).
+    Proof.
+      unfold modeFix.
+      unfold HypervisorMode, SupervisorMode, UserMode, DebugMode, MachineMode in *.
+      simpl; intros.
+      repeat match goal with
+             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
+                                          try solve [rewrite ?e in *; exfalso; word_omega]
+             | H: context [if ?P then _ else _] |- _ => let G := fresh "G" in
+                                                        destruct P eqn: G;
+                                                          try solve [rewrite ?e1 in *; exfalso; word_omega]
+                                                                                                      
+             end; auto.
+    Qed.
+  End PrivModes.
+
+  Section DecoderHelpers.
+    Variable ty: Kind -> Type.
+    Variable n: nat.
+    
+    Definition inst_match_field
+               (inst: Bit n @# ty)
+               (field: FieldRange)
+      := (LETE x <- extractArbitraryRange (RetE inst) (projT1 field);
+            RetE (#x == $$ (projT2 field)))%kami_expr.
+
+    Definition inst_match_id
+               (inst: Bit n @# ty)
+               (inst_id : UniqId)
+      :  Bool ## ty
+      := utila_expr_all (map (inst_match_field inst) inst_id).
+
+    Definition inst_match_xlen
+               (supp_xlens: list nat)
+               (xlen : XlenValue @# ty)
+      :  Bool ## ty
+      := (RetE
+            (utila_any
+               (map
+                  (fun supported_xlen => xlenFix xlen == $supported_xlen)
+                  supp_xlens)))%kami_expr.
+
+    Definition inst_match_enabled_exts
+               (exts: list string)
+               (exts_pkt : Extensions @# ty)
+      :  Bool ## ty
+      := utila_expr_any
+           (map
+              (fun ext : string
+                 => RetE (struct_get_field_default exts_pkt ext $$false))
+              exts)%kami_expr.
+  End DecoderHelpers.
   
   Section ty.
     Variable ty: Kind -> Type.
@@ -642,8 +782,8 @@ Section Params.
                  (n m : nat)
         := @extendMsbWithFunc (@OneExtendTruncLsb ty) n m
                               (if Nat.eqb Flen_over_8 4
-                               then $1
-                               else $2)%kami_expr.
+                               then $Xlen32
+                               else $Xlen64)%kami_expr.
     End XlenInterface.
     
     Definition ContextCfgPkt :=
@@ -681,7 +821,7 @@ Section Params.
     Record CompInstEntry
       := {
           comp_inst_xlens: list nat;
-          req_exts: list (list string);
+          req_exts: list string;
           comp_inst_id: UniqId;
           decompressFn: (CompInst @# ty) -> (Inst ## ty)
         }.

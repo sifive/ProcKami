@@ -31,9 +31,11 @@ Section trap_handling.
        Read ie : Bool <- ^(prefix ++ "ie");
        Write ^(prefix ++ "pie") : Bool <- #ie;
        Write ^(prefix ++ "ie") : Bool <- $$false;
+       Read extRegs: ExtensionsReg <- ^"extRegs";
+       LET extensions: Extensions <- ExtRegToExt #extRegs;
        Write ^(prefix ++ "pp")
          :  Bit pp_width
-         <- ZeroExtendTruncLsb pp_width mode;
+         <- ZeroExtendTruncLsb pp_width (modeFix #extensions mode);
        (* section 3.1.12 *)
        Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
        Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
@@ -88,7 +90,7 @@ Section trap_handling.
 (*           Retv; *)
        (* section 3.1.22 *)
        Write ^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
-       Write ^"mode" : PrivMode <- next_mode;
+       Write ^"mode" : PrivMode <- modeFix #extensions next_mode;
        System [
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
@@ -147,11 +149,13 @@ Section trap_handling.
          :  Bit pp_width
          <- ^(prefix ++ "pp");
        Write ^(prefix ++ "ie") <- #pie;
-       Write ^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth #pp;
+       Read extRegs: ExtensionsReg <- ^"extRegs";
+       LET extensions: Extensions <- ExtRegToExt #extRegs;
+       Write ^"mode" : PrivMode <- modeFix #extensions (ZeroExtendTruncLsb _ #pp);
        Write ^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
        Write ^(prefix ++ "pp")
          :  Bit pp_width
-         <- ZeroExtendTruncLsb pp_width (Const ty (natToWord 2 UserMode));
+         <- ZeroExtendTruncLsb pp_width (modeFix #extensions (Const ty (natToWord _ UserMode)));
        System [
          DispString _ "[Register Writer.retAction]\n";
          DispString _ ("[retAction] prefix: " ++ prefix ++ "\n");

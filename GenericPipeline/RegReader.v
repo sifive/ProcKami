@@ -1,7 +1,6 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.
-(* Require Import RiscvIsaSpec.Csr.CsrFuncs. *)
 Require Import List.
 Import ListNotations.
 
@@ -45,9 +44,9 @@ Section reg_reader.
                     (filter
                        (fun inst
                         => p (fuInputK func_unit) (fuOutputK func_unit) (snd inst))
-                       (tag (fuInsts func_unit)))) &&
-                                                   ($(fst tagged_func_unit)
-                                                    == (decoder_pkt @% "funcUnitTag"))))
+                       (tag (fuInsts func_unit))))
+                   && ($(fst tagged_func_unit) == (decoder_pkt @% "funcUnitTag"))
+            ))
             (tag func_units)).
 
   Local Definition reg_reader_has (which: InstHints -> bool) pkt :=
@@ -76,6 +75,7 @@ Section reg_reader.
        Ret (flen_one_extend Rlen (ReadArrayConst #freg_val Fin.F1)).
 
   Definition reg_reader
+    (pc: VAddr @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : DecoderPkt func_units @# ty)
     (compressed : Bool @# ty)
@@ -126,7 +126,7 @@ Section reg_reader.
          ] Retv;
        Ret
          (STRUCT {
-              "pc"          ::= decoder_pkt @% "pc";
+              "pc"          ::= pc;
               "reg1"        ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
                                  (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
               "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
@@ -139,6 +139,7 @@ Section reg_reader.
             } : ExecContextPkt @# ty).
 
   Definition readerWithException
+    (pc: VAddr @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : PktWithException (DecoderPkt func_units) @# ty)
     (compressed : Bool @# ty)
@@ -149,7 +150,7 @@ Section reg_reader.
          (fun decoder_pkt : DecoderPkt func_units @# ty
            => LETA exec_context_pkt
                 :  ExecContextPkt
-                <- reg_reader cfg_pkt decoder_pkt compressed;
+                <- reg_reader pc cfg_pkt decoder_pkt compressed;
               Ret (STRUCT {
                   "fst" ::= #exec_context_pkt;
                   "snd" ::= Invalid

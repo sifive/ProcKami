@@ -79,7 +79,7 @@ Section mem_unit.
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty) 
     (vaddr : VAddr @# ty)
-    :  ActionT ty (PktWithException Data)
+    :  ActionT ty (PktWithException CompInst)
     := System [
          DispString _ "[memFetch] fetching vaddr: ";
          DispHex vaddr;
@@ -100,7 +100,7 @@ Section mem_unit.
              (STRUCT {
                 "fst" ::= $0;
                 "snd" ::= #paddr @% "snd"
-              } : PktWithException Data @# ty)
+              } : PktWithException CompInst @# ty)
          else
            LETA pmp_result
              :  Pair (Pair DeviceTag PAddr) MemErrorPkt
@@ -119,14 +119,14 @@ Section mem_unit.
                Ret (STRUCT {
                    "fst" ::= $0;
                    "snd" ::= #exception
-                 } : PktWithException Data @# ty)
+                 } : PktWithException CompInst @# ty)
              else
                LETA inst
                  :  Maybe Data
                  <- mem_region_read index
                       (#pmp_result @% "fst" @% "fst") 
                       (#pmp_result @% "fst" @% "snd")
-                      $2;
+                      $1;
                System [
                  DispString _ "[memFetch] fetched upper bits: ";
                  DispHex #inst;
@@ -139,12 +139,12 @@ Section mem_unit.
                       "value"     ::= vaddr
                     } : FullException @# ty;
                Ret (STRUCT {
-                   "fst" ::= #inst @% "data";
+                   "fst" ::= ZeroExtendTruncLsb 16 (#inst @% "data");
                    "snd"
                      ::= IF #inst @% "valid"
                            then Invalid
                            else Valid #exception
-                 } : PktWithException Data @# ty)
+                 } : PktWithException CompInst @# ty)
              as result;
            Ret #result
          as result;
