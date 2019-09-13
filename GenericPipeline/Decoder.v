@@ -184,7 +184,7 @@ Section decoder.
       :  Maybe DecoderPkt ## ty
       := LETE opt_decoder_pkt: Maybe DecoderPkt <- decode_nonzero ctxt raw_inst;
            LETC decoder_pkt: DecoderPkt <- #opt_decoder_pkt @% "data";
-           RetE ((STRUCT { "valid" ::= #opt_decoder_pkt @% "valid" && raw_inst != $0 ;
+           RetE ((STRUCT { "valid" ::= #opt_decoder_pkt @% "valid" ;
                            "data" ::= #decoder_pkt }): Maybe DecoderPkt @# ty).
 
     Definition printFuncUnitInstName (fu: FuncUnitId @# ty) (inst: InstId @# ty): ActionT ty Void :=

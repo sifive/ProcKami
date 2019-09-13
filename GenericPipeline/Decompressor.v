@@ -58,7 +58,7 @@ Section Decompressor.
                  DispString _ "\n" ::
                  nil
                ); *)
-               RetE (#inst_match && #xlens_match && #exts_match))
+               RetE (#inst_match && #xlens_match && #exts_match && raw_comp_inst != $0))
          (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 
