@@ -13,7 +13,7 @@ Import ListNotations.
 
 Section debug.
   Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
+  Local Notation "@^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable mem_devices : list MemDevice.
   Variable mem_table : list (MemTableEntry mem_devices).
@@ -24,14 +24,19 @@ Section debug.
   Open Scope kami_action.
 
   Open Scope kami_scope.
+
+  Definition debug_hart_state
+    := STRUCT_TYPE {
+         "halted"    :: Bool;
+         "haltreq"   :: Bool;
+         "resumereq" :: Bool;
+         "resumeack" :: Bool
+       }.
+
   Definition debug_internal_regs
     := [
          (* hart state registers 3.5 *)
-         Register ^"hart_state_resumereq" : Bit debug_num_harts <- ConstBit (wzero debug_num_harts);
-         Register ^"hart_state_haltreq"   : Bit debug_num_harts <- ConstBit (wzero debug_num_harts);
-         Register ^"hart_state_resumeack" : Bit debug_num_harts <- ConstBit (wzero debug_num_harts);
-         Register ^"hart_state_halted"    : Bit debug_num_harts <- ConstBit (wzero debug_num_harts);
-         Register ^"hart_state_running"   : Bit debug_num_harts <- ConstBit (wzero debug_num_harts)
+         Register @^"hart_states" : Array debug_num_harts debug_hart_state <- ConstArray (fun _ => getDefaultConst debug_hart_state)
        ].
 
   Local Definition debug_csr_view (fields : list CsrField) : list CsrView
@@ -58,8 +63,9 @@ Section debug.
     (name : string)
     (addr : word CsrIdWidth)
     (k : Kind) : Csr
-    := debug_csr name addr [@csrFieldAny _ ^name k k None].
+    := debug_csr name addr [@csrFieldAny _ @^name k k None].
 
+  (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
     := [
@@ -75,16 +81,16 @@ Section debug.
            csrViews
              := debug_csr_view
                   [
-                    @csrFieldAny _ ^"haltreq" Bool Bool None;
-                    @csrFieldAny _ ^"resumereq" Bool Bool None;
-                    @csrFieldAny _ ^"hartreset" Bool Bool None;
-                    @csrFieldAny _ ^"ackhavereset" Bool Bool None;
+                    @csrFieldAny _ @^"haltreq" Bool Bool None;
+                    @csrFieldAny _ @^"resumereq" Bool Bool None;
+                    @csrFieldAny _ @^"hartreset" Bool Bool None;
+                    @csrFieldAny _ @^"ackhavereset" Bool Bool None;
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
-                    @csrFieldAny _ ^"hasel" Bool Bool None;
-                    @csrFieldAny _ ^"hartsel" (Bit 20) (Bit 20) None;
+                    @csrFieldAny _ @^"hasel" Bool Bool None;
+                    @csrFieldAny _ @^"hartsel" (Array 20 Bool) (Bit 20) None;
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
-                    @csrFieldAny _ ^"ndmreset" Bool Bool None;
-                    @csrFieldAny _ ^"dmactive" Bool Bool None
+                    @csrFieldAny _ @^"ndmreset" Bool Bool None;
+                    @csrFieldAny _ @^"dmactive" Bool Bool None
                   ];
            csrAccess := accessDMode
          |};
@@ -95,13 +101,13 @@ Section debug.
              := debug_csr_view
                   [
                     @csrFieldNoReg _ "reserved0" (Bit 3) (getDefaultConst _);
-                    @csrFieldNoReg _ ^"progbufsize" (Bit 5) (getDefaultConst _);
+                    @csrFieldNoReg _ @^"progbufsize" (Bit 5) (getDefaultConst _);
                     @csrFieldNoReg _ "reserved1" (Bit 11) (getDefaultConst _);
-                    @csrFieldAny _ ^"busy" Bool Bool None;
+                    @csrFieldAny _ @^"busy" Bool Bool None;
                     @csrFieldNoReg _ "reserved2" (Bit 1) (getDefaultConst _);
-                    @csrFieldAny _ ^"cmderr" (Bit 3) (Bit 3) None;
+                    @csrFieldAny _ @^"cmderr" (Bit 3) (Bit 3) None;
                     @csrFieldNoReg _ "reserved3" (Bit 4) (getDefaultConst _);
-                    @csrFieldNoReg _ ^"datacount" (Bit 4) (natToWord 4 6) (* number of data regs. See table 3.1 *)
+                    @csrFieldNoReg _ @^"datacount" (Bit 4) (natToWord 4 6) (* number of data regs. See table 3.1 *)
                   ];
            csrAccess := accessDMode
          |};
@@ -111,8 +117,8 @@ Section debug.
            csrViews
              := debug_csr_view
                   [
-                    @csrFieldAny _ ^"cmdtype" (Bit 8) (Bit 8) None;
-                    @csrFieldAny _ ^"control" (Bit 24) (Bit 24) None
+                    @csrFieldAny _ @^"cmdtype" (Bit 8) (Bit 8) None;
+                    @csrFieldAny _ @^"control" (Bit 24) (Bit 24) None
                   ];
            csrAccess := accessDMode
          |}
@@ -125,32 +131,36 @@ Section debug.
 
     Local Definition debug_states_set (name : string) (value : Bool @# ty)
       :  ActionT ty Void
-      := Read hartsel : Bit debug_num_harts <- ^"hartsel";
-         Read states : Bit debug_num_harts <- name;
-         Write name : Bit debug_num_harts
-           <- IF value
-                then #states | #hartsel
-                else #states & ~#hartsel;
+      := Read hartsel : Array debug_num_harts Bool  <- @^"hartsel";
+         Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
+         Write @^"hart_states"
+           :  Array debug_num_harts debug_hart_state
+           <- BuildArray
+                (fun i
+                  => let j := fin_to_bit i in
+                     IF #hartsel@[j]
+                     then struct_set_field_default (#states@[j]) name value
+                     else #states@[j]);
          Retv.
 
     (* See 3.5 *)
     (* TODO: wrap this action in a rule. *)
     Definition debug_send_halt_req
       :  ActionT ty Void
-      := Read haltreq : Bool <- ^"haltreq";
+      := Read haltreq : Bool <- @^"haltreq";
          If #haltreq
-           then debug_states_set ^"hart_state_haltreq" $$true;
+           then debug_states_set "haltreq" $$true;
          Retv.
 
     (* See 3.5 *)
     (* TODO: wrap this action in a rule. *)
     Definition debug_send_resume_req
       :  ActionT ty Void
-      := Read resumereq : Bool <- ^"resumereq";
+      := Read resumereq : Bool <- @^"resumereq";
          If #resumereq
            then 
-             LETA _ <- debug_states_set ^"hart_state_resumeack" $$false;
-             LETA _ <- debug_states_set ^"hart_state_reumereq" $$true;
+             LETA _ <- debug_states_set @^"resumeack" $$false;
+             LETA _ <- debug_states_set @^"reumereq" $$true;
              Retv;
          Retv.
 
@@ -162,48 +172,46 @@ Section debug.
          (* write any running *)
          (* write all running *)
 
-    Local Definition debug_hart_state_read (name : string)
-      :  ActionT ty Bool
-      := Read hart : Bit Xlen <- ^"mhartid";
-         Read states : Bit debug_num_harts <- name;
-         Ret ((#states >> #hart)$[0:0] == $1).
+    Local Definition debug_hart_state_read
+      :  ActionT ty debug_hart_state
+      := Read hart : Bit Xlen <- @^"mhartid";
+         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
+         Ret (#states@[#hart ]).
 
     Local Definition debug_hart_state_set (name : string) (value : Bool @# ty)
       :  ActionT ty Void
-      := Read hart : Bit Xlen <- ^"mhartid";
-         Read states : Bit debug_num_harts <- name;
-         Write name : Bit debug_num_harts
-           <- IF value
-                then #states | ($1 << #hart)
-                else #states & ~($1 << #hart);
+      := Read hart : Bit Xlen <- @^"mhartid";
+         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
+         Write @^"hart_states"
+           :  Array debug_num_harts debug_hart_state
+           <- #states@[#hart <- struct_set_field_default (#states@[#hart]) name value];
          Retv.
 
-    Local Definition debug_hart_running : ActionT ty Bool := debug_hart_state_read ^"hart_state_running".
+    Local Definition debug_hart_running
+      :  ActionT ty Bool
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         Ret !(#state@%"halted").
 
     (* See 3.5 *)
     (* TODO: modify pipeline and other rules to read halted state reg and stall *)
     (* TODO: wrap this action in a rule. *)
     Definition debug_hart_halt
       :  ActionT ty Void
-      := LETA halt : Bool <- debug_hart_state_read ^"hart_state_haltreq";
-         LETA halted : Bool <- debug_hart_state_read ^"hart_state_halted";
-         If #halt && !#halted
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         If #state@%"haltreq" && !(#state@%"halted")
            then
-             LETA _ <- debug_hart_state_set ^"hart_state_running" $$false;
-             LETA _ <- debug_hart_state_set ^"hart_state_halted" $$true;
+             LETA _ <- debug_hart_state_set @^"halted" $$true;
              Retv;
          Retv.
 
     (* TODO: wrap this action in a rule. *)
     Definition debug_hart_resume
       :  ActionT ty Void
-      := LETA resume : Bool <- debug_hart_state_read ^"hart_state_resumereq";
-         LETA running : Bool <- debug_hart_running;
-         If #resume && !#running
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         If #state@%"resumereq" && #state@%"halted"
            then
-             LETA _ <- debug_hart_state_set ^"hart_state_halted" $$false;
-             LETA _ <- debug_hart_state_set ^"hart_state_running" $$true;
-             LETA _ <- debug_hart_state_set ^"hart_state_resumeack" $$true;
+             LETA _ <- debug_hart_state_set @^"halted" $$false;
+             LETA _ <- debug_hart_state_set @^"resumeack" $$true;
              Retv;
          Retv.
 
@@ -218,12 +226,12 @@ Section debug.
 
     Definition debug_exec
       :  ActionT ty Void
-      := Read busy : Bool <- ^"busy";
+      := Read busy : Bool <- @^"busy";
          If #busy
            then
-             Write ^"busy" : Bool <- $$false;
-             Read cmdtype : Bit 8 <- ^"cmdtype";
-             Read control : Bit 24 <- ^"control";
+             Write @^"busy" : Bool <- $$false;
+             Read cmdtype : Bit 8 <- @^"cmdtype";
+             Read control : Bit 24 <- @^"control";
              LETA _
                <- If #cmdtype == $debug_access_reg_cmd
                    then
@@ -236,34 +244,34 @@ Section debug.
                      (* TODO: how should we convert regno into a reg id? *)
                      Call value
                        :  Data
-                       <- (^"debug_read_reg") (#reg_id : RegId);
-                     If ($1 << #aarsize) >= ($Rlen_over_8 : Bit 5 @# ty) (* 8 * 2^aarsize >= Rlen *)
+                       <- (@^"debug_read_reg") (#reg_id : RegId);
+                     If ($1 << #aarsize) >= ($Rlen_over_8 : Bit 5 @# ty) (* 8 * 2@^aarsize >= Rlen *)
                        then
-                         Write ^"cmderr" : Bit 3 <- $debug_err_exception;
+                         Write @^"cmderr" : Bit 3 <- $debug_err_exception;
                          Retv
                        else 
                          If #transfer == $1
                            then
                              If #write == $0
                                then
-                                 Write ^"data0" : Bit 32 <- unsafeTruncLsb 32 #value;
+                                 Write @^"data0" : Bit 32 <- unsafeTruncLsb 32 #value;
                                  If #aarsize >= $debug_aarsize_64
                                    then
-                                     Write ^"data1" : Bit 32 <- unsafeTruncLsb 32 (#value >> ($32 : Bit 5 @# ty));
+                                     Write @^"data1" : Bit 32 <- unsafeTruncLsb 32 (#value >> ($32 : Bit 5 @# ty));
                                      Retv;
                                  Retv
                                else 
-                                 Read data0 : Bit 32 <- ^"data0";
-                                 Read data1 : Bit 32 <- ^"data1";
+                                 Read data0 : Bit 32 <- @^"data0";
+                                 Read data1 : Bit 32 <- @^"data1";
                                  LETA _ <- reg_writer_write_reg name $Xlen64 #reg_id (ZeroExtendTruncLsb Rlen ({< #data1, #data0 >}));
                                  Retv
                                as result;
                              Retv;
                          If #aarpostincrement == $1
                            then
-                             Write ^"regno" <- #regno + $1;
+                             Write @^"regno" <- #regno + $1;
                              Retv;
-                         Write ^"cmderr" : Bit 3 <- $debug_err_none;
+                         Write @^"cmderr" : Bit 3 <- $debug_err_none;
                          Retv
                        as result;
                      Retv;
@@ -279,12 +287,12 @@ Section debug.
                      LETA cfg_pkt <- readConfig name _;
                      LET satp_mode <- #cfg_pkt @% "satp_mode";
                      LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
-                     Read data0 : Bit 32 <- ^"data0";
-                     Read data1 : Bit 32 <- ^"data1";
-                     Read data2 : Bit 32 <- ^"data2";
-                     Read data3 : Bit 32 <- ^"data3";
-                     Read data4 : Bit 32 <- ^"data4";
-                     Read data5 : Bit 32 <- ^"data5";
+                     Read data0 : Bit 32 <- @^"data0";
+                     Read data1 : Bit 32 <- @^"data1";
+                     Read data2 : Bit 32 <- @^"data2";
+                     Read data3 : Bit 32 <- @^"data3";
+                     Read data4 : Bit 32 <- @^"data4";
+                     Read data5 : Bit 32 <- @^"data5";
                      LETA mfunc_unit_id
                        :  Maybe (FuncUnitId func_units)
                        <- convertLetExprSyntax_ActionT
