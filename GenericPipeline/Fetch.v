@@ -13,7 +13,7 @@ Section fetch.
 
   Open Scope kami_expr.
 
-  Definition is_fetch_uncompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
+  Definition isInstUncompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
 
   Open Scope kami_action.
 
@@ -45,7 +45,7 @@ Section fetch.
            else
              LET uncompressed
                :  Bool
-               <- is_fetch_uncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
+               <- isInstUncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
              If #uncompressed
                then memFetch name mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
                else
