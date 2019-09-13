@@ -13,7 +13,7 @@ Section fetch.
 
   Open Scope kami_expr.
 
-  Definition isInstUncompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)).
+  Definition isInstUncompressed sz (bit_string : Bit sz @# ty) := (ZeroExtendTruncLsb 2 bit_string == $$(('b"11") : word 2)).
 
   Open Scope kami_action.
 

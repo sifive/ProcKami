@@ -117,9 +117,32 @@ Section Params.
                        DispBinary #fetch_pkt;
                        DispString _ "\n"
                      ];
-                   LETA decoder_pkt
+                   
+                   LET comp_inst: CompInst <- UniBit (TruncLsb CompInstSz CompInstSz) (#fetch_pkt @% "fst" @%  "inst");
+                   LET isCompressed: Bool <- !isInstUncompressed #comp_inst;
+                   LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) #cfg_pkt #comp_inst);
+                   LETA decoded_inst: Maybe (DecoderPkt (func_units _)) <-
+                                            convertLetExprSyntax_ActionT (
+                                              decode (func_units _) #cfg_pkt (IF #isCompressed
+                                                                              then #uncompressed_inst @% "data"
+                                                                              else #fetch_pkt @% "fst" @% "inst"));
+
+                   LET decoded_inst_valid: Bool <- (!#isCompressed || #uncompressed_inst @% "valid") && #decoded_inst @% "valid";
+                   LET decoded_full_exception: FullException <- STRUCT {"exception" ::= $IllegalInst;
+                                                                        "value" ::= $IllegalInst};
+                   LET decoded_exception: Maybe FullException <- STRUCT { "valid" ::= !#decoded_inst_valid;
+                                                                          "data" ::= #decoded_full_exception};
+                   LET decoder_pkt
                      :  PktWithException (DecoderPkt (func_units _))
-                     <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt;
+                                         <- (STRUCT {
+                                                 "fst" ::= #decoded_inst @% "data";
+                                                 "snd" ::= (IF #fetch_pkt @% "snd" @% "valid"
+                                                            then #fetch_pkt @% "snd"
+                                                            else #decoded_exception)});
+
+                   (* LETA decoder_pkt *)
+                   (*   :  PktWithException (DecoderPkt (func_units _)) *)
+                   (*   <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt; *)
                    System
                      [
                        DispString _ "Decode:\n";

@@ -160,7 +160,7 @@ Section decoder.
       Accepts a 32 bit string that represents an uncompressed RISC-V
       instruction and decodes it.
     *)
-    Definition decode 
+    Definition decode_nonzero
         (ctxt : ContextCfgPkt @# ty)
         (raw_inst : Inst @# ty)
       :  Maybe DecoderPkt ## ty
@@ -178,93 +178,24 @@ Section decoder.
                       "inst"        ::= raw_inst
                     } : DecoderPkt @# ty)).
 
-    (*
-      Accepts a 32 bit string whose prefix may encode a compressed RISC-V
-      instruction. If the prefix encodes a compressed instruction, this
-      function decompresses it using the decompressor and decodes the
-      result. Otherwise, it attempts to decode the full 32 bit string.
-    *)
-    Definition decode_bstring
-               (comp_inst_db : list (CompInstEntry ty))
-               (ctxt : ContextCfgPkt @# ty)
-               (bit_string : Inst @# ty)
+    Definition decode
+        (ctxt : ContextCfgPkt @# ty)
+        (raw_inst : Inst @# ty)
       :  Maybe DecoderPkt ## ty
-      := LETC prefix
-           :  CompInst
-           <- bit_string $[15:0];
-         LETE opt_uncomp_inst
-           :  Maybe Inst
-           <- decompress comp_inst_db ctxt #prefix;
-         (decode ctxt
-           (ITE ((#opt_uncomp_inst) @% "valid")
-                ((#opt_uncomp_inst) @% "data")
-                bit_string)).
-    
-    (*
-      Returns true iff the given 32 bit string starts with an
-      uncompressed instruction prefix.
-     *)
-    (* Definition decode_decompressed (bit_string : Inst @# ty) := (bit_string $[1:0] == $$(('b"11") : word 2)). *)
-
-    (*
-      Accepts a fetch packet and decodes the RISC-V instruction encoded
-      by the 32 bit string contained within the fetch packet.
-    *)
-    Definition decode_full
-               (comp_inst_db : list (CompInstEntry ty))
-               (ctxt : ContextCfgPkt @# ty)
-               (fetch_pkt : FetchPkt @# ty)
-      :  Maybe DecoderPkt ## ty
-      := LETC raw_inst: Inst <- fetch_pkt @% "inst";
-           LETE opt_decoder_pkt : Maybe DecoderPkt <- decode_bstring comp_inst_db ctxt #raw_inst;
-           LETC decoder_pkt : DecoderPkt <- #opt_decoder_pkt @% "data" ;
-           (utila_expr_opt_pkt #decoder_pkt
-             (#opt_decoder_pkt @% "valid" && fetch_pkt @% "inst" != $0)).
-
-    Variable CompInstDb: list (CompInstEntry ty).
+      := LETE opt_decoder_pkt: Maybe DecoderPkt <- decode_nonzero ctxt raw_inst;
+           LETC decoder_pkt: DecoderPkt <- #opt_decoder_pkt @% "data";
+           RetE ((STRUCT { "valid" ::= #opt_decoder_pkt @% "valid" && raw_inst != $0 ;
+                           "data" ::= #decoder_pkt }): Maybe DecoderPkt @# ty).
 
     Definition printFuncUnitInstName (fu: FuncUnitId @# ty) (inst: InstId @# ty): ActionT ty Void :=
       (GatherActions (map (fun i =>
                              If ($ (fst i) == fu)
-                             then (System [DispString _ (fuName (snd i)); DispString _ "."];
-                                     (GatherActions (map (fun j =>
-                                                            If ($ (fst j) == inst)
-                                                            then (System [DispString _ (instName (snd j))]; Retv)
-                                                            else Retv; Retv) (tag (fuInsts (snd i)))) as _; Retv))
-                             else Retv; Retv) (tag func_units)) as _; Retv)%kami_action.
-    
-    Definition decoder
-      (ctxt : ContextCfgPkt @# ty)
-      (fetch_pkt : FetchPkt @# ty)
-      :  PktWithException DecoderPkt ## ty
-      := LETE decoder_pkt
-           :  Maybe DecoderPkt
-           <- decode_full CompInstDb ctxt fetch_pkt;
-         LETC exception
-           :  Maybe FullException
-           <- IF #decoder_pkt @% "valid"
-                then Invalid
-                else Valid (STRUCT {
-                         "exception" ::= $IllegalInst;
-                         "value" ::= $0
-                       } : FullException @# ty);
-         RetE (STRUCT {
-             "fst" ::= #decoder_pkt @% "data";
-             "snd" ::= #exception
-           } : PktWithException DecoderPkt @# ty).
-
-    Local Open Scope kami_action.
-
-    Definition decoderWithException
-      (ctxt : ContextCfgPkt @# ty)
-      (fetch_pkt : PktWithException FetchPkt @# ty)
-      :  ActionT ty (PktWithException DecoderPkt)
-      := bindException
-           (fetch_pkt @% "fst")
-           (fetch_pkt @% "snd")
-           (fun fetch_pkt : FetchPkt @# ty
-              => convertLetExprSyntax_ActionT
-                   (decoder ctxt fetch_pkt)).
+                           then (System [DispString _ (fuName (snd i)); DispString _ "."];
+                                   (GatherActions (map (fun j =>
+                                                          If ($ (fst j) == inst)
+                                                        then (System [DispString _ (instName (snd j))]; Retv)
+                                                        else Retv; Retv) (tag (fuInsts (snd i)))) as _; Retv))
+                           else Retv; Retv) (tag func_units)) as _; Retv)%kami_action.
 
     Close Scope kami_action.
 
