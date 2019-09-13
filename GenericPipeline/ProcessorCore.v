@@ -139,10 +139,6 @@ Section Params.
                                                  "snd" ::= (IF #fetch_pkt @% "snd" @% "valid"
                                                             then #fetch_pkt @% "snd"
                                                             else #decoded_exception)});
-
-                   (* LETA decoder_pkt *)
-                   (*   :  PktWithException (DecoderPkt (func_units _)) *)
-                   (*   <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt; *)
                    System
                      [
                        DispString _ "Decode:\n";
