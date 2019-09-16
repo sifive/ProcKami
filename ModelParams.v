@@ -141,6 +141,7 @@ Section exts.
 
   Variable allow_misaligned : bool.
   Variable support_debug : bool.
+  Variable Dlen_over_8 : nat.
 
   (* The supported extension entries. *)
   Local Definition entries
@@ -162,7 +163,7 @@ Section exts.
   Variable pc_init_val: word 64.
 
   Local Definition procParams
-    := Build_ProcParams Xlen_over_8 Flen_over_8
+    := Build_ProcParams Xlen_over_8 Flen_over_8 Dlen_over_8
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts

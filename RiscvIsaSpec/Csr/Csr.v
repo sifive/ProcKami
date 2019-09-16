@@ -1263,7 +1263,35 @@ Section csrs.
          nilCsr ^"mhpmevent28" (CsrIdWidth 'h"33c") accessMModeOnly;
          nilCsr ^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
          nilCsr ^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
-         nilCsr ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly
+         nilCsr ^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly;
+         {|
+           csrName := ^"dcsr";
+           csrAddr := CsrIdWidth 'h"7b0";
+           csrViews
+             := let fields
+                  := [
+                       @csrFieldNoReg _ ^"xdebugver" (Bit 4) (natToWord 4 4);
+                       @csrFieldNoReg _ "reserved0" (Bit 12) (getDefaultConst _);
+                       @csrFieldAny _ ^"ebreakm" Bool Bool None;
+                       @csrFieldNoReg _ "ebreakh" Bool false;
+                       @csrFieldAny _ ^"ebreaks" Bool Bool None;
+                       @csrFieldAny _ ^"ebreaku" Bool Bool None;
+                       @csrFieldAny _ ^"stepie" Bool Bool None;
+                       @csrFieldAny _ ^"stopcount" Bool Bool None;
+                       @csrFieldAny _ ^"stoptime" Bool Bool None;
+                       @csrFieldReadOnly _ ^"cause" (Bit 3) (Bit 3) None;
+                       @csrFieldNoReg _ "reserved1" (Bit 1) (getDefaultConst _);
+                       @csrFieldAny _ ^"mprven" Bool Bool None;
+                       @csrFieldAny _ ^"nmip" Bool Bool None;
+                       @csrFieldAny _ ^"step" Bool Bool None;
+                       @csrFieldAny _ ^"prv" (Bit 2) (Bit 2) None
+                     ] in
+                repeatCsrView 2
+                  (@csrViewUpperReadXform _ fields)
+                  (@csrViewUpperWriteXform _ fields);
+                csrAccess := accessDMode
+         |};
+         simpleCsr ^"dpc" (CsrIdWidth 'h"7b1") Dlen accessDMode
        ].
 
   Close Scope kami_expr.
