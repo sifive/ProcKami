@@ -158,9 +158,8 @@ Section mret.
                        ];
 
                   inputXform 
-                    := fun _ context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE (#context_pkt @% "debug");
+                    := fun (cfg_pkt : ContextCfgPkt @# ty) _
+                         => RetE ((cfg_pkt @% "debug") : Bool @# ty);
                   outputXform  := id;
                   optMemParams := None;
                   instHints    := falseHints
