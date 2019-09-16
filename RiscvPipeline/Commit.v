@@ -154,11 +154,11 @@ Section trap_handling.
            If delegated #medeleg (exception @% "exception") &&
               (mode == $SupervisorMode ||
                mode == $UserMode)
-             then trapAction "s" $$false $1 1 xlen mode pc exception
+             then trapAction "s" $$false $1 1 xlen debug mode pc exception
              else
                (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
-                  then trapAction "u" $$false $0 0 xlen mode pc exception
-                  else trapAction "m" $$false $3 2 xlen mode pc exception;
+                  then trapAction "u" $$false $0 0 xlen debug mode pc exception
+                  else trapAction "m" $$false $3 2 xlen debug mode pc exception;
                 Retv);
            Retv;
        Retv.
@@ -327,6 +327,7 @@ Section trap_handling.
 
   Definition interruptAction
     (xlen : XlenValue @# ty)
+    (debug : Bool @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
     :  ActionT ty Void
@@ -372,7 +373,7 @@ Section trap_handling.
            If mode == $MachineMode && #mie
              then
                System [DispString _ "[trapInterrupt] trapping interrupt into machine mode.\n"];
-               trapAction "m" $$true $MachineMode 2 xlen mode pc #exception
+               trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception
              else
                If delegated #mideleg (#code @% "data" @% "snd")
                  then
@@ -381,7 +382,7 @@ Section trap_handling.
                        (#code @% "data" @% "fst" == $SupervisorMode && #sie))
                      then
                        System [DispString _ "[trapInterrupt] trapping interrupt into supervisor mode.\n"];
-                       trapAction "s" $$true $SupervisorMode 1 xlen mode pc #exception
+                       trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception
                      else
                        If delegated #sideleg (#code @% "data" @% "snd") &&
                           mode == $UserMode &&
@@ -389,7 +390,7 @@ Section trap_handling.
                            (#code @% "data" @% "fst" == $UserMode && #uie))
                          then
                            System [DispString _ "[trapInterrupt] trapping interrupt into user mode.\n"];
-                           trapAction "u" $$true $UserMode 0 xlen mode pc #exception;
+                           trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception;
                        Retv;
                    Retv;
                  Retv;

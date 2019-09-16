@@ -79,7 +79,7 @@ Section Params.
                        Read pc : VAddr <- ^"pc";
                        LETA xlen : XlenValue <- readXlen name #mode;
                        System [DispString _ "[trap_interrupt]\n"];
-                       interruptAction name #xlen #mode #pc;
+                       interruptAction name #xlen #debug #mode #pc;
                    Retv with
               Rule ^"set_time_interrupt"
                 := Read mtime : Bit 64 <- ^"mtime";
