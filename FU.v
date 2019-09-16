@@ -222,10 +222,8 @@ End ParamDefinitions.
 Section Params.
   Context `{procPrams: ProcParams}.
   
-  (* Definition PrivModeWidth  := if support_debug then 3 else 2. *)
-  Definition PrivModeWidth  := 3.
+  Definition PrivModeWidth  := 2.
   Definition PrivMode       := Bit PrivModeWidth.
-  Definition DebugMode      := 4.
   Definition MachineMode    := 3.
   Definition HypervisorMode := 2.
   Definition SupervisorMode := 1.
@@ -471,7 +469,6 @@ Section Params.
       Section Mode.
         Variable mode: PrivMode @# ty.
         Definition modeSet := ((mode == $MachineMode)
-                               || (mode == $DebugMode)
                                || (mode == $HypervisorMode && struct_get_field_default ext "H" ($$false))
                                || (mode == $SupervisorMode && struct_get_field_default ext "S" ($$false))
                                || (mode == $UserMode && struct_get_field_default ext "U" ($$false)))%kami_expr.
@@ -485,7 +482,7 @@ Section Params.
     Lemma modeFix_idempotent ext: forall mode, evalExpr (modeFix ext (modeFix ext mode)) =  evalExpr (modeFix ext mode).
     Proof.
       unfold modeFix.
-      unfold HypervisorMode, SupervisorMode, UserMode, DebugMode, MachineMode in *.
+      unfold HypervisorMode, SupervisorMode, UserMode, MachineMode in *.
       simpl; intros.
       repeat match goal with
              | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
@@ -792,6 +789,7 @@ Section Params.
       STRUCT_TYPE {
           "xlen"        :: XlenValue;
           "satp_mode"   :: Bit SatpModeWidth;
+          "debug"       :: Bool;
           "mode"        :: PrivMode;
           "tsr"         :: Bool;
           "tvm"         :: Bool;

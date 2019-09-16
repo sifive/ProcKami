@@ -6,6 +6,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.RegWriter.
+Require Import ProcKami.Debug.Debug.
 Import ListNotations.
 
 Section trap_handling.
@@ -23,90 +24,94 @@ Section trap_handling.
     (next_mode : PrivMode @# ty)
     (pp_width : nat)
     (xlen : XlenValue @# ty)
+    (debug : Bool @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
     (exception : FullException @# ty)
     :  ActionT ty Void
-    := (* section 3.1.7, 4.1.1 *)
-       Read ie : Bool <- ^(prefix ++ "ie");
-       Write ^(prefix ++ "pie") : Bool <- #ie;
-       Write ^(prefix ++ "ie") : Bool <- $$false;
-       Read extRegs: ExtensionsReg <- ^"extRegs";
-       LET extensions: Extensions <- ExtRegToExt #extRegs;
-       Write ^(prefix ++ "pp")
-         :  Bit pp_width
-         <- ZeroExtendTruncLsb pp_width (modeFix #extensions mode);
-       (* section 3.1.12 *)
-       Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
-       Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
-       LET addr_base
-         :  VAddr
-         <- (* TODO: See 4.1.5 are we to allow any {m,s}tvec_base value and append two 0s? The test suite appears to assume we do. *)
-            (* xlen_sign_extend Xlen xlen #tvec_base; *)
-            xlen_sign_extend Xlen xlen #tvec_base << (Const _ (natToWord 2 2));
-       LET addr_offset
-         :  VAddr
-            (* 3.1.7 *)
-         <- xlen_sign_extend Xlen xlen (exception @% "exception") << (Const _ (natToWord 2 2));
-       System [
-         DispString _ "[trapAction]\n";
-         DispString _ "  tvec_mode: ";
-         DispDecimal #tvec_mode;
-         DispString _ "\n";
-         DispString _ "  tvec_base: ";
-         DispHex #tvec_base;
-         DispString _ "\n";
-         DispString _ "  addr_base: ";
-         DispHex #addr_base;
-         DispString _ "\n";
-         DispString _ "  addr_offset: ";
-         DispHex #addr_offset;
-         DispString _ "\n";
-         DispString _ "  exception code: ";
-         DispHex (exception @% "exception");
-         DispString _ "\n";
-         DispString _ "  exception val: ";
-         DispHex (exception @% "value");
-         DispString _ "\n"
-       ];
-       (* section 3.1.7 *)
-       Write ^"pc"
-         :  VAddr
-         <- IF #tvec_mode == $0 (* && intrpt *)
-              then #addr_base
-              else (#addr_base + #addr_offset);
-       (* section 3.1.8 *)
-(*
-       If next_mode != $MachineMode
+    := If !debug (* debug spec 4.1 - "exceptions don't update any registers" *)
          then
+           (* section 3.1.7, 4.1.1 *)
+           Read ie : Bool <- ^(prefix ++ "ie");
+           Write ^(prefix ++ "pie") : Bool <- #ie;
+           Write ^(prefix ++ "ie") : Bool <- $$false;
+           Read extRegs: ExtensionsReg <- ^"extRegs";
+           LET extensions: Extensions <- ExtRegToExt #extRegs;
+           Write ^(prefix ++ "pp")
+             :  Bit pp_width
+             <- ZeroExtendTruncLsb pp_width (modeFix #extensions mode);
+           (* section 3.1.12 *)
+           Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
+           Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
+           LET addr_base
+             :  VAddr
+             <- (* TODO: See 4.1.5 are we to allow any {m,s}tvec_base value and append two 0s? The test suite appears to assume we do. *)
+                (* xlen_sign_extend Xlen xlen #tvec_base; *)
+                xlen_sign_extend Xlen xlen #tvec_base << (Const _ (natToWord 2 2));
+           LET addr_offset
+             :  VAddr
+                (* 3.1.7 *)
+             <- xlen_sign_extend Xlen xlen (exception @% "exception") << (Const _ (natToWord 2 2));
+           System [
+             DispString _ "[trapAction]\n";
+             DispString _ "  tvec_mode: ";
+             DispDecimal #tvec_mode;
+             DispString _ "\n";
+             DispString _ "  tvec_base: ";
+             DispHex #tvec_base;
+             DispString _ "\n";
+             DispString _ "  addr_base: ";
+             DispHex #addr_base;
+             DispString _ "\n";
+             DispString _ "  addr_offset: ";
+             DispHex #addr_offset;
+             DispString _ "\n";
+             DispString _ "  exception code: ";
+             DispHex (exception @% "exception");
+             DispString _ "\n";
+             DispString _ "  exception val: ";
+             DispHex (exception @% "value");
+             DispString _ "\n"
+           ];
+           (* section 3.1.7 *)
+           Write ^"pc"
+             :  VAddr
+             <- IF #tvec_mode == $0 (* && intrpt *)
+                  then #addr_base
+                  else (#addr_base + #addr_offset);
+           (* section 3.1.8 *)
+(*
+           If next_mode != $MachineMode
+             then
 *)
-           (* section 3.1.20 *)
-           Write ^(prefix ++ "epc") : VAddr <- pc;
-           (* section 3.1.21 *)
-           Write ^(prefix ++ "cause_interrupt") : Bool <- intrpt;
-           Write ^(prefix ++ "cause_code")
-             :  Bit (Xlen - 1)
-             <- ZeroExtendTruncLsb (Xlen - 1) (exception @% "exception");
-(*           Retv; *)
-       (* section 3.1.22 *)
-       Write ^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
-       Write ^"mode" : PrivMode <- modeFix #extensions next_mode;
-       System [
-         DispString _ "[Register Writer.trapAction]\n";
-         DispString _ ("  mode: " ++ prefix ++ "\n");
-         DispString _ "  tvec mode: ";
-         DispHex (#tvec_mode);
-         DispString _ "\n";
-         DispString _ "  address base: ";
-         DispHex (#addr_base);
-         DispString _ "\n";
-         DispString _ "  address offset: ";
-         DispHex (#addr_offset);
-         DispString _ "\n";
-         DispString _ "  wrote mode: ";
-         DispHex (next_mode);
-         DispString _ "\n"
-       ];
+               (* section 3.1.20 *)
+               Write ^(prefix ++ "epc") : VAddr <- pc;
+               (* section 3.1.21 *)
+               Write ^(prefix ++ "cause_interrupt") : Bool <- intrpt;
+               Write ^(prefix ++ "cause_code")
+                 :  Bit (Xlen - 1)
+                 <- ZeroExtendTruncLsb (Xlen - 1) (exception @% "exception");
+(*               Retv; *)
+           (* section 3.1.22 *)
+           Write ^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
+           Write ^"mode" : PrivMode <- modeFix #extensions next_mode;
+           System [
+             DispString _ "[Register Writer.trapAction]\n";
+             DispString _ ("  mode: " ++ prefix ++ "\n");
+             DispString _ "  tvec mode: ";
+             DispHex (#tvec_mode);
+             DispString _ "\n";
+             DispString _ "  address base: ";
+             DispHex (#addr_base);
+             DispString _ "\n";
+             DispString _ "  address offset: ";
+             DispHex (#addr_offset);
+             DispString _ "\n";
+             DispString _ "  wrote mode: ";
+             DispHex (next_mode);
+             DispString _ "\n"
+           ];
+           Retv;
        Retv.
 
   Definition delegated
@@ -115,9 +120,27 @@ Section trap_handling.
     :  Bool @# ty
     := (unsafeTruncLsb 1 (edeleg >> exception_code)) == Const ty (wones 1).
 
+  Definition enterDebugMode
+    (pc : VAddr @# ty)
+    (cause : Bit 3 @# ty)
+    :  ActionT ty Void
+    := LETA _ <- debug_hart_state_set name "debug" $$true;
+       Write ^"dpc" : VAddr <- pc;
+       Write ^"cause" : Bit 3 <- cause;
+       Retv.
+
+  Definition handleEBreak
+    (debug : Bool @# ty)
+    (pc : VAddr @# ty)
+    :  ActionT ty Void
+    := If !debug
+         then enterDebugMode pc $DebugCauseEBreak;
+       Retv.
+
   (* 3.1.8 *)
   Definition trapException 
     (xlen : XlenValue @# ty)
+    (debug : Bool @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
     (exception : FullException @# ty)
@@ -125,15 +148,19 @@ Section trap_handling.
     := System [DispString _ "[trapException]\n"];
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
-       If delegated #medeleg (exception @% "exception") &&
-          (mode == $SupervisorMode ||
-           mode == $UserMode)
-         then trapAction "s" $$false $1 1 xlen mode pc exception
+       If exception @% "exception" == $Breakpoint
+         then handleEBreak debug pc
          else
-           (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
-              then trapAction "u" $$false $0 0 xlen mode pc exception
-              else trapAction "m" $$false $3 2 xlen mode pc exception;
-            Retv);
+           If delegated #medeleg (exception @% "exception") &&
+              (mode == $SupervisorMode ||
+               mode == $UserMode)
+             then trapAction "s" $$false $1 1 xlen mode pc exception
+             else
+               (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
+                  then trapAction "u" $$false $0 0 xlen mode pc exception
+                  else trapAction "m" $$false $3 2 xlen mode pc exception;
+                Retv);
+           Retv;
        Retv.
 
   (*
@@ -250,7 +277,7 @@ Section trap_handling.
          DispString _ "\n"
        ];
        If (exception @% "valid")
-         then trapException (cfg_pkt @% "xlen") (cfg_pkt @% "mode") pc (exception @% "data")
+         then trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
          else (
             Read mcountinhibit_ir : Bool <- ^"mcountinhibit_ir";
             If !(#mcountinhibit_ir)

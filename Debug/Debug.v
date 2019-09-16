@@ -4,7 +4,6 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.
-Require Import ProcKami.RiscvPipeline.ConfigReader.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
@@ -30,7 +29,8 @@ Section debug.
          "halted"    :: Bool;
          "haltreq"   :: Bool;
          "resumereq" :: Bool;
-         "resumeack" :: Bool
+         "resumeack" :: Bool;
+         "debug"     :: Bool
        }.
 
   Definition debug_internal_regs
@@ -172,13 +172,13 @@ Section debug.
          (* write any running *)
          (* write all running *)
 
-    Local Definition debug_hart_state_read
+    Definition debug_hart_state_read
       :  ActionT ty debug_hart_state
       := Read hart : Bit Xlen <- @^"mhartid";
          Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
          Ret (#states@[#hart ]).
 
-    Local Definition debug_hart_state_set (name : string) (value : Bool @# ty)
+    Definition debug_hart_state_set (name : string) (value : Bool @# ty)
       :  ActionT ty Void
       := Read hart : Bit Xlen <- @^"mhartid";
          Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
@@ -225,6 +225,8 @@ Section debug.
     Local Definition debug_aarsize_64 := 3.
 
     Definition debug_exec
+      (exts : Extensions @# ty)
+      (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
       := Read busy : Bool <- @^"busy";
          If #busy
@@ -284,8 +286,6 @@ Section debug.
                      LET aampostincrement : Bit 1  <- #control$[19:19];
                      LET aamsize          : Bit 3  <- #control$[22:20];
                      LET aamvirtual       : Bit 1  <- #control$[23:23];
-                     LETA cfg_pkt <- readConfig name _;
-                     LET satp_mode <- #cfg_pkt @% "satp_mode";
                      LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
                      Read data0 : Bit 32 <- @^"data0";
                      Read data1 : Bit 32 <- @^"data1";
@@ -322,8 +322,8 @@ Section debug.
                        :  PktWithException MemRet
                        <- mem_unit_exec name
                             mem_table
-                            (#cfg_pkt @% "extensions")
-                            #satp_mode
+                            exts
+                            satp_mode
                             $MachineMode
                             (#aamvirtual == $1)
                             #paddr
@@ -347,6 +347,14 @@ Section debug.
              Retv;
          Retv.
 
+    Definition debug_mode
+      :  ActionT ty Bool
+      := if support_debug
+           then
+             LETA state : debug_hart_state <- debug_hart_state_read;
+             Ret (#state @% "debug")
+           else Ret $$false.
+
     Definition debug_run
       :  ActionT ty Bool
       := if support_debug
@@ -354,6 +362,10 @@ Section debug.
            else Ret $$true.
 
   End ty.
+
+  Definition DebugCauseEBreak := 1.
+  Definition DebugCauseHalt   := 3.
+  Definition DebugCauseStep   := 4.
 
   Close Scope kami_action.
   Close Scope kami_expr.

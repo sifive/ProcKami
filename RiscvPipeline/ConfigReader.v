@@ -1,5 +1,6 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
+Require Import ProcKami.Debug.Debug.
 Require Import List.
 Import ListNotations.
 
@@ -36,7 +37,8 @@ Section config_reader.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
-    := Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
+    := LETA state : debug_hart_state <- debug_hart_state_read name ty;
+       Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
        Read modeRaw : PrivMode <- ^"mode";
        Read extensionsReg
          :  ExtensionsReg
@@ -68,7 +70,8 @@ Section config_reader.
          (STRUCT {
             "xlen"       ::= #xlen;
             "satp_mode"  ::= #satp_mode;
-            "mode"       ::= #mode;
+            "debug"      ::= #state @% "debug";
+            "mode"       ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *)
             "tsr"        ::= #tsr;
             "tvm"        ::= #tvm;
             "tw"         ::= #tw;

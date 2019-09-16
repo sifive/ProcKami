@@ -262,6 +262,7 @@ Section mret.
                => LETE inst : Inst <- in_pkt;
                   LETC exception
                     <- Valid (STRUCT {
+(* TODO: only throw an exception if ebreak mode (like ebreaku) matches current mode and dcsr enables it. See 4.8.1 *)
                           "exception" ::= Const ty (natToWord 4 Breakpoint);
                           "value"     ::= ZeroExtendTruncLsb Xlen #inst
                         } : FullException @# ty);
@@ -340,7 +341,7 @@ Section mret.
                        ];
                   inputXform
                     := fun (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE (cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
+                         => RetE ((!(cfg_pkt @% "debug")) && cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
                   outputXform := id; 
                   optMemParams := None;
                   instHints   := falseHints

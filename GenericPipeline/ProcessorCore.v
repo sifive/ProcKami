@@ -69,7 +69,8 @@ Section Params.
                   else []) with
               Rule ^"trap_interrupt"
                 := LETA run : Bool <- debug_run name _;
-                   If #run
+                   LETA debug : Bool <- debug_mode name _;
+                   If #run && !#debug (* debug spec 4.1 *)
                      then
                        Read modeRaw : PrivMode <- ^"mode";
                        Read extRegs: ExtensionsReg <- ^"extRegs";
@@ -90,13 +91,20 @@ Section Params.
                    System [DispString _ "[set_time_interrupt]\n"];
                    Retv with
               Rule ^"inc_time"
-                := Read mtime : Bit 64 <- ^"mtime";
-                   Write ^"mtime" : Bit 64 <- #mtime + $1;
-                   System [DispString _ "[inc_time]\n"];
+                := Read stoptime : Bool <- ^"stopcount";
+                   LETA debug : Bool <- debug_mode name _;
+                   If !(#debug && #stoptime) (* debug spec 4.1 *)
+                     then
+                       Read mtime : Bit 64 <- ^"mtime";
+                       Write ^"mtime" : Bit 64 <- #mtime + $1;
+                       System [DispString _ "[inc_time]\n"];
+                       Retv;
                    Retv with
               Rule ^"inc_mcycle"
                 := Read mcountinhibit_cy : Bool <- ^"mcountinhibit_cy";
-                   If #mcountinhibit_cy
+                   Read stopcount : Bool <- ^"stopcount";
+                   LETA debug : Bool <- debug_mode name _; 
+                   If !#mcountinhibit_cy && !(#debug && #stopcount) (* debug spec 4.1 *)
                      then
                        Read mcycle : Bit 64 <- ^"mcycle";
                        Write ^"mcycle" : Bit 64 <- #mcycle + $1;

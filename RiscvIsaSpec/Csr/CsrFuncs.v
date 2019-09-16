@@ -29,6 +29,7 @@ Section CsrInterface.
   Definition CsrAccessPkt
     := STRUCT_TYPE {
          "xlen"       :: XlenValue;
+         "debug"      :: Bool;
          "mode"       :: PrivMode;
          "mcounteren" :: CounterEnType;
          "scounteren" :: CounterEnType;
@@ -407,7 +408,7 @@ Section CsrInterface.
   Definition accessDMode ty
     (context : CsrAccessPkt @# ty)
     := if support_debug
-       then context @% "mode" == $DebugMode
+       then context @% "debug"
        else $$false.
 
   Definition accessMModeOnly ty
@@ -609,6 +610,7 @@ Section CsrInterface.
 
       (* Returns true if an exception occurs *)
       Definition commitCsrWrite
+                 (debug : Bool @# ty)
                  (mode : PrivMode @# ty)
                  (tvm : Bool @# ty)
                  (mcounteren : CounterEnType @# ty)
@@ -639,6 +641,7 @@ Section CsrInterface.
                   => csrAccess csr
                                (STRUCT {
                                     "xlen"       ::= upd_pkt @% "cfg" @% "xlen";
+                                    "debug"      ::= debug;
                                     "mode"       ::= mode;
                                     "mcounteren" ::= mcounteren;
                                     "scounteren" ::= scounteren;
@@ -731,8 +734,8 @@ Section CsrInterface.
                       "cfg" ::= cfg_pkt
                     } : CsrFieldUpdGuard @# ty;
                (* NOTE: only one Csr write can occur per instruction *)
-               LETA result0 <- commitCsrWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-               LETA result1 <- commitCsrWrite (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
                Ret (#result0 || #result1).
 
         Definition CsrUnit
