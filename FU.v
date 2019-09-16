@@ -661,14 +661,14 @@ Section Params.
            "rl" ::= $$ false ;
            "fence.i" ::= $$ false}).
 
-    Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+    Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
+      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
 
     Definition checkAligned (exts : Extensions @# ty) (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
       :  Bool @# ty
       := if allow_misaligned
            then $$true
-           else isAligned addr (ZeroExtendTruncLsb 3 size).
+           else isAligned addr size.
 
 
     Local Close Scope kami_expr.

@@ -14,7 +14,7 @@ Section Mem.
     Definition MemInputAddrType := STRUCT_TYPE {
                                        "base" :: VAddr ;
                                        "offset" :: VAddr ;
-                                       "numZeros" :: Bit 3 ;
+                                       "numZeros" :: MemRqLgSize ;
                                        "data" :: MaskedMem ;
                                        "aq" :: Bool ;
                                        "rl" :: Bool ;

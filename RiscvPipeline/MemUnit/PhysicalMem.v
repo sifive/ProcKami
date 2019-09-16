@@ -202,44 +202,43 @@ Section pmem.
       :  ActionT ty PMAErrorsPkt 
       := mem_device_apply dtag
            (fun device
-             => list_rect
-                  (fun _ => ActionT ty PMAErrorsPkt)
-                  (Ret $$(getDefaultConst PMAErrorsPkt))
-                  (fun pma pmas F
-                    => let width_match := paddr_len == $(pma_width pma) in
-                       LETA acc <- F;
-                       (* System [
+            => fold_left
+                 (fun acc_val pma =>
+                    LETA acc : PMAErrorsPkt <- acc_val;
+                      LET width_match <- paddr_len == $(pma_width pma);
+                      (* System [
                          DispString _ "[checkPMAs] paddr_len: ";
                          DispHex paddr_len;
                          DispString _ "\n";
                          DispString _ ("[checkPMAs] pma_width: " ++ nat_hex_string (pma_width pma) ++ "\n");
                          DispString _ "[checkPMAs] width match: ";
-                         DispHex width_match;
+                         DispHex #width_match;
                          DispString _ "\n"
                        ]; *)
-                       Ret (STRUCT {
-                         "width"
-                           ::= (#acc @% "width" || width_match);
-                         "pma"
-                           ::= (#acc @% "pma" ||
-                                (width_match &&
-                                 Switch access_type Retn Bool With {
-                                   ($VmAccessInst : VmAccessType @# ty)
-                                     ::= ($$(pma_executable pma) : Bool @# ty);
-                                   ($VmAccessLoad : VmAccessType @# ty)
-                                     ::= ($$(pma_readable pma) : Bool @# ty);
-                                   ($VmAccessSAmo : VmAccessType @# ty)
-                                     ::= ($$(pma_writeable pma) : Bool @# ty)
-                                 }));
-                         "misaligned"
-                           ::= (#acc @% "misaligned" ||
-                                (width_match && 
-                                 (isAligned paddr $2 || 
-                                  $$(pma_misaligned pma))));
-                         "lrsc"
-                           ::= (#acc @% "lrsc" || (width_match && ($$(pma_lrsc pma) || !lrsc)))
-                       } : PMAErrorsPkt @# ty))
-                  (mem_device_pmas device)).
+                      Ret (STRUCT {
+                               "width"
+                               ::= (#acc @% "width" || #width_match);
+                               "pma"
+                               ::= (#acc @% "pma" ||
+                                    (#width_match &&
+                                                 Switch access_type Retn Bool With {
+                                                   ($VmAccessInst : VmAccessType @# ty)
+                                                   ::= ($$(pma_executable pma) : Bool @# ty);
+                                                   ($VmAccessLoad : VmAccessType @# ty)
+                                                   ::= ($$(pma_readable pma) : Bool @# ty);
+                                                   ($VmAccessSAmo : VmAccessType @# ty)
+                                                   ::= ($$(pma_writeable pma) : Bool @# ty)
+                                   }));
+                               "misaligned"
+                               ::= (#acc @% "misaligned" ||
+                                    (#width_match && 
+                                                 (isAligned paddr paddr_len || 
+                                                  $$(pma_misaligned pma))));
+                               "lrsc"
+                               ::= (#acc @% "lrsc" || (#width_match && ($$(pma_lrsc pma) || !lrsc)))
+                             } : PMAErrorsPkt @# ty))
+                 (mem_device_pmas device)
+                 (Ret $$(getDefaultConst PMAErrorsPkt))).
 
     Definition checkForFault
       (access_type : VmAccessType @# ty)
@@ -259,9 +258,8 @@ Section pmem.
               satp_select
                 satp_mode
                 (fun vm_mode
-                  => $0 ==
-                     (paddr >> ($(vm_mode_width vm_mode)
-                                : Bit (Nat.log2_up vm_mode_max_width) @# ty)));
+                  => $0 == ZeroExtendTruncMsb (Xlen - vm_mode_width vm_mode) paddr
+                );
          LETA mresult
            :  Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr))
            <- getDTag paddr;
@@ -272,7 +270,7 @@ Section pmem.
            <- STRUCT {
                 "pmp"        ::= !#pmp_result;
                 "paddr"      ::= !#bound_result;
-                "range"      ::= !(#mresult @% "valid");
+                "range"      ::= !((#mresult @% "valid") || #mresult @% "data" @% "valid") ;
                 "width"      ::= !(#pma_result @% "width");
                 "pma"        ::= !(#pma_result @% "pma");
                 "misaligned" ::= !(#pma_result @% "misaligned");
