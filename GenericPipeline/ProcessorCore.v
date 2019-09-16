@@ -148,7 +148,7 @@ Section Params.
 
                        LET decoded_inst_valid: Bool <- (!#isCompressed || #uncompressed_inst @% "valid") && #decoded_inst @% "valid";
                        LET decoded_full_exception: FullException <- STRUCT {"exception" ::= $IllegalInst;
-                                                                            "value" ::= $IllegalInst};
+                                                                            "value" ::= ZeroExtendTruncLsb Xlen (#fetch_pkt @% "fst" @%  "inst")};
                        LET decoded_exception: Maybe FullException <- STRUCT { "valid" ::= !#decoded_inst_valid;
                                                                               "data" ::= #decoded_full_exception};
                        LET decoder_pkt

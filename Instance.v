@@ -13,6 +13,14 @@ Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
 
+
+  (* (* verify tha the memory table is valid *) *)
+  (* Goal (mem_regions mem_table) <> []. *)
+  (* Proof. *)
+  (*   unfold mem_regions, mem_table. *)
+  (*   discriminate. Qed. *)
+
+
 Definition supportedExts
   :  list SupportedExt
   := [
@@ -32,7 +40,7 @@ Definition allow_misaligned := false.
 Definition support_debug := true.
 Definition Dlen_over_8 := 8.
 
-Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned support_debug Dlen_over_8 (64'h"1000").
+Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned support_debug Dlen_over_8 (_ 'h"1000").
 
 Definition model32Val := model [Xlen32].
 Definition model64Val := model [Xlen32; Xlen64].

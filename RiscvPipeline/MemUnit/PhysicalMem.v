@@ -23,42 +23,24 @@ Section pmem.
 
   Record MemRegion
     := {
-         (* mem_region_width : N; *)
-         mem_region_width : word 64;
+         mem_region_width : word PAddrSz;
          mem_region_device : option (Fin.t (length mem_devices))
        }.
 
   (* memory regions from largest start address to smallest start address *)
   Local Definition mem_table_regions
-    (* :  list (MemTableEntry mem_devices) -> option (N * list MemRegion)%type *)
-    :  list (MemTableEntry mem_devices) -> option (word 64 * list MemRegion)%type
+    :  list (MemTableEntry mem_devices) -> option (word PAddrSz * list MemRegion)%type
     := fold_right
          (fun x acc
            => match acc with
                 | None => None
                 | Some (end_addr, regions)
-                  (* => let next_end_addr := N.add (mtbl_entry_addr x) (mtbl_entry_width x) in *)
                   => let next_end_addr := ((mtbl_entry_addr x) ^+ (mtbl_entry_width x)) in
                      let device_region
                        := {|
                             mem_region_width  := mtbl_entry_width x;
                             mem_region_device := Some (mtbl_entry_device x)
                           |} in
-(*
-                     match N.compare end_addr (mtbl_entry_addr x) in comparison with
-                       | Datatypes.Eq
-                         => Some (next_end_addr, device_region :: regions)
-                       | Datatypes.Lt
-                         => Some (next_end_addr,
-                              device_region ::
-                              {|
-                                mem_region_width  := ((mtbl_entry_addr x) - end_addr);
-                                mem_region_device := None
-                              |} ::
-                              regions)
-                       | _ => None
-                       end
-*)
                      if wltb end_addr (mtbl_entry_addr x)
                      then
                        Some (next_end_addr,
@@ -73,18 +55,13 @@ Section pmem.
                        then Some (next_end_addr, device_region :: regions)
                        else None
                 end)
-         (* (Some (0%N, [])). *)
-         (Some (wzero 64, [])).
+         (Some (wzero PAddrSz, [])).
 
-  (* Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A) *)
-  Local Fixpoint mem_table_insert (A : Type) (f : A -> word 64) (x : A) (ys : list A)
+  Local Fixpoint mem_table_insert (A : Type) (f : A -> word PAddrSz) (x : A) (ys : list A)
     :  list A
     := match ys with
        | [] => [x]
        | y0 :: ys
-         (* => if N.leb (f y0) (f x)
-            then x :: y0 :: ys
-            else y0 :: (mem_table_insert f x ys) *)
          => if wltb (f x) (f y0)
             then y0 :: (mem_table_insert f x ys)
             else x :: y0 :: ys
@@ -101,13 +78,14 @@ Section pmem.
          end.
 
   (* Local Definition list_sum : list N -> N := fold_right N.add 0%N. *)
-  Local Definition list_sum : list (word 64) -> word 64 := fold_right (@wplus 64) (wzero 64).
+  Local Definition list_sum : list (word PAddrSz) -> word PAddrSz := fold_right (@wplus PAddrSz) (wzero PAddrSz).
 
   Local Definition option_eqb (A : Type) (H : A -> A -> bool) (x y : option A) : bool
-    := match x with
-         | None   => match y with | None => true    | _ => false end
-         | Some n => match y with | Some m => H n m | _ => false end
-         end.
+    :=  match x, y with
+         | None, None => true
+         | Some n, Some m => H n m
+         | _, _ => false
+        end.
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -115,15 +93,10 @@ Section pmem.
   Section ty.
 
     Local Definition mem_region_match
-      (* (region_addr : N) *)
-      (region_addr : word 64)
+      (region_addr : word PAddrSz)
       (region : MemRegion)
       (paddr : PAddr @# ty)
       :  Bool @# ty
-(*
-      := ($(N.to_nat region_addr) <= paddr) &&
-         (paddr < $(N.to_nat (region_addr + mem_region_width region))).
-*)
       := ((unsafeTruncLsb Xlen $$region_addr) <= paddr) &&
          (paddr < (unsafeTruncLsb Xlen $$(region_addr ^+ (mem_region_width region)))).
 
@@ -155,17 +128,6 @@ Section pmem.
                        LETA result
                          :  k
                          <- f region
-(*
-                              ((paddr - $(N.to_nat region_addr)) +
-                               ($(N.to_nat (list_sum
-                                   (map mem_region_width
-                                     (filter
-                                       (fun prev_region
-                                         => option_eqb Fin.eqb 
-                                              (mem_region_device prev_region)
-                                              (mem_region_device region))
-                                       (fst acc)))))));
-*)
                               ((paddr - (unsafeTruncLsb Xlen $$region_addr)) +
                                (unsafeTruncLsb Xlen ($$(list_sum
                                    (map mem_region_width
@@ -205,6 +167,32 @@ Section pmem.
                            } : Pair (DeviceTag mem_devices) PAddr @# ty)
                     end)).
 
+    (*
+      Note: we assume that device tags will always be valid given
+      the constraints we apply in generating them.
+     *)
+    Definition mem_device_apply ty
+               (mem_devices : list MemDevice)
+               (tag : DeviceTag mem_devices @# ty)
+               (k : Kind)
+               (f : MemDevice -> ActionT ty k)
+      :  ActionT ty k
+      :=  LETA result
+         :  Maybe k
+                  <- snd
+                  (fold_left
+                     (fun '(num, acc) device
+                      => (S num,
+                          If ($num == tag)
+                          then LETA result : k <- f device;
+                                 System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
+                                 Ret (Valid #result: Maybe k @# _)
+                          else acc as retVal;
+                          Ret #retVal))
+                     mem_devices
+                     (0, Ret Invalid));
+           Ret (#result @% "data").
+        
     Local Definition checkPMAs
       (access_type : VmAccessType @# ty)
       (paddr : PAddr @# ty)
