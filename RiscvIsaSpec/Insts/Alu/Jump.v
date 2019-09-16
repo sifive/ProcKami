@@ -11,9 +11,8 @@ Section Alu.
       STRUCT_TYPE {
         "pc"                   :: VAddr;
         "new_pc"               :: VAddr;
-        "compressed?"          :: Bool;
-        "misalignedException?" :: Bool
-      }.
+        "compressed?"          :: Bool
+        }.
 
     Definition JumpOutputType :=
       STRUCT_TYPE {
@@ -80,8 +79,8 @@ Section Alu.
                      RetE
                        (STRUCT {
                           "misaligned?"
-                            ::= (#sem_in_pkt @% "misalignedException?" &&
-                                ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0));
+                          ::= !($$allow_misaligned) &&
+                               ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0);
                           "newPc" ::= #new_pc;
                           "retPc"
                             ::= ((#sem_in_pkt @% "pc") +
@@ -118,8 +117,7 @@ Section Alu.
                                              (#inst $[30:21]),
                                              $$ WO~0
                                            >})));
-                                  "compressed?" ::= (#exec_pkt @% "compressed?");
-                                  "misalignedException?" ::= cfg_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (#exec_pkt @% "compressed?")
                                } : JumpInputType @# ty);
                   outputXform  := jumpTag;
                   optMemParams  := None ;
@@ -150,8 +148,7 @@ Section Alu.
                                                (SignExtendTruncLsb Xlen (imm #inst))),
                                             $$ WO~0
                                           >});
-                                  "compressed?" ::= (#exec_pkt @% "compressed?");
-                                  "misalignedException?" ::= cfg_pkt @% "instMisalignedException?"
+                                  "compressed?" ::= (#exec_pkt @% "compressed?")
                                 } : JumpInputType @# ty);
                    outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
                                      => jumpTag (transPC sem_output_expr);

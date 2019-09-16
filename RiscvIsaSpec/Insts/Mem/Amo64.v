@@ -23,9 +23,7 @@ Section Mem.
                                              "aq" ::= #x @% "aq" ;
                                              "rl" ::= #x @% "rl" ;
                                              "misalignedException?" ::=
-                                               (#x @% "memMisalignedException?")
-                                                 && !(isAligned #addr (#x @% "numZeros")) ;
-                                             "accessException?" ::= #x @% "accessException?"
+                                               !(checkAligned #addr (#x @% "numZeros"))
                                            } ;
                                RetE #ret ) ;
          fuInsts :=

@@ -242,7 +242,7 @@ Section mem_unit.
                               end))
                      func_unit_id
                      inst_id);
-           If checkAligned exts addr (#msize @% "data")
+           If checkAligned addr (#msize @% "data")
              then
                (* III. get the physical address *)
                LETA mpaddr

@@ -140,6 +140,7 @@ Section exts.
   Variable supported_exts : list SupportedExt.
 
   Variable allow_misaligned : bool.
+  Variable misaligned_access: bool.
 
   (* The supported extension entries. *)
   Local Definition entries
@@ -165,7 +166,8 @@ Section exts.
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts
-         allow_misaligned.
+         allow_misaligned
+         misaligned_access.
 
   Section ty.
     Variable ty : Kind -> Type.

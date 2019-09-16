@@ -74,10 +74,7 @@ Section config_reader.
             "tw"         ::= #tw;
             "extensions" ::= #extensions;
             "fs"         ::= #fs;
-            "xs"         ::= #xs;
-            "instMisalignedException?" ::= $$false ;
-            "memMisalignedException?"  ::= $$false ;
-            "accessException?"         ::= $$false
+            "xs"         ::= #xs
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.

@@ -151,7 +151,8 @@ Class ProcParams :=
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
-    allow_misaligned : bool
+    allow_misaligned : bool;
+    miasligned_access: bool
   }.
 
 Class FpuParams
@@ -664,7 +665,7 @@ Section Params.
     Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
       ((~(~($0) << numZeros)) & ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
 
-    Definition checkAligned (exts : Extensions @# ty) (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
+    Definition checkAligned (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
       :  Bool @# ty
       := if allow_misaligned
            then $$true
@@ -791,10 +792,7 @@ Section Params.
           "tw"          :: Bool;
           "extensions"  :: Extensions;
           "fs"          :: Bit 2;
-          "xs"          :: Bit 2;
-          "instMisalignedException?" :: Bool ;
-          "memMisalignedException?"  :: Bool ;
-          "accessException?"         :: Bool
+          "xs"          :: Bit 2
         }.
 
     Local Open Scope kami_expr.
