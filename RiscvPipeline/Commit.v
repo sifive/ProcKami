@@ -304,25 +304,29 @@ Section trap_handling.
             LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
             LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
             LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
+            Read dpc : Bit Dlen <- ^"dpc";
             LET next_pc : VAddr
               <- (ITE
-                   ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
-                   (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
+                   ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $DRetTag))
+                   (xlen_sign_extend Xlen (cfg_pkt @% "xlen") #dpc)
                    (ITE
-                     ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
-                     (* Note: Ret instructions always set val1. *)
+                     ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
+                     (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
                      (ITE
-                       ((#opt_val1 @% "valid") &&
-                        ((#opt_val1 @% "data") @% "tag" == $RetTag))
-                       (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
-                         #mepc
-                         (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
-                           #sepc
-                           #uepc))
-                       (ITE (exec_context_pkt @% "compressed?")
-                         (pc + $2)
-                         (pc + $4)))));
+                       ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
+                       (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
+                       (* Note: Ret instructions always set val1. *)
+                       (ITE
+                         ((#opt_val1 @% "valid") &&
+                          ((#opt_val1 @% "data") @% "tag" == $RetTag))
+                         (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
+                           #mepc
+                           (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
+                             #sepc
+                             #uepc))
+                         (ITE (exec_context_pkt @% "compressed?")
+                           (pc + $2)
+                           (pc + $4))))));
             Write ^"pc" : VAddr <- #next_pc;
             Ret #next_pc)
           as next_pc;

@@ -124,6 +124,50 @@ Section mret.
               ]
        |}.
 
+  Definition DRet : FUEntry ty
+    := {|
+         fuName := "dret";
+         fuFunc
+           := fun in_pkt_expr : Bool ## ty
+                => RetE (STRUCT {
+                       "fst"
+                         ::= (noUpdPkt ty)
+                               @%["val1"
+                                    <- Valid (STRUCT {
+                                         "tag"  ::= $DRetTag;
+                                         "data" ::= $0
+                                       } : RoutedReg @# ty)];
+                       "snd" ::= Invalid
+                     } : PktWithException ExecUpdPkt @# ty);
+         fuInsts
+           := [
+                {|
+                  instName     := "dret";
+                  xlens        := xlens_all;
+                  extensions   := [];
+                  ext_ctxt_off := [];
+                  uniqId
+                    := [
+                         fieldVal funct7Field ('b"0111101");
+                         fieldVal rs2Field ('b"10010");
+                         fieldVal rs1Field ('b"00000");
+                         fieldVal funct3Field ('b"000");
+                         fieldVal rdField ('b"00000");
+                         fieldVal opcodeField ('b"11100");
+                         fieldVal instSizeField ('b"11")
+                       ];
+
+                  inputXform 
+                    := fun _ context_pkt_expr
+                         => LETE context_pkt <- context_pkt_expr;
+                            RetE (#context_pkt @% "debug");
+                  outputXform  := id;
+                  optMemParams := None;
+                  instHints    := falseHints
+                |}
+              ]
+       |}.
+
   Definition ECall : FUEntry ty
     := {|
          fuName := "ecall";

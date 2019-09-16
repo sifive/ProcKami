@@ -87,6 +87,7 @@ Definition RetTag := 6.
 Definition CsrWriteTag := 7.
 Definition CsrSetTag := 8.
 Definition CsrClearTag := 9.
+Definition DRetTag := 10.
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
