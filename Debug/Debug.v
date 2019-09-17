@@ -18,6 +18,8 @@ Section debug.
   Variable mem_table : list (MemTableEntry mem_devices).
 
   Local Definition debug_num_harts := 1.
+  Local Definition debug_hart_indexSz := Nat.log2_up debug_num_harts.
+  Local Definition debug_hart_index := Bit debug_hart_indexSz.
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -65,6 +67,28 @@ Section debug.
     (k : Kind) : Csr
     := debug_csr name addr [@csrFieldAny _ @^name k k None].
 
+  Section ty.
+    Variable ty : Kind -> Type.
+
+    Definition debug_states_all (name : string)
+      :  ActionT ty Bool
+      := utila_acts_all
+           (map
+             (fun i
+               => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
+                  Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
+             (seq 0 debug_num_harts)).
+
+    Definition debug_states_any (name : string)
+      :  ActionT ty Bool
+      := utila_acts_any
+           (map
+             (fun i
+               => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
+                  Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
+             (seq 0 debug_num_harts)).
+  End ty.
+
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
@@ -91,6 +115,65 @@ Section debug.
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
                     @csrFieldAny _ @^"ndmreset" Bool Bool None;
                     @csrFieldAny _ @^"dmactive" Bool Bool None
+                  ];
+           csrAccess := accessDMode
+         |};
+         {|
+           csrName := "dmstatus";
+           csrAddr := CsrIdWidth 'h"11";
+           csrViews
+             := debug_csr_view
+                  [
+                    @csrFieldNoReg _ "reserved0" (Bit 9) (getDefaultConst _);
+                    @csrFieldNoReg _ "impebreak" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "reserved1" (Bit 2) (getDefaultConst _);
+                    @csrFieldNoReg _ "allhavereset" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "anyhavereset" Bool (getDefaultConst _);
+                    {|
+                      csrFieldName  := @^"allresumeack";
+                      csrFieldKind  := Bool;
+                      csrFieldValue := inr (fun ty => debug_states_all ty "resumeack")
+                    |};
+                    {|
+                      csrFieldName  := @^"anyresumeack";
+                      csrFieldKind  := Bool;
+                      csrFieldValue := inr (fun ty => debug_states_any ty "resumeack")
+                    |};
+                    @csrFieldNoReg _ "allnonexistent" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "anynonexistent" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "allunavail" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "anyunavail" Bool (getDefaultConst _);
+                    {|
+                      csrFieldName := @^"allrunning";
+                      csrFieldKind := Bool;
+                      csrFieldValue
+                        := inr (fun ty
+                             => LETA halted : Bool <- debug_states_all ty "halted";
+                                Ret !#halted)
+                    |};
+                    {|
+                      csrFieldName := @^"anyrunning";
+                      csrFieldKind := Bool;
+                      csrFieldValue
+                        := inr (fun ty
+                             => LETA halted : Bool <- debug_states_all ty "halted";
+                                Ret !#halted)
+                    |};
+                    {|
+                      csrFieldName  := @^"allhalted";
+                      csrFieldKind  := Bool;
+                      csrFieldValue := inr (fun ty => debug_states_all ty "halted")
+                    |};
+                    {|
+                      csrFieldName  := @^"anyhalted";
+                      csrFieldKind  := Bool;
+                      csrFieldValue := inr (fun ty => debug_states_all ty "halted")
+                    |};
+                    @csrFieldNoReg _ "authenticated" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "authbusy" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "hasresethaltreq" Bool (getDefaultConst _);
+                    @csrFieldNoReg _ "confstrptrvalid" Bool (getDefaultConst _);
+                    @csrFieldReadOnly _ "version" (Bit 4) (Bit 4) (Some (ConstBit (natToWord 4 2)))
                   ];
            csrAccess := accessDMode
          |};
