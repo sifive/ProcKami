@@ -14,7 +14,7 @@ Section mem_devices.
     Variable ty: Kind -> Type.
 
     Local Definition pMemRead (index: nat) (addr: PAddr @# ty) (_ : MemRqLgSize @# ty)
-      : ActionT ty Data
+      : ActionT ty (Maybe Data)
       := Call result
            : Array Rlen_over_8 (Bit 8)
            <- (@^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
@@ -27,10 +27,10 @@ Section mem_devices.
            DispHex #result;
            DispString _ "\n"
          ];
-         Ret (pack #result).
+         Ret (Valid (pack #result): Maybe Data @# _).
 
     Local Definition pMemWrite (index : nat) (pkt : MemWrite @# ty)
-      : ActionT ty Void
+      : ActionT ty Bool
       := LET writeRq
            :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
            <- (STRUCT {
@@ -47,7 +47,7 @@ Section mem_devices.
            DispHex #writeRq;
            DispString _ "\n"
          ];
-         Retv.
+         Ret ($$true).
 
   End ty.
 
@@ -61,11 +61,7 @@ Section mem_devices.
            := fun ty => map (fun index => @pMemRead ty index) (seq 0 mem_device_num_reads);
          mem_device_write
            := fun ty
-                => [
-                     (fun (pkt : MemWrite @# ty)
-                       => LETA _ <- pMemWrite 0 pkt;
-                            Ret $$false)
-                    ];
+                => [ pMemWrite 0 ];
          mem_device_read_resv
            := (fun ty addr _ => Call result: Array Rlen_over_8 Bool
                                                      <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);

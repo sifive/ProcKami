@@ -150,7 +150,7 @@ Section trap_handling.
        Read extRegs: ExtensionsReg <- @^"extRegs";
        LET extensions: Extensions <- ExtRegToExt #extRegs;
        Write @^"mode" : PrivMode <- modeFix #extensions (ZeroExtendTruncLsb _ #pp);
-       Write @^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
+       Write @^(prefix ++ "pie") : Bool <- $$true;
        Write @^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width (modeFix #extensions (Const ty (natToWord _ UserMode)));

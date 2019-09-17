@@ -309,13 +309,13 @@ Section pmem.
                          DispString _ "\n";
                          DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
                        ];
-                       LETA result : Data <- read daddr size;
+                       LETA result : Maybe Data <- read daddr size;
                        System [
                          DispString _ "[mem_region_read] result: ";
                          DispHex #result;
                          DispString _ "\n"
                        ];
-                       Ret (Valid #result : Maybe Data @# ty)
+                       Ret #result
                  end).
 
     Definition mem_region_write
