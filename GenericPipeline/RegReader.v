@@ -5,8 +5,6 @@ Require Import List.
 Import ListNotations.
 
 Section reg_reader.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -59,7 +57,7 @@ Section reg_reader.
     :  ActionT ty Data
     := Call reg_val
          :  Array 1 Data
-         <- (^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
+         <- (@^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
        Ret
          (IF reg_id == $0
             then $0
@@ -71,7 +69,7 @@ Section reg_reader.
     :  ActionT ty Data
     := Call freg_val
          :  Array 1 (Bit Flen)
-         <- (^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
+         <- (@^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
        Ret (flen_one_extend Rlen (ReadArrayConst #freg_val Fin.F1)).
 
   Definition reg_reader
@@ -90,8 +88,8 @@ Section reg_reader.
        LETA freg1_val : Data <- reg_reader_read_freg 1 (rs1 #raw_inst);
        LETA freg2_val : Data <- reg_reader_read_freg 2 (rs2 #raw_inst);
        LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
-       Read fflags_val : FflagsValue <- ^"fflags";
-       Read frm_val : FrmValue <- ^"frm";
+       Read fflags_val : FflagsValue <- @^"fflags";
+       Read frm_val : FrmValue <- @^"frm";
        LETA msg <- Sys [
            DispString _ "Reg 1 selector: ";
            DispHex (rs1 #raw_inst);

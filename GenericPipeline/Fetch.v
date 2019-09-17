@@ -3,8 +3,6 @@ Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 
 Section fetch.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
   
@@ -29,7 +27,7 @@ Section fetch.
        then 
          LETA inst_lower
            :  PktWithException CompInst
-           <- memFetch name mem_table 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
+           <- memFetch mem_table 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
          If #inst_lower @% "snd" @% "valid"
            then
              System [
@@ -47,7 +45,7 @@ Section fetch.
                :  Bool
                <- isInstUncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
              If #uncompressed
-               then memFetch name mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
+               then memFetch mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
                else
                  Ret (STRUCT {
                      "fst" ::= $0;

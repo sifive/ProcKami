@@ -8,8 +8,6 @@ Require Import List.
 Import ListNotations.
 
 Section mmapped.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Open Scope kami_expr.
@@ -139,7 +137,7 @@ Section mmapped.
            {|
              gr_addr := $0%word;
              gr_kind := Bit 64;
-             gr_name := ^"msip"
+             gr_name := @^"msip"
            |}
          ] "msip" false.
 
@@ -150,7 +148,7 @@ Section mmapped.
            {|
              gr_addr := $0%word;
              gr_kind := Bit 64;
-             gr_name := ^"mtime"
+             gr_name := @^"mtime"
            |}
          ] "mtime" false.
 
@@ -161,7 +159,7 @@ Section mmapped.
            {|
              gr_addr := $0%word;
              gr_kind := Bit 64;
-             gr_name := ^"mtimecmp"
+             gr_name := @^"mtimecmp"
            |}
          ] "mtimecmp" false.
 

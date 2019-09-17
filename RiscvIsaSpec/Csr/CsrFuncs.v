@@ -18,8 +18,6 @@ Require Import List.
 Import ListNotations.
 
 Section CsrInterface.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Open Scope kami_expr.
@@ -157,7 +155,7 @@ Section CsrInterface.
        System [DispString _ "[csrViewReadWrite] done\n"];
        Ret (csrViewReadXform view upd_pkt #csr_value).
 
-  Definition satpCsrName : string := ^"satp".
+  Definition satpCsrName : string := @^"satp".
 
   Definition read_counteren
     (ty: Kind -> Type)
@@ -296,10 +294,10 @@ Section CsrInterface.
       |}.
 
   Definition misa: CsrField
-    := {| csrFieldName := ^"extensions";
+    := {| csrFieldName := @^"extensions";
           csrFieldKind := Array 26 Bool ;
           csrFieldValue :=
-            inr {| csrFieldRegisterName := ^"extRegs";
+            inr {| csrFieldRegisterName := @^"extRegs";
                    csrFieldRegisterKind := ExtensionsReg ;
                    csrFieldRegisterValue := Some InitExtsRegVal;
                    csrFieldRegisterReadXform
@@ -339,7 +337,7 @@ Section CsrInterface.
   Definition pmpField
     (index : nat)
     :  CsrField
-    := let name := (^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
+    := let name := (@^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
        {|
          csrFieldName := name;
          csrFieldKind := PmpCfg;
@@ -659,7 +657,7 @@ Section CsrInterface.
         System [
             DispString _ "[commitCsrWrite] writing to rd (rd index != 0): \n"
           ];
-          reg_writer_write_reg name (upd_pkt @% "cfg" @% "xlen") rd_index
+          reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
                                (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
           If utila_lookup_table_default
              csr_params

@@ -146,7 +146,8 @@ Record SupportedExt :=
     ext_edit : bool }.
 
 Class ProcParams :=
-  { Xlen_over_8: nat ;
+  { proc_name : string ;
+    Xlen_over_8: nat ;
     Flen_over_8: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
@@ -155,6 +156,8 @@ Class ProcParams :=
     allow_inst_misaligned: bool;
     miasligned_access: bool
   }.
+
+Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
 
 Class FpuParams
   := {

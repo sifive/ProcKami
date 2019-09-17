@@ -12,8 +12,6 @@ Require Import BinNums.
 Import BinNat.
 
 Section pmem.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -249,7 +247,7 @@ Section pmem.
       :  ActionT ty (Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt)
       := LETA pmp_result
            :  Bool
-           <- pmp_check_access name access_type mode paddr paddr_len; 
+           <- pmp_check_access access_type mode paddr paddr_len; 
          LET bound_result
            :  Bool
            <- mode == $MachineMode ||

@@ -10,8 +10,6 @@ Require Import List.
 Import ListNotations.
 
 Section pmp.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
   
@@ -37,10 +35,10 @@ Section pmp.
     :  ActionT ty PmpEntryPkt
     := Read entry_cfg
          :  PmpCfg
-         <- ^("pmp" ++ nat_decimal_string n ++ "cfg");
+         <- @^("pmp" ++ nat_decimal_string n ++ "cfg");
        Read entry_addr
          :  Bit pmp_reg_width
-         <- ^("pmpaddr" ++ nat_decimal_string n);
+         <- @^("pmpaddr" ++ nat_decimal_string n);
        Ret
          (STRUCT {
             "cfg" ::= #entry_cfg;

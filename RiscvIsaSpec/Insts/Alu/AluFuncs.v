@@ -10,8 +10,6 @@ Require Import List.
 Import ListNotations.
 
 Section ty.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
   Local Open Scope kami_expr.

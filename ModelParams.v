@@ -163,7 +163,7 @@ Section exts.
   Variable pc_init_val: word (Xlen_over_8 * 8).
 
   Local Definition procParams
-    := Build_ProcParams Xlen_over_8 Flen_over_8
+    := Build_ProcParams name Xlen_over_8 Flen_over_8
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts
@@ -290,12 +290,12 @@ Section exts.
   Definition mem_devices
     :  list (@MemDevice procParams)
     := [
-         bootRomDevice  name;
-         msipDevice     name;
-         mtimecmpDevice name;
-         mtimeDevice    name;
-         pMemDevice     name;
-         uartDevice     name
+         bootRomDevice ;
+         msipDevice    ;
+         mtimecmpDevice;
+         mtimeDevice   ;
+         pMemDevice    ;
+         uartDevice    
        ].
 
   (* nat_lt n m : n < m *)
@@ -349,7 +349,6 @@ Section exts.
 
   Definition generate_model
     := processor
-         name
          mem_table
          param_func_units.
 

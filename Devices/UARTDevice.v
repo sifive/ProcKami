@@ -2,8 +2,6 @@ Require Import Kami.All.
 Require Import ProcKami.FU.
 
 Section device.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Local Definition lgMemSz := 8.
@@ -53,7 +51,7 @@ Section device.
                              } : UARTRead @# ty);
                         Call result
                           :  Bit 64
-                          <- ^"readUART" (#readRq : UARTRead);
+                          <- @^"readUART" (#readRq : UARTRead);
                         Ret (ZeroExtendTruncLsb Rlen #result)];
          mem_device_read_resv
            := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
@@ -69,7 +67,7 @@ Section device.
                                "data" ::= pkt @% "data";
                                "size" ::= pkt @% "size"
                              } : UARTWrite @# ty);
-                        Call ^"writeUART" (#writeRq : _);
+                        Call @^"writeUART" (#writeRq : _);
                         System [
                           DispString _ "[uartDevice] pkt: ";
                           DispHex pkt;

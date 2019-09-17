@@ -12,8 +12,6 @@ Require Import List.
 Import ListNotations.
 
 Section mem_unit.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -45,11 +43,11 @@ Section mem_unit.
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
-    := Read mpp : PrivMode <- ^"mpp";
-       Read mprv : Bool <- ^"mprv";
-       Read mxr : Bool <- ^"mxr";
-       Read sum : Bool <- ^"sum";
-       Read satp_ppn : Bit 44 <- ^"satp_ppn";
+    := Read mpp : PrivMode <- @^"mpp";
+       Read mprv : Bool <- @^"mprv";
+       Read mxr : Bool <- @^"mxr";
+       Read sum : Bool <- @^"sum";
+       Read satp_ppn : Bit 44 <- @^"satp_ppn";
        LET effective_mode : PrivMode
          <- IF access_type != $VmAccessInst && #mprv
               then #mpp else mode;
@@ -57,7 +55,6 @@ Section mem_unit.
          then
            LETA paddr : PktWithException PAddr
              <- pt_walker
-                  name
                   mem_table
                   baseIndex
                   index
@@ -103,7 +100,7 @@ Section mem_unit.
          else
            LETA pmp_result
              :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-             <- checkForFault name mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
+             <- checkForFault mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
            If mem_error (#pmp_result @% "snd")
              then
                LET exception
@@ -272,7 +269,7 @@ Section mem_unit.
                  else
                    LETA pmp_result
                      :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                     <- checkForFault name mem_table
+                     <- checkForFault mem_table
                           (IF #mis_write @% "data"
                             then $VmAccessSAmo
                             else $VmAccessLoad)

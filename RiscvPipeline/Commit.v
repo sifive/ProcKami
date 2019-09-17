@@ -9,8 +9,6 @@ Require Import ProcKami.GenericPipeline.RegWriter.
 Import ListNotations.
 
 Section trap_handling.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -28,17 +26,17 @@ Section trap_handling.
     (exception : FullException @# ty)
     :  ActionT ty Void
     := (* section 3.1.7, 4.1.1 *)
-       Read ie : Bool <- ^(prefix ++ "ie");
-       Write ^(prefix ++ "pie") : Bool <- #ie;
-       Write ^(prefix ++ "ie") : Bool <- $$false;
-       Read extRegs: ExtensionsReg <- ^"extRegs";
+       Read ie : Bool <- @^(prefix ++ "ie");
+       Write @^(prefix ++ "pie") : Bool <- #ie;
+       Write @^(prefix ++ "ie") : Bool <- $$false;
+       Read extRegs: ExtensionsReg <- @^"extRegs";
        LET extensions: Extensions <- ExtRegToExt #extRegs;
-       Write ^(prefix ++ "pp")
+       Write @^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width (modeFix #extensions mode);
        (* section 3.1.12 *)
-       Read tvec_mode : Bit 2 <- ^(prefix ++ "tvec_mode");
-       Read tvec_base : Bit (Xlen - 2) <- ^(prefix ++ "tvec_base");
+       Read tvec_mode : Bit 2 <- @^(prefix ++ "tvec_mode");
+       Read tvec_base : Bit (Xlen - 2) <- @^(prefix ++ "tvec_base");
        LET addr_base
          :  VAddr
          <- (* TODO: See 4.1.5 are we to allow any {m,s}tvec_base value and append two 0s? The test suite appears to assume we do. *)
@@ -70,7 +68,7 @@ Section trap_handling.
          DispString _ "\n"
        ];
        (* section 3.1.7 *)
-       Write ^"pc"
+       Write @^"pc"
          :  VAddr
          <- IF #tvec_mode == $0 (* && intrpt *)
               then #addr_base
@@ -81,16 +79,16 @@ Section trap_handling.
          then
 *)
            (* section 3.1.20 *)
-           Write ^(prefix ++ "epc") : VAddr <- pc;
+           Write @^(prefix ++ "epc") : VAddr <- pc;
            (* section 3.1.21 *)
-           Write ^(prefix ++ "cause_interrupt") : Bool <- intrpt;
-           Write ^(prefix ++ "cause_code")
+           Write @^(prefix ++ "cause_interrupt") : Bool <- intrpt;
+           Write @^(prefix ++ "cause_code")
              :  Bit (Xlen - 1)
              <- ZeroExtendTruncLsb (Xlen - 1) (exception @% "exception");
 (*           Retv; *)
        (* section 3.1.22 *)
-       Write ^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
-       Write ^"mode" : PrivMode <- modeFix #extensions next_mode;
+       Write @^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
+       Write @^"mode" : PrivMode <- modeFix #extensions next_mode;
        System [
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
@@ -123,8 +121,8 @@ Section trap_handling.
     (exception : FullException @# ty)
     :  ActionT ty Void
     := System [DispString _ "[trapException]\n"];
-       Read medeleg : Bit 16 <- ^"medeleg";
-       Read sedeleg : Bit 16 <- ^"sedeleg";
+       Read medeleg : Bit 16 <- @^"medeleg";
+       Read sedeleg : Bit 16 <- @^"sedeleg";
        If delegated #medeleg (exception @% "exception") &&
           (mode == $SupervisorMode ||
            mode == $UserMode)
@@ -143,17 +141,17 @@ Section trap_handling.
     (prefix : string)
     (pp_width : nat)
     :  ActionT ty Void
-    := Read ie : Bool <- ^(prefix ++ "ie");
-       Read pie : Bool <- ^(prefix ++ "pie");
+    := Read ie : Bool <- @^(prefix ++ "ie");
+       Read pie : Bool <- @^(prefix ++ "pie");
        Read pp
          :  Bit pp_width
-         <- ^(prefix ++ "pp");
-       Write ^(prefix ++ "ie") <- #pie;
-       Read extRegs: ExtensionsReg <- ^"extRegs";
+         <- @^(prefix ++ "pp");
+       Write @^(prefix ++ "ie") <- #pie;
+       Read extRegs: ExtensionsReg <- @^"extRegs";
        LET extensions: Extensions <- ExtRegToExt #extRegs;
-       Write ^"mode" : PrivMode <- modeFix #extensions (ZeroExtendTruncLsb _ #pp);
-       Write ^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
-       Write ^(prefix ++ "pp")
+       Write @^"mode" : PrivMode <- modeFix #extensions (ZeroExtendTruncLsb _ #pp);
+       Write @^(prefix ++ "pie") : Bool <- $$true; (* 4.1.1 conflict with 3.1.7? *)
+       Write @^(prefix ++ "pp")
          :  Bit pp_width
          <- ZeroExtendTruncLsb pp_width (modeFix #extensions (Const ty (natToWord _ UserMode)));
        System [
@@ -194,12 +192,12 @@ Section trap_handling.
          then 
            (If (#val_pos == $IntRegTag)
               then (If (reg_index != $0)
-                      then reg_writer_write_reg name (cfg_pkt @% "xlen") (reg_index) (#val_data);
+                      then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data);
                     Retv)
               else (If (#val_pos == $FloatRegTag)
-                      then reg_writer_write_freg name (reg_index) (#val_data)
+                      then reg_writer_write_freg (reg_index) (#val_data)
                       else (If (#val_pos == $FflagsTag)
-                              then (Write ^"fflags" : FflagsValue
+                              then (Write @^"fflags" : FflagsValue
                                       <- unsafeTruncLsb FflagsWidth #val_data;
                                     System [
                                       DispString _ " Reg Write Wrote ";
@@ -233,8 +231,8 @@ Section trap_handling.
        LET val2: Maybe RoutedReg <- update_pkt @% "val2";
        LET reg_index : RegId <- rd inst;
        LET exception_code : Exception <- exception @% "data" @% "exception";
-       Read medeleg : Bit 16 <- ^"medeleg";
-       Read sedeleg : Bit 16 <- ^"sedeleg";
+       Read medeleg : Bit 16 <- @^"medeleg";
+       Read sedeleg : Bit 16 <- @^"sedeleg";
        System [
          DispString _ "[commit] medeleg: ";
          DispHex #medeleg;
@@ -252,23 +250,23 @@ Section trap_handling.
        If (exception @% "valid")
          then trapException (cfg_pkt @% "xlen") (cfg_pkt @% "mode") pc (exception @% "data")
          else (
-            Read mcountinhibit_ir : Bool <- ^"mcountinhibit_ir";
+            Read mcountinhibit_ir : Bool <- @^"mcountinhibit_ir";
             If !(#mcountinhibit_ir)
               then 
-                Read instret_reg <- ^"minstret";
-                Write ^"minstret" : Bit 64 <- #instret_reg + $1;
+                Read instret_reg <- @^"minstret";
+                Write @^"minstret" : Bit 64 <- #instret_reg + $1;
                 Retv;
             LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
             LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
             LET opt_val1 <- update_pkt @% "val1";
             LET opt_val2 <- update_pkt @% "val2";
-            Read mepc_raw : VAddr <- ^"mepc";
-            Read sepc_raw : VAddr <- ^"sepc";
-            Read uepc_raw : VAddr <- ^"uepc";
+            Read mepc_raw : VAddr <- @^"mepc";
+            Read sepc_raw : VAddr <- @^"sepc";
+            Read uepc_raw : VAddr <- @^"uepc";
             LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
             LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
             LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
-            Write ^"pc"
+            Write @^"pc"
               :  VAddr
               <- (ITE
                    ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
@@ -304,18 +302,18 @@ Section trap_handling.
     (pc : VAddr @# ty)
     :  ActionT ty Void
     := System [DispString _ "[interruptAction]\n"];
-       Read mie : Bool <- ^"mie";
-       Read sie : Bool <- ^"sie";
-       Read uie : Bool <- ^"uie";
-       LETA mei : Bool <- intrpt_pending ^"mei";
-       LETA msi : Bool <- intrpt_pending ^"msi";
-       LETA mti : Bool <- intrpt_pending ^"mti";
-       LETA sei : Bool <- intrpt_pending ^"sei";
-       LETA ssi : Bool <- intrpt_pending ^"ssi";
-       LETA sti : Bool <- intrpt_pending ^"sti";
-       LETA uei : Bool <- intrpt_pending ^"uei";
-       LETA usi : Bool <- intrpt_pending ^"usi";
-       LETA uti : Bool <- intrpt_pending ^"uti";
+       Read mie : Bool <- @^"mie";
+       Read sie : Bool <- @^"sie";
+       Read uie : Bool <- @^"uie";
+       LETA mei : Bool <- intrpt_pending @^"mei";
+       LETA msi : Bool <- intrpt_pending @^"msi";
+       LETA mti : Bool <- intrpt_pending @^"mti";
+       LETA sei : Bool <- intrpt_pending @^"sei";
+       LETA ssi : Bool <- intrpt_pending @^"ssi";
+       LETA sti : Bool <- intrpt_pending @^"sti";
+       LETA uei : Bool <- intrpt_pending @^"uei";
+       LETA usi : Bool <- intrpt_pending @^"usi";
+       LETA uti : Bool <- intrpt_pending @^"uti";
        LET code : Maybe (Pair PrivMode Exception)
          <- IF #mei then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMExt} : Pair PrivMode Exception @# ty) else (
             IF #msi then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptM} : Pair PrivMode Exception @# ty) else (
@@ -337,8 +335,8 @@ Section trap_handling.
          DispHex #exception;
          DispString _ "\n"
        ];
-       Read mideleg : Bit 16 <- ^"mideleg";
-       Read sideleg : Bit 16 <- ^"sideleg";
+       Read mideleg : Bit 16 <- @^"mideleg";
+       Read sideleg : Bit 16 <- @^"sideleg";
        (* 3.1.6.1 and 3.1.9 *)
        If #code @% "valid"
          then
