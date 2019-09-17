@@ -307,36 +307,43 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
-           mtbl_entry_addr := _ 'h"1000";
-           mtbl_entry_width := _ 'h"1000";
+           mtbl_entry_addr := hex"1000";
+           mtbl_entry_width := hex"1000";
            mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"2000000";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"2000000";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* msip *) 
          |};
          {|
-           mtbl_entry_addr := _ 'h"2004000";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"2004000";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtimecmp *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"200bff8";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"200bff8";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtime *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"80000000";
-           mtbl_entry_width := _ 'h"100000";
+           mtbl_entry_addr := hex"80000000";
+           mtbl_entry_width := hex"100000";
            mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt))
          |};
          {|
-           mtbl_entry_addr := _ 'h"C0000000";
-           mtbl_entry_width := _ 'h"80";
+           mtbl_entry_addr := hex"C0000000";
+           mtbl_entry_width := hex"80";
            mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
          |}
-       ].
+      ].
+
+  (* verify tha the memory table is valid *)
+  Goal (mem_regions mem_table) <> [].
+  Proof.
+    unfold mem_regions, mem_table.
+    discriminate.
+  Qed.
 
   (* V. the model generator. *)
 

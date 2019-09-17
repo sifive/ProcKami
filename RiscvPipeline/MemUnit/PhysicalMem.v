@@ -23,46 +23,46 @@ Section pmem.
 
   Record MemRegion
     := {
-         mem_region_width : word PAddrSz;
+         mem_region_width : N;
          mem_region_device : option (Fin.t (length mem_devices))
        }.
 
   (* memory regions from largest start address to smallest start address *)
   Local Definition mem_table_regions
-    :  list (MemTableEntry mem_devices) -> option (word PAddrSz * list MemRegion)%type
+    :  list (MemTableEntry mem_devices) -> option (N * list MemRegion)%type
     := fold_right
          (fun x acc
            => match acc with
                 | None => None
                 | Some (end_addr, regions)
-                  => let next_end_addr := ((mtbl_entry_addr x) ^+ (mtbl_entry_width x)) in
+                  => let next_end_addr := ((mtbl_entry_addr x) + (mtbl_entry_width x))%N in
                      let device_region
                        := {|
                             mem_region_width  := mtbl_entry_width x;
                             mem_region_device := Some (mtbl_entry_device x)
                           |} in
-                     if wltb end_addr (mtbl_entry_addr x)
+                     if (end_addr <? (mtbl_entry_addr x))%N
                      then
                        Some (next_end_addr,
                          device_region ::
                          {|
-                           mem_region_width  := ((mtbl_entry_addr x) ^- end_addr);
+                           mem_region_width  := ((mtbl_entry_addr x) - end_addr)%N;
                            mem_region_device := None
                          |} ::
                          regions)
                      else
-                       if weqb end_addr (mtbl_entry_addr x)
+                       if (end_addr =? (mtbl_entry_addr x))%N
                        then Some (next_end_addr, device_region :: regions)
                        else None
                 end)
-         (Some (wzero PAddrSz, [])).
+         (Some (0%N, [])).
 
-  Local Fixpoint mem_table_insert (A : Type) (f : A -> word PAddrSz) (x : A) (ys : list A)
+  Local Fixpoint mem_table_insert (A : Type) (f : A -> N) (x : A) (ys : list A)
     :  list A
     := match ys with
        | [] => [x]
        | y0 :: ys
-         => if wltb (f x) (f y0)
+         => if (f x <? f y0)%N
             then y0 :: (mem_table_insert f x ys)
             else x :: y0 :: ys
        end.
@@ -77,8 +77,7 @@ Section pmem.
          | _ => []
          end.
 
-  (* Local Definition list_sum : list N -> N := fold_right N.add 0%N. *)
-  Local Definition list_sum : list (word PAddrSz) -> word PAddrSz := fold_right (@wplus PAddrSz) (wzero PAddrSz).
+  Local Definition list_sum : list N -> N := fold_right N.add 0%N.
 
   Local Definition option_eqb (A : Type) (H : A -> A -> bool) (x y : option A) : bool
     :=  match x, y with
@@ -93,12 +92,12 @@ Section pmem.
   Section ty.
 
     Local Definition mem_region_match
-      (region_addr : word PAddrSz)
+      (region_addr : N)
       (region : MemRegion)
       (paddr : PAddr @# ty)
       :  Bool @# ty
-      := ((unsafeTruncLsb Xlen $$region_addr) <= paddr) &&
-         (paddr < (unsafeTruncLsb Xlen $$(region_addr ^+ (mem_region_width region)))).
+      := (($$(NToWord PAddrSz region_addr) <= paddr) &&
+         (paddr < $$(NToWord PAddrSz (region_addr + mem_region_width region)%N))).
 
     Local Definition mem_region_apply
       (k : Kind)
@@ -128,8 +127,8 @@ Section pmem.
                        LETA result
                          :  k
                          <- f region
-                              ((paddr - (unsafeTruncLsb Xlen $$region_addr)) +
-                               (unsafeTruncLsb Xlen ($$(list_sum
+                              ((paddr - $$(NToWord PAddrSz region_addr)) +
+                               ($$(NToWord PAddrSz (list_sum
                                    (map mem_region_width
                                      (filter
                                        (fun prev_region

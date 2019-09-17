@@ -14,13 +14,6 @@ Import Nat.
 Require Import StdLibKami.RegStruct.
 
 
-  (* (* verify tha the memory table is valid *) *)
-  (* Goal (mem_regions mem_table) <> []. *)
-  (* Proof. *)
-  (*   unfold mem_regions, mem_table. *)
-  (*   discriminate. Qed. *)
-
-
 Definition supportedExts
   :  list SupportedExt
   := [

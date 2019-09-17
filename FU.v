@@ -972,8 +972,8 @@ Section Params.
     Record MemTableEntry
            (mem_devices : list MemDevice)
       := {
-          mtbl_entry_addr : word PAddrSz;
-          mtbl_entry_width : word PAddrSz;
+          mtbl_entry_addr : N;
+          mtbl_entry_width : N;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
   End Device.
