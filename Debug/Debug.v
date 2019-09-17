@@ -349,17 +349,12 @@ Section debug.
 
     Definition debug_mode
       :  ActionT ty Bool
-      := if support_debug
-           then
-             LETA state : debug_hart_state <- debug_hart_state_read;
-             Ret (#state @% "debug")
-           else Ret $$false.
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         Ret (#state @% "debug").
 
     Definition debug_run
       :  ActionT ty Bool
-      := if support_debug
-           then debug_hart_running
-           else Ret $$true.
+      := debug_hart_running.
 
   End ty.
 

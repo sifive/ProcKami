@@ -55,18 +55,14 @@ Section Params.
               Node (csr_regs (Csrs name)) with
               Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
-              Node
-                (if support_debug
-                  then
-                    (debug_internal_regs name) ++
-                    (csr_regs (debug_csrs name)) ++
-                    [
-                      Rule ^"debug_send_halt_req"   := debug_send_halt_req name _;
-                      Rule ^"debug_send_resume_req" := debug_send_resume_req name _;
-                      Rule ^"debug_hart_halt"       := debug_hart_halt name _;
-                      Rule ^"debug_hart_resume"     := debug_hart_resume name _
-                    ]
-                  else []) with
+              Node (debug_internal_regs name) with
+              Node (csr_regs (debug_csrs name)) with
+              Node [
+                  Rule ^"debug_send_halt_req"   := debug_send_halt_req name _;
+                  Rule ^"debug_send_resume_req" := debug_send_resume_req name _;
+                  Rule ^"debug_hart_halt"       := debug_hart_halt name _;
+                  Rule ^"debug_hart_resume"     := debug_hart_resume name _
+                ] with
               Rule ^"trap_interrupt"
                 := LETA run : Bool <- debug_run name _;
                    LETA debug : Bool <- debug_mode name _;

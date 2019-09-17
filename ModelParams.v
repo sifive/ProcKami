@@ -140,7 +140,6 @@ Section exts.
   Variable supported_exts : list SupportedExt.
 
   Variable allow_misaligned : bool.
-  Variable support_debug : bool.
   Variable Dlen_over_8 : nat.
 
   (* The supported extension entries. *)
@@ -167,8 +166,7 @@ Section exts.
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts
-         allow_misaligned
-         support_debug.
+         allow_misaligned.
 
   Section ty.
     Variable ty : Kind -> Type.

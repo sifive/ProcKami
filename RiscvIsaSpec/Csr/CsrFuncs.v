@@ -407,9 +407,7 @@ Section CsrInterface.
 
   Definition accessDMode ty
     (context : CsrAccessPkt @# ty)
-    := if support_debug
-       then context @% "debug"
-       else $$false.
+    := context @% "debug".
 
   Definition accessMModeOnly ty
     (context : CsrAccessPkt @# ty)
