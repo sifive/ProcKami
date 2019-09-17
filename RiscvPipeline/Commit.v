@@ -132,14 +132,6 @@ Section trap_handling.
        Write ^"cause" : Bit 3 <- cause;
        Retv.
 
-  Definition handleEBreak
-    (debug : Bool @# ty)
-    (pc : VAddr @# ty)
-    :  ActionT ty Void
-    := If !debug
-         then enterDebugMode pc $DebugCauseEBreak;
-       Retv.
-
   (* 3.1.8 *)
   Definition trapException 
     (xlen : XlenValue @# ty)
@@ -149,24 +141,35 @@ Section trap_handling.
     (exception : FullException @# ty)
     :  ActionT ty VAddr
     := System [DispString _ "[trapException]\n"];
+       Read ebreakm : Bool <- ^"ebreakm";
+       Read ebreaks : Bool <- ^"ebreaks";
+       Read ebreaku : Bool <- ^"ebreaku";
        Read medeleg : Bit 16 <- ^"medeleg";
        Read sedeleg : Bit 16 <- ^"sedeleg";
-       If exception @% "exception" == $Breakpoint
-         then
-           LETA _ <- handleEBreak debug pc;
-           Ret pc
-         else
-           If delegated #medeleg (exception @% "exception") &&
-              (mode == $SupervisorMode ||
-               mode == $UserMode)
-             then trapAction "s" $$false $1 1 xlen debug mode pc exception
+       If debug
+         then Ret pc
+         else 
+           If (exception @% "exception" == $Breakpoint) &&
+              ((mode == $MachineMode && #ebreakm) ||
+               (mode == $SupervisorMode && #ebreaks) ||
+               (mode == $UserMode && #ebreaku))
+             then
+               LETA _ <- enterDebugMode pc $DebugCauseEBreak;
+               Ret pc
              else
-               (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
-                  then trapAction "u" $$false $0 0 xlen debug mode pc exception
-                  else trapAction "m" $$false $3 2 xlen debug mode pc exception
+               If delegated #medeleg (exception @% "exception") &&
+                  (mode == $SupervisorMode ||
+                   mode == $UserMode)
+                 then trapAction "s" $$false $1 1 xlen debug mode pc exception
+                 else
+                   (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
+                      then trapAction "u" $$false $0 0 xlen debug mode pc exception
+                      else trapAction "m" $$false $3 2 xlen debug mode pc exception
+                      as next_pc;
+                    Ret #next_pc)
                   as next_pc;
-                Ret #next_pc)
-              as next_pc;
+               Ret #next_pc
+             as next_pc;
            Ret #next_pc
          as next_pc;
        Ret #next_pc.
