@@ -150,7 +150,7 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception" ::=
-                                                  ($LoadAddrMisaligned: Exception @# ty) ;
+                                                  ($SAmoAddrMisaligned: Exception @# ty) ;
                                                 "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt
