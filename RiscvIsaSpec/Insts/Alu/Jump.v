@@ -79,7 +79,7 @@ Section Alu.
                      RetE
                        (STRUCT {
                           "misaligned?"
-                          ::= !($$allow_misaligned) &&
+                          ::= !($$allow_inst_misaligned) &&
                                ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0);
                           "newPc" ::= #new_pc;
                           "retPc"

@@ -342,17 +342,16 @@ Section CsrInterface.
     := let name := (^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
        {|
          csrFieldName := name;
-         csrFieldKind := Bit 8;
+         csrFieldKind := PmpCfg;
          csrFieldValue
            := inr {|
                   csrFieldRegisterName := name;
-                  csrFieldRegisterKind := Bit 8;
+                  csrFieldRegisterKind := PmpCfg;
                   csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform := fun _ _ => id;
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value input_value
-                         => IF ((input_value$[1:1]) == $1) &&
-                               ((input_value$[0:0]) == $0)
+                         => IF ((input_value @% "W") && (!(input_value @% "R")))
                               then curr_value (* ignore invalid writes. *)
                               else input_value
                 |}

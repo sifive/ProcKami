@@ -143,7 +143,7 @@ Section pmem.
              ([], Ret Invalid)
              mem_regions).
 
-    Local Definition PMAErrorsPkt
+    Local Definition PmaSuccessPkt
       := STRUCT_TYPE {
            "width"      :: Bool;
            "pma"        :: Bool;
@@ -199,12 +199,12 @@ Section pmem.
       (paddr_len : MemRqLgSize @# ty)
       (dtag : DeviceTag mem_devices @# ty)
       (lrsc : Bool @# ty)
-      :  ActionT ty PMAErrorsPkt 
+      :  ActionT ty PmaSuccessPkt 
       := mem_device_apply dtag
            (fun device
             => fold_left
                  (fun acc_val pma =>
-                    LETA acc : PMAErrorsPkt <- acc_val;
+                    LETA acc : PmaSuccessPkt <- acc_val;
                       LET width_match <- paddr_len == $(pma_width pma);
                       (* System [
                          DispString _ "[checkPMAs] paddr_len: ";
@@ -236,9 +236,9 @@ Section pmem.
                                                   $$(pma_misaligned pma))));
                                "lrsc"
                                ::= (#acc @% "lrsc" || (#width_match && ($$(pma_lrsc pma) || !lrsc)))
-                             } : PMAErrorsPkt @# ty))
+                             } : PmaSuccessPkt @# ty))
                  (mem_device_pmas device)
-                 (Ret $$(getDefaultConst PMAErrorsPkt))).
+                 (Ret $$(getDefaultConst PmaSuccessPkt))).
 
     Definition checkForFault
       (access_type : VmAccessType @# ty)
@@ -264,7 +264,7 @@ Section pmem.
            :  Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr))
            <- getDTag paddr;
          LETA pma_result
-           :  PMAErrorsPkt
+           :  PmaSuccessPkt
            <- checkPMAs access_type paddr paddr_len (#mresult @% "data" @% "data" @% "fst") lrsc;
          LET err_pkt : MemErrorPkt
            <- STRUCT {

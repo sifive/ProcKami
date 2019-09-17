@@ -115,7 +115,7 @@ Section Alu.
                                                                then $2
                                                                else $4)) ;
                                LETC newPc: VAddr <- (#x @% "pc") + #newOffset ;
-                               LETC retVal: BranchOutputType <- (STRUCT {"misaligned?" ::= !($$allow_misaligned) && ((unsafeTruncLsb 2 #newOffset)$[1:1] != $0) ;
+                               LETC retVal: BranchOutputType <- (STRUCT {"misaligned?" ::= !($$allow_inst_misaligned) && ((unsafeTruncLsb 2 #newOffset)$[1:1] != $0) ;
                                                                          "taken?" ::= #taken ;
                                                                          "newPc" ::= #newPc;
                                                                          "xlen" ::= #x @% "xlen"}) ;

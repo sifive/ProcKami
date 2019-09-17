@@ -151,7 +151,8 @@ Class ProcParams :=
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
-    allow_misaligned : bool;
+    allow_misaligned: bool;
+    allow_inst_misaligned: bool;
     miasligned_access: bool
   }.
 

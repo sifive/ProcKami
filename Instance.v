@@ -37,9 +37,10 @@ Definition supportedExts
     ].
 
 Definition allow_misaligned := false.
+Definition allow_inst_misaligned := true.
 Definition misaligned_access := false.
 
-Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned misaligned_access (_ 'h"1000").
+Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000").
 
 Definition model32Val := model [Xlen32].
 Definition model64Val := model [Xlen32; Xlen64].

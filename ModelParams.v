@@ -140,7 +140,8 @@ Section exts.
   Variable supported_exts : list SupportedExt.
 
   Variable allow_misaligned : bool.
-  Variable misaligned_access: bool.
+  Variable allow_inst_misaligned : bool.
+  Variable misaligned_access : bool.
 
   (* The supported extension entries. *)
   Local Definition entries
@@ -167,6 +168,7 @@ Section exts.
          supported_xlens
          supported_exts
          allow_misaligned
+         allow_inst_misaligned
          misaligned_access.
 
   Section ty.
