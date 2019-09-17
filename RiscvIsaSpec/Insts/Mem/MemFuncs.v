@@ -134,7 +134,7 @@ Section Mem.
            };
       RetE #ret.
 
-    Definition storeTagGeneric (allow_misaligned_val: bool) (valin: MemOutputAddrType ## ty)
+    Definition storeTagGeneric (allow_misaligned_val: bool) (isLoad: bool) (valin: MemOutputAddrType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr" ;
@@ -150,7 +150,7 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception" ::=
-                                                  ($SAmoAddrMisaligned: Exception @# ty) ;
+                                                  ($(if isLoad then LoadAddrMisaligned else SAmoAddrMisaligned): Exception @# ty) ;
                                                 "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt
@@ -169,7 +169,7 @@ Section Mem.
                                  else Invalid) } ;
          RetE #retval.
 
-    Definition storeTag := storeTagGeneric allow_misaligned.
+    Definition storeTag := storeTagGeneric allow_misaligned false.
 
     Definition storeXform (size: nat) :=
       fun memRegIn =>
@@ -214,7 +214,7 @@ Section Mem.
                                  } ;
       RetE #ret.
 
-    Definition amoTag := storeTagGeneric allow_misaligned.
+    Definition amoTag := storeTagGeneric allow_misaligned false.
 
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
@@ -251,7 +251,7 @@ Section Mem.
 
     Definition lrInput := amoInput.
 
-    Definition lrTag := storeTagGeneric allow_misaligned.
+    Definition lrTag := storeTagGeneric allow_misaligned true.
 
     Definition lrXform (half: bool) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
@@ -292,7 +292,7 @@ Section Mem.
 
     Definition scInput := amoInput.
 
-    Definition scTag := storeTagGeneric allow_misaligned.
+    Definition scTag := storeTagGeneric allow_misaligned false.
 
     (* TODO: should this use dohalf like those above? *)
     Definition scXform (half: bool)
