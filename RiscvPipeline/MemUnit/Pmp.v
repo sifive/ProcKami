@@ -47,9 +47,6 @@ Section pmp.
             "addr" ::= #entry_addr
           } : PmpEntryPkt @# ty).
 
-  Local Definition PAddrExSz : nat := Xlen + 3.
-  Local Definition PAddrEx := Bit PAddrExSz.
-
   Local Definition pmp_addr_acc_kind
     := STRUCT_TYPE {
          "any_matched" :: Bool;
@@ -118,10 +115,10 @@ Section pmp.
 (*                      DispString _ "\n" *)
 (*                    ]; *)
                    LET mask0
-                     :  PAddrEx
-                     <- ((ZeroExtendTruncLsb PAddrExSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
+                     :  PAddr
+                     <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
                    LET mask
-                     :  PAddrEx
+                     :  PAddr
                      <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
                    (* System [ *)
 (*                      DispString _ "[pmp_check] mask: "; *)
@@ -149,7 +146,7 @@ Section pmp.
                                      <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
                                    LET napot_match
                                      :  Bool
-                                     <- ((CABit Bxor [#curr_addr; #tor]) & (ZeroExtendTruncLsb PAddrSz #mask)) == $0;
+                                     <- ((CABit Bxor [#curr_addr; #tor]) & #mask) == $0;
                                    LET tor_match
                                      :  Bool
                                      <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);
