@@ -34,7 +34,9 @@ Section Alu.
                                       "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
                                  });
          LETC fullException: FullException <- STRUCT {
-                                             "exception" ::= ($InstAddrMisaligned : Exception @# ty) ;
+                                             "exception" ::= ($(if misaligned_access
+                                                                then InstAccessFault
+                                                                else InstAddrMisaligned) : Exception @# ty) ;
                                              "value" ::= #jOut @% "newPc" };
          LETC sndVal: Maybe FullException <-  STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
                                                       "data"  ::= #fullException };

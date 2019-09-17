@@ -102,7 +102,7 @@ Section mem_unit.
                  :  Maybe FullException
                  <- Valid (STRUCT {
                         "exception"
-                          ::= IF #pmp_result @% "snd" @% "misaligned"
+                          ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
                                 then $InstAddrMisaligned
                                 else $InstAccessFault;
                         "value" ::= vaddr
@@ -282,7 +282,7 @@ Section mem_unit.
                          :  Maybe FullException
                          <- Valid (STRUCT {
                               "exception"
-                                ::= IF #pmp_result @% "snd" @% "misaligned"
+                                ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
                                       then
                                         (IF #mis_write @% "data"
                                           then $SAmoAddrMisaligned
@@ -394,8 +394,8 @@ Section mem_unit.
                  <- Valid (STRUCT {
                       "exception"
                         ::= IF #mis_write @% "data"
-                              then $SAmoAddrMisaligned
-                              else $LoadAddrMisaligned;
+                              then if misaligned_access then $SAmoAccessFault else $SAmoAddrMisaligned
+                              else if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned;
                       "value" ::= addr
                     } : FullException @# ty);
                (mem_unit_exec_pkt_def #exception)
