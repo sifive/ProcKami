@@ -30,7 +30,8 @@ Section debug.
          "haltreq"   :: Bool;
          "resumereq" :: Bool;
          "resumeack" :: Bool;
-         "debug"     :: Bool
+         "debug"     :: Bool;
+         "buffer"    :: Bool (* executing the program buffer *)
        }.
 
   Definition debug_internal_regs
@@ -245,14 +246,6 @@ Section debug.
              Retv;
          Retv.
 
-    Definition debug_states_update
-      :  ActionT ty Void
-      := Retv.
-         (* write any halted *)
-         (* write all halted *)
-         (* write any running *)
-         (* write all running *)
-
     Definition debug_hart_state_read
       :  ActionT ty debug_hart_state
       := Read hart : Bit Xlen <- @^"mhartid";
@@ -274,18 +267,19 @@ Section debug.
          Ret !(#state@%"halted").
 
     (* See 3.5 *)
-    (* TODO: modify pipeline and other rules to read halted state reg and stall *)
-    (* TODO: wrap this action in a rule. *)
     Definition debug_hart_halt
       :  ActionT ty Void
       := LETA state : debug_hart_state <- debug_hart_state_read;
          If #state@%"haltreq" && !(#state@%"halted")
            then
              LETA _ <- debug_hart_state_set @^"halted" $$true;
+             Read pc : VAddr <- @^"pc";
+             Read mode : PrivMode <- @^"mode";
+             Write @^"dpc" : VAddr <- #pc;
+             Write @^"prv" : Bit 2 <- #mode;
              Retv;
          Retv.
 
-    (* TODO: wrap this action in a rule. *)
     Definition debug_hart_resume
       :  ActionT ty Void
       := LETA state : debug_hart_state <- debug_hart_state_read;
@@ -293,6 +287,10 @@ Section debug.
            then
              LETA _ <- debug_hart_state_set @^"halted" $$false;
              LETA _ <- debug_hart_state_set @^"resumeack" $$true;
+             Read pc : VAddr <- @^"dpc";
+             Read mode : PrivMode <- @^"mode";
+             Write @^"pc" <- #pc;
+             Write @^"mode" <- #mode;
              Retv;
          Retv.
 
