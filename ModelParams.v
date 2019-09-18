@@ -141,6 +141,8 @@ Section exts.
 
   Variable allow_misaligned : bool.
   Variable Dlen_over_8 : nat.
+  Variable allow_inst_misaligned : bool.
+  Variable misaligned_access : bool.
 
   (* The supported extension entries. *)
   Local Definition entries
@@ -162,11 +164,13 @@ Section exts.
   Variable pc_init_val: word (Xlen_over_8 * 8).
 
   Local Definition procParams
-    := Build_ProcParams Xlen_over_8 Flen_over_8 Dlen_over_8
+    := Build_ProcParams name Xlen_over_8 Flen_over_8 Dlen_over_8
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts
-         allow_misaligned.
+         allow_misaligned
+         allow_inst_misaligned
+         misaligned_access.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -287,12 +291,12 @@ Section exts.
   Definition mem_devices
     :  list (@MemDevice procParams)
     := [
-         bootRomDevice  name;
-         msipDevice     name;
-         mtimecmpDevice name;
-         mtimeDevice    name;
-         pMemDevice     name;
-         uartDevice     name
+         bootRomDevice ;
+         msipDevice    ;
+         mtimecmpDevice;
+         mtimeDevice   ;
+         pMemDevice    ;
+         uartDevice    
        ].
 
   (* nat_lt n m : n < m *)
@@ -304,42 +308,48 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
-           mtbl_entry_addr := _ 'h"1000";
-           mtbl_entry_width := _ 'h"1000";
+           mtbl_entry_addr := hex"1000";
+           mtbl_entry_width := hex"1000";
            mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"2000000";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"2000000";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* msip *) 
          |};
          {|
-           mtbl_entry_addr := _ 'h"2004000";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"2004000";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtimecmp *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"200bff8";
-           mtbl_entry_width := _ 'h"8";
+           mtbl_entry_addr := hex"200bff8";
+           mtbl_entry_width := hex"8";
            mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtime *)
          |};
          {|
-           mtbl_entry_addr := _ 'h"80000000";
-           mtbl_entry_width := _ 'h"100000";
+           mtbl_entry_addr := hex"80000000";
+           mtbl_entry_width := hex"100000";
            mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt))
          |};
          {|
-           mtbl_entry_addr := _ 'h"C0000000";
-           mtbl_entry_width := _ 'h"80";
+           mtbl_entry_addr := hex"C0000000";
+           mtbl_entry_width := hex"80";
            mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
          |}
-       ].
+      ].
+
+  (* verify tha the memory table is valid *)
+  Goal (mem_regions mem_table) <> [].
+  Proof.
+    unfold mem_regions, mem_table.
+    discriminate.
+  Qed.
 
   (* V. the model generator. *)
 
   Definition generate_model
     := processor
-         name
          mem_table
          param_func_units.
 

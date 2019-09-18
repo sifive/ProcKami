@@ -2,13 +2,11 @@ Require Import Kami.All.
 Require Import ProcKami.FU.
 
 Section device.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Local Definition lgMemSz := 12.
 
-  Local Definition read_name (index : nat) : string := ^"readROM" ++ natToHexStr index.
+  Local Definition read_name (index : nat) : string := @^"readROM" ++ natToHexStr index.
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -51,9 +49,9 @@ Section device.
                   @Build_RegFileBase
                     true
                     Rlen_over_8
-                    (^"rom_rom_file")
+                    (@^"rom_rom_file")
                     (Async (map read_name (seq 0 mem_device_num_reads)))
-                    (^"writeROM0") (* never used *)
+                    (@^"writeROM0") (* never used *)
                     (pow2 lgMemSz)
                     (Bit 8)
                     (RFFile true true "boot_rom" 0 (pow2 lgMemSz) (fun _ => wzero _))])

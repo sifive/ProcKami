@@ -17,7 +17,6 @@ Section Alu.
         "xlen" :: XlenValue ;
         "offset" :: VAddr ;
         "compressed?" :: Bool ;
-        "misalignedException?" :: Bool ;
         "reg1" :: Bit (Xlen + 1) ;
         "reg2" :: Bit (Xlen + 1) }.
 
@@ -58,7 +57,6 @@ Section Alu.
                "xlen" ::= (cfg_pkt @% "xlen");
                "offset" ::= SignExtendTruncLsb Xlen #bOffset;
                "compressed?" ::= (#x @% "compressed?");
-               "misalignedException?" ::= cfg_pkt @% "instMisalignedException?";
                "reg1"
                  ::= IF unsigned
                        then xlen_zero_extend (Xlen + 1) (cfg_pkt @% "xlen") (#x @% "reg1")
@@ -117,7 +115,7 @@ Section Alu.
                                                                then $2
                                                                else $4)) ;
                                LETC newPc: VAddr <- (#x @% "pc") + #newOffset ;
-                               LETC retVal: BranchOutputType <- (STRUCT {"misaligned?" ::= (#x @% "misalignedException?") && ((unsafeTruncLsb 2 #newOffset)$[1:1] != $0) ;
+                               LETC retVal: BranchOutputType <- (STRUCT {"misaligned?" ::= !($$allow_inst_misaligned) && ((unsafeTruncLsb 2 #newOffset)$[1:1] != $0) ;
                                                                          "taken?" ::= #taken ;
                                                                          "newPc" ::= #newPc;
                                                                          "xlen" ::= #x @% "xlen"}) ;

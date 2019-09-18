@@ -141,14 +141,19 @@ Record SupportedExt :=
     ext_edit : bool }.
 
 Class ProcParams :=
-  { Xlen_over_8: nat ;
+  { proc_name : string ;
+    Xlen_over_8: nat ;
     Flen_over_8: nat ;
     Dlen_over_8: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
-    allow_misaligned : bool
+    allow_misaligned: bool;
+    allow_inst_misaligned: bool;
+    miasligned_access: bool
   }.
+
+Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
 
 Class FpuParams
   := {
@@ -665,14 +670,14 @@ Section Params.
            "rl" ::= $$ false ;
            "fence.i" ::= $$ false}).
 
-    Definition isAligned (addr: VAddr @# ty) (numZeros: Bit 3 @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb 4 addr) == $0.
+    Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
+      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
 
-    Definition checkAligned (exts : Extensions @# ty) (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
+    Definition checkAligned (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
       :  Bool @# ty
       := if allow_misaligned
            then $$true
-           else isAligned addr (ZeroExtendTruncLsb 3 size).
+           else isAligned addr size.
 
 
     Local Close Scope kami_expr.
@@ -796,10 +801,7 @@ Section Params.
           "tw"          :: Bool;
           "extensions"  :: Extensions;
           "fs"          :: Bit 2;
-          "xs"          :: Bit 2;
-          "instMisalignedException?" :: Bool ;
-          "memMisalignedException?"  :: Bool ;
-          "accessException?"         :: Bool
+          "xs"          :: Bit 2
         }.
 
     Local Open Scope kami_expr.
@@ -978,8 +980,8 @@ Section Params.
     Record MemTableEntry
            (mem_devices : list MemDevice)
       := {
-          mtbl_entry_addr : word PAddrSz;
-          mtbl_entry_width : word PAddrSz;
+          mtbl_entry_addr : N;
+          mtbl_entry_width : N;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
   End Device.

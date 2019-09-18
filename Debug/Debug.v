@@ -11,8 +11,6 @@ Require Import List.
 Import ListNotations.
 
 Section debug.
-  Variable name: string.
-  Local Notation "@^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable mem_devices : list MemDevice.
   Variable mem_table : list (MemTableEntry mem_devices).
@@ -348,7 +346,7 @@ Section debug.
                                else 
                                  Read data0 : Bit 32 <- @^"data0";
                                  Read data1 : Bit 32 <- @^"data1";
-                                 LETA _ <- reg_writer_write_reg name $Xlen64 #reg_id (ZeroExtendTruncLsb Rlen ({< #data1, #data0 >}));
+                                 LETA _ <- reg_writer_write_reg $Xlen64 #reg_id (ZeroExtendTruncLsb Rlen ({< #data1, #data0 >}));
                                  Retv
                                as result;
                              Retv;
@@ -403,7 +401,7 @@ Section debug.
                            } : MemUnitInput @# ty);
                      LETA mem_result
                        :  PktWithException MemRet
-                       <- mem_unit_exec name
+                       <- mem_unit_exec
                             mem_table
                             exts
                             satp_mode

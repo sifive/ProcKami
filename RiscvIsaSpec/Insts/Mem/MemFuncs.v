@@ -14,20 +14,17 @@ Section Mem.
     Definition MemInputAddrType := STRUCT_TYPE {
                                        "base" :: VAddr ;
                                        "offset" :: VAddr ;
-                                       "numZeros" :: Bit 3 ;
+                                       "numZeros" :: MemRqLgSize ;
                                        "data" :: MaskedMem ;
                                        "aq" :: Bool ;
-                                       "rl" :: Bool ;
-                                       "memMisalignedException?" :: Bool ;
-                                       "accessException?" :: Bool }.
+                                       "rl" :: Bool }.
 
     Definition MemOutputAddrType := STRUCT_TYPE {
                                         "addr" :: VAddr ;
                                         "data" :: MaskedMem ;
                                         "aq" :: Bool ;
                                         "rl" :: Bool ;
-                                        "misalignedException?" :: Bool ;
-                                        "accessException?" :: Bool }.
+                                        "misalignedException?" :: Bool }.
 
     Local Open Scope kami_expr.
 
@@ -55,9 +52,7 @@ Section Mem.
                   "numZeros" ::= $size;
                   "data" ::= #maskedMem;
                   "aq" ::= $$ false;
-                  "rl" ::= $$ false;
-                  "memMisalignedException?" ::= cfg @% "memMisalignedException?";
-                  "accessException?" ::= cfg @% "accessException?"
+                  "rl" ::= $$ false
                 } : MemInputAddrType @# ty;
          RetE #ret.
 
@@ -72,9 +67,7 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception"
-                                                ::= ((IF #val @% "accessException?"
-                                                      then $LoadAccessFault
-                                                      else $LoadAddrMisaligned): Exception @# ty) ;
+                                                ::= ($LoadAddrMisaligned: Exception @# ty) ;
                                                 "value" ::= #addr
                                            });
          LETC valret
@@ -137,13 +130,11 @@ Section Mem.
              "numZeros" ::= $size;
              "data" ::= #maskedMem;
              "aq" ::= $$ false;
-             "rl" ::= $$ false;
-             "memMisalignedException?" ::= cfg @% "memMisalignedException?";
-             "accessException?" ::= cfg @% "accessException?"
+             "rl" ::= $$ false
            };
       RetE #ret.
 
-    Definition storeTag (valin: MemOutputAddrType ## ty)
+    Definition storeTagGeneric (allow_misaligned_val: bool) (isLoad: bool) (valin: MemOutputAddrType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr" ;
@@ -159,9 +150,7 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception" ::=
-                                                  ((IF #val @% "accessException?"
-                                                    then $LoadAccessFault
-                                                    else $LoadAddrMisaligned): Exception @# ty) ;
+                                                  ($(if isLoad then LoadAddrMisaligned else SAmoAddrMisaligned): Exception @# ty) ;
                                                 "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt
@@ -179,6 +168,8 @@ Section Mem.
                                  then Valid #fullException
                                  else Invalid) } ;
          RetE #retval.
+
+    Definition storeTag := storeTagGeneric allow_misaligned false.
 
     Definition storeXform (size: nat) :=
       fun memRegIn =>
@@ -219,13 +210,11 @@ Section Mem.
                                    "numZeros" ::= $sz ;
                                    "data" ::= #maskedMem;
                                    "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
-                                   "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]) ;
-                                   "memMisalignedException?" ::= $$ true ;
-                                   "accessException?" ::= cfg @% "accessException?"
+                                   "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0])
                                  } ;
       RetE #ret.
 
-    Definition amoTag := storeTag.
+    Definition amoTag := storeTagGeneric allow_misaligned false.
 
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
@@ -262,7 +251,7 @@ Section Mem.
 
     Definition lrInput := amoInput.
 
-    Definition lrTag := storeTag.
+    Definition lrTag := storeTagGeneric allow_misaligned true.
 
     Definition lrXform (half: bool) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
@@ -303,7 +292,7 @@ Section Mem.
 
     Definition scInput := amoInput.
 
-    Definition scTag := storeTag.
+    Definition scTag := storeTagGeneric allow_misaligned false.
 
     (* TODO: should this use dohalf like those above? *)
     Definition scXform (half: bool)

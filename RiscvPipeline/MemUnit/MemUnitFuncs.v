@@ -12,8 +12,6 @@ Require Import List.
 Import ListNotations.
 
 Section mem_unit.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -46,10 +44,10 @@ Section mem_unit.
     (access_type : VmAccessType @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException PAddr)
-    := Read mpp : PrivMode <- ^"mpp";
-       Read mxr : Bool <- ^"mxr";
-       Read sum : Bool <- ^"sum";
-       Read satp_ppn : Bit 44 <- ^"satp_ppn";
+    := Read mpp : PrivMode <- @^"mpp";
+       Read mxr : Bool <- @^"mxr";
+       Read sum : Bool <- @^"sum";
+       Read satp_ppn : Bit 44 <- @^"satp_ppn";
        LET effective_mode : PrivMode
          <- IF access_type != $VmAccessInst && mprv
               then #mpp else mode;
@@ -57,7 +55,6 @@ Section mem_unit.
          then
            LETA paddr : PktWithException PAddr
              <- pt_walker
-                  name
                   mem_table
                   baseIndex
                   index
@@ -85,7 +82,7 @@ Section mem_unit.
          DispHex vaddr;
          DispString _ "\n"
        ];
-       Read mprv : Bool <- ^"mprv";
+       Read mprv : Bool <- @^"mprv";
        LETA paddr
          :  PktWithException PAddr
          <- memTranslate index satp_mode mode #mprv $VmAccessInst vaddr;
@@ -104,7 +101,7 @@ Section mem_unit.
          else
            LETA pmp_result
              :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-             <- checkForFault name mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
+             <- checkForFault mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
            If mem_error (#pmp_result @% "snd")
              then
                LET exception
@@ -244,7 +241,7 @@ Section mem_unit.
                               end))
                      func_unit_id
                      inst_id);
-           If checkAligned exts addr (#msize @% "data")
+           If checkAligned addr (#msize @% "data")
              then
                (* III. get the physical address *)
                LETA mpaddr
@@ -274,7 +271,7 @@ Section mem_unit.
                  else
                    LETA pmp_result
                      :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                     <- checkForFault name mem_table
+                     <- checkForFault mem_table
                           (IF #mis_write @% "data"
                             then $VmAccessSAmo
                             else $VmAccessLoad)
@@ -444,7 +441,7 @@ Section mem_unit.
                      "rl"       ::= update_pkt @% "rl";
                      "reg_data" ::= exec_context_pkt @% "reg2"
                      } : MemUnitInput @# ty;
-              Read mprv : Bool <- ^"mprv";
+              Read mprv : Bool <- @^"mprv";
               LETA memRet
                 :  PktWithException MemRet
                 <- mem_unit_exec

@@ -2,8 +2,6 @@ Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
 Section mem_devices.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Local Definition lgMemSz := 20.
@@ -19,7 +17,7 @@ Section mem_devices.
       : ActionT ty Data
       := Call result
            : Array Rlen_over_8 (Bit 8)
-           <- (^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
+           <- (@^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
          System [
            DispString _ ("[pMemRead] index: " ++ natToHexStr index ++ "\n");
            DispString _ "[pMemRead] addr: ";
@@ -40,7 +38,7 @@ Section mem_devices.
                  "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data");
                  "mask" ::= pkt @% "mask"
                } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-         Call ^("writeMem" ++ (natToHexStr index)) (#writeRq: _);
+         Call @^("writeMem" ++ (natToHexStr index)) (#writeRq: _);
          System [
            DispString _ "[pMemWrite] pkt: ";
            DispHex pkt;
@@ -70,36 +68,36 @@ Section mem_devices.
                     ];
          mem_device_read_resv
            := (fun ty addr _ => Call result: Array Rlen_over_8 Bool
-                                                     <- ^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
+                                                     <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
                                     Ret #result);
          mem_device_write_resv
            := (fun ty addr mask resv _ =>
                  LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
                                                                                "data" ::= resv ;
                                                                                "mask" ::= mask } ;
-                   Call ^"writeMemReservation" (#writeRq: _);
+                   Call @^"writeMemReservation" (#writeRq: _);
                    Retv);
          mem_device_file
            := Some
                 (inl [@Build_RegFileBase
                   true
                   Rlen_over_8
-                  (^"mem_reg_file")
+                  (@^"mem_reg_file")
                   (Async [
-                      ^"readMem0"; (* mem unit loads *)
-                      ^"readMem1"; (* fetch lower *)
-                      ^"readMem2"; (* fetch upper *)
-                      ^"readMem3"; (* mem unit page table walker read mem call *)
-                      ^"readMem4"; (* mem unit page table walker read mem call *)
-                      ^"readMem5"; (* mem unit page table walker read mem call *)
-                      ^"readMem6"; (* fetch lower page table walker read mem call *)
-                      ^"readMem7"; (* fetch lower page table walker read mem call *)
-                      ^"readMem8"; (* fetch lower page table walker read mem call *)
-                      ^"readMem9"; (* fetch upper page table walker read mem call *)
-                      ^"readMemA"; (* fetch upper page table walker read mem call *)
-                      ^"readMemB"  (* fetch upper page table walker read mem call *)
+                      @^"readMem0"; (* mem unit loads *)
+                      @^"readMem1"; (* fetch lower *)
+                      @^"readMem2"; (* fetch upper *)
+                      @^"readMem3"; (* mem unit page table walker read mem call *)
+                      @^"readMem4"; (* mem unit page table walker read mem call *)
+                      @^"readMem5"; (* mem unit page table walker read mem call *)
+                      @^"readMem6"; (* fetch lower page table walker read mem call *)
+                      @^"readMem7"; (* fetch lower page table walker read mem call *)
+                      @^"readMem8"; (* fetch lower page table walker read mem call *)
+                      @^"readMem9"; (* fetch upper page table walker read mem call *)
+                      @^"readMemA"; (* fetch upper page table walker read mem call *)
+                      @^"readMemB"  (* fetch upper page table walker read mem call *)
                     ])
-                  (^"writeMem0")
+                  (@^"writeMem0")
                   (pow2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
                   (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _))])

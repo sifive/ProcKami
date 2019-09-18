@@ -2,8 +2,6 @@ Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
 Section Decompressor.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 

@@ -18,8 +18,6 @@ Require Import List.
 Import ListNotations.
 
 Section CsrInterface.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Open Scope kami_expr.
@@ -166,7 +164,7 @@ Section CsrInterface.
        System [DispString _ "[csrViewReadWrite] done\n"];
        Ret (csrViewReadXform view upd_pkt #csr_value).
 
-  Definition satpCsrName : string := ^"satp".
+  Definition satpCsrName : string := @^"satp".
 
   Definition read_counteren
     (ty: Kind -> Type)
@@ -305,11 +303,11 @@ Section CsrInterface.
       |}.
 
   Definition misa: CsrField
-    := {| csrFieldName := ^"extensions";
+    := {| csrFieldName := @^"extensions";
           csrFieldKind := Array 26 Bool ;
           csrFieldValue :=
             inl (inr {|
-                   csrFieldRegisterName := ^"extRegs";
+                   csrFieldRegisterName := @^"extRegs";
                    csrFieldRegisterKind := ExtensionsReg ;
                    csrFieldRegisterValue := Some InitExtsRegVal;
                    csrFieldRegisterReadXform
@@ -349,20 +347,19 @@ Section CsrInterface.
   Definition pmpField
     (index : nat)
     :  CsrField
-    := let name := (^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
+    := let name := (@^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
        {|
          csrFieldName := name;
-         csrFieldKind := Bit 8;
+         csrFieldKind := PmpCfg;
          csrFieldValue
            := inl (inr {|
                   csrFieldRegisterName := name;
-                  csrFieldRegisterKind := Bit 8;
+                  csrFieldRegisterKind := PmpCfg;
                   csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform := fun _ _ => id;
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value input_value
-                         => IF ((input_value$[1:1]) == $1) &&
-                               ((input_value$[0:0]) == $0)
+                         => IF ((input_value @% "W") && (!(input_value @% "R")))
                               then curr_value (* ignore invalid writes. *)
                               else input_value
                 |})
@@ -680,7 +677,7 @@ Section CsrInterface.
         System [
             DispString _ "[commitCsrWrite] writing to rd (rd index != 0): \n"
           ];
-          reg_writer_write_reg name (upd_pkt @% "cfg" @% "xlen") rd_index
+          reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
                                (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
           If utila_lookup_table_default
              csr_params

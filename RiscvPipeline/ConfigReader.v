@@ -5,8 +5,6 @@ Require Import List.
 Import ListNotations.
 
 Section config_reader.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
   
@@ -16,9 +14,9 @@ Section config_reader.
   Definition readXlen
     (mode : PrivMode @# ty)
     :  ActionT ty XlenValue
-    := Read mxl : XlenValue <- ^"mxl";
-       Read sxl : XlenValue <- ^"sxl";
-       Read uxl : XlenValue <- ^"uxl";
+    := Read mxl : XlenValue <- @^"mxl";
+       Read sxl : XlenValue <- @^"sxl";
+       Read uxl : XlenValue <- @^"uxl";
        (* System [
            DispString _ "mxl: ";
            DispHex #mxl;
@@ -37,21 +35,21 @@ Section config_reader.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
-    := LETA state : debug_hart_state <- debug_hart_state_read name ty;
-       Read satp_mode : Bit SatpModeWidth <- ^"satp_mode";
-       Read modeRaw : PrivMode <- ^"mode";
+    := LETA state : debug_hart_state <- debug_hart_state_read ty;
+       Read satp_mode : Bit SatpModeWidth <- @^"satp_mode";
+       Read modeRaw : PrivMode <- @^"mode";
        Read extensionsReg
          :  ExtensionsReg
-         <- ^"extRegs";
+         <- @^"extRegs";
        LET extensions : Extensions <- ExtRegToExt #extensionsReg;
        LET mode : PrivMode <- modeFix #extensions #modeRaw;
        LETA xlen
          :  XlenValue
          <- readXlen #mode;
-       Read tsr : Bool <- ^"tsr";
-       Read tvm : Bool <- ^"tvm";
-       Read tw : Bool <- ^"tw";
-       Read fs : Bit 2 <- ^"fs";
+       Read tsr : Bool <- @^"tsr";
+       Read tvm : Bool <- @^"tvm";
+       Read tw : Bool <- @^"tw";
+       Read fs : Bit 2 <- @^"fs";
        LET xs : Bit 2 <- $0;
        System
          [
@@ -77,10 +75,7 @@ Section config_reader.
             "tw"         ::= #tw;
             "extensions" ::= #extensions;
             "fs"         ::= #fs;
-            "xs"         ::= #xs;
-            "instMisalignedException?" ::= $$false ;
-            "memMisalignedException?"  ::= $$false ;
-            "accessException?"         ::= $$false
+            "xs"         ::= #xs
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.

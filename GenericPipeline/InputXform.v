@@ -3,8 +3,6 @@ Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.
 
 Section FUInputTrans.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 

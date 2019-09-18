@@ -13,8 +13,6 @@ Require Import List.
 Import ListNotations.
 
 Section pt_walker.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -205,7 +203,7 @@ Section pt_walker.
                else
                  LETA pmp_result
                    :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                   <- checkForFault name mem_table access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
+                   <- checkForFault mem_table access_type satp_mode mode (acc @% "snd" @% "fst") $2 $$false;
                  If mem_error (#pmp_result @% "snd")
                    then
                      doneInvalid

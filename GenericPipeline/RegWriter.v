@@ -3,8 +3,6 @@ Require Import ProcKami.FU.
 Import ListNotations.
 
 Section RegWriter.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
@@ -22,7 +20,7 @@ Section RegWriter.
               "addr" ::= reg_id;
               "data" ::= ARRAY {xlen_sign_extend Xlen xlen data}
             };
-       Call ^"regWrite" (#pkt : IntRegWrite);
+       Call @^"regWrite" (#pkt : IntRegWrite);
        System [
          DispString _ " Reg Write Wrote ";
          DispHex data;    
@@ -42,7 +40,7 @@ Section RegWriter.
               "addr" ::= reg_id;
               "data" ::= ARRAY {OneExtendTruncLsb Flen data}
             };
-       Call (^"fregWrite") (#pkt : FloatRegWrite);
+       Call (@^"fregWrite") (#pkt : FloatRegWrite);
        System [
          DispString _ " Reg Write Wrote ";
          DispHex data;

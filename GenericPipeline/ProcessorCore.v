@@ -28,8 +28,6 @@ Require Import ProcKami.RiscvPipeline.Commit.
 Require Import ProcKami.Debug.Debug.
 
 Section Params.
-  Variable name: string.
-  Local Notation "^ x" := (name ++ "_" ++ x)%string (at level 0).
   Context `{procParams: ProcParams}.
 
   Variable pmp_addr_ub : option (word pmp_reg_width).
@@ -50,78 +48,78 @@ Section Params.
     Definition processorCore 
       :  BaseModule
       := MODULE {
-              Register ^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
-              Register ^"pc"               : VAddr <- ConstBit pc_init with
-              Node (csr_regs (Csrs name)) with
-              Register ^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
+              Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
+              Register @^"pc"               : VAddr <- ConstBit pc_init with
+              Node (csr_regs Csrs) with
+              Register @^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
-              Node (debug_internal_regs name) with
-              Node (csr_regs (debug_csrs name)) with
+              Node debug_internal_regs with
+              Node (csr_regs debug_csrs) with
               Node [
-                  Rule ^"debug_send_halt_req"   := debug_send_halt_req name _;
-                  Rule ^"debug_send_resume_req" := debug_send_resume_req name _;
-                  Rule ^"debug_hart_halt"       := debug_hart_halt name _;
-                  Rule ^"debug_hart_resume"     := debug_hart_resume name _
+                  Rule @^"debug_send_halt_req"   := debug_send_halt_req _;
+                  Rule @^"debug_send_resume_req" := debug_send_resume_req _;
+                  Rule @^"debug_hart_halt"       := debug_hart_halt _;
+                  Rule @^"debug_hart_resume"     := debug_hart_resume _
                 ] with
-              Rule ^"trap_interrupt"
-                := LETA run : Bool <- debug_run name _;
-                   LETA debug : Bool <- debug_mode name _;
+              Rule @^"trap_interrupt"
+                := LETA run : Bool <- debug_run _;
+                   LETA debug : Bool <- debug_mode _;
                    If #run && !#debug (* debug spec 4.1 *)
                      then
-                       Read modeRaw : PrivMode <- ^"mode";
-                       Read extRegs: ExtensionsReg <- ^"extRegs";
+                       Read modeRaw : PrivMode <- @^"mode";
+                       Read extRegs: ExtensionsReg <- @^"extRegs";
                        LET ext: Extensions <- ExtRegToExt #extRegs;
                        LET mode: PrivMode <- modeFix #ext #modeRaw;
-                       Read pc : VAddr <- ^"pc";
-                       LETA xlen : XlenValue <- readXlen name #mode;
+                       Read pc : VAddr <- @^"pc";
+                       LETA xlen : XlenValue <- readXlen #mode;
                        System [DispString _ "[trap_interrupt]\n"];
-                       interruptAction name #xlen #debug #mode #pc;
+                       interruptAction #xlen #debug #mode #pc;
                    Retv with
-              Rule ^"set_time_interrupt"
-                := Read mtime : Bit 64 <- ^"mtime";
-                   Read mtimecmp : Bit 64 <- ^"mtimecmp";
+              Rule @^"set_time_interrupt"
+                := Read mtime : Bit 64 <- @^"mtime";
+                   Read mtimecmp : Bit 64 <- @^"mtimecmp";
                    If #mtime > #mtimecmp
                      then
-                       Write ^"mtip" : Bool <- $$true;
+                       Write @^"mtip" : Bool <- $$true;
                        Retv;
                    System [DispString _ "[set_time_interrupt]\n"];
                    Retv with
-              Rule ^"inc_time"
-                := Read stoptime : Bool <- ^"stopcount";
-                   LETA debug : Bool <- debug_mode name _;
+              Rule @^"inc_time"
+                := Read stoptime : Bool <- @^"stopcount";
+                   LETA debug : Bool <- debug_mode _;
                    If !(#debug && #stoptime) (* debug spec 4.1 *)
                      then
-                       Read mtime : Bit 64 <- ^"mtime";
-                       Write ^"mtime" : Bit 64 <- #mtime + $1;
+                       Read mtime : Bit 64 <- @^"mtime";
+                       Write @^"mtime" : Bit 64 <- #mtime + $1;
                        System [DispString _ "[inc_time]\n"];
                        Retv;
                    Retv with
-              Rule ^"inc_mcycle"
-                := Read mcountinhibit_cy : Bool <- ^"mcountinhibit_cy";
-                   Read stopcount : Bool <- ^"stopcount";
-                   LETA debug : Bool <- debug_mode name _; 
+              Rule @^"inc_mcycle"
+                := Read mcountinhibit_cy : Bool <- @^"mcountinhibit_cy";
+                   Read stopcount : Bool <- @^"stopcount";
+                   LETA debug : Bool <- debug_mode _; 
                    If !#mcountinhibit_cy && !(#debug && #stopcount) (* debug spec 4.1 *)
                      then
-                       Read mcycle : Bit 64 <- ^"mcycle";
-                       Write ^"mcycle" : Bit 64 <- #mcycle + $1;
+                       Read mcycle : Bit 64 <- @^"mcycle";
+                       Write @^"mcycle" : Bit 64 <- #mcycle + $1;
                        Retv;
                    System [DispString _ "[inc_mcycle]\n"];
                    Retv with
-              Rule ^"set_ext_interrupt"
-                := Call meip : Bool <- ^"ext_interrupt_pending" ();
+              Rule @^"set_ext_interrupt"
+                := Call meip : Bool <- @^"ext_interrupt_pending" ();
                    If #meip
                      then
                        System [DispString _ "[set_ext_interrupt] detected an external interrupt\n"];
-                       Write ^"meip" : Bool <- $$true;
+                       Write @^"meip" : Bool <- $$true;
                        Retv;
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
-              Rule ^"pipeline"
-                := LETA run : Bool <- debug_run name _;
+              Rule @^"pipeline"
+                := LETA run : Bool <- debug_run _;
                    If #run
                      then
-                       LETA cfg_pkt <- readConfig name _;
-                       Read pc : VAddr <- ^"pc";
+                       LETA cfg_pkt <- readConfig _;
+                       Read pc : VAddr <- @^"pc";
                        System
                          [
                            DispString _ "config: ";
@@ -133,7 +131,7 @@ Section Params.
                          ];
                        LETA fetch_pkt
                          :  PktWithException FetchPkt
-                         <- fetch name mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                        System
                          [
                            DispString _ "Fetch:\n";
@@ -178,7 +176,7 @@ Section Params.
                        System [DispString _ "Reg Read\n"];
                        LETA exec_context_pkt
                          :  PktWithException ExecContextPkt
-                         <- readerWithException name #pc #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
+                         <- readerWithException #pc #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
                        System
                          [
                            DispString _ "Reg Reader:\n";
@@ -200,15 +198,14 @@ Section Params.
                            DispString _ "\n"
                          ];
                        System [DispString _ "Csr Write\n"];
-                       LETA mcounteren <- read_counteren _ ^"mcounteren";
-                       LETA scounteren <- read_counteren _ ^"scounteren";
-                       Read mepc_raw : VAddr <- ^"mepc";
+                       LETA mcounteren <- read_counteren _ @^"mcounteren";
+                       LETA scounteren <- read_counteren _ @^"scounteren";
+                       Read mepc_raw : VAddr <- @^"mepc";
                        LET  mepc : VAddr <- maskEpc #cfg_pkt #mepc_raw;
                        LETA csr_update_pkt
                          :  PktWithException ExecUpdPkt
                          <- CsrUnit
-                              name
-                              (Csrs name)
+                              Csrs
                               #mcounteren
                               #scounteren
                               #pc
@@ -228,7 +225,7 @@ Section Params.
                          ];
                        LETA mem_update_pkt
                          :  PktWithException ExecUpdPkt
-                         <- MemUnit name mem_table
+                         <- MemUnit mem_table
                               (#cfg_pkt @% "extensions")
                               (#cfg_pkt @% "xlen")
                               (#cfg_pkt @% "satp_mode")
@@ -247,7 +244,6 @@ Section Params.
                        LETA commit_pkt
                          :  Void
                          <- commit
-                              name
                               #pc
                               (#decoder_pkt @% "fst" @% "inst")
                               #cfg_pkt
@@ -264,9 +260,9 @@ Section Params.
       := @Build_RegFileBase
            false
            1
-           (^"int_data_reg")
-           (Async [(^"read_reg_1"); (^"read_reg_2"); (^"debug_read_reg")])
-           (^"regWrite")
+           (@^"int_data_reg")
+           (Async [(@^"read_reg_1"); (@^"read_reg_2"); (@^"debug_read_reg")])
+           (@^"regWrite")
            32
            (Bit Xlen)
            (RFNonFile _ None).
@@ -276,9 +272,9 @@ Section Params.
       := @Build_RegFileBase 
            false
            1
-           (^"float_reg_file")
-           (Async [(^"read_freg_1"); (^"read_freg_2"); (^"read_freg_3")])
-           (^"fregWrite")
+           (@^"float_reg_file")
+           (Async [(@^"read_freg_1"); (@^"read_freg_2"); (@^"read_freg_3")])
+           (@^"fregWrite")
            32
            (Bit Flen)
            (RFNonFile _ None).
@@ -289,9 +285,9 @@ Section Params.
       := @Build_RegFileBase
            true
            Rlen_over_8
-           (^"memReservation_reg_file")
-           (Async [^"readMemReservation"])
-           (^"writeMemReservation")
+           (@^"memReservation_reg_file")
+           (Async [ @^"readMemReservation" ])
+           (@^"writeMemReservation")
            (pow2 lgMemSz)
            Bool
            (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
@@ -310,28 +306,28 @@ Section Params.
                   memReservationRegFile
                 ] ++ (mem_device_files mem_devices))))
            [   
-             ^"read_reg_1"; 
-             ^"read_reg_2"; 
-             ^"regWrite"; 
-             ^"read_freg_1"; 
-             ^"read_freg_2"; 
-             ^"read_freg_3"; 
-             ^"fregWrite";
-             ^"readMem0"; (* mem unit loads *)
-             ^"readMem1"; (* fetch lower *)
-             ^"readMem2"; (* fetch upper *)
-             ^"readMem3"; (* mem unit page table walker read mem call *)
-             ^"readMem4"; (* mem unit page table walker read mem call *)
-             ^"readMem5"; (* mem unit page table walker read mem call *)
-             ^"readMem6"; (* fetch lower page table walker read mem call *)
-             ^"readMem7"; (* fetch lower page table walker read mem call *)
-             ^"readMem8"; (* fetch lower page table walker read mem call *)
-             ^"readMem9"; (* fetch upper page table walker read mem call *)
-             ^"readMemA"; (* fetch upper page table walker read mem call *)
-             ^"readMemB"; (* fetch upper page table walker read mem call *)
-             ^"readMemReservation";
-             ^"writeMem0";
-             ^"writeMemReservation"
+             @^"read_reg_1"; 
+             @^"read_reg_2"; 
+             @^"regWrite"; 
+             @^"read_freg_1"; 
+             @^"read_freg_2"; 
+             @^"read_freg_3"; 
+             @^"fregWrite";
+             @^"readMem0"; (* mem unit loads *)
+             @^"readMem1"; (* fetch lower *)
+             @^"readMem2"; (* fetch upper *)
+             @^"readMem3"; (* mem unit page table walker read mem call *)
+             @^"readMem4"; (* mem unit page table walker read mem call *)
+             @^"readMem5"; (* mem unit page table walker read mem call *)
+             @^"readMem6"; (* fetch lower page table walker read mem call *)
+             @^"readMem7"; (* fetch lower page table walker read mem call *)
+             @^"readMem8"; (* fetch lower page table walker read mem call *)
+             @^"readMem9"; (* fetch upper page table walker read mem call *)
+             @^"readMemA"; (* fetch upper page table walker read mem call *)
+             @^"readMemB"; (* fetch upper page table walker read mem call *)
+             @^"readMemReservation";
+             @^"writeMem0";
+             @^"writeMemReservation"
            ].  
 
     Local Close Scope list.
