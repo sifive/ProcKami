@@ -145,7 +145,10 @@ Section trap_handling.
        Read medeleg : Bit 16 <- @^"medeleg";
        Read sedeleg : Bit 16 <- @^"sedeleg";
        If debug
-         then Ret pc
+         then
+           LETA _ <- debug_hart_state_set "buffer" $$false;
+           Write @^"busy" : Bool <- $$false;
+           Ret pc
          else 
            If (exception @% "exception" == $Breakpoint) &&
               ((mode == $MachineMode && #ebreakm) ||

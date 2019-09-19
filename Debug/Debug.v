@@ -88,6 +88,16 @@ Section debug.
              (seq 0 debug_num_harts)).
   End ty.
 
+  Definition debug_csr_progbuf n
+    := debug_simple_csr
+         @^("progbuf" ++ nat_decimal_string n)
+         (natToWord CsrIdWidth (32 + n)%nat)
+         (Bit 32).
+
+  Definition debug_csr_progbufs
+    := map debug_csr_progbuf
+         (seq 0 (debug_buffer_sz - 1)%nat).
+
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
@@ -204,7 +214,7 @@ Section debug.
                   ];
            csrAccess := accessDMode
          |}
-       ].
+       ] ++ debug_csr_progbufs.
   Close Scope kami_scope.
 
   Section ty.
@@ -307,10 +317,11 @@ Section debug.
       (exts : Extensions @# ty)
       (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
-      := Read busy : Bool <- @^"busy";
+      := (* TODO: how does the debug module know when to process a command in the command register? *)
+         Read busy : Bool <- @^"busy";
          If #busy
            then
-             Write @^"busy" : Bool <- $$false;
+             (* Write @^"busy" : Bool <- $$false; *)
              Read cmdtype : Bit 8 <- @^"cmdtype";
              Read control : Bit 24 <- @^"control";
              LETA _
@@ -319,6 +330,7 @@ Section debug.
                      LET regno            : Bit 16 <- #control$[15:0];
                      LET write            : Bit 1  <- #control$[16:16];
                      LET transfer         : Bit 1  <- #control$[17:17];
+                     LET postexec         : Bit 1  <- #control$[18:18];
                      LET aarpostincrement : Bit 1  <- #control$[19:19];
                      LET aarsize          : Bit 3  <- #control$[22:20];
                      LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
@@ -355,6 +367,17 @@ Section debug.
                          Write @^"cmderr" : Bit 3 <- $debug_err_none;
                          Retv
                        as result;
+                     If #postexec == $1
+                       then
+                         LETA _ <- debug_hart_halt;
+                         Write @^"pc" : VAddr <- $0;
+                         Write @^"mode" : PrivMode <- $MachineMode;
+                         LETA _ <- debug_hart_state_set "buffer" $$true;
+                         Retv
+                       else
+                         Write @^"busy" : Bool <- $$false;
+                         Retv
+                       as null;
                      Retv;
                   Retv;
              LETA _ 
@@ -434,6 +457,11 @@ Section debug.
     Definition debug_run
       :  ActionT ty Bool
       := debug_hart_running.
+
+    Definition debug_buffer_mode
+      :  ActionT ty Bool
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         Ret (#state @% "buffer").
 
   End ty.
 

@@ -162,6 +162,7 @@ Section exts.
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
   Variable pc_init_val: word (Xlen_over_8 * 8).
+  Variable debug_buffer_sz : nat.
 
   Local Definition procParams
     := Build_ProcParams name Xlen_over_8 Flen_over_8 Dlen_over_8
@@ -170,7 +171,8 @@ Section exts.
          supported_exts
          allow_misaligned
          allow_inst_misaligned
-         misaligned_access.
+         misaligned_access
+         debug_buffer_sz.
 
   Section ty.
     Variable ty : Kind -> Type.

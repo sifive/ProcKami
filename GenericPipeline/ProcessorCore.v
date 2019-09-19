@@ -116,7 +116,8 @@ Section Params.
                    Retv with
               Rule @^"pipeline"
                 := LETA run : Bool <- debug_run _;
-                   If #run
+                   LETA buffer_mode : Bool <- debug_buffer_mode _;
+                   If #run || #buffer_mode
                      then
                        LETA cfg_pkt <- readConfig _;
                        Read pc : VAddr <- @^"pc";
@@ -131,7 +132,7 @@ Section Params.
                          ];
                        LETA fetch_pkt
                          :  PktWithException FetchPkt
-                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") (#cfg_pkt @% "debug") #pc;
                        System
                          [
                            DispString _ "Fetch:\n";
