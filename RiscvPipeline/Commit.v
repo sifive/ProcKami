@@ -126,11 +126,11 @@ Section trap_handling.
        If delegated #medeleg (exception @% "exception") &&
           (mode == $SupervisorMode ||
            mode == $UserMode)
-         then trapAction "s" $$false $1 1 xlen mode pc exception
+         then trapAction "s" $$false $SupervisorMode 1 xlen mode pc exception
          else
            (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
-              then trapAction "u" $$false $0 0 xlen mode pc exception
-              else trapAction "m" $$false $3 2 xlen mode pc exception;
+              then trapAction "u" $$false $UserMode 0 xlen mode pc exception
+              else trapAction "m" $$false $MachineMode 2 xlen mode pc exception;
             Retv);
        Retv.
 
