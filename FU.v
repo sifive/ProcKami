@@ -150,7 +150,8 @@ Class ProcParams :=
     supported_exts: list SupportedExt;
     allow_misaligned: bool;
     allow_inst_misaligned: bool;
-    miasligned_access: bool
+    miasligned_access: bool;
+    debug_buffer_sz : nat
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).

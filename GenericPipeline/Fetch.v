@@ -20,6 +20,7 @@ Section fetch.
     (xlen : XlenValue @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
+    (debug_mode : Bool @# ty)
     (pc: VAddr @# ty)
     :  ActionT ty (PktWithException FetchPkt)
     := If checkAligned pc
@@ -27,7 +28,7 @@ Section fetch.
        then 
          LETA inst_lower
            :  PktWithException CompInst
-           <- memFetch mem_table 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
+           <- memFetch mem_table 1 satp_mode mode debug_mode (xlen_sign_extend Xlen xlen pc);
          If #inst_lower @% "snd" @% "valid"
            then
              System [
@@ -45,7 +46,7 @@ Section fetch.
                :  Bool
                <- isInstUncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
              If #uncompressed
-               then memFetch mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
+               then memFetch mem_table 2 satp_mode mode debug_mode (xlen_sign_extend Xlen xlen (pc + $2))
                else
                  Ret (STRUCT {
                      "fst" ::= $0;

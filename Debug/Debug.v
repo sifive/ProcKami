@@ -30,7 +30,8 @@ Section debug.
          "haltreq"   :: Bool;
          "resumereq" :: Bool;
          "resumeack" :: Bool;
-         "debug"     :: Bool
+         "debug"     :: Bool;
+         "buffer"    :: Bool (* signal to execute the program buffer *)
        }.
 
   Definition debug_internal_regs
@@ -86,6 +87,16 @@ Section debug.
                   Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
              (seq 0 debug_num_harts)).
   End ty.
+
+  Definition debug_csr_progbuf n
+    := debug_simple_csr
+         @^("progbuf" ++ nat_decimal_string n)
+         (natToWord CsrIdWidth (32 + n)%nat)
+         (Bit 32).
+
+  Definition debug_csr_progbufs
+    := map debug_csr_progbuf
+         (seq 0 (debug_buffer_sz - 1)%nat).
 
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
@@ -203,7 +214,7 @@ Section debug.
                   ];
            csrAccess := accessDMode
          |}
-       ].
+       ] ++ debug_csr_progbufs.
   Close Scope kami_scope.
 
   Section ty.
@@ -245,14 +256,6 @@ Section debug.
              Retv;
          Retv.
 
-    Definition debug_states_update
-      :  ActionT ty Void
-      := Retv.
-         (* write any halted *)
-         (* write all halted *)
-         (* write any running *)
-         (* write all running *)
-
     Definition debug_hart_state_read
       :  ActionT ty debug_hart_state
       := Read hart : Bit Xlen <- @^"mhartid";
@@ -274,18 +277,19 @@ Section debug.
          Ret !(#state@%"halted").
 
     (* See 3.5 *)
-    (* TODO: modify pipeline and other rules to read halted state reg and stall *)
-    (* TODO: wrap this action in a rule. *)
     Definition debug_hart_halt
       :  ActionT ty Void
       := LETA state : debug_hart_state <- debug_hart_state_read;
          If #state@%"haltreq" && !(#state@%"halted")
            then
              LETA _ <- debug_hart_state_set @^"halted" $$true;
+             Read pc : VAddr <- @^"pc";
+             Read mode : PrivMode <- @^"mode";
+             Write @^"dpc" : VAddr <- #pc;
+             Write @^"prv" : Bit 2 <- #mode;
              Retv;
          Retv.
 
-    (* TODO: wrap this action in a rule. *)
     Definition debug_hart_resume
       :  ActionT ty Void
       := LETA state : debug_hart_state <- debug_hart_state_read;
@@ -293,6 +297,10 @@ Section debug.
            then
              LETA _ <- debug_hart_state_set @^"halted" $$false;
              LETA _ <- debug_hart_state_set @^"resumeack" $$true;
+             Read pc : VAddr <- @^"dpc";
+             Read mode : PrivMode <- @^"mode";
+             Write @^"pc" <- #pc;
+             Write @^"mode" <- #mode;
              Retv;
          Retv.
 
@@ -309,10 +317,11 @@ Section debug.
       (exts : Extensions @# ty)
       (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
-      := Read busy : Bool <- @^"busy";
+      := (* TODO: how does the debug module know when to process a command in the command register? *)
+         Read busy : Bool <- @^"busy";
          If #busy
            then
-             Write @^"busy" : Bool <- $$false;
+             (* Write @^"busy" : Bool <- $$false; *)
              Read cmdtype : Bit 8 <- @^"cmdtype";
              Read control : Bit 24 <- @^"control";
              LETA _
@@ -321,6 +330,7 @@ Section debug.
                      LET regno            : Bit 16 <- #control$[15:0];
                      LET write            : Bit 1  <- #control$[16:16];
                      LET transfer         : Bit 1  <- #control$[17:17];
+                     LET postexec         : Bit 1  <- #control$[18:18];
                      LET aarpostincrement : Bit 1  <- #control$[19:19];
                      LET aarsize          : Bit 3  <- #control$[22:20];
                      LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
@@ -357,6 +367,17 @@ Section debug.
                          Write @^"cmderr" : Bit 3 <- $debug_err_none;
                          Retv
                        as result;
+                     If #postexec == $1
+                       then
+                         LETA _ <- debug_hart_halt;
+                         Write @^"pc" : VAddr <- $0;
+                         Write @^"mode" : PrivMode <- $MachineMode;
+                         LETA _ <- debug_hart_state_set "buffer" $$true;
+                         Retv
+                       else
+                         Write @^"busy" : Bool <- $$false;
+                         Retv
+                       as null;
                      Retv;
                   Retv;
              LETA _ 
@@ -436,6 +457,11 @@ Section debug.
     Definition debug_run
       :  ActionT ty Bool
       := debug_hart_running.
+
+    Definition debug_buffer_mode
+      :  ActionT ty Bool
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         Ret (#state @% "buffer").
 
   End ty.
 
