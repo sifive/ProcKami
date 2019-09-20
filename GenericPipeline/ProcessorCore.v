@@ -55,16 +55,13 @@ Section Params.
               Node (mem_device_regs mem_devices) with
               Node debug_internal_regs with
               Node (csr_regs debug_csrs) with
-              Node [
-                  Rule @^"debug_send_halt_req"   := debug_send_halt_req _;
-                  Rule @^"debug_send_resume_req" := debug_send_resume_req _;
-                  Rule @^"debug_hart_halt"       := debug_hart_halt _;
-                  Rule @^"debug_hart_resume"     := debug_hart_resume _
-                ] with
+              Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
+              Rule @^"debug_hart_send_resume_req" := debug_harts_send_resume_req _ with
+              Rule @^"debug_hart_halt" := debug_hart_halt _ with
+              Rule @^"debug_hart_resume" := debug_hart_resume _ with
               Rule @^"trap_interrupt"
-                := LETA run : Bool <- debug_run _;
-                   LETA debug : Bool <- debug_mode _;
-                   If #run && !#debug (* debug spec 4.1 *)
+                := LETA debug : Bool <- debug_hart_state_mode _;
+                   If !#debug
                      then
                        Read modeRaw : PrivMode <- @^"mode";
                        Read extRegs: ExtensionsReg <- @^"extRegs";
@@ -85,8 +82,8 @@ Section Params.
                    System [DispString _ "[set_time_interrupt]\n"];
                    Retv with
               Rule @^"inc_time"
-                := Read stoptime : Bool <- @^"stopcount";
-                   LETA debug : Bool <- debug_mode _;
+                := Read stoptime : Bool <- @^"stoptime";
+                   LETA debug : Bool <- debug_hart_state_mode _;
                    If !(#debug && #stoptime) (* debug spec 4.1 *)
                      then
                        Read mtime : Bit 64 <- @^"mtime";
@@ -97,7 +94,7 @@ Section Params.
               Rule @^"inc_mcycle"
                 := Read mcountinhibit_cy : Bool <- @^"mcountinhibit_cy";
                    Read stopcount : Bool <- @^"stopcount";
-                   LETA debug : Bool <- debug_mode _; 
+                   LETA debug : Bool <- debug_hart_state_mode _; 
                    If !#mcountinhibit_cy && !(#debug && #stopcount) (* debug spec 4.1 *)
                      then
                        Read mcycle : Bit 64 <- @^"mcycle";
@@ -115,9 +112,9 @@ Section Params.
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
               Rule @^"pipeline"
-                := LETA run : Bool <- debug_run _;
-                   LETA buffer_mode : Bool <- debug_buffer_mode _;
-                   If #run || #buffer_mode
+                := LETA halted  <- debug_hart_state_halted _;
+                   LETA command <- debug_hart_state_command _;
+                   If !#halted || #command
                      then
                        LETA cfg_pkt <- readConfig _;
                        Read pc : VAddr <- @^"pc";
@@ -132,7 +129,7 @@ Section Params.
                          ];
                        LETA fetch_pkt
                          :  PktWithException FetchPkt
-                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") (#cfg_pkt @% "debug") #pc;
+                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                        System
                          [
                            DispString _ "Fetch:\n";

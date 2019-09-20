@@ -16,9 +16,6 @@ Section trap_handling.
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
-  (*
-    NOTE: do not call this when in debug mode: debug spec 4.1 - "exceptions don't update any registers"
-  *)
   Definition trapAction
     (prefix : string)
     (intrpt : Bool @# ty)
@@ -121,13 +118,24 @@ Section trap_handling.
     :  Bool @# ty
     := (unsafeTruncLsb 1 (edeleg >> exception_code)) == Const ty (wones 1).
 
-  Definition enterDebugMode
+  Local Definition enterDebugMode
+    (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
     (cause : Bit 3 @# ty)
     :  ActionT ty Void
-    := LETA _ <- debug_hart_state_set "debug" $$true;
-       Write @^"dpc" : VAddr <- pc;
+    := Write @^"dpc" : Bit Dlen <- SignExtendTruncLsb Dlen pc;
+       Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb PrivModeWidth mode;
        Write @^"cause" : Bit 3 <- cause;
+       LETA _ <- debug_hart_state_set "debug" $$true;
+       Retv.
+
+  Local Definition exitDebugMode
+    (dpc : Bit Dlen @# ty)
+    (prv : Bit 2 @# ty)
+    :  ActionT ty Void
+    := Write @^"pc" : VAddr <- ZeroExtendTruncLsb Xlen dpc;
+       Write @^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth prv;
+       LETA _ <- debug_hart_state_set "debug" $$false;
        Retv.
 
   (* 3.1.8 *)
@@ -146,8 +154,7 @@ Section trap_handling.
        Read sedeleg : Bit 16 <- @^"sedeleg";
        If debug
          then
-           LETA _ <- debug_hart_state_set "buffer" $$false;
-           Write @^"busy" : Bool <- $$false;
+           LETA _ <- debug_hart_command_done ty;
            Ret pc
          else 
            If (exception @% "exception" == $Breakpoint) &&
@@ -155,7 +162,7 @@ Section trap_handling.
                (mode == $SupervisorMode && #ebreaks) ||
                (mode == $UserMode && #ebreaku))
              then
-               LETA _ <- enterDebugMode pc $DebugCauseEBreak;
+               LETA _ <- enterDebugMode mode pc $DebugCauseEBreak;
                Ret pc
              else
                If delegated #medeleg (exception @% "exception") &&
@@ -290,7 +297,7 @@ Section trap_handling.
        ];
        If (exception @% "valid")
          then
-           trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
+           trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
          else (
             Read mcountinhibit_ir : Bool <- @^"mcountinhibit_ir";
             If !(#mcountinhibit_ir)
@@ -309,6 +316,12 @@ Section trap_handling.
             LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
             LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
             Read dpc : Bit Dlen <- @^"dpc";
+            If (cfg_pkt @% "debug_hart_state" @% "debug") &&
+               (#opt_val1 @% "valid") &&
+               ((#opt_val1 @% "data") @% "tag" == $DRetTag)
+              then
+                Read prv : Bit 2 <- @^"prv";
+                exitDebugMode #dpc #prv ;
             LET next_pc : VAddr
               <- (ITE
                    ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $DRetTag))
@@ -335,8 +348,8 @@ Section trap_handling.
             Ret #next_pc)
           as next_pc;
        Read step : Bool <- @^"step";
-       If !(cfg_pkt @% "debug") && #step (* debug spec 4.8.1 *)
-         then enterDebugMode #next_pc $DebugCauseStep;
+       If !(cfg_pkt @% "debug_hart_state" @% "debug") && #step (* debug spec 4.8.1 *)
+         then enterDebugMode (cfg_pkt @% "mode") #next_pc $DebugCauseStep;
        Retv.
 
   Definition intrpt_pending

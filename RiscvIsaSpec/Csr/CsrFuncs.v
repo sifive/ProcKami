@@ -742,8 +742,8 @@ Section CsrInterface.
                       "cfg" ::= cfg_pkt
                     } : CsrFieldUpdGuard @# ty;
                (* NOTE: only one Csr write can occur per instruction *)
-               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
                Ret (#result0 || #result1).
 
         Definition CsrUnit

@@ -40,6 +40,7 @@ Require Import ProcKami.Devices.BootRomDevice.
 Require Import ProcKami.Devices.PMemDevice.
 Require Import ProcKami.Devices.MMappedRegs.
 Require Import ProcKami.Devices.UARTDevice.
+Require Import ProcKami.Debug.DebugDevice.
 
 (* I. device parameters *)
 
@@ -163,6 +164,7 @@ Section exts.
 
   Variable pc_init_val: word (Xlen_over_8 * 8).
   Variable debug_buffer_sz : nat.
+  Variable debug_impebreak : bool.
 
   Local Definition procParams
     := Build_ProcParams name Xlen_over_8 Flen_over_8 Dlen_over_8
@@ -172,7 +174,8 @@ Section exts.
          allow_misaligned
          allow_inst_misaligned
          misaligned_access
-         debug_buffer_sz.
+         debug_buffer_sz
+         debug_impebreak.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -293,6 +296,7 @@ Section exts.
   Definition mem_devices
     :  list (@MemDevice procParams)
     := [
+         debugDevice   ;
          bootRomDevice ;
          msipDevice    ;
          mtimecmpDevice;
@@ -310,34 +314,39 @@ Section exts.
     :  list (MemTableEntry mem_devices)
     := [
          {|
+           mtbl_entry_addr := hex"0";
+           mtbl_entry_width := hex"1000";
+           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* debug device *)
+         |};
+         {|
            mtbl_entry_addr := hex"1000";
            mtbl_entry_width := hex"1000";
-           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* boot rom *)
+           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* boot rom *)
          |};
          {|
            mtbl_entry_addr := hex"2000000";
            mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* msip *) 
+           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* msip *) 
          |};
          {|
            mtbl_entry_addr := hex"2004000";
            mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* mtimecmp *)
+           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtimecmp *)
          |};
          {|
            mtbl_entry_addr := hex"200bff8";
            mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtime *)
+           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt)) (* mtime *)
          |};
          {|
            mtbl_entry_addr := hex"80000000";
            mtbl_entry_width := hex"100000";
-           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt))
+           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
          |};
          {|
            mtbl_entry_addr := hex"C0000000";
            mtbl_entry_width := hex"80";
-           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
+           mtbl_entry_device := (@nat_deviceTag 6 ltac:(nat_lt))
          |}
       ].
 

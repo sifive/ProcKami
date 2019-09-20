@@ -151,7 +151,8 @@ Class ProcParams :=
     allow_misaligned: bool;
     allow_inst_misaligned: bool;
     miasligned_access: bool;
-    debug_buffer_sz : nat
+    debug_buffer_sz : nat;
+    debug_impebreak : bool
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -791,18 +792,28 @@ Section Params.
                                else $Xlen64)%kami_expr.
     End XlenInterface.
     
+    Definition debug_hart_state
+      := STRUCT_TYPE {
+           "halted"    :: Bool; (* not executing instructions *)
+           "haltreq"   :: Bool;
+           "resumereq" :: Bool;
+           "resumeack" :: Bool;
+           "debug"     :: Bool; (* grant debug privileges when running. *)
+           "command"   :: Bool  (* hart selected to execute abstract command. *) 
+         }.
+
     Definition ContextCfgPkt :=
       STRUCT_TYPE {
-          "xlen"        :: XlenValue;
-          "satp_mode"   :: Bit SatpModeWidth;
-          "debug"       :: Bool;
-          "mode"        :: PrivMode;
-          "tsr"         :: Bool;
-          "tvm"         :: Bool;
-          "tw"          :: Bool;
-          "extensions"  :: Extensions;
-          "fs"          :: Bit 2;
-          "xs"          :: Bit 2
+          "xlen"             :: XlenValue;
+          "satp_mode"        :: Bit SatpModeWidth;
+          "debug_hart_state" :: debug_hart_state;
+          "mode"             :: PrivMode;
+          "tsr"              :: Bool;
+          "tvm"              :: Bool;
+          "tw"               :: Bool;
+          "extensions"       :: Extensions;
+          "fs"               :: Bit 2;
+          "xs"               :: Bit 2
         }.
 
     Local Open Scope kami_expr.
@@ -985,5 +996,15 @@ Section Params.
           mtbl_entry_width : N;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
+
   End Device.
+
+  Definition debug_device_addr : word PAddrSz := (($0)%word : word PAddrSz).
+
+  Definition debug_csrs_num_data
+    := Dlen_over_8 * 3 / 4.
+
+  Definition DebugCauseEBreak := 1.
+  Definition DebugCauseHalt   := 3.
+  Definition DebugCauseStep   := 4.
 End Params.

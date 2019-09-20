@@ -66,16 +66,16 @@ Section config_reader.
          ];
        Ret
          (STRUCT {
-            "xlen"       ::= #xlen;
-            "satp_mode"  ::= #satp_mode;
-            "debug"      ::= #state @% "debug";
-            "mode"       ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *)
-            "tsr"        ::= #tsr;
-            "tvm"        ::= #tvm;
-            "tw"         ::= #tw;
-            "extensions" ::= #extensions;
-            "fs"         ::= #fs;
-            "xs"         ::= #xs
+            "xlen"             ::= #xlen;
+            "satp_mode"        ::= #satp_mode;
+            "debug_hart_state" ::= #state;
+            "mode"             ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *)
+            "tsr"              ::= #tsr;
+            "tvm"              ::= #tvm;
+            "tw"               ::= #tw;
+            "extensions"       ::= #extensions;
+            "fs"               ::= #fs;
+            "xs"               ::= #xs
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.

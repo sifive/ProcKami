@@ -7,6 +7,7 @@ Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import ProcKami.Debug.DebugDevice.
 Require Import List.
 Import ListNotations.
 
@@ -24,21 +25,83 @@ Section debug.
 
   Open Scope kami_scope.
 
-  Definition debug_hart_state
-    := STRUCT_TYPE {
-         "halted"    :: Bool;
-         "haltreq"   :: Bool;
-         "resumereq" :: Bool;
-         "resumeack" :: Bool;
-         "debug"     :: Bool;
-         "buffer"    :: Bool (* executing the program buffer *)
-       }.
+  (* *. Auxiliary Definitions *)
+
+  Local Definition debug_data_addr : word PAddrSz := debug_device_addr. 
+
+  Open Scope word_scope.
+
+  (* the address of the abstract command region. *)
+  Local Definition debug_abstract_addr : word PAddrSz
+    := $debug_device_abstract_addr ^+ debug_device_addr.
+
+  Local Definition debug_inst_nop
+    : word 32
+    := {<
+         ($0 : word 12),
+         ($0 : word 5),
+         ($0 : word 3),
+         ($0 : word 5),
+         (7'b"0010011")
+       >}.
+
+  Local Definition debug_inst_ebreak
+    : word 32
+    := {<
+         ($1 : word 12),
+         ($0 : word 5),
+         ($0 : word 3),
+         ($0 : word 5),
+         (7'b"1110011")
+       >}.
+
+  Close Scope word_scope.
+
+  Section ty.
+    Variable ty : Kind -> Type.
+
+    Local Definition debug_inst_store
+      (src : Bit 5 @# ty)
+      (addr : Bit 12 @# ty)
+      (size : Bit 3 @# ty)
+      :  Bit InstSz @# ty
+      := ZeroExtendTruncLsb InstSz
+           ({<
+             (addr $[11:5]),
+             src,
+             ($0 : Bit 5 @# ty),
+             size,
+             (addr $[5:0]),
+             $$(7'b"0100011")
+           >}).
+
+    Local Definition debug_inst_load
+      (dest : Bit 5 @# ty)
+      (addr : Bit 12 @# ty)
+      (size : Bit 3 @# ty) 
+      :  Bit InstSz @# ty
+      := ZeroExtendTruncLsb InstSz
+           ({<
+             addr,
+             ($0 : Bit 5 @# ty),
+             size,
+             dest,
+             $$(7'b"0000011")
+           >}).
+
+  End ty.
+
+  (* I. Debug Module Internal State Registers *)
 
   Definition debug_internal_regs
     := [
+         (* request sent to hart to execute abstract command *)
+         Register @^"debug_command" : Bool <- ConstBool false;
          (* hart state registers 3.5 *)
          Register @^"hart_states" : Array debug_num_harts debug_hart_state <- ConstArray (fun _ => getDefaultConst debug_hart_state)
        ].
+
+  (* II. Debug CSR Registers *)
 
   Local Definition debug_csr_view (fields : list CsrField) : list CsrView
     := [{|
@@ -64,7 +127,7 @@ Section debug.
     (name : string)
     (addr : word CsrIdWidth)
     (k : Kind) : Csr
-    := debug_csr name addr [@csrFieldAny _ @^name k k None].
+    := debug_csr name addr [@csrFieldAny _ name k k None].
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -86,28 +149,37 @@ Section debug.
                => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
                   Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
              (seq 0 debug_num_harts)).
+
   End ty.
 
-  Definition debug_csr_progbuf n
+
+  Local Definition debug_csr_data n
     := debug_simple_csr
-         @^("progbuf" ++ nat_decimal_string n)
-         (natToWord CsrIdWidth (32 + n)%nat)
+         (@^"data" ++ nat_decimal_string n)
+         (natToWord CsrIdWidth (4 + n)%nat)
          (Bit 32).
 
-  Definition debug_csr_progbufs
+  Local Definition debug_csrs_data
+    := map debug_csr_data (seq 0 (debug_csrs_num_data - 1)%nat).
+
+  Local Definition debug_csr_progbuf n
+    := let name := @^("progbuf" ++ nat_decimal_string n) in
+       debug_csr name 
+         (natToWord CsrIdWidth (32 + n)%nat)
+         [@csrFieldAny _ name (Bit 32) (Bit 32)
+           (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
+             then (Some (ConstBit debug_inst_ebreak))
+             else None)].
+
+  Local Definition debug_csrs_progbuf
     := map debug_csr_progbuf
          (seq 0 (debug_buffer_sz - 1)%nat).
 
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
-    := [
-         debug_simple_csr "data0" (CsrIdWidth 'h"4") (Bit 32);
-         debug_simple_csr "data1" (CsrIdWidth 'h"5") (Bit 32);
-         debug_simple_csr "data2" (CsrIdWidth 'h"6") (Bit 32);
-         debug_simple_csr "data3" (CsrIdWidth 'h"7") (Bit 32);
-         debug_simple_csr "data4" (CsrIdWidth 'h"8") (Bit 32);
-         debug_simple_csr "data5" (CsrIdWidth 'h"9") (Bit 32);
+    := debug_csrs_data ++
+       [
          {|
            csrName := "dmcontrol";
            csrAddr := CsrIdWidth 'h"10";
@@ -207,21 +279,150 @@ Section debug.
            csrName := "command";
            csrAddr := CsrIdWidth 'h"17";
            csrViews
-             := debug_csr_view
-                  [
-                    @csrFieldAny _ @^"cmdtype" (Bit 8) (Bit 8) None;
-                    @csrFieldAny _ @^"control" (Bit 24) (Bit 24) None
-                  ];
+             := [
+                  let fields
+                    := [
+                         @csrFieldAny _ @^"cmderr" (Bit 3) (Bit 3) None; (* side effect write reg *)
+                         @csrFieldAny _ @^"busy" Bool Bool None; (* side effect write reg *)
+                         @csrFieldAny _ @^"cmdtype" (Bit 8) (Bit 8) None;
+                         @csrFieldAny _ @^"control" (Bit 24) (Bit 24) None
+                       ] in
+                  {|
+                    csrViewContext := fun ty => $1;
+                    csrViewFields  := fields;
+                    csrViewReadXform
+                      := fun _ _  (curr_value : csrKind fields @# _)
+                           => zero_extend_trunc 32 CsrValueWidth (pack curr_value);
+                    csrViewWriteXform
+                      := fun _ _ (curr_value : csrKind fields @# _) (next_value : CsrValue @# _)
+                           => IF (struct_get_field_default
+                                   curr_value (@^"busy") $$false)
+                                then
+                                  struct_set_field_default
+                                    curr_value
+                                    (@^"cmderr")
+                                    ($$(natToWord 3 1))
+                                else
+                                  struct_set_field_default
+                                    (struct_set_field_default
+                                      (unpack (csrKind fields)
+                                        (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
+                                      (@^"cmderr")
+                                      (struct_get_field_default
+                                        curr_value
+                                        (@^"cmderr")
+                                        ($0 : Bit 3 @# _)))
+                                    (@^"busy")
+                                    (struct_get_field_default
+                                      curr_value
+                                      (@^"busy")
+                                      ($$false))
+                  |}
+                ];
            csrAccess := accessDMode
          |}
-       ] ++ debug_csr_progbufs.
+       ] ++ debug_csrs_progbuf.
+
   Close Scope kami_scope.
 
   Section ty.
     Variable ty : Kind -> Type.
     Variable func_units : list (FUEntry ty).
 
-    Local Definition debug_states_set (name : string) (value : Bool @# ty)
+    (* III. Hart state functions. *)
+
+    (* read the current hart's state. - called by the config reader. *)
+    Definition debug_hart_state_read
+      :  ActionT ty debug_hart_state
+      := Read hart : Bit Xlen <- @^"mhartid";
+         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
+         Ret (#states@[#hart]).
+
+    (* updates the current hart's state - called by the commit unit.  *)
+    Definition debug_hart_state_set (name : string) (value : Bool @# ty)
+      :  ActionT ty Void
+      := Read hart : Bit Xlen <- @^"mhartid";
+         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
+         Write @^"hart_states"
+           :  Array debug_num_harts debug_hart_state
+           <- #states@[#hart <- struct_set_field_default (#states@[#hart]) name value];
+         Retv.
+
+    Definition debug_hart_state_mode
+      :  ActionT ty Bool
+      := LETA state <- debug_hart_state_read;
+         Ret (#state @% "debug").
+
+    Definition debug_hart_state_halted
+      :  ActionT ty Bool
+      := LETA state <- debug_hart_state_read;
+         Ret (#state @% "halted").
+
+    Definition debug_hart_state_command
+      :  ActionT ty Bool
+      := LETA state <- debug_hart_state_read;
+         Ret (#state @% "command").
+
+    (* IV. Hart state transition actions. *)
+
+    (*
+      halts the current hart.
+
+      Note: halted harts do not execute any instructions unless
+      they are executing instructions associated with debug abstract
+      commands or instructions in the debug program buffer.
+
+      Note: called by a rule in ProcessorCore.v.
+    *)
+    Definition debug_hart_halt
+      :  ActionT ty Void
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         If #state@%"haltreq" && !(#state@%"halted")
+           then
+             LETA _ <- debug_hart_state_set @^"halted" $$true;
+             Read pc : VAddr <- @^"pc";
+             Read mode : PrivMode <- @^"mode";
+             Write @^"dpc" : Bit Dlen <- SignExtendTruncLsb Dlen #pc;
+             Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb 2 #mode;
+             Retv;
+         Retv.
+
+    (*
+      resumes the current hart.
+
+      Note: harts that are resumed will start to execute
+      instructions. They may be resumed in Debug Mode to execute
+      instructions associated with debug abstract commands and
+      instructions in the debug progam buffer.
+
+      Note: called by a rule in ProcessorCore.v.
+    *)
+    Definition debug_hart_resume
+      :  ActionT ty Void
+      := LETA state : debug_hart_state <- debug_hart_state_read;
+         If #state@%"resumereq" && #state@%"halted"
+           then
+             LETA _ <- debug_hart_state_set @^"halted" $$false;
+             LETA _ <- debug_hart_state_set @^"resumeack" $$true;
+             Read pc : Bit Dlen <- @^"dpc";
+             Read mode : Bit 2 <- @^"mode";
+             Write @^"pc" : VAddr <- SignExtendTruncLsb Xlen #pc;
+             Write @^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth #mode;
+             Retv;
+         Retv.
+
+    (* signal that the hart is done executing the command - i.e. that the command is done. *)
+    Definition debug_hart_command_done
+      :  ActionT ty Void
+      := Write @^"busy" : Bool <- $$false;
+         Write @^"debug_command" : Bool <- $$false;
+         LETA _ <- debug_hart_state_set "command" $$false;
+         Retv.
+
+    (* V. Debug hart state actions. *)
+
+    (* sends a request to the currently selected harts. *)
+    Local Definition debug_harts_set (name : string) (value : Bool @# ty)
       :  ActionT ty Void
       := Read hartsel : Array debug_num_harts Bool  <- @^"hartsel";
          Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
@@ -235,239 +436,77 @@ Section debug.
                      else #states@[j]);
          Retv.
 
-    (* See 3.5 *)
-    (* TODO: wrap this action in a rule. *)
-    Definition debug_send_halt_req
+    (* send pending halt request to the selected harts. *)
+    Definition debug_harts_send_halt_req
       :  ActionT ty Void
       := Read haltreq : Bool <- @^"haltreq";
          If #haltreq
-           then debug_states_set "haltreq" $$true;
+           then debug_harts_set "haltreq" $$true;
          Retv.
 
-    (* See 3.5 *)
-    (* TODO: wrap this action in a rule. *)
-    Definition debug_send_resume_req
+    (* send pending resume request to the selected harts. *)
+    Definition debug_harts_send_resume_req
       :  ActionT ty Void
       := Read resumereq : Bool <- @^"resumereq";
          If #resumereq
            then 
-             LETA _ <- debug_states_set @^"resumeack" $$false;
-             LETA _ <- debug_states_set @^"reumereq" $$true;
+             LETA _ <- debug_harts_set @^"resumeack" $$false;
+             LETA _ <- debug_harts_set @^"reumereq" $$true;
              Retv;
          Retv.
 
-    Definition debug_hart_state_read
-      :  ActionT ty debug_hart_state
-      := Read hart : Bit Xlen <- @^"mhartid";
-         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
-         Ret (#states@[#hart ]).
-
-    Definition debug_hart_state_set (name : string) (value : Bool @# ty)
+    (* send request to asking the hart to start executing the abstract command instructions. *)
+    Definition debug_hart_send_command_req
       :  ActionT ty Void
-      := Read hart : Bit Xlen <- @^"mhartid";
-         Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
-         Write @^"hart_states"
-           :  Array debug_num_harts debug_hart_state
-           <- #states@[#hart <- struct_set_field_default (#states@[#hart]) name value];
-         Retv.
-
-    Local Definition debug_hart_running
-      :  ActionT ty Bool
-      := LETA state : debug_hart_state <- debug_hart_state_read;
-         Ret !(#state@%"halted").
-
-    (* See 3.5 *)
-    Definition debug_hart_halt
-      :  ActionT ty Void
-      := LETA state : debug_hart_state <- debug_hart_state_read;
-         If #state@%"haltreq" && !(#state@%"halted")
-           then
-             LETA _ <- debug_hart_state_set @^"halted" $$true;
-             Read pc : VAddr <- @^"pc";
-             Read mode : PrivMode <- @^"mode";
-             Write @^"dpc" : VAddr <- #pc;
-             Write @^"prv" : Bit 2 <- #mode;
-             Retv;
-         Retv.
-
-    Definition debug_hart_resume
-      :  ActionT ty Void
-      := LETA state : debug_hart_state <- debug_hart_state_read;
-         If #state@%"resumereq" && #state@%"halted"
-           then
-             LETA _ <- debug_hart_state_set @^"halted" $$false;
-             LETA _ <- debug_hart_state_set @^"resumeack" $$true;
-             Read pc : VAddr <- @^"dpc";
-             Read mode : PrivMode <- @^"mode";
-             Write @^"pc" <- #pc;
-             Write @^"mode" <- #mode;
-             Retv;
+      := LETA _ <- debug_hart_halt; (* TODO: ? *)
+         Write @^"pc" : VAddr <- SignExtendTruncLsb Xlen $$debug_abstract_addr;
+         Write @^"mode" : PrivMode <- $MachineMode;
+         LETA _ <- debug_harts_set "command" $$true;
+         Write @^"debug_command" : Bool <- $$true;
          Retv.
 
     Local Definition debug_access_reg_cmd := 0.
     Local Definition debug_access_mem_cmd := 2.
 
-    Local Definition debug_err_none      := 0.
-    Local Definition debug_err_exception := 3.
-
-    Local Definition debug_aarsize_32 := 2.
-    Local Definition debug_aarsize_64 := 3.
-
-    Definition debug_exec
+    (* execute the pending abstract command. *)
+    Definition debug_command_exec
       (exts : Extensions @# ty)
       (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
-      := (* TODO: how does the debug module know when to process a command in the command register? *)
-         Read busy : Bool <- @^"busy";
-         If #busy
+      := Read busy : Bool <- @^"busy";
+         Read command : Bool <- @^"debug_command";
+         If #busy && !#command
            then
-             (* Write @^"busy" : Bool <- $$false; *)
              Read cmdtype : Bit 8 <- @^"cmdtype";
              Read control : Bit 24 <- @^"control";
+             LET data_addr : Bit 12 <- SignExtendTruncLsb 12 $$debug_data_addr;
              LETA _
                <- If #cmdtype == $debug_access_reg_cmd
-                   then
-                     LET regno            : Bit 16 <- #control$[15:0];
-                     LET write            : Bit 1  <- #control$[16:16];
-                     LET transfer         : Bit 1  <- #control$[17:17];
-                     LET postexec         : Bit 1  <- #control$[18:18];
-                     LET aarpostincrement : Bit 1  <- #control$[19:19];
-                     LET aarsize          : Bit 3  <- #control$[22:20];
-                     LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
-                     (* TODO: how should we convert regno into a reg id? *)
-                     Call value
-                       :  Data
-                       <- (@^"debug_read_reg") (#reg_id : RegId);
-                     If ($1 << #aarsize) >= ($Rlen_over_8 : Bit 5 @# ty) (* 8 * 2@^aarsize >= Rlen *)
-                       then
-                         Write @^"cmderr" : Bit 3 <- $debug_err_exception;
-                         Retv
-                       else 
-                         If #transfer == $1
-                           then
-                             If #write == $0
-                               then
-                                 Write @^"data0" : Bit 32 <- unsafeTruncLsb 32 #value;
-                                 If #aarsize >= $debug_aarsize_64
-                                   then
-                                     Write @^"data1" : Bit 32 <- unsafeTruncLsb 32 (#value >> ($32 : Bit 5 @# ty));
-                                     Retv;
-                                 Retv
-                               else 
-                                 Read data0 : Bit 32 <- @^"data0";
-                                 Read data1 : Bit 32 <- @^"data1";
-                                 LETA _ <- reg_writer_write_reg $Xlen64 #reg_id (ZeroExtendTruncLsb Rlen ({< #data1, #data0 >}));
-                                 Retv
-                               as result;
-                             Retv;
-                         If #aarpostincrement == $1
-                           then
-                             Write @^"regno" <- #regno + $1;
-                             Retv;
-                         Write @^"cmderr" : Bit 3 <- $debug_err_none;
-                         Retv
-                       as result;
-                     If #postexec == $1
-                       then
-                         LETA _ <- debug_hart_halt;
-                         Write @^"pc" : VAddr <- $0;
-                         Write @^"mode" : PrivMode <- $MachineMode;
-                         LETA _ <- debug_hart_state_set "buffer" $$true;
-                         Retv
-                       else
-                         Write @^"busy" : Bool <- $$false;
-                         Retv
-                       as null;
-                     Retv;
-                  Retv;
-             LETA _ 
-               <- If #cmdtype == $debug_access_mem_cmd
-                   then
-                     LET regno            : Bit 16 <- #control$[15:0];
-                     LET write            : Bit 1  <- #control$[16:16];
-                     LET aampostincrement : Bit 1  <- #control$[19:19];
-                     LET aamsize          : Bit 3  <- #control$[22:20];
-                     LET aamvirtual       : Bit 1  <- #control$[23:23];
-                     LET reg_id : RegId <- ZeroExtendTruncLsb RegIdWidth #regno;
-                     Read data0 : Bit 32 <- @^"data0";
-                     Read data1 : Bit 32 <- @^"data1";
-                     Read data2 : Bit 32 <- @^"data2";
-                     Read data3 : Bit 32 <- @^"data3";
-                     Read data4 : Bit 32 <- @^"data4";
-                     Read data5 : Bit 32 <- @^"data5";
-                     LETA mfunc_unit_id
-                       :  Maybe (FuncUnitId func_units)
-                       <- convertLetExprSyntax_ActionT
-                            (inst_db_func_unit_id func_units "mem");
-                     LETA minst_id_lb : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "lb");
-                     LETA minst_id_lw : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "lw");
-                     LETA minst_id_ld : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "ld");
-                     LETA minst_id_sb : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "sb");
-                     LETA minst_id_sw : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "sw");
-                     LETA minst_id_sd : Maybe (InstId func_units) <- convertLetExprSyntax_ActionT (inst_db_inst_id func_units "sd");
-                     LET paddr : PAddr
-                       <- IF #aamsize <= $2
-                            then ZeroExtendTruncLsb PAddrSz #data1
-                            else ZeroExtendTruncLsb PAddrSz ({< #data3, #data2 >});
-                     LET value : Data
-                       <- IF #aamsize <= $2
-                            then ZeroExtendTruncLsb Rlen #data0
-                            else ZeroExtendTruncLsb Rlen ({< #data1, #data0 >});
-                     LET memUnitInput
-                       :  MemUnitInput
-                       <- (STRUCT {
-                            "aq"       ::= $$false;
-                            "rl"       ::= $$false;
-                            "reg_data" ::= #value
-                           } : MemUnitInput @# ty);
-                     LETA mem_result
-                       :  PktWithException MemRet
-                       <- mem_unit_exec
-                            mem_table
-                            exts
-                            satp_mode
-                            $MachineMode
-                            (#aamvirtual == $1)
-                            #paddr
-                            (#mfunc_unit_id @% "data")
-                            (IF #write == $0
-                              then
-                                (Switch #aamsize Retn (InstId func_units) With {
-                                   ($0 : Bit 3 @# ty) ::= #minst_id_lb @% "data";
-                                   ($1 : Bit 3 @# ty) ::= #minst_id_lw @% "data";
-                                   ($2 : Bit 3 @# ty) ::= #minst_id_ld @% "data"
-                                 })
-                              else
-                                (Switch #aamsize Retn (InstId func_units) With {
-                                   ($0 : Bit 3 @# ty) ::= #minst_id_sb @% "data";
-                                   ($1 : Bit 3 @# ty) ::= #minst_id_sw @% "data";
-                                   ($2 : Bit 3 @# ty) ::= #minst_id_sd @% "data"
-                                 }))
-                            #memUnitInput;
-                     Retv;
+                    then
+                      LET regno            : Bit 16 <- #control$[15:0];
+                      LET write            : Bool   <- #control$[16:16] == $1;
+                      LET transfer         : Bool   <- #control$[17:17] == $1;
+                      LET postexec         : Bool   <- #control$[18:18] == $1;
+                      LET aarpostincrement : Bool   <- #control$[19:19] == $1;
+                      LET aarsize          : Bit 3  <- #control$[22:20];
+                      Write @^"debug_abstract_store"
+                        <- IF #transfer
+                             then debug_inst_store (ZeroExtendTruncLsb 5 #regno) #data_addr #aarsize
+                             else $$debug_inst_nop;
+                      Write @^"debug_abstract_load"
+                        <- IF #write
+                             then debug_inst_load (ZeroExtendTruncLsb 5 #regno) #data_addr #aarsize
+                             else $$debug_inst_nop;
+                      Write @^"debug_abstract_cont" : Bit 32
+                        <- IF #postexec
+                             then $$debug_inst_nop
+                             else $$debug_inst_ebreak;
+                      LETA _ <- debug_hart_send_command_req;
+                      Retv;
                   Retv;
              Retv;
          Retv.
-
-    Definition debug_mode
-      :  ActionT ty Bool
-      := LETA state : debug_hart_state <- debug_hart_state_read;
-         Ret (#state @% "debug").
-
-    Definition debug_run
-      :  ActionT ty Bool
-      := debug_hart_running.
-
-    Definition debug_buffer_mode
-      :  ActionT ty Bool
-      := LETA state : debug_hart_state <- debug_hart_state_read;
-         Ret (#state @% "buffer").
-
   End ty.
-
-  Definition DebugCauseEBreak := 1.
-  Definition DebugCauseHalt   := 3.
-  Definition DebugCauseStep   := 4.
 
   Close Scope kami_action.
   Close Scope kami_expr.

@@ -76,7 +76,6 @@ Section mem_unit.
     (index : nat)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty) 
-    (debug_mode : Bool @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (PktWithException CompInst)
     := System [
@@ -84,93 +83,74 @@ Section mem_unit.
          DispHex vaddr;
          DispString _ "\n"
        ];
-       If debug_mode && (($debug_buffer_sz : Bit 1 @# ty) != $0)
+       Read mprv : Bool <- @^"mprv";
+       LETA paddr
+         :  PktWithException PAddr
+         <- memTranslate index satp_mode mode #mprv $VmAccessInst vaddr;
+       System [
+         DispString _ "[memFetch] paddr: ";
+         DispHex #paddr;
+         DispString _ "\n"
+       ];
+       If #paddr @% "snd" @% "valid"
          then
-           LETA inst : CompInst
-             <- match mem_device_read_nth ty debug_programBufferDevice 0 with
-                | None
-                  => System [DispString _ "[memFetch] Error: the program buffer device does not have a read port.\n"];
-                     Ret $0
-                | Some read
-                  => System [DispString _ "[memFetch] fetching an instruction from the program buffer.\n"];
-                     LETA result : Data <- read (ZeroExtendTruncLsb PAddrSz vaddr) $1;
-                     Ret (ZeroExtendTruncLsb CompInstSz #result)
-                end;
-           Ret (STRUCT {
-               "fst" ::= #inst;
-               "snd" ::= Invalid
-             } : PktWithException CompInst @# ty)
+           Ret
+             (STRUCT {
+                "fst" ::= $0;
+                "snd" ::= #paddr @% "snd"
+              } : PktWithException CompInst @# ty)
          else
-           Read mprv : Bool <- @^"mprv";
-           LETA paddr
-             :  PktWithException PAddr
-             <- memTranslate index satp_mode mode #mprv $VmAccessInst vaddr;
-           System [
-             DispString _ "[memFetch] paddr: ";
-             DispHex #paddr;
-             DispString _ "\n"
-           ];
-           If #paddr @% "snd" @% "valid"
+           LETA pmp_result
+             :  Pair (Pair DeviceTag PAddr) MemErrorPkt
+             <- checkForFault mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
+           If mem_error (#pmp_result @% "snd")
              then
-               Ret
-                 (STRUCT {
-                    "fst" ::= $0;
-                    "snd" ::= #paddr @% "snd"
-                  } : PktWithException CompInst @# ty)
+               LET exception
+                 :  Maybe FullException
+                 <- Valid (STRUCT {
+                        "exception"
+                          ::= IF #pmp_result @% "snd" @% "misaligned"
+                                then $InstAddrMisaligned
+                                else $InstAccessFault;
+                        "value" ::= vaddr
+                      } : FullException @# ty);
+               Ret (STRUCT {
+                   "fst" ::= $0;
+                   "snd" ::= #exception
+                 } : PktWithException CompInst @# ty)
              else
-               LETA pmp_result
-                 :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-                 <- checkForFault mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
-               If mem_error (#pmp_result @% "snd")
-                 then
-                   LET exception
-                     :  Maybe FullException
-                     <- Valid (STRUCT {
-                            "exception"
-                              ::= IF #pmp_result @% "snd" @% "misaligned"
-                                    then $InstAddrMisaligned
-                                    else $InstAccessFault;
-                            "value" ::= vaddr
-                          } : FullException @# ty);
-                   Ret (STRUCT {
-                       "fst" ::= $0;
-                       "snd" ::= #exception
-                     } : PktWithException CompInst @# ty)
-                 else
-                   LETA inst
-                     :  Maybe Data
-                     <- mem_region_read index
-                          (#pmp_result @% "fst" @% "fst") 
-                          (#pmp_result @% "fst" @% "snd")
-                          $1;
-                   System [
-                     DispString _ "[memFetch] fetched upper bits: ";
-                     DispHex #inst;
-                     DispString _ "\n"
-                   ];
-                   LET exception
-                     :  FullException
-                     <- STRUCT {
-                          "exception" ::= $InstAccessFault;
-                          "value"     ::= vaddr
-                        } : FullException @# ty;
-                   Ret (STRUCT {
-                       "fst" ::= ZeroExtendTruncLsb 16 (#inst @% "data");
-                       "snd"
-                         ::= IF #inst @% "valid"
-                               then Invalid
-                               else Valid #exception
-                     } : PktWithException CompInst @# ty)
-                 as result;
-               Ret #result
+               LETA inst
+                 :  Maybe Data
+                 <- mem_region_read index
+                      (#pmp_result @% "fst" @% "fst") 
+                      (#pmp_result @% "fst" @% "snd")
+                      $1;
+               System [
+                 DispString _ "[memFetch] fetched upper bits: ";
+                 DispHex #inst;
+                 DispString _ "\n"
+               ];
+               LET exception
+                 :  FullException
+                 <- STRUCT {
+                      "exception" ::= $InstAccessFault;
+                      "value"     ::= vaddr
+                    } : FullException @# ty;
+               Ret (STRUCT {
+                   "fst" ::= ZeroExtendTruncLsb 16 (#inst @% "data");
+                   "snd"
+                     ::= IF #inst @% "valid"
+                           then Invalid
+                           else Valid #exception
+                 } : PktWithException CompInst @# ty)
              as result;
-           System [
-             DispString _ "[memFetch] fetch results: ";
-             DispHex #result;
-             DispString _ "\n"
-           ];
            Ret #result
          as result;
+       System [
+         DispString _ "[memFetch] fetch results: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
        Ret #result.
 
   Local Definition mem_unit_exec_pkt

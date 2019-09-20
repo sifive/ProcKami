@@ -159,7 +159,7 @@ Section mret.
 
                   inputXform 
                     := fun (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE ((cfg_pkt @% "debug") : Bool @# ty);
+                         => RetE ((cfg_pkt @% "debug_hart_state" @% "debug") : Bool @# ty);
                   outputXform  := id;
                   optMemParams := None;
                   instHints    := falseHints
@@ -384,7 +384,7 @@ Section mret.
                        ];
                   inputXform
                     := fun (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE ((!(cfg_pkt @% "debug")) && cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
+                         => RetE ((!(cfg_pkt @% "debug_hart_state" @% "debug")) && cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
                   outputXform := id; 
                   optMemParams := None;
                   instHints   := falseHints

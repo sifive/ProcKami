@@ -14,18 +14,76 @@ Section debug_device.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition debug_programBufferDevice
+  Record debug_device_reg
+    := {
+         debug_device_kind : Kind;
+         debug_device_name : string
+       }.
+
+  Local Definition debug_device_regs_data
+    := map
+         (fun i
+           => {|
+                debug_device_kind := Bit 32;
+                debug_device_name := (@^"data" ++ nat_decimal_string i)
+              |})
+         (seq 0 (debug_csrs_num_data - 1)%nat).
+
+  Local Definition debug_device_regs_progbuf
+    := map
+         (fun i
+           => {|
+                debug_device_kind := Bit InstSz;
+                debug_device_name := (@^"progbuf" ++ nat_decimal_string i)
+              |})
+         (seq 0 (debug_buffer_sz - 1)%nat).
+
+  Local Definition debug_device_regs
+    := debug_device_regs_data ++
+       [
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_store"
+         |};
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_load"
+         |};
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_cont"
+         |}
+       ] ++
+       debug_device_regs_progbuf.
+
+  Local Definition debug_device_size
+    :  list debug_device_reg -> nat
+    := fold_right
+         (fun x acc => (size (debug_device_kind x) + acc)%nat)
+         0.
+
+  Local Definition debug_device_regs_size
+    := debug_device_size debug_device_regs.
+
+  Definition debug_device_abstract_addr
+    := debug_device_size debug_device_regs_data.
+
+  Definition debugDevice
     := @gen_reg_device procParams 
-         (Nat.log2_up debug_buffer_sz)
-         (map 
-            (fun i
-              => {|
-                   gr_addr := ($i)%word;
-                   gr_kind := Bit 32;
-                   gr_name := @^("progbuf" ++ nat_decimal_string i)
-                 |})
-            (seq 0 debug_buffer_sz))
-         "program_buffer" false.
+         (Nat.log2_up debug_device_regs_size)
+         (snd
+           (fold_left
+             (fun acc x
+               => let '(i, xs) := acc in
+                  ((i + 1)%nat,
+                   {|
+                     gr_addr := ($i)%word;
+                     gr_kind := debug_device_kind x;
+                     gr_name := debug_device_name x
+                    |} :: xs))
+             debug_device_regs
+             (0, [])))
+         "debug_device" false.
 
   Close Scope kami_action.
   Close Scope kami_expr.
