@@ -1262,6 +1262,10 @@ Section csrs.
          nilCsr @^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
          nilCsr @^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
          nilCsr @^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly;
+         nilCsr @^"tselect" (CsrIdWidth 'h"7a0") accessMModeOnly;
+         nilCsr @^"tdata1" (CsrIdWidth 'h"7a1") accessMModeOnly;
+         nilCsr @^"tdata2" (CsrIdWidth 'h"7a2") accessMModeOnly;
+         nilCsr @^"tdata3" (CsrIdWidth 'h"7a3") accessMModeOnly;
          {|
            csrName := @^"dcsr";
            csrAddr := CsrIdWidth 'h"7b0";
