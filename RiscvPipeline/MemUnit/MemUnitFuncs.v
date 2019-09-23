@@ -29,14 +29,6 @@ Section mem_unit.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Definition pMemTranslate
-    (vaddr : VAddr @# ty)
-    :  PktWithException PAddr @# ty
-    := STRUCT {
-         "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
-         "snd" ::= Invalid
-       } : PktWithException PAddr @# ty.
-
   Definition memTranslate
     (index : nat) (* 0 based index specifying which call to the page table walker this is. *)
     (satp_mode : Bit SatpModeWidth @# ty)
@@ -68,7 +60,10 @@ Section mem_unit.
                   vaddr;
            Ret #paddr
          else
-           Ret (pMemTranslate vaddr)
+           Ret (STRUCT {
+                    "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
+                    "snd" ::= Invalid
+                  } : PktWithException PAddr @# ty)
          as result;
        Ret #result.
 
@@ -109,7 +104,7 @@ Section mem_unit.
                  :  Maybe FullException
                  <- Valid (STRUCT {
                         "exception"
-                          ::= IF #pmp_result @% "snd" @% "misaligned"
+                          ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
                                 then $InstAddrMisaligned
                                 else $InstAccessFault;
                         "value" ::= vaddr
@@ -130,18 +125,18 @@ Section mem_unit.
                  DispHex #inst;
                  DispString _ "\n"
                ];
-               LET exception
-                 :  FullException
-                 <- STRUCT {
-                      "exception" ::= $InstAccessFault;
-                      "value"     ::= vaddr
-                    } : FullException @# ty;
+               (* LET exception *)
+               (*   :  FullException *)
+               (*   <- STRUCT { *)
+               (*        "exception" ::= $InstAccessFault; *)
+               (*        "value"     ::= vaddr *)
+               (*      } : FullException @# ty; *)
                Ret (STRUCT {
                    "fst" ::= ZeroExtendTruncLsb 16 (#inst @% "data");
-                   "snd"
-                     ::= IF #inst @% "valid"
-                           then Invalid
-                           else Valid #exception
+                   "snd" ::= Invalid
+                     (* ::= IF #inst @% "valid" *)
+                     (*       then Invalid *)
+                     (*       else Valid #exception *)
                  } : PktWithException CompInst @# ty)
              as result;
            Ret #result
@@ -290,7 +285,7 @@ Section mem_unit.
                          :  Maybe FullException
                          <- Valid (STRUCT {
                               "exception"
-                                ::= IF #pmp_result @% "snd" @% "misaligned"
+                                ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
                                       then
                                         (IF #mis_write @% "data"
                                           then $SAmoAddrMisaligned
@@ -310,8 +305,8 @@ Section mem_unit.
                               (#pmp_result @% "fst" @% "fst")
                               (#pmp_result @% "fst" @% "snd")
                               (#msize @% "data");
-                       If #read_result @% "valid"
-                         then
+                       (* If #read_result @% "valid" *)
+                       (*   then *)
                            (* TODO: should we place reservations on failed reads? *)
                            LETA read_reservation_result
                              :  Array Rlen_over_8 Bool
@@ -343,12 +338,12 @@ Section mem_unit.
                                            end)
                                     func_unit_id
                                     inst_id);
+                           LET write_mask
+                             :  Array Rlen_over_8 Bool
+                             <- #mwrite_value @% "data" @% "mask";
                            If #mwrite_value @% "data" @% "isWr"
                              then
                                (* VII. write to memory. *)
-                               LET write_mask
-                                 :  Array Rlen_over_8 Bool
-                                 <- #mwrite_value @% "data" @% "mask";
                                LETA write_result
                                  :  Bool
                                  <- mem_region_write 0
@@ -359,12 +354,12 @@ Section mem_unit.
                                       (#msize @% "data");
                                Ret
                                  (IF #write_result
-                                   then
+                                   then Invalid
+                                   else
                                      Valid (STRUCT {
                                          "exception" ::= $SAmoAccessFault;
                                          "value" ::= addr
-                                       } : FullException @# ty)
-                                   else Invalid)
+                                       } : FullException @# ty))
                              else Ret Invalid
                              as write_result;
                            System [
@@ -377,11 +372,10 @@ Section mem_unit.
                                mem_region_write_resv
                                  (#pmp_result @% "fst" @% "fst")
                                  (#pmp_result @% "fst" @% "snd")
-                                 (#mwrite_value @% "data" @% "mask" : DataMask @# ty)
+                                 (#write_mask : DataMask @# ty)
                                  (#mwrite_value @% "data" @% "reservation")
                                  (#msize @% "data");
                                  (* #mpaddr @% "fst" *)
-                                 (* (#mwrite_value @% "data" @% "mask") *)
                            LET memRet
                              :  MemRet
                              <- STRUCT {
@@ -390,9 +384,9 @@ Section mem_unit.
                                   "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
                                 } : MemRet @# ty;
                            mem_unit_exec_pkt #memRet #write_result
-                         else mem_unit_exec_pkt_access_fault addr $$false
-                         as result;
-                       Ret #result
+                       (*   else mem_unit_exec_pkt_access_fault addr $$false *)
+                       (*   as result; *)
+                       (* Ret #result *)
                      as result;
                    Ret #result
                  as result;
@@ -403,8 +397,8 @@ Section mem_unit.
                  <- Valid (STRUCT {
                       "exception"
                         ::= IF #mis_write @% "data"
-                              then $SAmoAddrMisaligned
-                              else $LoadAddrMisaligned;
+                              then if misaligned_access then $SAmoAccessFault else $SAmoAddrMisaligned
+                              else if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned;
                       "value" ::= addr
                     } : FullException @# ty);
                (mem_unit_exec_pkt_def #exception)

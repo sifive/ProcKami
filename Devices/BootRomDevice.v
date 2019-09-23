@@ -36,7 +36,7 @@ Section device.
                        => Call result
                             :  Array Rlen_over_8 (Bit 8)
                             <- (read_name index) (SignExtendTruncLsb _ paddr : Bit lgMemSz);
-                          Ret (pack #result))
+                          Ret (Valid (pack #result): Maybe (Bit Rlen) @# _))
                      (seq 0 mem_device_num_reads);
          mem_device_write := fun ty => [];
          mem_device_read_resv

@@ -150,7 +150,7 @@ Class ProcParams :=
     supported_exts: list SupportedExt;
     allow_misaligned: bool;
     allow_inst_misaligned: bool;
-    miasligned_access: bool;
+    misaligned_access: bool;
     debug_buffer_sz : nat;
     debug_impebreak : bool
   }.
@@ -919,7 +919,7 @@ Section Params.
           mem_device_type : MemDeviceType; (* 3.5.1 *)
           mem_device_pmas : list PMA;
           mem_device_read
-          : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data);
+          : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
           mem_device_write
           : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
           mem_device_read_resv
@@ -948,7 +948,7 @@ Section Params.
                (ty : Kind -> Type)
                (device : MemDevice)
                (index : nat)
-      :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Data)
+      :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
       := List.nth_error (mem_device_read device ty) index.
 
     Definition mem_device_write_nth

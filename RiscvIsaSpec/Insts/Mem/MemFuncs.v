@@ -67,7 +67,7 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception"
-                                                ::= ($LoadAddrMisaligned: Exception @# ty) ;
+                                                ::= (if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned: Exception @# ty) ;
                                                 "value" ::= #addr
                                            });
          LETC valret
@@ -150,7 +150,8 @@ Section Mem.
          LETC fullException: FullException <-
                                            (STRUCT {
                                                 "exception" ::=
-                                                  ($(if isLoad then LoadAddrMisaligned else SAmoAddrMisaligned): Exception @# ty) ;
+                                                  ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
+                                                     else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned): Exception @# ty) ;
                                                 "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt

@@ -103,7 +103,10 @@ Section mmapped.
                             DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
                           ];
                           LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                          Ret (ZeroExtendTruncLsb Rlen #result)];
+                          Ret (STRUCT {
+                                   "valid" ::= $$true;
+                                   "data" ::= ZeroExtendTruncLsb Rlen #result}
+                               : Maybe (Bit Rlen) @# _)];
            mem_device_write
              := fun ty
                   => [fun (write_pkt : MemWrite @# ty)
@@ -111,7 +114,7 @@ Section mmapped.
                             LETA _
                               <- mm_write #addr
                                    (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                            Ret $$false];
+                            Ret $$true];
            mem_device_read_resv
              := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
            mem_device_write_resv

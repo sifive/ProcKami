@@ -52,7 +52,7 @@ Section device.
                         Call result
                           :  Bit 64
                           <- @^"readUART" (#readRq : UARTRead);
-                        Ret (ZeroExtendTruncLsb Rlen #result)];
+                        Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe (Bit Rlen) @# _)];
          mem_device_read_resv
            := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
          mem_device_write_resv
@@ -76,7 +76,7 @@ Section device.
                           DispHex #writeRq;
                           DispString _ "\n"
                         ];
-                        Ret $$false];
+                        Ret $$true];
          mem_device_file := None
        |}.
 
