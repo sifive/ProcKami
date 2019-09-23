@@ -42,12 +42,24 @@ Section debug_device.
     := debug_device_regs_data ++
        [
          {|
-           debug_device_kind := Bit InstSz;
-           debug_device_name := @^"debug_abstract_store"
+           debug_device_kind := Bit Xlen;
+           debug_device_name := @^"debug_abstract_temp"
          |};
          {|
            debug_device_kind := Bit InstSz;
-           debug_device_name := @^"debug_abstract_load"
+           debug_device_name := @^"debug_abstract_store0"
+         |};
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_load0"
+         |};
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_store1"
+         |};
+         {|
+           debug_device_kind := Bit InstSz;
+           debug_device_name := @^"debug_abstract_load1"
          |};
          {|
            debug_device_kind := Bit InstSz;
@@ -65,8 +77,15 @@ Section debug_device.
   Local Definition debug_device_regs_size
     := debug_device_size debug_device_regs.
 
-  Definition debug_device_abstract_addr
+  Definition debug_device_temp_addr
     := debug_device_size debug_device_regs_data.
+
+  Definition debug_device_abstract_addr
+    := (debug_device_temp_addr + Xlen)%nat.
+
+  Definition debug_device_arg0_addr := 0.
+
+  Definition debug_device_arg1_addr := (debug_device_arg0_addr + Xlen)%nat.
 
   Definition debugDevice
     := @gen_reg_device procParams 

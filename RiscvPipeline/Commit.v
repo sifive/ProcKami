@@ -123,14 +123,14 @@ Section trap_handling.
     (pc : VAddr @# ty)
     (cause : Bit 3 @# ty)
     :  ActionT ty Void
-    := Write @^"dpc" : Bit Dlen <- SignExtendTruncLsb Dlen pc;
+    := Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen pc;
        Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb PrivModeWidth mode;
        Write @^"cause" : Bit 3 <- cause;
        LETA _ <- debug_hart_state_set "debug" $$true;
        Retv.
 
   Local Definition exitDebugMode
-    (dpc : Bit Dlen @# ty)
+    (dpc : Bit Xlen @# ty)
     (prv : Bit 2 @# ty)
     :  ActionT ty Void
     := Write @^"pc" : VAddr <- ZeroExtendTruncLsb Xlen dpc;
@@ -315,7 +315,7 @@ Section trap_handling.
             LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
             LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
             LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
-            Read dpc : Bit Dlen <- @^"dpc";
+            Read dpc : Bit Xlen <- @^"dpc";
             If (cfg_pkt @% "debug_hart_state" @% "debug") &&
                (#opt_val1 @% "valid") &&
                ((#opt_val1 @% "data") @% "tag" == $DRetTag)

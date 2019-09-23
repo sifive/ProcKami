@@ -141,7 +141,6 @@ Section exts.
   Variable supported_exts : list SupportedExt.
 
   Variable allow_misaligned : bool.
-  Variable Dlen_over_8 : nat.
   Variable allow_inst_misaligned : bool.
   Variable misaligned_access : bool.
 
@@ -167,7 +166,7 @@ Section exts.
   Variable debug_impebreak : bool.
 
   Local Definition procParams
-    := Build_ProcParams name Xlen_over_8 Flen_over_8 Dlen_over_8
+    := Build_ProcParams name Xlen_over_8 Flen_over_8
          (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
          supported_xlens
          supported_exts

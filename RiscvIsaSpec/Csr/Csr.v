@@ -1293,7 +1293,7 @@ Section csrs.
                   (@csrViewUpperWriteXform _ fields);
                 csrAccess := accessDMode
          |};
-         simpleCsr @^"dpc" (CsrIdWidth 'h"7b1") Dlen accessDMode
+         simpleCsr @^"dpc" (CsrIdWidth 'h"7b1") Xlen accessDMode
        ].
 
   Close Scope kami_expr.

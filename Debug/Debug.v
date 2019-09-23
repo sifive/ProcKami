@@ -382,7 +382,7 @@ Section debug.
              LETA _ <- debug_hart_state_set @^"halted" $$true;
              Read pc : VAddr <- @^"pc";
              Read mode : PrivMode <- @^"mode";
-             Write @^"dpc" : Bit Dlen <- SignExtendTruncLsb Dlen #pc;
+             Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen #pc;
              Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb 2 #mode;
              Retv;
          Retv.
@@ -404,7 +404,7 @@ Section debug.
            then
              LETA _ <- debug_hart_state_set @^"halted" $$false;
              LETA _ <- debug_hart_state_set @^"resumeack" $$true;
-             Read pc : Bit Dlen <- @^"dpc";
+             Read pc : Bit Xlen <- @^"dpc";
              Read mode : Bit 2 <- @^"mode";
              Write @^"pc" : VAddr <- SignExtendTruncLsb Xlen #pc;
              Write @^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth #mode;
@@ -489,19 +489,62 @@ Section debug.
                       LET postexec         : Bool   <- #control$[18:18] == $1;
                       LET aarpostincrement : Bool   <- #control$[19:19] == $1;
                       LET aarsize          : Bit 3  <- #control$[22:20];
-                      Write @^"debug_abstract_store"
+                      Write @^"debug_abstract_store0"
                         <- IF #transfer
                              then debug_inst_store (ZeroExtendTruncLsb 5 #regno) #data_addr #aarsize
                              else $$debug_inst_nop;
-                      Write @^"debug_abstract_load"
+                      Write @^"debug_abstract_load0"
                         <- IF #write
                              then debug_inst_load (ZeroExtendTruncLsb 5 #regno) #data_addr #aarsize
                              else $$debug_inst_nop;
+                      Write @^"debug_abstract_store1" <- $$debug_inst_nop;
+                      Write @^"debug_abstract_load1"  <- $$debug_inst_nop;
                       Write @^"debug_abstract_cont" : Bit 32
                         <- IF #postexec
                              then $$debug_inst_nop
                              else $$debug_inst_ebreak;
                       LETA _ <- debug_hart_send_command_req;
+                      Retv;
+                  Retv;
+             LETA _
+               <- If #cmdtype == $debug_access_mem_cmd
+                    then
+                      LET write            : Bool   <- #control$[16:16] == $1;
+                      LET aampostincrement : Bool   <- #control$[19:19] == $1;
+                      LET aamsize          : Bit 3  <- #control$[22:20];
+                      LET aamvirtual       : Bool   <- #control$[23:23] == $1; 
+                      Read data0 : Bit 32 <- @^"data0";
+                      Read data1 : Bit 32 <- @^"data1";
+                      Read data2 : Bit 32 <- @^"data2";
+                      Read data3 : Bit 32 <- @^"data3";
+                      Write @^"debug_abstract_store0"
+                        <- debug_inst_store $$(natToWord 5 31) $debug_device_temp_addr $(Nat.log2_up Xlen_over_8);
+                      If #write
+                        then
+                          LET addr : Bit 12
+                            <- SignExtendTruncLsb 12
+                                 (IF #aamsize == $3
+                                   then {< #data0, #data1 >}
+                                   else SignExtendTruncLsb 64 #data0);
+                          Write @^"debug_abstract_load0"
+                            <- debug_inst_load $$(natToWord 5 31) $debug_device_arg0_addr #aamsize;
+                          Write @^"debug_abstract_store1"
+                            <- debug_inst_store $$(natToWord 5 31) #addr #aamsize;
+                          Retv
+                        else
+                          LET addr : Bit 12
+                            <- SignExtendTruncLsb 12
+                                 (IF #aamsize == $3
+                                   then {< #data2, #data3 >}
+                                   else SignExtendTruncLsb 64 #data1);
+                          Write @^"debug_abstract_load0"
+                            <- debug_inst_load $$(natToWord 5 31) #addr #aamsize;
+                          Write @^"debug_abstract_store1"
+                            <- debug_inst_store $$(natToWord 5 31) $debug_device_arg0_addr #aamsize;
+                          Retv
+                        as null;
+                      Write @^"debug_abstract_load1"
+                        <- debug_inst_load $$(natToWord 5 31) $debug_device_temp_addr $(Nat.log2_up Xlen_over_8);
                       Retv;
                   Retv;
              Retv;

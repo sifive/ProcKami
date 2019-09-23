@@ -144,7 +144,6 @@ Class ProcParams :=
   { proc_name : string ;
     Xlen_over_8: nat ;
     Flen_over_8: nat ;
-    Dlen_over_8: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
@@ -181,7 +180,6 @@ Section ParamDefinitions.
   Definition Xlen := (Xlen_over_8 * 8).
   Definition Flen := (Flen_over_8 * 8).
   Definition Rlen := (Rlen_over_8 * 8).
-  Definition Dlen := (Dlen_over_8 * 8).
   Definition Data := Bit Rlen.
   Definition DataMask := (Array Rlen_over_8 Bool).
   Definition Reservation := (Array Rlen_over_8 Bool).
@@ -1002,7 +1000,7 @@ Section Params.
   Definition debug_device_addr : word PAddrSz := (($0)%word : word PAddrSz).
 
   Definition debug_csrs_num_data
-    := Dlen_over_8 * 3 / 4.
+    := Xlen_over_8 * 3 / 4.
 
   Definition DebugCauseEBreak := 1.
   Definition DebugCauseHalt   := 3.
