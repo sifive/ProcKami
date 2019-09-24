@@ -151,7 +151,8 @@ Class ProcParams :=
     allow_inst_misaligned: bool;
     misaligned_access: bool;
     debug_buffer_sz : nat;
-    debug_impebreak : bool
+    debug_impebreak : bool;
+    debug_num_triggers : nat
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -811,7 +812,8 @@ Section Params.
           "tw"               :: Bool;
           "extensions"       :: Extensions;
           "fs"               :: Bit 2;
-          "xs"               :: Bit 2
+          "xs"               :: Bit 2;
+          "tselect"          :: Bit (Nat.log2_up debug_num_triggers)
         }.
 
     Local Open Scope kami_expr.

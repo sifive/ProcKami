@@ -7,6 +7,7 @@ Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
+Require Import ProcKami.Debug.Trigger.
 Require Import List.
 Import ListNotations.
 
@@ -1262,9 +1263,80 @@ Section csrs.
          nilCsr @^"mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
          nilCsr @^"mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
          nilCsr @^"mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly;
-         nilCsr @^"tselect" (CsrIdWidth 'h"7a0") accessMModeOnly;
-         nilCsr @^"tdata1" (CsrIdWidth 'h"7a1") accessMModeOnly;
-         nilCsr @^"tdata2" (CsrIdWidth 'h"7a2") accessMModeOnly;
+         {|
+           csrName := @^"tselect";
+           csrAddr := CsrIdWidth 'h"7a0";
+           csrViews
+             := [
+                  let fields := [
+                    @csrFieldAny _ @^"tselect" (Bit 32)
+                      (Bit (Nat.log2_up debug_num_triggers)) None
+                  ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [
+                    @csrFieldAny _ @^"tselect" (Bit 64)
+                      (Bit (Nat.log2_up debug_num_triggers)) None
+                  ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trig_csr_access
+         |};
+         {|
+           csrName := @^"tdata1";
+           csrAddr := CsrIdWidth 'h"7a1";
+           csrViews
+             := 
+                [
+                  let fields := [ @trig_tdata1_csr_field _ 32 ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [ @trig_tdata1_csr_field _ 64 ] in
+                  {|
+                    csrViewContext    := fun ty => $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trig_csr_access
+         |};
+         {|
+           csrName := @^"tdata2";
+           csrAddr := CsrIdWidth 'h"7a2";
+           csrViews
+             := 
+                [
+                  let fields := [ @trig_tdata2_csr_field _ 32 ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [ @trig_tdata2_csr_field _ 64 ] in
+                  {|
+                    csrViewContext    := fun ty => $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trig_csr_access
+         |};
          nilCsr @^"tdata3" (CsrIdWidth 'h"7a3") accessMModeOnly;
          {|
            csrName := @^"dcsr";

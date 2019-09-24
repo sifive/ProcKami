@@ -26,6 +26,7 @@ Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.RiscvPipeline.Commit.
 Require Import ProcKami.Debug.Debug.
+Require Import ProcKami.Debug.Trigger.
 
 Section Params.
   Context `{procParams: ProcParams}.
@@ -54,6 +55,7 @@ Section Params.
               Register @^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Node (mem_device_regs mem_devices) with
               Node debug_internal_regs with
+              Node trig_regs with
               Node (csr_regs debug_csrs) with
               Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
               Rule @^"debug_hart_send_resume_req" := debug_harts_send_resume_req _ with

@@ -51,6 +51,7 @@ Section config_reader.
        Read tw : Bool <- @^"tw";
        Read fs : Bit 2 <- @^"fs";
        LET xs : Bit 2 <- $0;
+       Read tselect : Bit (Nat.log2_up debug_num_triggers) <- @^"tselect";
        System
          [
            DispString _ "Start\n";
@@ -75,7 +76,8 @@ Section config_reader.
             "tw"               ::= #tw;
             "extensions"       ::= #extensions;
             "fs"               ::= #fs;
-            "xs"               ::= #xs
+            "xs"               ::= #xs;
+            "tselect"          ::= #tselect
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.

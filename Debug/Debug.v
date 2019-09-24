@@ -1,6 +1,3 @@
-(*
-  TODO: change csr address width so that we don't have to allocate CsrIdWidth bits.
-*)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.Decoder.

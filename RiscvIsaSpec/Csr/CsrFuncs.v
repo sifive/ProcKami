@@ -31,7 +31,8 @@ Section CsrInterface.
          "mode"       :: PrivMode;
          "mcounteren" :: CounterEnType;
          "scounteren" :: CounterEnType;
-         "tvm"        :: Bool
+         "tvm"        :: Bool;
+         "tselect"    :: Bit (Nat.log2_up debug_num_triggers)
        }.
 
   Record CsrFieldRegister (csrFieldKind : Kind)
@@ -621,6 +622,7 @@ Section CsrInterface.
                  (debug : Bool @# ty)
                  (mode : PrivMode @# ty)
                  (tvm : Bool @# ty)
+                 (tselect : Bit (Nat.log2_up debug_num_triggers) @# ty)
                  (mcounteren : CounterEnType @# ty)
                  (scounteren : CounterEnType @# ty)
                  (upd_pkt : CsrFieldUpdGuard @# ty)
@@ -653,7 +655,8 @@ Section CsrInterface.
                                     "mode"       ::= mode;
                                     "mcounteren" ::= mcounteren;
                                     "scounteren" ::= scounteren;
-                                    "tvm"        ::= tvm
+                                    "tvm"        ::= tvm;
+                                    "tselect"    ::= tselect
                                   } : CsrAccessPkt @# ty))
                  $$false)
       then
@@ -742,8 +745,8 @@ Section CsrInterface.
                       "cfg" ::= cfg_pkt
                     } : CsrFieldUpdGuard @# ty;
                (* NOTE: only one Csr write can occur per instruction *)
-               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
+               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") (cfg_pkt @% "tselect") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
+               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") (cfg_pkt @% "tselect") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
                Ret (#result0 || #result1).
 
         Definition CsrUnit

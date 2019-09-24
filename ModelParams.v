@@ -164,6 +164,7 @@ Section exts.
   Variable pc_init_val: word (Xlen_over_8 * 8).
   Variable debug_buffer_sz : nat.
   Variable debug_impebreak : bool.
+  Variable debug_num_triggers : nat.
 
   Local Definition procParams
     := Build_ProcParams name Xlen_over_8 Flen_over_8
@@ -174,7 +175,8 @@ Section exts.
          allow_inst_misaligned
          misaligned_access
          debug_buffer_sz
-         debug_impebreak.
+         debug_impebreak
+         debug_num_triggers.
 
   Section ty.
     Variable ty : Kind -> Type.
