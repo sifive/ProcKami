@@ -131,7 +131,7 @@ Section Params.
                          ];
                        LETA fetch_pkt
                          :  PktWithException FetchPkt
-                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+                         <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "trig_states") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                        System
                          [
                            DispString _ "Fetch:\n";

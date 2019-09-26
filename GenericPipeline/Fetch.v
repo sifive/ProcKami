@@ -30,6 +30,9 @@ Section fetch.
          LETA inst_lower
            :  PktWithException CompInst
            <- memFetch mem_table 1 satp_mode mode (xlen_sign_extend Xlen xlen pc);
+         LET uncompressed
+           :  Bool
+           <- isInstUncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
          If #inst_lower @% "snd" @% "valid"
            then
              System [
@@ -43,9 +46,6 @@ Section fetch.
                   } : PktWithException FetchPkt @# ty;
              Ret #result
            else
-             LET uncompressed
-               :  Bool
-               <- isInstUncompressed (unsafeTruncLsb InstSz (#inst_lower @% "fst"));
              If #uncompressed
                then memFetch mem_table 2 satp_mode mode (xlen_sign_extend Xlen xlen (pc + $2))
                else
@@ -79,28 +79,16 @@ Section fetch.
            DispHex #result;
            DispString _ "\n"
          ];
-         If trig_trigs_match trig_states
-              {|
-                trig_event_type  := trig_event_fetch;
-                trig_event_size  := IF #uncompressed then $2 else $1;
-                trig_event_addr  := pc;
-                trig_event_value := #result @% "fst" @% "inst";
-              |}
-           then
-             LET exception
-               :  FullException
-               <- STRUCT {
-                    "exception" ::= $Breakpoint;
-                    "value"     ::= $0
-                  };
-             (* TODO: the trigger action may include a direct entry into debug mode. set hart state debug. halt? *)
-             Ret (STRUCT {
-                 "fst" ::= $$(getDefaultConst FetchPkt);
-                 "snd" ::= Valid #exception
-               } : PktWithException FetchPkt @# ty)
-           else
-           as result;
-         Ret #result
+         LETA trig_result
+           :  PktWithException FetchPkt
+           <- trig_bind_action trig_states
+                {|
+                  trig_event_type  := trig_event_fetch;
+                  trig_event_size  := IF #uncompressed then $2 else $1;
+                  trig_event_addr  := pc;
+                  trig_event_value := ZeroExtendTruncLsb Xlen (#result @% "fst" @% "inst");
+                |} mode pc #result;
+         Ret #trig_result
        else
          LET exception
            :  FullException

@@ -1,6 +1,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
+Require Import ProcKami.Debug.Debug.
 Require Import List.
 Import ListNotations.
 
@@ -12,6 +13,8 @@ Section trigger.
   Local Open Scope kami_scope.
 
   Definition trig_action_kind := Bit 4.
+  Definition trig_action_break := 0.
+  Definition trig_action_debug := 1.
 
   Definition trig_regs
     := [
@@ -373,14 +376,14 @@ Section trigger.
       (event : trig_event)
       (mode : PrivMode @# ty)
       :  Maybe trig_action_kind @# ty
-      := Switch state @% "type" Retn Bool With {
+      := Switch state @% "type" Retn Maybe trig_action_kind With {
            ($trig_type_value : Bit 4 @# ty)
              ::= let data
                    :  trig_state_data_value_kind @# ty
                    := unpack trig_state_data_value_kind
                         (ZeroExtendTruncLsb (size trig_state_data_value_kind) (state @% "data")) in
                  IF trig_value_match data event mode
-                   then Valid (data @% "action")
+                   then (Valid (data @% "action") : Maybe trig_action_kind @# ty)
                    else (@Invalid ty trig_action_kind)
          }.
 
@@ -390,22 +393,71 @@ Section trigger.
       (mode : PrivMode @# ty)
       :  Maybe trig_action_kind @# ty
       := fold_left
-           (fun i acc
+           (fun acc i
              => let state
                   :  trig_state_kind @# ty
                   := ReadArrayConst states i in
+                let data
+                  :  trig_state_data_value_kind @# ty
+                  := unpack trig_state_data_value_kind
+                       (ZeroExtendTruncLsb (size trig_state_data_value_kind) (state @% "data")) in
                 let result
                   :  Maybe trig_action_kind @# ty
                   := trig_trig_match state event mode in
                 IF result @% "valid"
                   then result
-                  else 
-
-                (IF state @% "chain"
-                  then acc
-                  else Invalid))
+                  else
+                    (IF state @% "type" == $trig_type_value && data @% "chain"
+                      then Invalid
+                      else acc))
            (getFins debug_num_triggers)
            Invalid.
+
+    (* performs this action when a trigger matches whose action causes the hart to enter debug mode. *)
+    Definition trig_hart_debug
+      (pc : VAddr @# ty)
+      (mode : PrivMode @# ty)
+      :  ActionT ty Void
+      := LETA _ <- debug_hart_state_set @^"halted" $$true;
+         LETA _ <- debug_hart_state_set @^"debug" $$true;
+         Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen pc;
+         Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb 2 mode;
+         Retv.
+
+    Definition trig_bind_action
+      (states : trig_states_kind @# ty)
+      (event : trig_event)
+      (mode : PrivMode @# ty)
+      (pc : VAddr @# ty)
+      (k : Kind)
+      (pkt : PktWithException k @# ty)
+      :  ActionT ty (PktWithException k)
+      := LET trig_match
+           :  Maybe trig_action_kind
+           <- trig_trigs_match states event mode;
+         If #trig_match @% "valid"
+           then
+             (If #trig_match @% "data" == $trig_action_break
+               then
+                 LET exception
+                   :  FullException
+                   <- STRUCT {
+                        "exception" ::= $Breakpoint;
+                        "value"     ::= $0
+                      };
+                 Ret (STRUCT {
+                     "fst" ::= $$(getDefaultConst k);
+                     "snd" ::= Valid #exception
+                   } : PktWithException k @# ty)
+               else
+                 LETA _ <- trig_hart_debug pc mode;
+                 Ret pkt
+               as result;
+             Ret #result)
+           else
+             Ret pkt
+           as result;
+         Ret #result.
 
   End ty.
 
