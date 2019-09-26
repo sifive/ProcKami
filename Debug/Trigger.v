@@ -424,14 +424,12 @@ Section trigger.
          Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb 2 mode;
          Retv.
 
-    Definition trig_bind_action
+    Definition trig_action
       (states : trig_states_kind @# ty)
       (event : trig_event)
       (mode : PrivMode @# ty)
       (pc : VAddr @# ty)
-      (k : Kind)
-      (pkt : PktWithException k @# ty)
-      :  ActionT ty (PktWithException k)
+      :  ActionT ty (Maybe FullException)
       := LET trig_match
            :  Maybe trig_action_kind
            <- trig_trigs_match states event mode;
@@ -441,19 +439,38 @@ Section trigger.
                then
                  LET exception
                    :  FullException
-                   <- STRUCT {
+                   <- (STRUCT {
                         "exception" ::= $Breakpoint;
                         "value"     ::= $0
-                      };
-                 Ret (STRUCT {
-                     "fst" ::= $$(getDefaultConst k);
-                     "snd" ::= Valid #exception
-                   } : PktWithException k @# ty)
+                      } : FullException @# ty);
+                 Ret (Valid #exception : Maybe FullException @# ty)
                else
                  LETA _ <- trig_hart_debug pc mode;
-                 Ret pkt
+                 Ret Invalid
                as result;
              Ret #result)
+           else
+             Ret Invalid
+           as result;
+         Ret #result.
+
+    Definition trig_bind_action
+      (states : trig_states_kind @# ty)
+      (event : trig_event)
+      (mode : PrivMode @# ty)
+      (pc : VAddr @# ty)
+      (k : Kind)
+      (pkt : PktWithException k @# ty)
+      :  ActionT ty (PktWithException k)
+      := LETA trig_exception
+           :  Maybe FullException
+           <- trig_action states event mode pc;
+         If #trig_exception @% "valid"
+           then
+             Ret (STRUCT {
+               "fst" ::= $$(getDefaultConst k);
+               "snd" ::= #trig_exception
+             } : PktWithException k @# ty)
            else
              Ret pkt
            as result;

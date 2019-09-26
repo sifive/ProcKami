@@ -9,6 +9,7 @@ Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
 Require Import ProcKami.Debug.DebugDevice.
+Require Import ProcKami.Debug.Trigger.
 Require Import List.
 Import ListNotations.
 
@@ -181,9 +182,11 @@ Section mem_unit.
 
   Definition mem_unit_exec
     (exts : Extensions @# ty)
+    (trig_states : trig_states_kind @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (mprv : Bool @# ty)
+    (pc : VAddr @# ty)
     (addr : VAddr @# ty)
     (func_unit_id : FuncUnitId func_units @# ty)
     (inst_id : InstId func_units @# ty)
@@ -305,8 +308,18 @@ Section mem_unit.
                               (#pmp_result @% "fst" @% "fst")
                               (#pmp_result @% "fst" @% "snd")
                               (#msize @% "data");
-                       (* If #read_result @% "valid" *)
-                       (*   then *)
+                       LETA read_trig_result
+                         :  Maybe FullException
+                         <- trig_action trig_states
+                              {|
+                                trig_event_type  := trig_event_load;
+                                trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                trig_event_addr  := addr;
+                                trig_event_value := ZeroExtendTruncLsb Xlen (#read_result @% "data")
+                              |} mode pc; 
+                       If #read_trig_result @% "valid"
+                         then mem_unit_exec_pkt_def #read_trig_result
+                         else
                            (* TODO: should we place reservations on failed reads? *)
                            LETA read_reservation_result
                              :  Array Rlen_over_8 Bool
@@ -343,23 +356,37 @@ Section mem_unit.
                              <- #mwrite_value @% "data" @% "mask";
                            If #mwrite_value @% "data" @% "isWr"
                              then
-                               (* VII. write to memory. *)
-                               LETA write_result
-                                 :  Bool
-                                 <- mem_region_write 0
-                                      (#pmp_result @% "fst" @% "fst")
-                                      (#pmp_result @% "fst" @% "snd")
-                                      (#mwrite_value @% "data" @% "data" : Data @# ty)
-                                      (#write_mask : DataMask @# ty)
-                                      (#msize @% "data");
-                               Ret
-                                 (IF #write_result
-                                   then Invalid
-                                   else
-                                     Valid (STRUCT {
-                                         "exception" ::= $SAmoAccessFault;
-                                         "value" ::= addr
-                                       } : FullException @# ty))
+                               LETA write_trig_result
+                                 :  Maybe FullException
+                                 <- trig_action trig_states
+                                      {|
+                                        trig_event_type := trig_event_store;
+                                        trig_event_size := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                        trig_event_addr := addr;
+                                        trig_event_value := ZeroExtendTruncLsb Xlen (#mwrite_value @% "data" @% "data")
+                                      |} mode pc;
+                               If #write_trig_result @% "valid"
+                                 then Ret #write_trig_result
+                                 else
+                                   (* VII. write to memory. *)
+                                   LETA write_result
+                                     :  Bool
+                                     <- mem_region_write 0
+                                          (#pmp_result @% "fst" @% "fst")
+                                          (#pmp_result @% "fst" @% "snd")
+                                          (#mwrite_value @% "data" @% "data" : Data @# ty)
+                                          (#write_mask : DataMask @# ty)
+                                          (#msize @% "data");
+                                   Ret
+                                     (IF #write_result
+                                       then Invalid
+                                       else
+                                         Valid (STRUCT {
+                                             "exception" ::= $SAmoAccessFault;
+                                             "value" ::= addr
+                                           } : FullException @# ty))
+                                 as result;
+                               Ret #result
                              else Ret Invalid
                              as write_result;
                            System [
@@ -375,7 +402,6 @@ Section mem_unit.
                                  (#write_mask : DataMask @# ty)
                                  (#mwrite_value @% "data" @% "reservation")
                                  (#msize @% "data");
-                                 (* #mpaddr @% "fst" *)
                            LET memRet
                              :  MemRet
                              <- STRUCT {
@@ -384,9 +410,8 @@ Section mem_unit.
                                   "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
                                 } : MemRet @# ty;
                            mem_unit_exec_pkt #memRet #write_result
-                       (*   else mem_unit_exec_pkt_access_fault addr $$false *)
-                       (*   as result; *)
-                       (* Ret #result *)
+                         as result;
+                       Ret #result
                      as result;
                    Ret #result
                  as result;
@@ -419,9 +444,11 @@ Section mem_unit.
 
   Definition MemUnit
     (exts : Extensions @# ty)
+    (trig_states : trig_states_kind @# ty)
     (xlen : XlenValue @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
+    (pc : VAddr @# ty)
     (decoder_pkt : DecoderPkt func_units @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
@@ -441,9 +468,11 @@ Section mem_unit.
                 :  PktWithException MemRet
                 <- mem_unit_exec
                      exts
+                     trig_states
                      satp_mode
                      mode
                      #mprv
+                     pc
                      (xlen_sign_extend Xlen xlen
                        (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
                      (decoder_pkt @% "funcUnitTag")

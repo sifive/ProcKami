@@ -227,9 +227,11 @@ Section Params.
                          :  PktWithException ExecUpdPkt
                          <- MemUnit mem_table
                               (#cfg_pkt @% "extensions")
+                              (#cfg_pkt @% "trig_states")
                               (#cfg_pkt @% "xlen")
                               (#cfg_pkt @% "satp_mode")
                               (#cfg_pkt @% "mode")
+                              #pc
                               (#decoder_pkt @% "fst")
                               (#exec_context_pkt @% "fst")
                               (#exec_update_pkt @% "fst")
