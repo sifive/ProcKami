@@ -91,21 +91,31 @@ Section debug.
 
   End ty.
 
+  Local Definition debug_cmderr_none := 0.
+  Local Definition debug_cmderr_busy := 1.
+
   (* I. Debug Module Internal State Registers *)
 
   Definition debug_internal_regs
     := [
          (* request sent to hart to execute abstract command *)
-         Register @^"debug_command" : Bool <- ConstBool false;
+         Register @^"debug_executing" : Bool <- ConstBool false;
          (* hart state registers 3.5 *)
-         Register @^"hart_states" : Array debug_num_harts debug_hart_state <- ConstArray (fun _ => getDefaultConst debug_hart_state)
+         Register @^"hart_states"
+           :  Array debug_num_harts debug_hart_state
+           <- ConstArray (fun _ => getDefaultConst debug_hart_state);
+         Register @^"debug_progbuf_end"
+           :  Bit InstSz
+           <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
+                then (ConstBit debug_inst_ebreak)
+                else (ConstBit (wzero InstSz))
        ].
 
   (* II. Debug CSR Registers *)
 
   Local Definition debug_csr_view (fields : list CsrField) : list CsrView
     := [{|
-         csrViewContext    := fun ty => $1;
+         csrViewContext    := fun ty => $0;
          csrViewFields     := fields;
          csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
          csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
@@ -138,8 +148,8 @@ Section debug.
            (map
              (fun i
                => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
-                  Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
-             (seq 0 debug_num_harts)).
+                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))
+             (getFins debug_num_harts)).
 
     Definition debug_states_any (name : string)
       :  ActionT ty Bool
@@ -147,9 +157,8 @@ Section debug.
            (map
              (fun i
                => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
-                  Ret (struct_get_field_default (#states@[$i : debug_hart_index @# ty]) name $$false))
-             (seq 0 debug_num_harts)).
-
+                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))
+             (getFins debug_num_harts)).
   End ty.
 
 
@@ -166,10 +175,7 @@ Section debug.
     := let name := @^("progbuf" ++ nat_decimal_string n) in
        debug_csr name 
          (natToWord CsrIdWidth (32 + n)%nat)
-         [@csrFieldAny _ name (Bit 32) (Bit 32)
-           (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
-             then (Some (ConstBit debug_inst_ebreak))
-             else None)].
+         [@csrFieldAny _ name (Bit 32) (Bit 32) (Some (ConstBit debug_inst_ebreak))].
 
   Local Definition debug_csrs_progbuf
     := map debug_csr_progbuf
@@ -178,7 +184,7 @@ Section debug.
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
-    := debug_csrs_data ++
+    := (debug_csrs_data ++
        [
          {|
            csrName := "dmcontrol";
@@ -186,16 +192,16 @@ Section debug.
            csrViews
              := debug_csr_view
                   [
-                    @csrFieldAny _ @^"haltreq" Bool Bool None;
-                    @csrFieldAny _ @^"resumereq" Bool Bool None;
-                    @csrFieldAny _ @^"hartreset" Bool Bool None;
-                    @csrFieldAny _ @^"ackhavereset" Bool Bool None;
+                    @csrFieldAny _ "haltreq" Bool Bool None;
+                    @csrFieldAny _ "resumereq" Bool Bool None;
+                    @csrFieldAny _ "hartreset" Bool Bool None;
+                    @csrFieldAny _ "ackhavereset" Bool Bool None;
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
-                    @csrFieldAny _ @^"hasel" Bool Bool None;
-                    @csrFieldAny _ @^"hartsel" (Array 20 Bool) (Bit 20) None;
+                    @csrFieldAny _ "hasel" Bool Bool None;
+                    @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) None;
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
-                    @csrFieldAny _ @^"ndmreset" Bool Bool None;
-                    @csrFieldAny _ @^"dmactive" Bool Bool None
+                    @csrFieldAny _ "ndmreset" Bool Bool None;
+                    @csrFieldAny _ "dmactive" Bool Bool None
                   ];
            csrAccess := accessDMode
          |};
@@ -213,42 +219,42 @@ Section debug.
                     {|
                       csrFieldName  := @^"allresumeack";
                       csrFieldKind  := Bool;
-                      csrFieldValue := inr (fun ty => debug_states_all ty "resumeack")
+                      csrFieldValue := csrFieldValueAct (fun ty => debug_states_all ty "resumeack")
                     |};
                     {|
                       csrFieldName  := @^"anyresumeack";
                       csrFieldKind  := Bool;
-                      csrFieldValue := inr (fun ty => debug_states_any ty "resumeack")
+                      csrFieldValue := csrFieldValueAct (fun ty => debug_states_any ty "resumeack")
                     |};
                     @csrFieldNoReg _ "allnonexistent" Bool (getDefaultConst _);
                     @csrFieldNoReg _ "anynonexistent" Bool (getDefaultConst _);
                     @csrFieldNoReg _ "allunavail" Bool (getDefaultConst _);
                     @csrFieldNoReg _ "anyunavail" Bool (getDefaultConst _);
                     {|
-                      csrFieldName := @^"allrunning";
+                      csrFieldName := "allrunning";
                       csrFieldKind := Bool;
                       csrFieldValue
-                        := inr (fun ty
+                        := csrFieldValueAct (fun ty
                              => LETA halted : Bool <- debug_states_all ty "halted";
                                 Ret !#halted)
                     |};
                     {|
-                      csrFieldName := @^"anyrunning";
+                      csrFieldName := "anyrunning";
                       csrFieldKind := Bool;
                       csrFieldValue
-                        := inr (fun ty
+                        := csrFieldValueAct (fun ty
                              => LETA halted : Bool <- debug_states_all ty "halted";
                                 Ret !#halted)
                     |};
                     {|
-                      csrFieldName  := @^"allhalted";
+                      csrFieldName  := "allhalted";
                       csrFieldKind  := Bool;
-                      csrFieldValue := inr (fun ty => debug_states_all ty "halted")
+                      csrFieldValue := csrFieldValueAct (fun ty => debug_states_all ty "halted")
                     |};
                     {|
-                      csrFieldName  := @^"anyhalted";
+                      csrFieldName  := "anyhalted";
                       csrFieldKind  := Bool;
-                      csrFieldValue := inr (fun ty => debug_states_all ty "halted")
+                      csrFieldValue := csrFieldValueAct (fun ty => debug_states_all ty "halted")
                     |};
                     @csrFieldNoReg _ "authenticated" Bool (getDefaultConst _);
                     @csrFieldNoReg _ "authbusy" Bool (getDefaultConst _);
@@ -265,13 +271,13 @@ Section debug.
              := debug_csr_view
                   [
                     @csrFieldNoReg _ "reserved0" (Bit 3) (getDefaultConst _);
-                    @csrFieldNoReg _ @^"progbufsize" (Bit 5) (getDefaultConst _);
+                    @csrFieldNoReg _ "progbufsize" (Bit 5) (getDefaultConst _);
                     @csrFieldNoReg _ "reserved1" (Bit 11) (getDefaultConst _);
-                    @csrFieldAny _ @^"busy" Bool Bool None;
+                    @csrFieldAny _ "busy" Bool Bool None;
                     @csrFieldNoReg _ "reserved2" (Bit 1) (getDefaultConst _);
-                    @csrFieldAny _ @^"cmderr" (Bit 3) (Bit 3) None;
+                    @csrFieldAny _ "cmderr" (Bit 3) (Bit 3) None;
                     @csrFieldNoReg _ "reserved3" (Bit 4) (getDefaultConst _);
-                    @csrFieldNoReg _ @^"datacount" (Bit 4) (natToWord 4 6) (* number of data regs. See table 3.1 *)
+                    @csrFieldNoReg _ "datacount" (Bit 4) (natToWord 4 6) (* number of data regs. See table 3.1 *)
                   ];
            csrAccess := accessDMode
          |};
@@ -282,46 +288,32 @@ Section debug.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ @^"cmderr" (Bit 3) (Bit 3) None; (* side effect write reg *)
-                         @csrFieldAny _ @^"busy" Bool Bool None; (* side effect write reg *)
-                         @csrFieldAny _ @^"cmdtype" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ @^"control" (Bit 24) (Bit 24) None
+                         @csrFieldAny _ "cmderr" (Bit 3) (Bit 3) None; (* side effect write reg *)
+                         @csrFieldAny _ "busy" Bool Bool None; (* side effect write reg *)
+                         @csrFieldAny _ "cmdtype" (Bit 8) (Bit 8) None;
+                         @csrFieldAny _ "control" (Bit 24) (Bit 24) None
                        ] in
                   {|
-                    csrViewContext := fun ty => $1;
+                    csrViewContext := fun ty => $0;
                     csrViewFields  := fields;
                     csrViewReadXform
-                      := fun _ _  (curr_value : csrKind fields @# _)
+                      := fun ty g (curr_value : csrKind fields @# _)
                            => zero_extend_trunc 32 CsrValueWidth (pack curr_value);
                     csrViewWriteXform
-                      := fun _ _ (curr_value : csrKind fields @# _) (next_value : CsrValue @# _)
-                           => IF (struct_get_field_default
-                                   curr_value (@^"busy") $$false)
+                      := fun ty g (curr_value : csrKind fields @# _) (next_value : CsrValue @# _)
+                           => IF curr_value @% "busy"
                                 then
-                                  struct_set_field_default
-                                    curr_value
-                                    (@^"cmderr")
-                                    ($$(natToWord 3 1))
+                                  curr_value @%[ "cmderr" <- ($debug_cmderr_busy: Bit 3 @# ty) ]
                                 else
-                                  struct_set_field_default
-                                    (struct_set_field_default
-                                      (unpack (csrKind fields)
-                                        (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
-                                      (@^"cmderr")
-                                      (struct_get_field_default
-                                        curr_value
-                                        (@^"cmderr")
-                                        ($0 : Bit 3 @# _)))
-                                    (@^"busy")
-                                    (struct_get_field_default
-                                      curr_value
-                                      (@^"busy")
-                                      ($$false))
+                                  (unpack (csrKind fields)
+                                    (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
+                                    @%[ "cmderr" <- ($debug_cmderr_none : Bit 3 @# ty) ]
+                                    @%[ "busy" <- $$true ]
                   |}
                 ];
            csrAccess := accessDMode
          |}
-       ] ++ debug_csrs_progbuf.
+       ] ++ debug_csrs_progbuf).
 
   Close Scope kami_scope.
 
@@ -380,6 +372,7 @@ Section debug.
          If #state@%"haltreq" && !(#state@%"halted")
            then
              LETA _ <- debug_hart_state_set @^"halted" $$true;
+             LETA _ <- debug_hart_state_set @^"haltreq" $$false;
              Read pc : VAddr <- @^"pc";
              Read mode : PrivMode <- @^"mode";
              Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen #pc;
@@ -404,6 +397,7 @@ Section debug.
            then
              LETA _ <- debug_hart_state_set @^"halted" $$false;
              LETA _ <- debug_hart_state_set @^"resumeack" $$true;
+             LETA _ <- debug_hart_state_set @^"resumereq" $$false;
              Read pc : Bit Xlen <- @^"dpc";
              Read mode : Bit 2 <- @^"mode";
              Write @^"pc" : VAddr <- SignExtendTruncLsb Xlen #pc;
@@ -415,7 +409,7 @@ Section debug.
     Definition debug_hart_command_done
       :  ActionT ty Void
       := Write @^"busy" : Bool <- $$false;
-         Write @^"debug_command" : Bool <- $$false;
+         Write @^"debug_executing" : Bool <- $$false;
          LETA _ <- debug_hart_state_set "command" $$false;
          Retv.
 
@@ -462,7 +456,7 @@ Section debug.
          Write @^"pc" : VAddr <- SignExtendTruncLsb Xlen $$debug_abstract_addr;
          Write @^"mode" : PrivMode <- $MachineMode;
          LETA _ <- debug_harts_set "command" $$true;
-         Write @^"debug_command" : Bool <- $$true;
+         Write @^"debug_executing" : Bool <- $$true;
          Retv.
 
     Local Definition debug_access_reg_cmd := 0.
@@ -474,7 +468,7 @@ Section debug.
       (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
       := Read busy : Bool <- @^"busy";
-         Read command : Bool <- @^"debug_command";
+         Read command : Bool <- @^"debug_executing";
          If #busy && !#command
            then
              Read cmdtype : Bit 8 <- @^"cmdtype";

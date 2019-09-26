@@ -66,7 +66,13 @@ Section debug_device.
            debug_device_name := @^"debug_abstract_cont"
          |}
        ] ++
-       debug_device_regs_progbuf.
+       debug_device_regs_progbuf ++
+       [
+         {|
+           debug_device_kind := Bit Xlen;
+           debug_device_name := @^"debug_progbuf_end"
+         |}
+       ].
 
   Local Definition debug_device_size
     :  list debug_device_reg -> nat
@@ -86,6 +92,8 @@ Section debug_device.
   Definition debug_device_arg0_addr := 0.
 
   Definition debug_device_arg1_addr := (debug_device_arg0_addr + Xlen)%nat.
+
+  Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
 
   Definition debugDevice
     := @gen_reg_device procParams 
