@@ -142,33 +142,23 @@ Section debug.
   Section ty.
     Variable ty : Kind -> Type.
 
-    Local Definition debug_for
-      (A : Type)
-      (n : nat)
-      (f : Fin.t n -> A)
-      :  list A
-      := nat_rect
-           (fun m => m <= n -> list A)%nat
-           (fun _ => [])
-           (fun m F H => f (Fin.of_nat_lt H) :: F (Nat.le_trans m (S m) n (le_S m m (le_n m)) H))
-           n (le_n n).
-
     Definition debug_states_all (name : string)
       :  ActionT ty Bool
       := utila_acts_all
-           (debug_for
-             (fun i : Fin.t debug_num_harts
-               => Read states : Array debug_num_harts debug_hart_state <- @^"hart_states";
-                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))).
+           (map
+             (fun i
+               => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
+                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))
+             (getFins debug_num_harts)).
 
     Definition debug_states_any (name : string)
       :  ActionT ty Bool
       := utila_acts_any
-           (debug_for
-             (fun i : Fin.t debug_num_harts
+           (map
+             (fun i
                => Read states  : Array debug_num_harts debug_hart_state <- @^"hart_states";
-                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))).
-
+                  Ret (struct_get_field_default (ReadArrayConst #states i) name $$false))
+             (getFins debug_num_harts)).
   End ty.
 
 
@@ -194,7 +184,7 @@ Section debug.
   (* the DMI address space: "The Debug Module is controlled via register accesses to its DMI address space." 3.1 *)
   Definition debug_csrs
     :  list Csr
-    := debug_csrs_data ++
+    := (debug_csrs_data ++
        [
          {|
            csrName := "dmcontrol";
@@ -307,26 +297,23 @@ Section debug.
                     csrViewContext := fun ty => $0;
                     csrViewFields  := fields;
                     csrViewReadXform
-                      := fun _ _  (curr_value : csrKind fields @# _)
+                      := fun ty g (curr_value : csrKind fields @# _)
                            => zero_extend_trunc 32 CsrValueWidth (pack curr_value);
                     csrViewWriteXform
-                      := fun _ _ (curr_value : csrKind fields @# _) (next_value : CsrValue @# _)
+                      := fun ty g (curr_value : csrKind fields @# _) (next_value : CsrValue @# _)
                            => IF curr_value @% "busy"
                                 then
-                                  struct_set_field_default curr_value "cmderr"
-                                    ($debug_cmderr_busy : Bit 3 @# _)
+                                  curr_value @%[ "cmderr" <- ($debug_cmderr_busy: Bit 3 @# ty) ]
                                 else
-                                  struct_set_field_default
-                                    (struct_set_field_default 
-                                      (unpack (csrKind fields)
-                                        (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
-                                      "cmderr" ($debug_cmderr_none : Bit 3 @# _))
-                                    "busy" $$false
+                                    (unpack (csrKind fields)
+                                      (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
+                                      @%[ "cmderr" <- ($debug_cmderr_none : Bit 3 @# ty) ]
+                                    @%[ "busy" <- $$false ]
                   |}
                 ];
            csrAccess := accessDMode
          |}
-       ] ++ debug_csrs_progbuf.
+       ] ++ debug_csrs_progbuf).
 
   Close Scope kami_scope.
 
