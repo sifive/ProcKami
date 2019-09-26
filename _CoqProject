@@ -1,1 +1,1 @@
--Q . ProcKami -Q ../Kami Kami -Q ../bbv/theories bbv -Q ../FpuKami FpuKami -Q ../coq-record-update/src RecordUpdate -Q ../StdLibKami StdLibKami
+-Q . ProcKami -Q ../Kami Kami -Q ../bbv/src/bbv bbv -Q ../FpuKami FpuKami -Q ../coq-record-update/src RecordUpdate -Q ../StdLibKami StdLibKami
