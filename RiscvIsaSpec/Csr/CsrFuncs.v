@@ -51,11 +51,17 @@ Section CsrInterface.
              csrFieldRegisterKind @# ty
        }.
 
+  Inductive CsrFieldValue (csrFieldKind : Kind) : Type
+    := csrFieldValueConst : ConstT csrFieldKind -> CsrFieldValue csrFieldKind
+    |  csrFieldValueReg   : CsrFieldRegister csrFieldKind -> CsrFieldValue csrFieldKind
+    |  csrFieldValueAct   : (forall ty, ActionT ty csrFieldKind) -> CsrFieldValue csrFieldKind.
+  
+
   Record CsrField
     := {
-         csrFieldName : string;
-         csrFieldKind : Kind;
-         csrFieldValue : (ConstT csrFieldKind) + (CsrFieldRegister csrFieldKind) + (forall ty, ActionT ty csrFieldKind)
+         csrFieldName  : string;
+         csrFieldKind  : Kind;
+         csrFieldValue : CsrFieldValue csrFieldKind
        }.
 
   Definition csrKind
@@ -98,14 +104,11 @@ Section CsrInterface.
        LETA csr_value <- BuildStructAction (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
                            (fun i => csrFieldName (nth_Fin (csrViewFields view) i))
                            (fun i => match csrFieldValue (nth_Fin (csrViewFields view) i) with
-                                     | inl value
-                                       => match value with
-                                          | inl const => Ret $$const
-                                          | inr interface
-                                            => Read value : (csrFieldRegisterKind interface) <- csrFieldRegisterName interface;
-                                                 Ret (csrFieldRegisterReadXform interface upd_pkt #value)
-                                          end
-                                     | inr act => act ty
+                                     | csrFieldValueConst const => Ret $$const
+                                     | csrFieldValueReg interface
+                                       => Read value : (csrFieldRegisterKind interface) <- csrFieldRegisterName interface;
+                                          Ret (csrFieldRegisterReadXform interface upd_pkt #value)
+                                     | csrFieldValueAct act => act ty
                                      end);
        System [
          DispString _ "[csrViewReadWrite] csr value: \n";
@@ -132,31 +135,27 @@ Section CsrInterface.
                        let get_name  := fun i => csrFieldName (nth_Fin (csrViewFields view) i) in
                        let get_value := fun i => nth_Fin (csrViewFields view) i in
                        match csrFieldValue (get_value fieldIndex) with
-                       | inl value
-                         => match value with
-                            | inl _ => Retv
-                            | inr interface
-                              => Read curr_value
-                                   :  csrFieldRegisterKind interface
-                                   <- csrFieldRegisterName interface;
-                                 LET write_value
-                                   :  get_kind fieldIndex
-                                   <- ReadStruct #input_value fieldIndex;
-                                 System [
-                                   DispString _ ("[csrViewReadWrite] writing to register " ++ csrFieldRegisterName interface ++ "\n");
-                                   DispString _ "[csrViewReadWrite] curr value: ";
-                                   DispHex #curr_value;
-                                   DispString _ "\n";
-                                   DispString _ "[csrViewReadWrite] write value: ";
-                                   DispHex #write_value;
-                                   DispString _ "\n"
-                                 ];
-                                 Write (csrFieldRegisterName interface)
-                                   :  csrFieldRegisterKind interface
-                                   <- csrFieldRegisterWriteXform interface
-                                        upd_pkt #curr_value #write_value;
-                                 Retv
-                            end
+                       | csrFieldValueReg interface
+                         => Read curr_value
+                              :  csrFieldRegisterKind interface
+                              <- csrFieldRegisterName interface;
+                            LET write_value
+                              :  get_kind fieldIndex
+                              <- ReadStruct #input_value fieldIndex;
+                            System [
+                              DispString _ ("[csrViewReadWrite] writing to register " ++ csrFieldRegisterName interface ++ "\n");
+                              DispString _ "[csrViewReadWrite] curr value: ";
+                              DispHex #curr_value;
+                              DispString _ "\n";
+                              DispString _ "[csrViewReadWrite] write value: ";
+                              DispHex #write_value;
+                              DispString _ "\n"
+                            ];
+                            Write (csrFieldRegisterName interface)
+                              :  csrFieldRegisterKind interface
+                              <- csrFieldRegisterWriteXform interface
+                                   upd_pkt #curr_value #write_value;
+                            Retv
                        | _ => Retv
                        end;
                   acc)
@@ -279,7 +278,7 @@ Section CsrInterface.
     := {|
          csrFieldName := name;
          csrFieldKind := k;
-         csrFieldValue := inl (inl default)
+         csrFieldValue := csrFieldValueConst default
        |}.
 
   Definition csrFieldAny
@@ -292,22 +291,22 @@ Section CsrInterface.
          csrFieldName := name;
          csrFieldKind := k;
          csrFieldValue
-           := inl (inr {|
-                  csrFieldRegisterName := name;
+           := csrFieldValueReg {|
+                  csrFieldRegisterName := @^name;
                   csrFieldRegisterKind := reg_kind;
                   csrFieldRegisterValue := init;
                   csrFieldRegisterReadXform
                     := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
                   csrFieldRegisterWriteXform
                     := fun _ _ _ value => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack value));
-                |})
+                |}
       |}.
 
   Definition misa: CsrField
     := {| csrFieldName := @^"extensions";
           csrFieldKind := Array 26 Bool ;
           csrFieldValue :=
-            inl (inr {|
+            csrFieldValueReg {|
                    csrFieldRegisterName := @^"extRegs";
                    csrFieldRegisterKind := ExtensionsReg ;
                    csrFieldRegisterValue := Some InitExtsRegVal;
@@ -320,7 +319,7 @@ Section CsrInterface.
                             isAligned (guard @% "warlUpdateInfo" @% "pc") $2)
                         then struct_set_field_default (misaToExtReg new) "C" ($$true)
                         else misaToExtReg new
-                |})
+                |}
        |}.
 
   Definition csrFieldReadOnly
@@ -333,28 +332,28 @@ Section CsrInterface.
          csrFieldName := name;
          csrFieldKind := k;
          csrFieldValue
-           := inl (inr {|
-                  csrFieldRegisterName := name;
+           := csrFieldValueReg {|
+                  csrFieldRegisterName := @^name;
                   csrFieldRegisterKind := reg_kind;
                   csrFieldRegisterValue := init;
                   csrFieldRegisterReadXform
                     := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value _ => curr_value
-                |})
+                |}
        |}.
 
   (* pmpcfg register fields. *)
   Definition pmpField
     (index : nat)
     :  CsrField
-    := let name := (@^"pmp" ++ nat_decimal_string index ++ "cfg")%string in
+    := let name := ("pmp" ++ nat_decimal_string index ++ "cfg")%string in
        {|
          csrFieldName := name;
          csrFieldKind := PmpCfg;
          csrFieldValue
-           := inl (inr {|
-                  csrFieldRegisterName := name;
+           :=  csrFieldValueReg {|
+                  csrFieldRegisterName := @^name;
                   csrFieldRegisterKind := PmpCfg;
                   csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform := fun _ _ => id;
@@ -363,7 +362,7 @@ Section CsrInterface.
                          => IF ((input_value @% "W") && (!(input_value @% "R")))
                               then curr_value (* ignore invalid writes. *)
                               else input_value
-                |})
+                |}
        |}.
 
   Definition xlField
@@ -373,8 +372,8 @@ Section CsrInterface.
          csrFieldName := (prefix ++ "xl");
          csrFieldKind := Bit 2;
          csrFieldValue
-           := inl (inr {|
-                  csrFieldRegisterName := (prefix ++ "xl");
+           := csrFieldValueReg {|
+                  csrFieldRegisterName := @^(prefix ++ "xl");
                   csrFieldRegisterKind := XlenValue ; (* TODO: see the sizes of the uxl, sxl, and mxl regs *)
                   csrFieldRegisterValue := Some initXlen;
                   csrFieldRegisterReadXform := fun _ _ => ZeroExtendTruncLsb XlenWidth;
@@ -383,7 +382,7 @@ Section CsrInterface.
                          => IF (fold_left (fun acc xlen => acc || input_value == $xlen) ImplXlens $$false)
                               then input_value
                               else curr_value
-                |})
+                |}
        |}.
 
   Definition tvecField
@@ -394,8 +393,8 @@ Section CsrInterface.
          csrFieldName := (prefix ++ "tvec_base");
          csrFieldKind := Bit width;
          csrFieldValue
-           := inl (inr {|
-                  csrFieldRegisterName := (prefix ++ "tvec_base");
+           := csrFieldValueReg {|
+                  csrFieldRegisterName := @^(prefix ++ "tvec_base");
                   csrFieldRegisterKind := Bit width;
                   csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform := fun _ _ => id;
@@ -404,7 +403,7 @@ Section CsrInterface.
                   (* TODO: the test suite seems to assume that we will append two zeros and accept any value. Is this correct? *)
                   csrFieldRegisterWriteXform
                     := fun _ _ _ => ZeroExtendTruncLsb width
-                |})
+                |}
        |}.
 
   Definition accessAny
@@ -520,26 +519,22 @@ Section CsrInterface.
                       => fold_right
                            (fun field fields_acc
                              => match csrFieldValue field with
-                                  | inl value
-                                    => match value with
-                                       | inl _ => fields_acc
-                                       | inr reg
-                                         => if existsb
-                                                 (fun entry
-                                                   => String.eqb (csrFieldRegisterName reg) (fst entry))
-                                                 fields_acc
-                                              then fields_acc
-                                              else
-                                                (csrFieldRegisterName reg,
-                                                 Register (csrFieldRegisterName reg)
-                                                   :  (csrFieldRegisterKind reg)
-                                                   <- (match csrFieldRegisterValue reg with
-                                                        | Some value => value
-                                                        | None => getDefaultConst (csrFieldRegisterKind reg)
-                                                        end)) ::
-                                                fields_acc
-                                       end
-                                  | inr _ => fields_acc
+                                  | csrFieldValueReg reg
+                                    => if existsb
+                                            (fun entry
+                                              => String.eqb (csrFieldRegisterName reg) (fst entry))
+                                            fields_acc
+                                         then fields_acc
+                                         else
+                                           (csrFieldRegisterName reg,
+                                            Register (csrFieldRegisterName reg)
+                                              :  (csrFieldRegisterKind reg)
+                                              <- (match csrFieldRegisterValue reg with
+                                                   | Some value => value
+                                                   | None => getDefaultConst (csrFieldRegisterKind reg)
+                                                   end)) ::
+                                           fields_acc
+                                  | _ => fields_acc
                                   end)
                            views_acc
                            (csrViewFields view))

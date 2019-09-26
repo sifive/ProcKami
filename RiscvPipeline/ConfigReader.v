@@ -52,6 +52,7 @@ Section config_reader.
        Read fs : Bit 2 <- @^"fs";
        LET xs : Bit 2 <- $0;
        Read tselect : Bit (Nat.log2_up debug_num_triggers) <- @^"tselect";
+       Read trig_states : trig_states_kind <- @^"trig_states";
        System
          [
            DispString _ "Start\n";
@@ -77,7 +78,8 @@ Section config_reader.
             "extensions"       ::= #extensions;
             "fs"               ::= #fs;
             "xs"               ::= #xs;
-            "tselect"          ::= #tselect
+            "tselect"          ::= #tselect;
+            "trig_states"      ::= #trig_states
           } : ContextCfgPkt @# ty).
 
   Close Scope kami_action.

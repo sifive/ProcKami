@@ -1,6 +1,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import ProcKami.Debug.Trigger.
 
 Section fetch.
   Context `{procParams: ProcParams}.
@@ -18,6 +19,7 @@ Section fetch.
   Definition fetch
     (exts : Extensions @# ty)
     (xlen : XlenValue @# ty)
+    (trig_states : trig_states_kind @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode : PrivMode @# ty)
     (pc: VAddr @# ty)
@@ -77,6 +79,27 @@ Section fetch.
            DispHex #result;
            DispString _ "\n"
          ];
+         If trig_trigs_match trig_states
+              {|
+                trig_event_type  := trig_event_fetch;
+                trig_event_size  := IF #uncompressed then $2 else $1;
+                trig_event_addr  := pc;
+                trig_event_value := #result @% "fst" @% "inst";
+              |}
+           then
+             LET exception
+               :  FullException
+               <- STRUCT {
+                    "exception" ::= $Breakpoint;
+                    "value"     ::= $0
+                  };
+             (* TODO: the trigger action may include a direct entry into debug mode. set hart state debug. halt? *)
+             Ret (STRUCT {
+                 "fst" ::= $$(getDefaultConst FetchPkt);
+                 "snd" ::= Valid #exception
+               } : PktWithException FetchPkt @# ty)
+           else
+           as result;
          Ret #result
        else
          LET exception

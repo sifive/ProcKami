@@ -801,6 +801,61 @@ Section Params.
            "command"   :: Bool  (* hart selected to execute abstract command. *) 
          }.
 
+    Definition trig_type_value := 2.
+    Definition trig_type_count := 3.
+    Definition trig_type_interrupt := 4.
+    Definition trig_type_exception := 5.
+
+    Definition trig_act_break := 0.
+    Definition trig_act_debug := 1.
+
+    (* represents data/address trigger states. *)
+    Definition trig_state_data_value_kind
+      := STRUCT_TYPE {
+           "maskmax" :: Bit 6;
+           "sizehi"  :: Bit 2;
+           "hit"     :: Bool;
+           "select"  :: Bool;
+           "timing"  :: Bool;
+           "sizelo"  :: Bit 2;
+           "action"  :: Bit 4;
+           "chain"   :: Bool;
+           "match"   :: Bit 4;
+           "m"       :: Bool;
+           "s"       :: Bool;
+           "u"       :: Bool;
+           "execute" :: Bool;
+           "store"   :: Bool;
+           "load"    :: Bool;
+           "value"   :: Bit Xlen (* the data/address value used for matching and returned through tdata2. *)
+         }.
+
+    (* represents count trigger states. *)
+    Definition trig_state_data_count_kind
+      := STRUCT_TYPE {
+           "hit"    :: Bool;
+           "count"  :: Bit 14;
+           "m"      :: Bool;
+           "s"      :: Bool;
+           "u"      :: Bool;
+           "action" :: Bit 6
+         }.
+
+    Local Definition list_max := fold_right Nat.max 0.
+
+    Definition trig_state_data_kind 
+      := Bit (list_max (map size [trig_state_data_value_kind; trig_state_data_count_kind])).
+
+    Definition trig_state_kind
+      := STRUCT_TYPE {
+           "type"  :: Bit 4;
+           "dmode" :: Bool;
+           "data"  :: trig_state_data_kind
+         }.
+
+    Definition trig_states_kind
+      := Array debug_num_triggers trig_state_kind.
+
     Definition ContextCfgPkt :=
       STRUCT_TYPE {
           "xlen"             :: XlenValue;
@@ -813,7 +868,8 @@ Section Params.
           "extensions"       :: Extensions;
           "fs"               :: Bit 2;
           "xs"               :: Bit 2;
-          "tselect"          :: Bit (Nat.log2_up debug_num_triggers)
+          "tselect"          :: Bit (Nat.log2_up debug_num_triggers);
+          "trig_states"      :: trig_states_kind
         }.
 
     Local Open Scope kami_expr.

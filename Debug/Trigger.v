@@ -9,63 +9,9 @@ Section trigger.
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
-
-  Definition trig_type_value := 2.
-  Definition trig_type_count := 3.
-  Definition trig_type_interrupt := 4.
-  Definition trig_type_exception := 5.
-
-  Definition trig_act_break := 0.
-  Definition trig_act_debug := 1.
-
-  (* represents data/address trigger states. *)
-  Definition trig_state_data_value_kind
-    := STRUCT_TYPE {
-         "maskmax" :: Bit 6;
-         "sizehi"  :: Bit 2;
-         "hit"     :: Bool;
-         "select"  :: Bool;
-         "timing"  :: Bool;
-         "sizelo"  :: Bit 2;
-         "action"  :: Bit 4;
-         "chain"   :: Bool;
-         "match"   :: Bit 4;
-         "m"       :: Bool;
-         "s"       :: Bool;
-         "u"       :: Bool;
-         "execute" :: Bool;
-         "store"   :: Bool;
-         "load"    :: Bool;
-         "value"   :: Bit Xlen (* the data/address value used for matching and returned through tdata2. *)
-       }.
-
-  (* represents count trigger states. *)
-  Definition trig_state_data_count_kind
-    := STRUCT_TYPE {
-         "hit"    :: Bool;
-         "count"  :: Bit 14;
-         "m"      :: Bool;
-         "s"      :: Bool;
-         "u"      :: Bool;
-         "action" :: Bit 6
-       }.
-
-  Local Definition list_max := fold_right Nat.max 0.
-
-  Definition trig_state_data_kind 
-    := Bit (list_max (map size [trig_state_data_value_kind; trig_state_data_count_kind])).
-
-  Definition trig_state_kind
-    := STRUCT_TYPE {
-         "type"  :: Bit 4;
-         "dmode" :: Bool;
-         "data"  :: trig_state_data_kind
-       }.
-
-  Definition trig_states_kind
-    := Array debug_num_triggers trig_state_kind.
-
   Local Open Scope kami_scope.
+
+  Definition trig_action_kind := Bit 4.
 
   Definition trig_regs
     := [
@@ -86,7 +32,7 @@ Section trigger.
          "select"   :: Bool;
          "timing"   :: Bool;
          "sizelo"   :: Bit 2;
-         "action"   :: Bit 4;
+         "action"   :: trig_action_kind;
          "chain"    :: Bool;
          "match"    :: Bit 4;
          "m"        :: Bool;
@@ -299,7 +245,7 @@ Section trigger.
          csrFieldName := name;
          csrFieldKind := Bit xlen;
          csrFieldValue
-           := inl (inr {|
+           := csrFieldValueReg {|
                   csrFieldRegisterName := @^"trig_states";
                   csrFieldRegisterKind := trig_states_kind;
                   csrFieldRegisterValue := None;
@@ -315,7 +261,7 @@ Section trigger.
                                      (context @% "cfg" @% "mode")
                                      (curr_value @[ context @% "cfg" @% "tselect"])
                                      input_value]
-              |})
+              |}
        |}.
      
 
@@ -378,47 +324,30 @@ Section trigger.
       :  Bool @# ty
       := let state_size
            :  Bit 4 @# ty
-           := ZeroExtendTruncLsb 4 {< state @% "sizehi", state @% "sizelo" >} in
+           := ZeroExtendTruncLsb 4 ({< state @% "sizehi", state @% "sizelo" >}) in
          state_size == $0 || size == state_size.
-
-    Local Definition trig_value_addr_match
-      (state : trig_state_data_value_kind @# ty)
-      (addr  : Bit Xlen @# ty)
-      :  Bool @# ty
-      := let size
-           :  Bit 4 @# ty
-           := ZeroExtendTruncLsb 4 {< state @% "sizehi", state @% "sizelo" >} in
-         Switch state @% "match" Retn Bool With {
-           ($0 : Bit 4 @# ty) ::= addr == state @% "value";
-           ($1 : Bit 4 @# ty) ::= $$false (* TODO: what does the text mean here? 5.2.9 *)
-           ($2 : Bit 4 @# ty) ::= addr >= state @% "value";
-           ($3 : Bit 4 @# ty) ::= addr <= state @% "value";
-           ($4 : Bit 4 @# ty)
-             ::= addr >> (Xlen_over_8 
-
-             ::= addr >> (size >> ($1 : Bit 1 @# ty)) ==
-                 state @% "value" >> (
-         }.
-
-      := let size
-           :  Bit 4 @# ty
-           := ZeroExtendTruncLsb 4 {< state @% "sizehi", state @% "sizelo" >} in
-         let mask
-           :  Bit Xlen @# ty
-           := IF size == $0
-                then $$(wones Xlen)
-                else (($1 : Bit Xlen @# ty) << ((size - 1) << ($4 : Bit 3 @# ty))) - $1 in
-         let value
-           :  Bit Xlen @# ty
-           := addr & mask in
-         Switch state @% "match" Retn Bool With {
-         }.
 
     Local Definition trig_value_value_match
       (state : trig_state_data_value_kind @# ty)
-      (value : Bit Xlen @# ty)
+      (value  : Bit Xlen @# ty)
       :  Bool @# ty
-      := 
+      := let size
+           :  Bit 4 @# ty
+           := ZeroExtendTruncLsb 4 ({< state @% "sizehi", state @% "sizelo" >}) in
+         Switch state @% "match" Retn Bool With {
+           ($0 : Bit 4 @# ty) ::= value == state @% "value";
+           ($1 : Bit 4 @# ty) ::= $$false; (* TODO: what does the text mean here? 5.2.9 *)
+           ($2 : Bit 4 @# ty) ::= (value >= (state @% "value"));
+           ($3 : Bit 4 @# ty) ::= (value <= (state @% "value"));
+           ($4 : Bit 4 @# ty)
+             ::= (ZeroExtendTruncLsb (Xlen / 2)%nat value &
+                  ZeroExtendTruncMsb (Xlen / 2)%nat (state @% "value")) ==
+                 (ZeroExtendTruncLsb (Xlen / 2)%nat (state @% "value"));
+           ($5 : Bit 4 @# ty)
+             ::= (ZeroExtendTruncMsb (Xlen / 2)%nat value &
+                  ZeroExtendTruncMsb (Xlen / 2)%nat (state @% "value")) ==
+                 (ZeroExtendTruncLsb (Xlen / 2)%nat (state @% "value"))
+         }.
 
     (*
       Accepts two arguments: state, a data/address trigger state;
@@ -434,9 +363,49 @@ Section trigger.
       := trig_value_type_match state (trig_event_type event) &&
          trig_value_size_match state (trig_event_size event) &&
          trig_value_mode_match state mode &&
-         IF state @% "select"
-           then trig_value_addr_match state (trig_event_addr event)
-           else trig_value_value_match state (trig_event_value event).
+         trig_value_value_match state
+           (IF state @% "select"
+             then trig_event_addr event
+             else trig_event_value event).
+
+    Definition trig_trig_match
+      (state : trig_state_kind @# ty)
+      (event : trig_event)
+      (mode : PrivMode @# ty)
+      :  Maybe trig_action_kind @# ty
+      := Switch state @% "type" Retn Bool With {
+           ($trig_type_value : Bit 4 @# ty)
+             ::= let data
+                   :  trig_state_data_value_kind @# ty
+                   := unpack trig_state_data_value_kind
+                        (ZeroExtendTruncLsb (size trig_state_data_value_kind) (state @% "data")) in
+                 IF trig_value_match data event mode
+                   then Valid (data @% "action")
+                   else (@Invalid ty trig_action_kind)
+         }.
+
+    Definition trig_trigs_match
+      (states : trig_states_kind @# ty)
+      (event : trig_event)
+      (mode : PrivMode @# ty)
+      :  Maybe trig_action_kind @# ty
+      := fold_left
+           (fun i acc
+             => let state
+                  :  trig_state_kind @# ty
+                  := ReadArrayConst states i in
+                let result
+                  :  Maybe trig_action_kind @# ty
+                  := trig_trig_match state event mode in
+                IF result @% "valid"
+                  then result
+                  else 
+
+                (IF state @% "chain"
+                  then acc
+                  else Invalid))
+           (getFins debug_num_triggers)
+           Invalid.
 
   End ty.
 
