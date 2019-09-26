@@ -185,7 +185,7 @@ Section debug.
     := let name := @^("progbuf" ++ nat_decimal_string n) in
        debug_csr name 
          (natToWord CsrIdWidth (32 + n)%nat)
-         [@csrFieldAny _ name (Bit 32) (Bit 32) None].
+         [@csrFieldAny _ name (Bit 32) (Bit 32) (Const debug_inst_ebreak)].
 
   Local Definition debug_csrs_progbuf
     := map debug_csr_progbuf
@@ -321,7 +321,7 @@ Section debug.
                                       (unpack (csrKind fields)
                                         (ZeroExtendTruncLsb (size (csrKind fields)) next_value))
                                       "cmderr" ($debug_cmderr_none : Bit 3 @# _))
-                                    "busy" $$false
+                                    "busy" $$true
                   |}
                 ];
            csrAccess := accessDMode
