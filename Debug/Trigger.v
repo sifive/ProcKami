@@ -12,10 +12,6 @@ Section trigger.
   Local Open Scope kami_action.
   Local Open Scope kami_scope.
 
-  Definition trig_action_kind := Bit 4.
-  Definition trig_action_break := 0.
-  Definition trig_action_debug := 1.
-
   Definition trig_regs
     := [
          Register @^"trig_states" : trig_states_kind <- getDefaultConst trig_states_kind
@@ -35,7 +31,7 @@ Section trigger.
          "select"   :: Bool;
          "timing"   :: Bool;
          "sizelo"   :: Bit 2;
-         "action"   :: trig_action_kind;
+         "action"   :: Bit 4;
          "chain"    :: Bool;
          "match"    :: Bit 4;
          "m"        :: Bool;
@@ -289,15 +285,17 @@ Section trigger.
     Variable ty : Kind -> Type.
 
     Inductive trig_eventType : Set
-      := trig_event_fetch
-      |  trig_event_load
-      |  trig_event_store.
+      := trig_event_fetch_addr
+      |  trig_event_fetch_inst
+      |  trig_event_load_addr
+      |  trig_event_load_data
+      |  trig_event_store_addr
+      |  trig_event_store_data.
 
     Record trig_event
       := {
            trig_event_type  : trig_eventType;
            trig_event_size  : Bit 4 @# ty;
-           trig_event_addr  : Bit Xlen @# ty;
            trig_event_value : Bit Xlen @# ty;
          }.
 
@@ -316,9 +314,12 @@ Section trigger.
       (type : trig_eventType)
       :  Bool @# ty
       := match type with
-         | trig_event_fetch => state @% "execute"
-         | trig_event_load  => state @% "load"
-         | trig_event_store => state @% "store"
+         | trig_event_fetch_addr  => state @% "execute" && state @% "select"
+         | trig_event_fetch_inst => state @% "execute" && !(state @% "select")
+         | trig_event_load_addr   => state @% "load"  && state @% "select"
+         | trig_event_load_data   => state @% "load"  && !(state @% "select")
+         | trig_event_store_addr  => state @% "store" && state @% "select"
+         | trig_event_store_data  => state @% "store" && !(state @% "select")
          end.
 
     Local Definition trig_value_size_match
@@ -366,26 +367,25 @@ Section trigger.
       := trig_value_type_match state (trig_event_type event) &&
          trig_value_size_match state (trig_event_size event) &&
          trig_value_mode_match state mode &&
-         trig_value_value_match state
-           (IF state @% "select"
-             then trig_event_addr event
-             else trig_event_value event).
+         trig_value_value_match state (trig_event_value event).
 
     Definition trig_trig_match
       (state : trig_state_kind @# ty)
       (event : trig_event)
       (mode : PrivMode @# ty)
       :  Maybe trig_action_kind @# ty
-      := Switch state @% "type" Retn Maybe trig_action_kind With {
-           ($trig_type_value : Bit 4 @# ty)
-             ::= let data
-                   :  trig_state_data_value_kind @# ty
-                   := unpack trig_state_data_value_kind
-                        (ZeroExtendTruncLsb (size trig_state_data_value_kind) (state @% "data")) in
-                 IF trig_value_match data event mode
-                   then (Valid (data @% "action") : Maybe trig_action_kind @# ty)
-                   else (@Invalid ty trig_action_kind)
-         }.
+      := let data
+           :  trig_state_data_value_kind @# ty
+           := unpack trig_state_data_value_kind
+                (ZeroExtendTruncLsb (size trig_state_data_value_kind) (state @% "data")) in
+         IF state @% "type" == $trig_type_value
+           then
+             Valid (STRUCT {
+               "action" ::= (data @% "action" : Bit 4 @# ty);
+               "timing" ::= (data @% "timing" : Bool @# ty)
+             } : trig_action_kind @# ty)
+           else Invalid. 
+             (* TODO: add other trigger types. *)
 
     Definition trig_trigs_match
       (states : trig_states_kind @# ty)
@@ -435,7 +435,7 @@ Section trigger.
            <- trig_trigs_match states event mode;
          If #trig_match @% "valid"
            then
-             (If #trig_match @% "data" == $trig_action_break
+             (If #trig_match @% "data" @% "action" == $trig_action_break
                then
                  LET exception
                    :  FullException

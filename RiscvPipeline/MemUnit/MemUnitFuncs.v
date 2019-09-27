@@ -152,24 +152,31 @@ Section mem_unit.
   Local Definition mem_unit_exec_pkt
     (memRet : MemRet @# ty)
     (exception : Maybe FullException @# ty)
-    :  ActionT ty (PktWithException MemRet)
-    := Ret
-         (STRUCT {
-            "fst" ::= memRet;
-            "snd" ::= exception
-          } : PktWithException MemRet @# ty).
+    (trigger : Maybe trig_action_kind @# ty)
+    :  ActionT ty (PktWithTrig (PktWithException MemRet))
+    := LET pkt
+         :  PktWithException MemRet
+         <- (STRUCT {
+              "fst" ::= memRet;
+              "snd" ::= exception
+            } : PktWithException MemRet @# ty);
+       Ret (STRUCT {
+           "fst" ::= #pkt;
+           "snd" ::= trigger
+         } : PktWithTrig (PktWithException MemRet) @# ty).
 
   Local Definition mem_unit_exec_pkt_def
     (exception : Maybe FullException @# ty)
-    :  ActionT ty (PktWithException MemRet)
+    :  ActionT ty (PktWithTrig (PktWithException MemRet))
     := mem_unit_exec_pkt
          $$(getDefaultConst MemRet)
-         exception.
+         exception
+         Invalid.
 
   Local Definition mem_unit_exec_pkt_access_fault
     (vaddr : VAddr @# ty)
     (is_write : Bool @# ty)
-    :  ActionT ty (PktWithException MemRet)
+    :  ActionT ty (PktWithTrig (PktWithException MemRet))
     := mem_unit_exec_pkt_def
          (Valid (STRUCT {
            "exception"
@@ -191,7 +198,7 @@ Section mem_unit.
     (func_unit_id : FuncUnitId func_units @# ty)
     (inst_id : InstId func_units @# ty)
     (input_pkt : MemUnitInput @# ty)
-    :  ActionT ty (PktWithException MemRet)
+    :  ActionT ty (PktWithTrig (PktWithException MemRet))
     := (* I. does the instruction perform a memory operation? *)
        System [
          DispString _ "[mem_unit_exec] input pkt:\n";
@@ -263,10 +270,7 @@ Section mem_unit.
                    System [
                      DispString _ "[mem_unit_exec] the page table walker threw an exception\n"
                    ];
-                   Ret (STRUCT {
-                       "fst" ::= $$(getDefaultConst MemRet);
-                       "snd" ::= #mpaddr @% "snd"
-                     } : PktWithException MemRet @# ty)
+                   mem_unit_exec_pkt_def (#mpaddr @% "snd")
                  else
                    LETA pmp_result
                      :  Pair (Pair DeviceTag PAddr) MemErrorPkt
@@ -301,115 +305,157 @@ Section mem_unit.
                             } : FullException @# ty);
                        mem_unit_exec_pkt_def #exception
                      else
-                       (* IV. read the current value and place reservation *)
-                       LETA read_result
-                         :  Maybe Data
-                         <- mem_region_read 0
-                              (#pmp_result @% "fst" @% "fst")
-                              (#pmp_result @% "fst" @% "snd")
-                              (#msize @% "data");
-                       LETA read_trig_result
-                         :  Maybe FullException
-                         <- trig_action trig_states
-                              {|
-                                trig_event_type  := trig_event_load;
-                                trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
-                                trig_event_addr  := addr;
-                                trig_event_value := ZeroExtendTruncLsb Xlen (#read_result @% "data")
-                              |} mode pc; 
-                       If #read_trig_result @% "valid"
-                         then mem_unit_exec_pkt_def #read_trig_result
+                       LET trig_read_addr_result
+                         :  Maybe trig_action_kind
+                         <- trig_trigs_match trig_states
+                              ({|
+                                 trig_event_type  := trig_event_load_addr;
+                                 trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                 trig_event_value := addr
+                               |}) mode;
+                       If #trig_read_addr_result @% "valid" && !(#trig_read_addr_result @% "data" @% "timing")
+                         then
+                           mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_addr_result
                          else
-                           (* TODO: should we place reservations on failed reads? *)
-                           LETA read_reservation_result
-                             :  Array Rlen_over_8 Bool
-                             <- mem_region_read_resv
-                                 (#pmp_result @% "fst" @% "fst")
-                                 (#pmp_result @% "fst" @% "snd")
-                                 (#msize @% "data");
-                                 (* #mpaddr @% "fst" *)
-                           (* VI. apply the memory transform to compute the write value *)
-                           LETA mwrite_value
-                             :  Maybe MemoryOutput
-                             <- convertLetExprSyntax_ActionT
-                                  (inst_db_get_pkt
-                                    (fun _ _ tagged_inst
-                                      => let inst := snd (tagged_inst) in
-                                         match optMemParams inst return MemoryOutput ## ty with
-                                           | Some params
-                                             => (((memXform params)
-                                                  (RetE
-                                                    (STRUCT {
-                                                      "aq" ::= input_pkt @% "aq" ;
-                                                      "rl" ::= input_pkt @% "rl" ;
-                                                      "reservation" ::= #read_reservation_result;
-                                                      "mem" ::= #read_result @% "data";
-                                                      "reg_data" ::= input_pkt @% "reg_data"
-                                                     } : MemoryInput @# ty))) : MemoryOutput ## ty)
-                                           | None (* impossible case *)
-                                             => RetE $$(getDefaultConst MemoryOutput)
-                                           end)
-                                    func_unit_id
-                                    inst_id);
-                           LET write_mask
-                             :  Array Rlen_over_8 Bool
-                             <- #mwrite_value @% "data" @% "mask";
-                           If #mwrite_value @% "data" @% "isWr"
+                           (* IV. read the current value and place reservation *)
+                           LETA read_result
+                             :  Maybe Data
+                             <- mem_region_read 0
+                                  (#pmp_result @% "fst" @% "fst")
+                                  (#pmp_result @% "fst" @% "snd")
+                                  (#msize @% "data");
+                           LET trig_read_data_result
+                             :  Maybe trig_action_kind
+                             <- trig_trigs_match trig_states
+                                  ({|
+                                     trig_event_type  := trig_event_load_data;
+                                     trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                     trig_event_value := ZeroExtendTruncLsb Xlen (#read_result @% "data")
+                                   |}) mode;
+                           If #trig_read_data_result @% "valid" && !(#trig_read_data_result @% "data" @% "timing")
                              then
-                               LETA write_trig_result
-                                 :  Maybe FullException
-                                 <- trig_action trig_states
-                                      {|
-                                        trig_event_type := trig_event_store;
-                                        trig_event_size := ZeroExtendTruncLsb 4 (#msize @% "data");
-                                        trig_event_addr := addr;
-                                        trig_event_value := ZeroExtendTruncLsb Xlen (#mwrite_value @% "data" @% "data")
-                                      |} mode pc;
-                               If #write_trig_result @% "valid"
-                                 then Ret #write_trig_result
+                               mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_data_result
+                             else
+                               (* TODO: should we place reservations on failed reads? *)
+                               LETA read_reservation_result
+                                 :  Array Rlen_over_8 Bool
+                                 <- mem_region_read_resv
+                                     (#pmp_result @% "fst" @% "fst")
+                                     (#pmp_result @% "fst" @% "snd")
+                                     (#msize @% "data");
+                               (* VI. apply the memory transform to compute the write value *)
+                               LETA mwrite_value
+                                 :  Maybe MemoryOutput
+                                 <- convertLetExprSyntax_ActionT
+                                      (inst_db_get_pkt
+                                        (fun _ _ tagged_inst
+                                          => let inst := snd (tagged_inst) in
+                                             match optMemParams inst return MemoryOutput ## ty with
+                                               | Some params
+                                                 => (((memXform params)
+                                                      (RetE
+                                                        (STRUCT {
+                                                          "aq" ::= input_pkt @% "aq" ;
+                                                          "rl" ::= input_pkt @% "rl" ;
+                                                          "reservation" ::= #read_reservation_result;
+                                                          "mem" ::= #read_result @% "data";
+                                                          "reg_data" ::= input_pkt @% "reg_data"
+                                                         } : MemoryInput @# ty))) : MemoryOutput ## ty)
+                                               | None (* impossible case *)
+                                                 => RetE $$(getDefaultConst MemoryOutput)
+                                               end)
+                                        func_unit_id
+                                        inst_id);
+                               LET write_mask
+                                 :  Array Rlen_over_8 Bool
+                                 <- #mwrite_value @% "data" @% "mask";
+                               If #mwrite_value @% "data" @% "isWr"
+                                 then
+                                   LET trig_write_addr_result
+                                     :  Maybe trig_action_kind
+                                     <- trig_trigs_match trig_states
+                                          ({|
+                                             trig_event_type  := trig_event_store_addr;
+                                             trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                             trig_event_value := addr
+                                           |}) mode;
+                                   LET trig_write_data_result
+                                     :  Maybe trig_action_kind
+                                     <- trig_trigs_match trig_states
+                                          ({|
+                                             trig_event_type  := trig_event_store_data;
+                                             trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
+                                             trig_event_value := ZeroExtendTruncLsb Xlen (#mwrite_value @% "data" @% "data")
+                                           |}) mode;
+                                   If #trig_write_addr_result @% "valid" && !(#trig_write_addr_result @% "data" @% "timing")
+                                     then
+                                       Ret (STRUCT {
+                                         "fst" ::= @Invalid ty FullException;
+                                         "snd" ::= #trig_write_addr_result
+                                       } : PktWithTrig (Maybe FullException) @# ty)
+                                     else
+                                       If #trig_write_data_result @% "valid" && !(#trig_write_data_result @% "data" @% "timing")
+                                         then
+                                           Ret (STRUCT {
+                                             "fst" ::= @Invalid ty FullException;
+                                             "snd" ::= #trig_write_data_result
+                                           } : PktWithTrig (Maybe FullException) @# ty)
+                                         else
+                                           (* VII. write to memory. *)
+                                           LETA write_result
+                                             :  Bool
+                                             <- mem_region_write 0
+                                                  (#pmp_result @% "fst" @% "fst")
+                                                  (#pmp_result @% "fst" @% "snd")
+                                                  (#mwrite_value @% "data" @% "data" : Data @# ty)
+                                                  (#write_mask : DataMask @# ty)
+                                                  (#msize @% "data");
+                                           LET write_exception
+                                             :  Maybe FullException
+                                             <- IF #write_result
+                                                  then Invalid
+                                                  else
+                                                    Valid (STRUCT {
+                                                        "exception" ::= $SAmoAccessFault;
+                                                        "value" ::= addr
+                                                      } : FullException @# ty);
+                                           Ret (STRUCT {
+                                             "fst" ::= #write_exception;
+                                             "snd" ::= Invalid
+                                           } : PktWithTrig (Maybe FullException) @# ty)
+                                         as result;
+                                       Ret #result
+                                     as result;
+                                   Ret #result
                                  else
-                                   (* VII. write to memory. *)
-                                   LETA write_result
-                                     :  Bool
-                                     <- mem_region_write 0
-                                          (#pmp_result @% "fst" @% "fst")
-                                          (#pmp_result @% "fst" @% "snd")
-                                          (#mwrite_value @% "data" @% "data" : Data @# ty)
-                                          (#write_mask : DataMask @# ty)
-                                          (#msize @% "data");
-                                   Ret
-                                     (IF #write_result
-                                       then Invalid
-                                       else
-                                         Valid (STRUCT {
-                                             "exception" ::= $SAmoAccessFault;
-                                             "value" ::= addr
-                                           } : FullException @# ty))
-                                 as result;
-                               Ret #result
-                             else Ret Invalid
-                             as write_result;
-                           System [
-                             DispString _ "[mem_unit_exec] write result:\n";
-                             DispHex #write_result;
-                             DispString _ "\n"
-                           ];
-                           If #mwrite_value @% "data" @% "isLrSc"
-                             then
-                               mem_region_write_resv
-                                 (#pmp_result @% "fst" @% "fst")
-                                 (#pmp_result @% "fst" @% "snd")
-                                 (#write_mask : DataMask @# ty)
-                                 (#mwrite_value @% "data" @% "reservation")
-                                 (#msize @% "data");
-                           LET memRet
-                             :  MemRet
-                             <- STRUCT {
-                                  "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
-                                  "tag"  ::= #mwrite_value @% "data" @% "tag";
-                                  "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
-                                } : MemRet @# ty;
-                           mem_unit_exec_pkt #memRet #write_result
+                                   Ret (STRUCT {
+                                     "fst" ::= Invalid;
+                                     "snd" ::= Invalid
+                                   } : PktWithTrig (Maybe FullException) @# ty)
+                                 as write_result;
+                               System [
+                                 DispString _ "[mem_unit_exec] write result:\n";
+                                 DispHex #write_result;
+                                 DispString _ "\n"
+                               ];
+                               If #mwrite_value @% "data" @% "isLrSc"
+                                 then
+                                   mem_region_write_resv
+                                     (#pmp_result @% "fst" @% "fst")
+                                     (#pmp_result @% "fst" @% "snd")
+                                     (#write_mask : DataMask @# ty)
+                                     (#mwrite_value @% "data" @% "reservation")
+                                     (#msize @% "data");
+                               LET memRet
+                                 :  MemRet
+                                 <- STRUCT {
+                                      "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
+                                      "tag"  ::= #mwrite_value @% "data" @% "tag";
+                                      "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
+                                    } : MemRet @# ty;
+                               mem_unit_exec_pkt #memRet (#write_result @% "fst") (#write_result @% "snd")
+                             as result;
+                           Ret #result
                          as result;
                        Ret #result
                      as result;
@@ -452,47 +498,67 @@ Section mem_unit.
     (decoder_pkt : DecoderPkt func_units @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
+    (trigger : Maybe trig_action_kind @# ty)
     (exception : Maybe FullException @# ty)
-    :  ActionT ty (PktWithException ExecUpdPkt)
-    := bindException update_pkt exception
-         (fun update_pkt : ExecUpdPkt @# ty
-           => LET memUnitInput
-                :  MemUnitInput
-                <- STRUCT {
-                     "aq"       ::= update_pkt @% "aq";
-                     "rl"       ::= update_pkt @% "rl";
-                     "reg_data" ::= exec_context_pkt @% "reg2"
-                     } : MemUnitInput @# ty;
-              Read mprv : Bool <- @^"mprv";
-              LETA memRet
-                :  PktWithException MemRet
-                <- mem_unit_exec
-                     exts
-                     trig_states
-                     satp_mode
-                     mode
-                     #mprv
-                     pc
-                     (xlen_sign_extend Xlen xlen
-                       (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
-                     (decoder_pkt @% "funcUnitTag")
-                     (decoder_pkt @% "instTag")
-                     #memUnitInput;
-              LET val1
-                :  RoutedReg
-                <- STRUCT {
-                     "tag"  ::= #memRet @% "fst" @% "tag";
-                     "data" ::= #memRet @% "fst" @% "data"
-                   } : RoutedReg @# ty;
-              LET mem_update_pkt
-                :  ExecUpdPkt
-                <- IF #memRet @% "fst" @% "writeReg?"
-                     then update_pkt @%["val1" <- Valid #val1]
-                     else update_pkt;
-              Ret (STRUCT {
-                  "fst" ::= #mem_update_pkt;
-                  "snd" ::= #memRet @% "snd"
-                } : PktWithException ExecUpdPkt @# ty)).
+    :  ActionT ty (PktWithTrig (PktWithException ExecUpdPkt))
+    := If exception @% "valid"
+         then
+           LET pkt
+             :  PktWithException ExecUpdPkt 
+             <- (STRUCT {
+                   "fst" ::= $$(getDefaultConst ExecUpdPkt);
+                   "snd" ::= exception
+                 } : PktWithException ExecUpdPkt @# ty);
+           Ret (STRUCT {
+             "fst" ::= #pkt;
+             "snd" ::= trigger
+           } : PktWithTrig (PktWithException ExecUpdPkt) @# ty)
+         else
+           LET memUnitInput
+             :  MemUnitInput
+             <- STRUCT {
+                  "aq"       ::= update_pkt @% "aq";
+                  "rl"       ::= update_pkt @% "rl";
+                  "reg_data" ::= exec_context_pkt @% "reg2"
+                  } : MemUnitInput @# ty;
+           Read mprv : Bool <- @^"mprv";
+           LETA memRet
+             :  PktWithTrig (PktWithException MemRet)
+             <- mem_unit_exec
+                  exts
+                  trig_states
+                  satp_mode
+                  mode
+                  #mprv
+                  pc
+                  (xlen_sign_extend Xlen xlen
+                    (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
+                  (decoder_pkt @% "funcUnitTag")
+                  (decoder_pkt @% "instTag")
+                  #memUnitInput;
+           LET val1
+             :  RoutedReg
+             <- STRUCT {
+                  "tag"  ::= #memRet @% "fst" @% "fst" @% "tag";
+                  "data" ::= #memRet @% "fst" @% "fst" @% "data"
+                } : RoutedReg @# ty;
+           LET mem_update_pkt
+             :  ExecUpdPkt
+             <- IF #memRet @% "fst" @% "fst" @% "writeReg?"
+                  then update_pkt @%["val1" <- Valid #val1]
+                  else update_pkt;
+           LET pkt
+             :  PktWithException ExecUpdPkt
+             <- (STRUCT {
+                   "fst" ::= #mem_update_pkt;
+                   "snd" ::= #memRet @% "fst" @% "snd" 
+                 } : PktWithException ExecUpdPkt @# ty);
+           Ret (STRUCT {
+             "fst" ::= #pkt;
+             "snd" ::= #memRet @% "snd"
+           } : PktWithTrig (PktWithException ExecUpdPkt) @# ty)
+         as result;
+       Ret #result.
 
   Close Scope kami_expr.
   Close Scope kami_action.

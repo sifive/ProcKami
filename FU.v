@@ -171,7 +171,14 @@ Class FpuParams
       fpu_exts_64        : list string
     }.
 
+Definition trig_action_kind
+  := STRUCT_TYPE {
+       "action" :: Bit 4;
+       "timing" :: Bool
+     }.
 
+Definition trig_action_break := 2.
+Definition trig_action_debug := 3.
 
 Section ParamDefinitions.
   Context `{procParams: ProcParams}.
@@ -199,6 +206,8 @@ Section ParamDefinitions.
 
   Definition PktWithException k := Pair k (Maybe FullException).
   
+  Definition PktWithTrig k := Pair k (Maybe trig_action_kind).
+
   Definition XlenWidth := 2.
   Definition XlenValue := Bit XlenWidth.
 

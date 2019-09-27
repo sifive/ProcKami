@@ -130,7 +130,7 @@ Section Params.
                            DispString _ "\n"
                          ];
                        LETA fetch_pkt
-                         :  PktWithException FetchPkt
+                         :  PktWithTrig (PktWithException FetchPkt)
                          <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "trig_states") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
                        System
                          [
@@ -139,31 +139,27 @@ Section Params.
                            DispString _ "\n"
                          ];
                        
-                       LET comp_inst: CompInst <- UniBit (TruncLsb CompInstSz CompInstSz) (#fetch_pkt @% "fst" @%  "inst");
+                       LET comp_inst: CompInst <- UniBit (TruncLsb CompInstSz CompInstSz) (#fetch_pkt @% "fst" @% "fst" @%  "inst");
                        LET isCompressed: Bool <- !isInstUncompressed #comp_inst;
                        LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) #cfg_pkt #comp_inst);
                        LETA decoded_inst: Maybe (DecoderPkt (func_units _)) <-
                                                 convertLetExprSyntax_ActionT (
                                                   decode (func_units _) #cfg_pkt (IF #isCompressed
                                                                                   then #uncompressed_inst @% "data"
-                                                                                  else #fetch_pkt @% "fst" @% "inst"));
+                                                                                  else #fetch_pkt @% "fst" @% "fst" @% "inst"));
 
                        LET decoded_inst_valid: Bool <- (!#isCompressed || #uncompressed_inst @% "valid") && #decoded_inst @% "valid";
                        LET decoded_full_exception: FullException <- STRUCT {"exception" ::= $IllegalInst;
-                                                                            "value" ::= ZeroExtendTruncLsb Xlen (#fetch_pkt @% "fst" @%  "inst")};
+                                                                            "value" ::= ZeroExtendTruncLsb Xlen (#fetch_pkt @% "fst" @% "fst" @%  "inst")};
                        LET decoded_exception: Maybe FullException <- STRUCT { "valid" ::= !#decoded_inst_valid;
                                                                               "data" ::= #decoded_full_exception};
                        LET decoder_pkt
                          :  PktWithException (DecoderPkt (func_units _))
                                              <- (STRUCT {
                                                      "fst" ::= #decoded_inst @% "data";
-                                                     "snd" ::= (IF #fetch_pkt @% "snd" @% "valid"
-                                                                then #fetch_pkt @% "snd"
+                                                     "snd" ::= (IF #fetch_pkt @% "fst" @% "snd" @% "valid"
+                                                                then #fetch_pkt @% "fst" @% "snd"
                                                                 else #decoded_exception)});
-
-                       (* LETA decoder_pkt *)
-                       (*   :  PktWithException (DecoderPkt (func_units _)) *)
-                       (*   <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt; *)
                        System
                          [
                            DispString _ "Decode:\n";
@@ -176,7 +172,7 @@ Section Params.
                        System [DispString _ "Reg Read\n"];
                        LETA exec_context_pkt
                          :  PktWithException ExecContextPkt
-                         <- readerWithException #pc #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "compressed?");
+                         <- readerWithException #pc #cfg_pkt #decoder_pkt (#fetch_pkt @% "fst" @% "fst" @% "compressed?");
                        System
                          [
                            DispString _ "Reg Reader:\n";
@@ -211,7 +207,7 @@ Section Params.
                               #pc
                               #mepc
                               (#decoder_pkt @% "fst" @% "inst")
-                              (#fetch_pkt @% "fst" @% "compressed?")
+                              (#fetch_pkt @% "fst" @% "fst" @% "compressed?")
                               #cfg_pkt
                               (rd (#exec_context_pkt @% "fst" @% "inst"))
                               (rs1 (#exec_context_pkt @% "fst" @% "inst"))
@@ -224,7 +220,7 @@ Section Params.
                            DispString _ "\n"
                          ];
                        LETA mem_update_pkt
-                         :  PktWithException ExecUpdPkt
+                         :  PktWithTrig (PktWithException ExecUpdPkt)
                          <- MemUnit mem_table
                               (#cfg_pkt @% "extensions")
                               (#cfg_pkt @% "trig_states")
@@ -235,6 +231,7 @@ Section Params.
                               (#decoder_pkt @% "fst")
                               (#exec_context_pkt @% "fst")
                               (#exec_update_pkt @% "fst")
+                              (#fetch_pkt @% "snd")
                               (#csr_update_pkt @% "snd");
                        System
                          [
@@ -250,8 +247,8 @@ Section Params.
                               (#decoder_pkt @% "fst" @% "inst")
                               #cfg_pkt
                               (#exec_context_pkt @% "fst")
-                              (#mem_update_pkt @% "fst")
-                              (#mem_update_pkt @% "snd");
+                              (#mem_update_pkt @% "fst" @% "fst")
+                              (#mem_update_pkt @% "fst" @% "snd");
                        System [DispString _ "Inc PC\n"];
                        Retv;
                    Retv
