@@ -248,6 +248,7 @@ Section Params.
                               #cfg_pkt
                               (#exec_context_pkt @% "fst")
                               (#mem_update_pkt @% "fst" @% "fst")
+                              (#mem_update_pkt @% "snd")
                               (#mem_update_pkt @% "fst" @% "snd");
                        System [DispString _ "Inc PC\n"];
                        Retv;

@@ -313,9 +313,19 @@ Section mem_unit.
                                  trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
                                  trig_event_value := addr
                                |}) mode;
-                       If #trig_read_addr_result @% "valid" && !(#trig_read_addr_result @% "data" @% "timing")
+                       If #trig_read_addr_result @% "valid"
                          then
-                           mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_addr_result
+                           If #trig_read_addr_result @% "data" @% "timing"
+                             then mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_addr_result
+                             else 
+                               mem_unit_exec_pkt $$(getDefaultConst MemRet)
+                                 (Valid (STRUCT {
+                                    "exception" ::= $Breakpoint;
+                                    "value" ::= pc
+                                  } : FullException @# ty))
+                                 Invalid
+                             as result;
+                           Ret #result
                          else
                            (* IV. read the current value and place reservation *)
                            LETA read_result
@@ -332,9 +342,19 @@ Section mem_unit.
                                      trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
                                      trig_event_value := ZeroExtendTruncLsb Xlen (#read_result @% "data")
                                    |}) mode;
-                           If #trig_read_data_result @% "valid" && !(#trig_read_data_result @% "data" @% "timing")
+                           If #trig_read_data_result @% "valid"
                              then
-                               mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_data_result
+                               If #trig_read_data_result @% "data" @% "timing"
+                                 then mem_unit_exec_pkt $$(getDefaultConst MemRet) Invalid #trig_read_data_result
+                                 else 
+                                   mem_unit_exec_pkt $$(getDefaultConst MemRet)
+                                     (Valid (STRUCT {
+                                        "exception" ::= $Breakpoint;
+                                        "value" ::= pc
+                                      } : FullException @# ty))
+                                     Invalid
+                                 as result;
+                               Ret #result
                              else
                                (* TODO: should we place reservations on failed reads? *)
                                LETA read_reservation_result
@@ -387,19 +407,49 @@ Section mem_unit.
                                              trig_event_size  := ZeroExtendTruncLsb 4 (#msize @% "data");
                                              trig_event_value := ZeroExtendTruncLsb Xlen (#mwrite_value @% "data" @% "data")
                                            |}) mode;
-                                   If #trig_write_addr_result @% "valid" && !(#trig_write_addr_result @% "data" @% "timing")
+                                   If #trig_write_addr_result @% "valid" 
                                      then
-                                       Ret (STRUCT {
-                                         "fst" ::= @Invalid ty FullException;
-                                         "snd" ::= #trig_write_addr_result
-                                       } : PktWithTrig (Maybe FullException) @# ty)
-                                     else
-                                       If #trig_write_data_result @% "valid" && !(#trig_write_data_result @% "data" @% "timing")
-                                         then
+                                       If #trig_write_addr_result @% "data" @% "timing"
+                                         then 
                                            Ret (STRUCT {
                                              "fst" ::= @Invalid ty FullException;
-                                             "snd" ::= #trig_write_data_result
+                                             "snd" ::= #trig_write_addr_result
                                            } : PktWithTrig (Maybe FullException) @# ty)
+                                         else
+                                           LET exception
+                                             :  FullException
+                                             <- STRUCT {
+                                                  "exception" ::= $Breakpoint;
+                                                  "value"     ::= pc
+                                                } : FullException @# ty;
+                                           Ret (STRUCT {
+                                             "fst" ::= Valid #exception;
+                                             "snd" ::= Invalid
+                                           } : PktWithTrig (Maybe FullException) @# ty)
+                                         as result;
+                                       Ret #result
+                                     else
+                                       If #trig_write_data_result @% "valid" 
+                                         then
+                                           If #trig_write_data_result @% "data" @% "timing"
+                                             then
+                                               Ret (STRUCT {
+                                                 "fst" ::= @Invalid ty FullException;
+                                                 "snd" ::= #trig_write_data_result
+                                               } : PktWithTrig (Maybe FullException) @# ty)
+                                             else
+                                               LET exception
+                                                 :  FullException
+                                                 <- STRUCT {
+                                                      "exception" ::= $Breakpoint;
+                                                      "value"     ::= pc
+                                                    } : FullException @# ty;
+                                               Ret (STRUCT {
+                                                 "fst" ::= Valid #exception;
+                                                 "snd" ::= Invalid
+                                               } : PktWithTrig (Maybe FullException) @# ty)
+                                             as result;
+                                           Ret #result
                                          else
                                            (* VII. write to memory. *)
                                            LETA write_result

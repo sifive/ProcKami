@@ -32,18 +32,39 @@ Section fetch.
                 trig_event_size  := ZeroExtendTruncLsb 4 xlen;
                 trig_event_value := ZeroExtendTruncLsb Xlen pc
               |} mode;
-       If #trig_result_addr @% "valid" && !(#trig_result_addr @% "data" @% "timing")
+       If #trig_result_addr @% "valid"
          then 
-           LET pkt
-             :  PktWithException FetchPkt
-             <- STRUCT {
-                  "fst" ::= $$(getDefaultConst FetchPkt);
-                  "snd" ::= Invalid
-                } : PktWithException FetchPkt @# ty;
-           Ret (STRUCT {
-             "fst" ::= #pkt;
-             "snd" ::= #trig_result_addr
-           } : PktWithTrig (PktWithException FetchPkt) @# ty)
+           If (#trig_result_addr @% "data" @% "timing")
+             then
+               LET pkt
+                 :  PktWithException FetchPkt
+                 <- STRUCT {
+                      "fst" ::= $$(getDefaultConst FetchPkt);
+                      "snd" ::= Invalid
+                    } : PktWithException FetchPkt @# ty;
+               Ret (STRUCT {
+                 "fst" ::= #pkt;
+                 "snd" ::= #trig_result_addr
+               } : PktWithTrig (PktWithException FetchPkt) @# ty)
+             else
+               LET exception
+                 :  FullException
+                 <- STRUCT {
+                      "exception" ::= $Breakpoint;
+                      "value"     ::= pc
+                    } : FullException @# ty;
+               LET pkt
+                 :  PktWithException FetchPkt
+                 <- STRUCT {
+                      "fst" ::= $$(getDefaultConst FetchPkt);
+                      "snd" ::= Valid #exception
+                    } : PktWithException FetchPkt @# ty;
+               Ret (STRUCT {
+                 "fst" ::= #pkt;
+                 "snd" ::= Invalid
+               } : PktWithTrig (PktWithException FetchPkt) @# ty)
+             as result;
+           Ret #result
          else
            If checkAligned pc
                 (IF struct_get_field_default exts "C" $$false then $1 else $2)
@@ -108,8 +129,26 @@ Section fetch.
                         trig_event_size  := IF #uncompressed then $2 else $1;
                         trig_event_value := ZeroExtendTruncLsb Xlen (#result @% "fst" @% "inst");
                       |} mode;
+               LET exception
+                 :  Maybe FullException
+                 <- IF #result @% "snd" @% "valid"
+                      then #result @% "snd"
+                      else
+                        IF #trig_result @% "valid" && !(#trig_result @% "data" @% "timing")
+                          then
+                            Valid (STRUCT {
+                              "exception" ::= $Breakpoint;
+                              "value" ::= pc
+                            } : FullException @# ty)
+                          else Invalid;
+               LET pkt
+                 :  PktWithException FetchPkt
+                 <- STRUCT {
+                      "fst" ::= #result @% "fst";
+                      "snd" ::= #exception
+                    } : PktWithException FetchPkt @# ty;
                Ret (STRUCT {
-                 "fst" ::= #result;
+                 "fst" ::= #pkt;
                  "snd" ::= #trig_result
                } : PktWithTrig (PktWithException FetchPkt) @# ty)
              else

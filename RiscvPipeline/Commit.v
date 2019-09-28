@@ -273,6 +273,7 @@ Section trap_handling.
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt  @# ty)
     (update_pkt : ExecUpdPkt @# ty)
+    (trigger : Maybe trig_action_kind @# ty)
     (exception : Maybe FullException @# ty)
     :  ActionT ty Void
     := LET val1: Maybe RoutedReg <- update_pkt @% "val1";
@@ -295,61 +296,71 @@ Section trap_handling.
          DispHex (unsafeTruncLsb 1 (#medeleg >> #exception_code));
          DispString _ "\n"
        ];
-       If (exception @% "valid")
-         then
-           trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
-         else (
-            Read mcountinhibit_ir : Bool <- @^"mcountinhibit_ir";
-            If !(#mcountinhibit_ir)
-              then 
-                Read instret_reg <- @^"minstret";
-                Write @^"minstret" : Bit 64 <- #instret_reg + $1;
-                Retv;
-            LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
-            LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
-            LET opt_val1 <- update_pkt @% "val1";
-            LET opt_val2 <- update_pkt @% "val2";
-            Read mepc_raw : VAddr <- @^"mepc";
-            Read sepc_raw : VAddr <- @^"sepc";
-            Read uepc_raw : VAddr <- @^"uepc";
-            LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
-            LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
-            LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
-            Read dpc : Bit Xlen <- @^"dpc";
-            If (cfg_pkt @% "debug_hart_state" @% "debug") &&
-               (#opt_val1 @% "valid") &&
-               ((#opt_val1 @% "data") @% "tag" == $DRetTag)
-              then
-                Read prv : Bit 2 <- @^"prv";
-                exitDebugMode #dpc #prv ;
-            LET next_pc : VAddr
-              <- (ITE
-                   ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $DRetTag))
-                   (xlen_sign_extend Xlen (cfg_pkt @% "xlen") #dpc)
-                   (ITE
-                     ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
-                     (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
-                     (ITE
-                       ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
-                       (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
-                       (* Note: Ret instructions always set val1. *)
+       If trigger @% "valid" && 
+          !(trigger @% "data" @% "timing") &&
+          trigger @% "data" @% "action" == $trig_action_debug
+         then enterDebugMode (cfg_pkt @% "mode") pc $2
+         else
+           If (exception @% "valid")
+             then
+               trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
+             else (
+                Read mcountinhibit_ir : Bool <- @^"mcountinhibit_ir";
+                If !(#mcountinhibit_ir)
+                  then 
+                    Read instret_reg <- @^"minstret";
+                    Write @^"minstret" : Bit 64 <- #instret_reg + $1;
+                    Retv;
+                LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
+                LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
+                LET opt_val1 <- update_pkt @% "val1";
+                LET opt_val2 <- update_pkt @% "val2";
+                Read mepc_raw : VAddr <- @^"mepc";
+                Read sepc_raw : VAddr <- @^"sepc";
+                Read uepc_raw : VAddr <- @^"uepc";
+                LET mepc : VAddr <- maskEpc cfg_pkt #mepc_raw;
+                LET sepc : VAddr <- maskEpc cfg_pkt #sepc_raw;
+                LET uepc : VAddr <- maskEpc cfg_pkt #uepc_raw;
+                Read dpc : Bit Xlen <- @^"dpc";
+                If (cfg_pkt @% "debug_hart_state" @% "debug") &&
+                   (#opt_val1 @% "valid") &&
+                   ((#opt_val1 @% "data") @% "tag" == $DRetTag)
+                  then
+                    Read prv : Bit 2 <- @^"prv";
+                    exitDebugMode #dpc #prv ;
+                LET next_pc : VAddr
+                  <- (ITE
+                       ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $DRetTag))
+                       (xlen_sign_extend Xlen (cfg_pkt @% "xlen") #dpc)
                        (ITE
-                         ((#opt_val1 @% "valid") &&
-                          ((#opt_val1 @% "data") @% "tag" == $RetTag))
-                         (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
-                           #mepc
-                           (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
-                             #sepc
-                             #uepc))
-                         (ITE (exec_context_pkt @% "compressed?")
-                           (pc + $2)
-                           (pc + $4))))));
-            Write @^"pc" : VAddr <- #next_pc;
-            Ret #next_pc)
-          as next_pc;
-       Read step : Bool <- @^"step";
-       If !(cfg_pkt @% "debug_hart_state" @% "debug") && #step (* debug spec 4.8.1 *)
-         then enterDebugMode (cfg_pkt @% "mode") #next_pc $DebugCauseStep;
+                         ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
+                         (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
+                         (ITE
+                           ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
+                           (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
+                           (* Note: Ret instructions always set val1. *)
+                           (ITE
+                             ((#opt_val1 @% "valid") &&
+                              ((#opt_val1 @% "data") @% "tag" == $RetTag))
+                             (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
+                               #mepc
+                               (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
+                                 #sepc
+                                 #uepc))
+                             (ITE (exec_context_pkt @% "compressed?")
+                               (pc + $2)
+                               (pc + $4))))));
+                Write @^"pc" : VAddr <- #next_pc;
+                Ret #next_pc)
+              as next_pc;
+           Read step : Bool <- @^"step";
+           If !(cfg_pkt @% "debug_hart_state" @% "debug") && #step (* debug spec 4.8.1 *)
+             then enterDebugMode (cfg_pkt @% "mode") #next_pc $DebugCauseStep;
+           If trigger @% "valid" && 
+              trigger @% "data" @% "timing"
+             then enterDebugMode (cfg_pkt @% "mode") #next_pc $2;
+           Retv
+         as result;
        Retv.
 
   Definition intrpt_pending
