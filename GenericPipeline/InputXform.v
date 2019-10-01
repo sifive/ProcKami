@@ -37,13 +37,10 @@ Section FUInputTrans.
               "inp"         ::= (#opt_args_pkt @% "data")
             } : InputTransPkt func_units @# ty;
        LETC exception
-         :  Maybe FullException
+         :  Maybe Exception
          <- IF #opt_args_pkt @% "valid"
               then Invalid
-              else Valid (STRUCT {
-                       "exception" ::= $IllegalInst;
-                       "value" ::= $0 (* TODO *)
-                     } : FullException @# ty);
+              else Valid ($IllegalInst: Exception @# ty);
        RetE (STRUCT {
            "fst" ::= #inputTransPkt;
            "snd" ::= #exception

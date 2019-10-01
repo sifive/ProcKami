@@ -762,12 +762,9 @@ Section CsrInterface.
                    :  Bool
                         <- commitCsrWrites mcounteren scounteren pc mepc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
                      LET exception
-                     :  Maybe FullException
+                     :  Maybe Exception
                               <- IF #errored
-                then Valid (STRUCT {
-                                "exception" ::= $IllegalInst;
-                                "value" ::= ZeroExtendTruncLsb Xlen inst
-                              } : FullException @# ty)
+                then Valid ($IllegalInst: Exception @# ty)
                 else Invalid;
                   Ret (STRUCT {
                            "fst" ::= update_pkt;

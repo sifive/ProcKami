@@ -16,6 +16,27 @@ Section trap_handling.
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
+
+  Definition getExceptionValue
+             (exception: Exception @# ty)
+             (pc: VAddr @# ty)
+             (inst: Inst @# ty)
+             (update_pkt : ExecUpdPkt @# ty) :=
+    LETC newPc <- (update_pkt @% "val2" @% "data" @% "data");
+    LETC memAddr <- (update_pkt @% "val1" @% "data" @% "data");
+    RetE (ZeroExtendTruncLsb Xlen (Switch exception Retn Data With {
+                                            ($InstAddrMisaligned : Exception @# ty) ::= #newPc;
+                                            ($InstAccessFault: Exception @# ty) ::= #newPc;
+                                            ($Breakpoint: Exception @# ty) ::= #newPc;
+                                            ($InstPageFault: Exception @# ty) ::= #newPc;
+                                            ($IllegalInst: Exception @# ty) ::= ZeroExtendTruncLsb Rlen inst;
+                                            ($LoadAddrMisaligned: Exception @# ty) ::= #memAddr;
+                                            ($SAmoAddrMisaligned: Exception @# ty) ::= #memAddr;
+                                            ($LoadAccessFault: Exception @# ty) ::= #memAddr;
+                                            ($SAmoAccessFault: Exception @# ty) ::= #memAddr;
+                                            ($LoadPageFault: Exception @# ty) ::= #memAddr;
+                                            ($SAmoPageFault: Exception @# ty) ::= #memAddr})).
+
   Definition trapAction
     (prefix : string)
     (intrpt : Bool @# ty)
@@ -25,7 +46,9 @@ Section trap_handling.
     (debug : Bool @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
-    (exception : FullException @# ty)
+    (exception : Exception @# ty)
+    (inst: Inst @# ty)
+    (update_pkt: ExecUpdPkt @# ty)
     :  ActionT ty VAddr
     := (* section 3.1.7, 4.1.1 *)
        Read ie : Bool <- @^(prefix ++ "ie");
@@ -47,7 +70,9 @@ Section trap_handling.
        LET addr_offset
          :  VAddr
             (* 3.1.7 *)
-         <- xlen_sign_extend Xlen xlen (exception @% "exception") << (Const _ (natToWord 2 2));
+         <- xlen_sign_extend Xlen xlen (exception) << (Const _ (natToWord 2 2));
+       LETA exception_value: (Bit Xlen) <- convertLetExprSyntax_ActionT (getExceptionValue exception pc inst update_pkt);
+       LET final_exception_value: Bit Xlen <- IF intrpt then $0 else #exception_value;
        System [
          DispString _ "[trapAction]\n";
          DispString _ "  tvec_mode: ";
@@ -63,10 +88,10 @@ Section trap_handling.
          DispHex #addr_offset;
          DispString _ "\n";
          DispString _ "  exception code: ";
-         DispHex (exception @% "exception");
+         DispHex (exception);
          DispString _ "\n";
          DispString _ "  exception val: ";
-         DispHex (exception @% "value");
+         DispHex (#final_exception_value);
          DispString _ "\n"
        ];
        (* section 3.1.7 *)
@@ -89,10 +114,10 @@ Section trap_handling.
            Write @^(prefix ++ "cause_interrupt") : Bool <- intrpt;
            Write @^(prefix ++ "cause_code")
              :  Bit (Xlen - 1)
-             <- ZeroExtendTruncLsb (Xlen - 1) (exception @% "exception");
+             <- ZeroExtendTruncLsb (Xlen - 1) (exception);
 (*           Retv; *)
        (* section 3.1.22 *)
-       Write @^(prefix ++ "tval") : Bit Xlen <- (exception @% "value");
+       Write @^(prefix ++ "tval") : Bit Xlen <- #final_exception_value;
        Write @^"mode" : PrivMode <- modeFix #extensions next_mode;
        System [
          DispString _ "[Register Writer.trapAction]\n";
@@ -144,7 +169,9 @@ Section trap_handling.
     (debug : Bool @# ty)
     (mode : PrivMode @# ty)
     (pc : VAddr @# ty)
-    (exception : FullException @# ty)
+    (exception : Exception @# ty)
+    (inst: Inst @# ty)
+    (upd_pkt: ExecUpdPkt @# ty)
     :  ActionT ty VAddr
     := System [DispString _ "[trapException]\n"];
        Read ebreakm : Bool <- @^"ebreakm";
@@ -157,7 +184,7 @@ Section trap_handling.
            LETA _ <- debug_hart_command_done ty;
            Ret pc
          else 
-           If (exception @% "exception" == $Breakpoint) &&
+           If (exception == $Breakpoint) &&
               ((mode == $MachineMode && #ebreakm) ||
                (mode == $SupervisorMode && #ebreaks) ||
                (mode == $UserMode && #ebreaku))
@@ -165,14 +192,14 @@ Section trap_handling.
                LETA _ <- enterDebugMode mode pc $DebugCauseEBreak;
                Ret pc
              else
-               If delegated #medeleg (exception @% "exception") &&
+               If delegated #medeleg (exception) &&
                   (mode == $SupervisorMode ||
                    mode == $UserMode)
-                 then trapAction "s" $$false $1 1 xlen debug mode pc exception
+                 then trapAction "s" $$false $1 1 xlen debug mode pc exception inst upd_pkt
                  else
-                   (If delegated #sedeleg (exception @% "exception") && mode == $UserMode
-                      then trapAction "u" $$false $0 0 xlen debug mode pc exception
-                      else trapAction "m" $$false $3 2 xlen debug mode pc exception
+                   (If delegated #sedeleg (exception) && mode == $UserMode
+                      then trapAction "u" $$false $0 0 xlen debug mode pc exception inst upd_pkt
+                      else trapAction "m" $$false $3 2 xlen debug mode pc exception inst upd_pkt
                       as next_pc;
                     Ret #next_pc)
                   as next_pc;
@@ -273,12 +300,12 @@ Section trap_handling.
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt  @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    (exception : Maybe FullException @# ty)
+    (exception : Maybe Exception @# ty)
     :  ActionT ty Void
     := LET val1: Maybe RoutedReg <- update_pkt @% "val1";
        LET val2: Maybe RoutedReg <- update_pkt @% "val2";
        LET reg_index : RegId <- rd inst;
-       LET exception_code : Exception <- exception @% "data" @% "exception";
+       LET exception_code : Exception <- exception @% "data";
        Read medeleg : Bit 16 <- @^"medeleg";
        Read sedeleg : Bit 16 <- @^"sedeleg";
        System [
@@ -297,7 +324,7 @@ Section trap_handling.
        ];
        If (exception @% "valid")
          then
-           trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data")
+           trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data") inst update_pkt
          else (
             Read mcountinhibit_ir : Bool <- @^"mcountinhibit_ir";
             If !(#mcountinhibit_ir)
@@ -389,11 +416,8 @@ Section trap_handling.
             IF #usi then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptU} : Pair PrivMode Exception @# ty) else (
             IF #uti then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUTimer} : Pair PrivMode Exception @# ty) else
             Invalid))))))));
-       LET exception : FullException
-         <- STRUCT {
-              "exception" ::= #code @% "data" @% "snd";
-              "value" ::= $0
-            } : FullException @# ty;
+       LET exception : Exception
+         <- #code @% "data" @% "snd";
        System [
          DispString _ "[interruptAction] detected interrupt: ";
          DispHex #exception;
@@ -407,7 +431,7 @@ Section trap_handling.
            If mode == $MachineMode && #mie
              then
                System [DispString _ "[trapInterrupt] trapping interrupt into machine mode.\n"];
-               LETA _ <- trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception;
+               LETA _ <- trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt));
                Retv
              else
                If delegated #mideleg (#code @% "data" @% "snd")
@@ -417,7 +441,7 @@ Section trap_handling.
                        (#code @% "data" @% "fst" == $SupervisorMode && #sie))
                      then
                        System [DispString _ "[trapInterrupt] trapping interrupt into supervisor mode.\n"];
-                       LETA _ <- trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception;
+                       LETA _ <- trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt));
                        Retv
                      else
                        If delegated #sideleg (#code @% "data" @% "snd") &&
@@ -426,7 +450,7 @@ Section trap_handling.
                            (#code @% "data" @% "fst" == $UserMode && #uie))
                          then
                            System [DispString _ "[trapInterrupt] trapping interrupt into user mode.\n"];
-                           LETA _ <- trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception;
+                           LETA _ <- trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception  ($0) ($$(getDefaultConst ExecUpdPkt));
                            Retv;
                        Retv;
                    Retv;

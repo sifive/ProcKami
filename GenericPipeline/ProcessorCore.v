@@ -147,10 +147,9 @@ Section Params.
                                                                                   else #fetch_pkt @% "fst" @% "inst"));
 
                        LET decoded_inst_valid: Bool <- (!#isCompressed || #uncompressed_inst @% "valid") && #decoded_inst @% "valid";
-                       LET decoded_full_exception: FullException <- STRUCT {"exception" ::= $IllegalInst;
-                                                                            "value" ::= ZeroExtendTruncLsb Xlen (#fetch_pkt @% "fst" @%  "inst")};
-                       LET decoded_exception: Maybe FullException <- STRUCT { "valid" ::= !#decoded_inst_valid;
-                                                                              "data" ::= #decoded_full_exception};
+                       LET decoded_full_exception: Exception <- $IllegalInst;
+                       LET decoded_exception: Maybe Exception <- STRUCT { "valid" ::= !#decoded_inst_valid;
+                                                                          "data" ::= #decoded_full_exception};
                        LET decoder_pkt
                          :  PktWithException (DecoderPkt (func_units _))
                                              <- (STRUCT {

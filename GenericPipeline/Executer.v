@@ -28,14 +28,11 @@ Section Executor.
               (trans_pkt @% "funcUnitTag")
               (trans_pkt @% "instTag");
        LETC exception
-         :  Maybe FullException
+         :  Maybe Exception
          <- IF #update_pkt @% "valid"
               then #update_pkt @% "data" @% "snd"
               else
-                Valid (STRUCT {
-                  "exception" ::= $IllegalInst;
-                  "value" ::= $0 (* TODO *)
-                } : FullException @# ty);
+                Valid ($IllegalInst: Exception @# ty);
        RetE (STRUCT {
            "fst" ::= #update_pkt @% "data" @% "fst";
            "snd" ::= #exception

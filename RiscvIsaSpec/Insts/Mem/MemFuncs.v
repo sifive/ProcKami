@@ -64,12 +64,7 @@ Section Mem.
                             "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
                             "data" ::= SignExtendTruncLsb Rlen #addr
                                  });
-         LETC fullException: FullException <-
-                                           (STRUCT {
-                                                "exception"
-                                                ::= (if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned: Exception @# ty) ;
-                                                "value" ::= #addr
-                                           });
+         LETC fullException: Exception <- (if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned: Exception @# ty) ;
          LETC valret
            :  ExecUpdPkt
            <- ((noUpdPkt ty)
@@ -147,12 +142,8 @@ Section Mem.
                               "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
                               "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
                                  });
-         LETC fullException: FullException <-
-                                           (STRUCT {
-                                                "exception" ::=
-                                                  ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
+         LETC fullException: Exception <- ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
                                                      else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned): Exception @# ty) ;
-                                                "value" ::= #addr });
          LETC valret
            :  ExecUpdPkt
              <- ((noUpdPkt ty)

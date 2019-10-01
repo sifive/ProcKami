@@ -33,13 +33,11 @@ Section Alu.
                                       "tag" ::= Const ty (natToWord RoutingTagSz PcTag);
                                       "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
                                  });
-         LETC fullException: FullException <- STRUCT {
-                                             "exception" ::= ($(if misaligned_access
+         LETC fullException: Exception <- ($(if misaligned_access
                                                                 then InstAccessFault
-                                                                else InstAddrMisaligned) : Exception @# ty) ;
-                                             "value" ::= #jOut @% "newPc" };
-         LETC sndVal: Maybe FullException <-  STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
-                                                      "data"  ::= #fullException };
+                                                                else InstAddrMisaligned) : Exception @# ty);
+         LETC sndVal: Maybe Exception <-  STRUCT {"valid" ::= (#jOut @% "misaligned?") ;
+                                                  "data"  ::= #fullException };
          LETC val
            :  ExecUpdPkt
            <- (noUpdPkt ty

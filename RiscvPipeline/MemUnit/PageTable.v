@@ -163,7 +163,7 @@ Section pt_walker.
           LETE leafValid: Bool <- isLeafValid;
           LETE isCheckAlign: Bool <- checkAlign;
           LETE offset: PAddr <- getVAddrRest;
-          LETC exception : FullException <- faultException access_type vAddr;
+          LETC exception : Exception <- faultException access_type;
           LETC retVal: PktWithException PAddr
             <- STRUCT {
                  "fst" ::= (ppnToPAddr (pte @% "pointer") + #offset);
@@ -180,7 +180,7 @@ Section pt_walker.
              LETE leaf : Bool <- isLeaf;
              LETE leafVal: PktWithException PAddr <- translatePteLeaf;
              LETE vpnOffset <- getVpnOffset;
-             LETC nonLeafException : FullException <- faultException access_type vAddr;
+             LETC nonLeafException : Exception <- faultException access_type;
              LETC nonLeafVal: PktWithException PAddr
                <- STRUCT {
                     "fst" ::= (ppnToPAddr (pte @% "pointer") + #vpnOffset);
@@ -199,7 +199,7 @@ Section pt_walker.
         End pte.
     End oneIteration.
 
-    Local Definition doneInvalid (exception : FullException @# ty)
+    Local Definition doneInvalid (exception : Exception @# ty)
       :  ActionT ty (Pair Bool (PktWithException PAddr))
       := LET errorResult : PktWithException PAddr
            <- STRUCT {
@@ -229,8 +229,8 @@ Section pt_walker.
                    then
                      doneInvalid
                        (IF #pmp_result @% "snd" @% "misaligned"
-                          then misalignedException access_type (acc @% "snd" @% "fst")
-                          else accessException access_type vAddr)
+                          then misalignedException access_type
+                          else accessException access_type)
                    else 
                      LETA read_result
                        : Maybe Data
@@ -249,7 +249,7 @@ Section pt_walker.
                          convertLetExprSyntax_ActionT
                            (translatePte $(S index) (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
                        else
-                         doneInvalid (accessException access_type vAddr)
+                         doneInvalid (accessException access_type)
                        as result;
                      Ret #result
                    as result;
