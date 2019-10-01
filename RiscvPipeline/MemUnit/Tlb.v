@@ -54,15 +54,13 @@ Section tlb.
 
   Local Definition iteration := Bit (Nat.log2_up maxPageLevels).
 
+  (* TODO: only store the vaddr. *)
   Local Definition tlb_cache_entry
     := STRUCT_TYPE {
          "flags" :: PteFlags;
          "paddr" :: PAddr;
          "vaddr" :: VAddr
        }.
-
-  Local Definition tlb_cache
-    := Array tlb_cache_sz tlb_cache_entry.
 
   Local Definition tlb_context
     := STRUCT_TYPE {
@@ -84,13 +82,15 @@ Section tlb.
 
   Local Open Scope kami_scope.
 
-  Local Definition mem_req_buffer
-    := Register @^"mem_req_buffer" : PAddr <- getDefaultConst PAddr.
+  Local Definition tlb_cache_reg (index : nat)
+    := Register @^("tlb_cache" ++ natToHexStr index) : tlb_cache_entry <- getDefaultConst tlb_cache_entry.
+
+  Local Definition tlb_cache_regs
+    := map tlb_cache_reg (seq 0 tlb_cache_sz).
 
   Local Definition pt_regs
-    := [
-         mem_req_buffer;
-         Register @^"tlb_cache" : tlb_cache <- getDefaultConst tlb_cache;
+    := tlb_cache_regs ++
+       [
          Register @^"tlb_result" : PktWithException PAddr <- getDefaultConst (PktWithException PAddr);
          Register @^"tlb_state" : tlb_state <- getDefaultConst tlb_state
        ].
@@ -103,14 +103,12 @@ Section tlb.
     Local Definition tlb_cache_lookup 
       (vaddr : VAddr @# ty)
       :  ActionT ty (Maybe tlb_cache_entry)
-      := Read cache : tlb_cache <- @^"tlb_cache";
-         Ret
-           (utila_find_pkt
-             (map
-               (fun i : Fin.t tlb_cache_sz
-                 => let entry : tlb_cache_entry @# ty := ReadArrayConst #cache i in
-                    utila_opt_pkt entry (entry @% "vaddr" == vaddr))
-               (getFins tlb_cache_sz))).
+      := utila_acts_find_pkt
+           (map
+             (fun i : nat
+               => Read entry : tlb_cache_entry <- @^("tlb_cache" ++ natToHexStr i);
+                  Ret (utila_opt_pkt #entry (#entry @% "vaddr" == vaddr)))
+             (seq 0 tlb_cache_sz)).
 
     Local Definition tlb_ret
       (result : PktWithException PAddr @# ty)
