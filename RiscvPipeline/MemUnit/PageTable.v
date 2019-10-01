@@ -60,7 +60,8 @@ Section pt_walker.
                                            vmModes 0.
 
     Section oneIteration.
-      Variable currentLevel : nat.
+      (* Variable currentLevel : nat. *)
+      Variable currentLevel : Bit 5 @# ty. (* TODO: rel. to maxLevels. *)
       Local Notation VpnWidth := (Xlen - LgPageSize)%nat.
       Local Notation vpn := (ZeroExtendTruncLsb PAddrSz (ZeroExtendTruncMsb VpnWidth vAddr)).
 
@@ -73,9 +74,15 @@ Section pt_walker.
           RetE (flags @% "R" || flags @% "X").
 
         Local Definition isValidEntry : Bool ## ty :=
+(*
         LETC cond1 <- satp_select satp_mode
              (fun x => $$ (getBool (Compare_dec.ge_dec currentLevel
                    (length (vm_mode_sizes x)))%nat));
+*)
+        LETC cond1 
+          <- currentLevel >=
+             (satp_select satp_mode
+               (fun x => $(length (vm_mode_sizes x))));
         LETC cond2 <- ! (flags @% "V");
         LETC cond3 <- flags @% "W" && ! (flags @% "R");
         RetE !(#cond1 || #cond2 || #cond3).
@@ -84,21 +91,32 @@ Section pt_walker.
         Definition wordOfShiftAmt n := Const ty (natToWord 2 n).
         Definition ppnToPAddr sz (x: Bit sz @# ty) := ZeroExtendTruncLsb PAddrSz x << (Const ty (natToWord 4 LgPageSize)).
   
-        Local Definition getVpnOffset: PAddr ## ty :=
-          RetE (satp_select satp_mode
-            (fun x
-              => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
-                (ZeroExtendTruncLsb _
-                  ($$(wones (vm_mode_vpn_size x))))) << wordOfShiftAmt (vm_mode_shift_num x))).
-          
-        Local Definition getVAddrRest: PAddr ## ty :=
+        Definition getVpnOffset: PAddr ## ty :=
+          RetE
+            (satp_select satp_mode
+              (fun x
+(*
+                => ((vpn >> wordOfVAddrShifter ((length (vm_mode_sizes x) - 1 - currentLevel) * vm_mode_vpn_size x)%nat) &
+                    (ZeroExtendTruncLsb _
+                      ($$(wones (vm_mode_vpn_size x))))) <<
+                   wordOfShiftAmt (vm_mode_shift_num x))).
+*)
+                => ((vpn >> ($(vm_mode_vpn_size x) * (wordOfVAddrShifter ((length (vm_mode_sizes x) - 1)%nat) - currentLevel))) &
+                    (ZeroExtendTruncLsb _
+                      ($$(wones (vm_mode_vpn_size x))))) <<
+                   wordOfShiftAmt (vm_mode_shift_num x))).
+
+        Definition getVAddrRest: PAddr ## ty :=
           RetE
             (ZeroExtendTruncLsb PAddrSz
               (satp_select satp_mode
                 (fun x
                   => let shiftAmt x
+(*
                        := wordOfVAddrShifter
                             (((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x) + LgPageSize)%nat in
+*)
+                       := (($(length (vm_mode_sizes x)) - currentLevel) * $(vm_mode_vpn_size x)) + $LgPageSize in
                      let mask := ~($$(wones Xlen) << (shiftAmt x)) in
                      (vAddr & mask)))).
           
@@ -106,8 +124,11 @@ Section pt_walker.
           RetE
             (satp_select satp_mode
               (fun x
-                => let index := ((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x)%nat in
-                   (unsafeTruncLsb index (pte @% "pointer")) == $0)).
+                (* => let index := ((length (vm_mode_sizes x) - currentLevel) * vm_mode_vpn_size x)%nat in 
+                   (unsafeTruncLsb index (pte @% "pointer")) == $0)). *)
+                => let shiftAmt := ($(length (vm_mode_sizes x)) - currentLevel) * $(vm_mode_vpn_size x) in
+                   let mask := ~($$(wones PpnWidth) << shiftAmt) in
+                   (mask & (pte @% "pointer")) == $0)).
 
         Definition pte_access_dirty: Bool @# ty
           := !(flags @% "A") || ((access_type == $VmAccessSAmo) && (!(flags @% "D"))).
@@ -226,7 +247,7 @@ Section pt_walker.
                      If #read_result @% "valid"
                        then 
                          convertLetExprSyntax_ActionT
-                           (translatePte (S index) (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
+                           (translatePte $(S index) (unpack _ (ZeroExtendTruncLsb _ (#read_result @% "data"))))
                        else
                          doneInvalid (accessException access_type vAddr)
                        as result;
@@ -254,7 +275,8 @@ Section pt_walker.
     
     Definition pt_walker
       :  ActionT ty (PktWithException PAddr) :=
-      LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0);
+      (* LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset 0); *)
+      LETA vpnOffset <- convertLetExprSyntax_ActionT (getVpnOffset $0);
       LET init : PktWithException PAddr
         <- STRUCT {
              "fst" ::= (satp_ppn + #vpnOffset);
