@@ -51,7 +51,7 @@ Section trap_handling.
        System [
          DispString _ "[trapAction]\n";
          DispString _ "  tvec_mode: ";
-         DispDecimal #tvec_mode;
+         DispHex #tvec_mode;
          DispString _ "\n";
          DispString _ "  tvec_base: ";
          DispHex #tvec_base;

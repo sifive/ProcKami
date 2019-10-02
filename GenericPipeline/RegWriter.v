@@ -25,7 +25,7 @@ Section RegWriter.
          DispString _ " Reg Write Wrote ";
          DispHex data;    
          DispString _ " to register ";
-         DispDecimal reg_id;
+         DispHex reg_id;
          DispString _ "\n"
        ]%list;
        Retv.
@@ -45,7 +45,7 @@ Section RegWriter.
          DispString _ " Reg Write Wrote ";
          DispHex data;
          DispString _ " to floating point register ";
-         DispDecimal reg_id;
+         DispHex reg_id;
          DispString _ "\n"
        ]%list;
        Retv.
