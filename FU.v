@@ -630,15 +630,11 @@ Section Params.
                (exception : Maybe Exception @# ty)
                (act : input_kind @# ty -> ActionT ty (PktWithException output_kind))
       :  ActionT ty (PktWithException output_kind)
-      := (If exception @% "valid"
-          then
-            Ret (STRUCT {
-                     "fst" ::= $$(getDefaultConst output_kind);
-                     "snd" ::= exception
-                   } : PktWithException output_kind @# ty)
-          else act input
-           as output;
-            Ret #output)%kami_action.
+      := (LETA newVal <- act input;
+          LET new_exception: Maybe Exception <- IF (exception @% "valid") then exception else #newVal @% "snd";
+          LET retVal : PktWithException output_kind <- (STRUCT { "fst" ::= #newVal @% "fst";
+                                                                 "snd" ::= #new_exception });
+          Ret #retVal)%kami_action.
 
     Definition noUpdPkt: ExecUpdPkt @# ty :=
       (STRUCT {
