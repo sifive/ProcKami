@@ -80,13 +80,10 @@ Section fetch.
          Ret #result
        else
          LET exception
-           :  FullException
-           <- STRUCT {
-             "exception" ::= $(if misaligned_access
+           :  Exception
+           <- $(if misaligned_access
                                then InstAccessFault
                                else InstAddrMisaligned);
-             "value"     ::= pc
-              };
          Ret (STRUCT {
            "fst" ::= $$(getDefaultConst FetchPkt);
            "snd" ::= Valid #exception

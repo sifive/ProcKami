@@ -80,13 +80,10 @@ Section Alu.
                  @%["val2"
                       <- (Valid #val2)]
                  @%["taken?" <- #bOut @% "taken?"]);
-         LETC fullException: FullException <- STRUCT {
-                                             "exception" ::= ($(if misaligned_access
-                                                                then InstAccessFault
-                                                                else InstAddrMisaligned) : Exception @# ty);
-                                "value" ::= #bOut @% "newPc"
-                                           };
-         LETC sndVal: Maybe FullException <- STRUCT {
+         LETC fullException: Exception <- ($(if misaligned_access
+                                             then InstAccessFault
+                                             else InstAddrMisaligned) : Exception @# ty);
+         LETC sndVal: Maybe Exception <- STRUCT {
                               "valid" ::= (#bOut @% "misaligned?");
                               "data"
                               ::= #fullException };

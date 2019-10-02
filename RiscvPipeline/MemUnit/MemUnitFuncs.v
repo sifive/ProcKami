@@ -101,14 +101,11 @@ Section mem_unit.
            If mem_error (#pmp_result @% "snd")
              then
                LET exception
-                 :  Maybe FullException
-                 <- Valid (STRUCT {
-                        "exception"
-                          ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
-                                then $InstAddrMisaligned
-                                else $InstAccessFault;
-                        "value" ::= vaddr
-                      } : FullException @# ty);
+                 :  Maybe Exception
+                 <- Valid ((IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
+                            then $InstAddrMisaligned
+                            else $InstAccessFault):
+                             Exception @# ty);
                Ret (STRUCT {
                    "fst" ::= $0;
                    "snd" ::= #exception
@@ -150,7 +147,7 @@ Section mem_unit.
 
   Local Definition mem_unit_exec_pkt
     (memRet : MemRet @# ty)
-    (exception : Maybe FullException @# ty)
+    (exception : Maybe Exception @# ty)
     :  ActionT ty (PktWithException MemRet)
     := Ret
          (STRUCT {
@@ -159,7 +156,7 @@ Section mem_unit.
           } : PktWithException MemRet @# ty).
 
   Local Definition mem_unit_exec_pkt_def
-    (exception : Maybe FullException @# ty)
+    (exception : Maybe Exception @# ty)
     :  ActionT ty (PktWithException MemRet)
     := mem_unit_exec_pkt
          $$(getDefaultConst MemRet)
@@ -170,14 +167,10 @@ Section mem_unit.
     (is_write : Bool @# ty)
     :  ActionT ty (PktWithException MemRet)
     := mem_unit_exec_pkt_def
-         (Valid (STRUCT {
-           "exception"
-             ::= (IF is_write
+         (Valid ((IF is_write
                    then $SAmoAccessFault
-                   else $LoadAccessFault
-                   : Exception @# ty);
-           "value" ::= vaddr
-         } : FullException @# ty)).
+                  else $LoadAccessFault)
+                 : Exception @# ty)).
 
   Definition mem_unit_exec
     (exts : Extensions @# ty)
@@ -282,20 +275,17 @@ Section mem_unit.
                          DispString _ "[mem_unit_exec] the pmp check failed\n"
                        ];
                        LET exception
-                         :  Maybe FullException
-                         <- Valid (STRUCT {
-                              "exception"
-                                ::= IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
-                                      then
-                                        (IF #mis_write @% "data"
-                                          then $SAmoAddrMisaligned
-                                          else $LoadAddrMisaligned)
-                                      else
-                                        (IF #mis_write @% "data"
-                                          then $SAmoAccessFault
-                                          else $LoadAccessFault);
-                              "value" ::= ZeroExtendTruncLsb Xlen (#mpaddr @% "fst")
-                            } : FullException @# ty);
+                         :  Maybe Exception
+                         <- Valid (
+                              IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
+                              then
+                                (IF #mis_write @% "data"
+                                 then $SAmoAddrMisaligned
+                                 else $LoadAddrMisaligned)
+                              else
+                                (IF #mis_write @% "data"
+                                 then $SAmoAccessFault
+                                 else $LoadAccessFault): Exception @# ty);
                        mem_unit_exec_pkt_def #exception
                      else
                        (* IV. read the current value and place reservation *)
@@ -356,10 +346,7 @@ Section mem_unit.
                                  (IF #write_result
                                    then Invalid
                                    else
-                                     Valid (STRUCT {
-                                         "exception" ::= $SAmoAccessFault;
-                                         "value" ::= addr
-                                       } : FullException @# ty))
+                                     Valid ($SAmoAccessFault: Exception @# ty))
                              else Ret Invalid
                              as write_result;
                            System [
@@ -393,14 +380,10 @@ Section mem_unit.
                Ret #result
              else
                LET exception
-                 :  Maybe FullException
-                 <- Valid (STRUCT {
-                      "exception"
-                        ::= IF #mis_write @% "data"
+                 :  Maybe Exception
+                 <- Valid (IF #mis_write @% "data"
                               then if misaligned_access then $SAmoAccessFault else $SAmoAddrMisaligned
-                              else if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned;
-                      "value" ::= addr
-                    } : FullException @# ty);
+                              else if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned: Exception @# ty);
                (mem_unit_exec_pkt_def #exception)
              as result;
            Ret #result
@@ -425,7 +408,7 @@ Section mem_unit.
     (decoder_pkt : DecoderPkt func_units @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    (exception : Maybe FullException @# ty)
+    (exception : Maybe Exception @# ty)
     :  ActionT ty (PktWithException ExecUpdPkt)
     := bindException update_pkt exception
          (fun update_pkt : ExecUpdPkt @# ty
