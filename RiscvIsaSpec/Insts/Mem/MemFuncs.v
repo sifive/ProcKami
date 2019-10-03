@@ -138,13 +138,10 @@ Section Mem.
                               "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
                               "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
                                  });
-<<<<<<< HEAD
          LETC val2: RoutedReg <- (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
                               "data" ::= SignExtendTruncLsb Rlen #addr
                                  });
-=======
->>>>>>> origin/master
          LETC fullException: Exception <- ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
                                                      else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned): Exception @# ty) ;
          LETC valret
