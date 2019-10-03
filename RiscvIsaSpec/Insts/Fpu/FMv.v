@@ -36,7 +36,6 @@ Section Fpu.
                                                ::= (IF #isInt
                                                       then $IntRegTag
                                                       else $FloatRegTag: Bit RoutingTagSz @# ty);
-                                             (* TODO: revise this. values taken from smaller integer registers and moved into larger floating registers must be NaN-boxed. *)
                                              "data"
                                                ::= (IF #isInt
                                                       then SignExtendTruncLsb

@@ -60,7 +60,7 @@ Section Mem.
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr";
-         LETC val1: RoutedReg <- (STRUCT {
+         LETC val2: RoutedReg <- (STRUCT {
                             "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
                             "data" ::= SignExtendTruncLsb Rlen #addr
                                  });
@@ -68,8 +68,8 @@ Section Mem.
          LETC valret
            :  ExecUpdPkt
            <- ((noUpdPkt ty)
-                 @%["val1"
-                      <- (Valid #val1)]) ;
+                 @%["val2"
+                      <- (Valid #val2)]) ;
          LETC retval
            :  (PktWithException ExecUpdPkt)
            <- STRUCT {
@@ -135,13 +135,16 @@ Section Mem.
          LETC addr: VAddr <- #val @% "addr" ;
          LETC data: MaskedMem <- #val @% "data" ;
          LETC val1: RoutedReg <- (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= SignExtendTruncLsb Rlen #addr
-                                 });
-         LETC val2: RoutedReg <- (STRUCT {
                               "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
                               "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
                                  });
+<<<<<<< HEAD
+         LETC val2: RoutedReg <- (STRUCT {
+                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                              "data" ::= SignExtendTruncLsb Rlen #addr
+                                 });
+=======
+>>>>>>> origin/master
          LETC fullException: Exception <- ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
                                                      else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned): Exception @# ty) ;
          LETC valret
