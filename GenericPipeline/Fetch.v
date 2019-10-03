@@ -57,7 +57,8 @@ Section fetch.
                <- STRUCT {
                     "pc" ::= xlen_sign_extend Xlen xlen pc;
                     "inst" ::= {< #inst_upper @% "fst", #inst_lower @% "fst" >};
-                    "compressed?" ::= !#uncompressed
+                    "compressed?" ::= !#uncompressed;
+                    "exceptionUpper" ::= #inst_upper @% "snd" @% "valid"
                   } : FetchPkt @# ty;
              System [
                DispString _ "[fetch] lower bits: ";
@@ -80,13 +81,10 @@ Section fetch.
          Ret #result
        else
          LET exception
-           :  FullException
-           <- STRUCT {
-             "exception" ::= $(if misaligned_access
+           :  Exception
+           <- $(if misaligned_access
                                then InstAccessFault
                                else InstAddrMisaligned);
-             "value"     ::= pc
-              };
          Ret (STRUCT {
            "fst" ::= $$(getDefaultConst FetchPkt);
            "snd" ::= Valid #exception

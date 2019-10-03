@@ -190,13 +190,8 @@ Section ParamDefinitions.
   Definition PAddr := Bit PAddrSz.
 
   Definition Exception := Bit 4.
-  Definition ExceptionInfo := Bit Xlen.
 
-  Definition FullException := STRUCT_TYPE {
-                                  "exception" :: Exception ;
-                                  "value" :: ExceptionInfo }.
-
-  Definition PktWithException k := Pair k (Maybe FullException).
+  Definition PktWithException k := Pair k (Maybe Exception).
   
   Definition XlenWidth := 2.
   Definition XlenValue := Bit XlenWidth.
@@ -237,7 +232,8 @@ Section Params.
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst ;
-                             "compressed?" :: Bool}.
+                             "compressed?" :: Bool;
+                             "exceptionUpper" :: Bool }.
 
   Definition ExecContextPkt :=
     STRUCT_TYPE {
@@ -585,54 +581,39 @@ Section Params.
     Local Open Scope kami_expr.
     Definition faultException
                (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
+      :  Exception @# ty
+      := Switch access_type Retn Exception With {
                           ($VmAccessInst : VmAccessType @# ty)
                           ::= ($InstPageFault : Exception @# ty);
                           ($VmAccessLoad : VmAccessType @# ty)
                           ::= ($LoadPageFault : Exception @# ty);
                           ($VmAccessSAmo : VmAccessType @# ty)
                           ::= ($SAmoPageFault : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
+                        }.
 
     Definition accessException
                (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
+      :  Exception @# ty
+      := Switch access_type Retn Exception With {
                           ($VmAccessInst : VmAccessType @# ty)
                           ::= ($InstAccessFault : Exception @# ty);
                           ($VmAccessLoad : VmAccessType @# ty)
                           ::= ($LoadAccessFault : Exception @# ty);
                           ($VmAccessSAmo : VmAccessType @# ty)
                           ::= ($SAmoAccessFault : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
+                        }.
 
     Definition misalignedException
                (access_type : VmAccessType @# ty)
-               (value : ExceptionInfo @# ty)
-      :  FullException @# ty
-      := STRUCT {
-             "exception"
-             ::= Switch access_type Retn Exception With {
+      :  Exception @# ty
+      := Switch access_type Retn Exception With {
                           ($VmAccessInst : VmAccessType @# ty)
                           ::= ($InstAddrMisaligned : Exception @# ty);
                           ($VmAccessLoad : VmAccessType @# ty)
                           ::= ($LoadAddrMisaligned : Exception @# ty);
                           ($VmAccessSAmo : VmAccessType @# ty)
                           ::= ($SAmoAddrMisaligned : Exception @# ty)
-                        };
-             "value" ::= value
-           } : FullException @# ty.
+                        }.
 
     Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
       Switch satp_mode Retn k With {
@@ -647,18 +628,14 @@ Section Params.
     Definition bindException
                (input_kind output_kind : Kind)
                (input : input_kind @# ty)
-               (exception : Maybe FullException @# ty)
+               (exception : Maybe Exception @# ty)
                (act : input_kind @# ty -> ActionT ty (PktWithException output_kind))
       :  ActionT ty (PktWithException output_kind)
-      := (If exception @% "valid"
-          then
-            Ret (STRUCT {
-                     "fst" ::= $$(getDefaultConst output_kind);
-                     "snd" ::= exception
-                   } : PktWithException output_kind @# ty)
-          else act input
-           as output;
-            Ret #output)%kami_action.
+      := (LETA newVal <- act input;
+          LET new_exception: Maybe Exception <- IF (exception @% "valid") then exception else #newVal @% "snd";
+          LET retVal : PktWithException output_kind <- (STRUCT { "fst" ::= #newVal @% "fst";
+                                                                 "snd" ::= #new_exception });
+          Ret #retVal)%kami_action.
 
     Definition noUpdPkt: ExecUpdPkt @# ty :=
       (STRUCT {

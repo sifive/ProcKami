@@ -32,10 +32,7 @@ Section mret.
                         "snd"
                           ::= IF #in_pkt @% "snd"
                                 then
-                                  Valid (STRUCT {
-                                    "exception" ::= $IllegalInst;
-                                    "value" ::= ZeroExtendTruncLsb Xlen (#in_pkt @% "fst")
-                                  } : FullException @# ty)
+                                  Valid ($IllegalInst: Exception @# ty)
                                 else Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts
@@ -173,18 +170,13 @@ Section mret.
          fuFunc
            := (fun mode_pkt : PrivMode ## ty
                => LETE mode : PrivMode <- mode_pkt;
-                    LETC sndVal <- (STRUCT {
-                                 "exception"
-                                   ::= Switch #mode Retn Exception With {
+                    LETC sndVal <- Switch #mode Retn Exception With {
                                          Const ty (natToWord PrivModeWidth MachineMode)
                                            ::= Const ty (natToWord 4 ECallM);
                                          Const ty (natToWord PrivModeWidth SupervisorMode)
                                            ::= Const ty (natToWord 4 ECallS);
                                          Const ty (natToWord PrivModeWidth UserMode)
-                                           ::= Const ty (natToWord 4 ECallU)
-                                       };
-                                 "value"     ::= $0
-                               } : FullException @# ty);
+                                           ::= Const ty (natToWord 4 ECallU)};
                    RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt ty;
@@ -227,10 +219,7 @@ Section mret.
                         "snd"
                           ::= IF #inst @% "valid"
                                 then
-                                  Valid (STRUCT {
-                                    "exception" ::= $IllegalInst;
-                                    "value" ::= ZeroExtendTruncLsb Xlen (#inst @% "data")
-                                  } : FullException @# ty)
+                                  Valid ($IllegalInst: Exception @# ty)
                                 else Invalid
                       } : PktWithException ExecUpdPkt @# ty);
          fuInsts
@@ -304,11 +293,8 @@ Section mret.
            := (fun in_pkt : Inst ## ty
                => LETE inst : Inst <- in_pkt;
                   LETC exception
-                    <- Valid (STRUCT {
+                    <- Valid ($Breakpoint: Exception @# ty);
 (* TODO: only throw an exception if ebreak mode (like ebreaku) matches current mode and dcsr enables it. See 4.8.1 *)
-                          "exception" ::= Const ty (natToWord 4 Breakpoint);
-                          "value"     ::= ZeroExtendTruncLsb Xlen #inst
-                        } : FullException @# ty);
                   RetE
                     (STRUCT {
                        "fst" ::= noUpdPkt ty;
@@ -352,11 +338,8 @@ Section mret.
                      DispString _ "[wfi]\n"
                    ];
                    LETC exception
-                     :  Maybe FullException
-                     <- Valid (STRUCT {
-                          "exception" ::= $IllegalInst;
-                          "value" ::= $0 (* ZeroExtendTruncLsb Xlen $$(32'h"10500073") *) (* the wfi instruction code. *)
-                        } : FullException @# ty);
+                     :  Maybe Exception
+                     <- Valid ($IllegalInst: Exception @# ty);
                    RetE
                      (STRUCT {
                         "fst" ::= noUpdPkt ty;
