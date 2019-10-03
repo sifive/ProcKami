@@ -232,7 +232,8 @@ Section Params.
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst ;
-                             "compressed?" :: Bool}.
+                             "compressed?" :: Bool;
+                             "exceptionUpper" :: Bool }.
 
   Definition ExecContextPkt :=
     STRUCT_TYPE {

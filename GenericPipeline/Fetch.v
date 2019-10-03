@@ -57,7 +57,8 @@ Section fetch.
                <- STRUCT {
                     "pc" ::= xlen_sign_extend Xlen xlen pc;
                     "inst" ::= {< #inst_upper @% "fst", #inst_lower @% "fst" >};
-                    "compressed?" ::= !#uncompressed
+                    "compressed?" ::= !#uncompressed;
+                    "exceptionUpper" ::= #inst_upper @% "snd" @% "valid"
                   } : FetchPkt @# ty;
              System [
                DispString _ "[fetch] lower bits: ";
