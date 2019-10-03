@@ -428,7 +428,7 @@ Section mem_unit.
                      mode
                      #mprv
                      (xlen_sign_extend Xlen xlen
-                       (update_pkt @% "val1" @% "data" @% "data" : Bit Rlen @# ty))
+                       (update_pkt @% "val2" @% "data" @% "data" : Bit Rlen @# ty))
                      (decoder_pkt @% "funcUnitTag")
                      (decoder_pkt @% "instTag")
                      #memUnitInput;

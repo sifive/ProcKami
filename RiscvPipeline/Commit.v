@@ -27,7 +27,7 @@ Section trap_handling.
     LETC currPc <- SignExtendTruncLsb Rlen pc;
     LETC currPc2 <- (#currPc + IF exceptionUpper then $2 else $0);
     LETC nextPc <- SignExtendTruncLsb Rlen next_pc;
-    LETC memAddr <- (update_pkt @% "val1" @% "data" @% "data");
+    LETC memAddr <- (update_pkt @% "val2" @% "data" @% "data");
     RetE (ZeroExtendTruncLsb Xlen (Switch exception Retn Data With {
                                             ($InstAddrMisaligned : Exception @# ty) ::= #nextPc;
                                             ($InstAccessFault: Exception @# ty) ::= #currPc2;
@@ -264,42 +264,55 @@ Section trap_handling.
            Retv;
          Retv.
 
-  Definition commitWriters
+  Definition commitWriters1
     (cfg_pkt : ContextCfgPkt @# ty)
-    (val: Maybe RoutedReg @# ty)
+    (update_pkt: ExecUpdPkt @# ty)
     (reg_index: RegId @# ty)
     : ActionT ty Void
-    := LET val_pos : RoutingTag <- (val @% "data") @% "tag" ;
-       LET val_data : Data <- (val @% "data") @% "data" ;
-       If (val @% "valid")
+    := LET val: Maybe RoutedReg <- update_pkt @% "val1" ;
+       LET val_pos : RoutingTag <- (#val @% "data") @% "tag" ;
+       LET val_data : Data <- (#val @% "data") @% "data" ;
+       If (#val @% "valid")
          then 
            (If (#val_pos == $IntRegTag)
               then (If (reg_index != $0)
                       then reg_writer_write_reg (cfg_pkt @% "xlen") (reg_index) (#val_data);
                     Retv)
               else (If (#val_pos == $FloatRegTag)
-                      then reg_writer_write_freg (reg_index) (#val_data)
-                      else (If (#val_pos == $FflagsTag)
-                              then (Write @^"fflags" : FflagsValue
-                                      <- unsafeTruncLsb FflagsWidth #val_data;
-                                    System [
-                                      DispString _ " Reg Write Wrote ";
-                                      DispHex #val_data;
-                                      DispString _ " to FFLAGS field in FCsr\n"
-                                    ];
-                                    Retv)
-                              else
-                                (If (#val_pos == $RetTag)
-                                   then
-                                     (LETA _ <- commitRet val;
-                                      System [
-                                        DispString _ "Executing Ret Instruction.\n"
-                                      ];
-                                      Retv);
-                                   Retv);
-                            Retv);
+                    then reg_writer_write_freg (reg_index) (#val_data);
+                           Retv);
+              Retv);
+             Retv.
+
+  Definition commitWriters2
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (update_pkt: ExecUpdPkt @# ty)
+    (reg_index: RegId @# ty)
+    : ActionT ty Void
+    := LET val: Maybe RoutedReg <- update_pkt @% "val2" ;
+       LET val_pos : RoutingTag <- (#val @% "data") @% "tag" ;
+       LET val_data : Data <- (#val @% "data") @% "data" ;
+       If (#val @% "valid")
+         then 
+           (If (#val_pos == $FflagsTag)
+            then (Write @^"fflags" : FflagsValue
+                                       <- unsafeTruncLsb FflagsWidth #val_data;
+                    System [
+                        DispString _ " Reg Write Wrote ";
+                          DispHex #val_data;
+                          DispString _ " to FFLAGS field in FCsr\n"
+                      ];
+                    Retv)
+            else
+              (If (#val_pos == $RetTag)
+               then
+                 (LETA _ <- commitRet #val;
+                    System [
+                        DispString _ "Executing Ret Instruction.\n"
+                      ];
                     Retv);
-            Retv);
+                   Retv);
+              Retv);
              Retv.
 
   Definition commit
@@ -342,26 +355,22 @@ Section trap_handling.
        Read dpc : Bit Xlen <- @^"dpc";
        LET next_pc : VAddr
          <- (ITE
-              ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $DRetTag))
+              ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $DRetTag))
               (xlen_sign_extend Xlen (cfg_pkt @% "xlen") #dpc)
               (ITE
-                ((#opt_val1 @% "valid") && ((#opt_val1 @% "data") @% "tag" == $PcTag))
-                (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val1 @% "data") @% "data"))
+                ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
+                (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
+                (* Note: Ret instructions always set val2. *)
                 (ITE
-                  ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $PcTag))
-                  (xlen_sign_extend Xlen (cfg_pkt @% "xlen") ((#opt_val2 @% "data") @% "data"))
-                  (* Note: Ret instructions always set val1. *)
-                  (ITE
-                    ((#opt_val1 @% "valid") &&
-                     ((#opt_val1 @% "data") @% "tag" == $RetTag))
-                    (ITE (#opt_val1 @% "data" @% "data" == $RetCodeM)
-                      #mepc
-                      (ITE (#opt_val1 @% "data" @% "data" == $RetCodeS)
-                        #sepc
-                        #uepc))
-                    (ITE (exec_context_pkt @% "compressed?")
-                      (pc + $2)
-                      (pc + $4))))));
+                  ((#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $RetTag))
+                  (ITE (#opt_val2 @% "data" @% "data" == $RetCodeM)
+                    #mepc
+                    (ITE (#opt_val2 @% "data" @% "data" == $RetCodeS)
+                      #sepc
+                      #uepc))
+                  (ITE (exec_context_pkt @% "compressed?")
+                    (pc + $2)
+                    (pc + $4)))));
        If (exception @% "valid")
          then
            trapException (cfg_pkt @% "xlen") (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") pc (exception @% "data") inst update_pkt #next_pc exceptionUpper
@@ -372,11 +381,10 @@ Section trap_handling.
                 Read instret_reg <- @^"minstret";
                 Write @^"minstret" : Bit 64 <- #instret_reg + $1;
                 Retv;
-            LETA _ <- commitWriters cfg_pkt #val1 #reg_index;
-            LETA _ <- commitWriters cfg_pkt #val2 #reg_index; 
+            LETA _ <- commitWriters1 cfg_pkt update_pkt #reg_index;
+            LETA _ <- commitWriters2 cfg_pkt update_pkt #reg_index; 
             If (cfg_pkt @% "debug_hart_state" @% "debug") &&
-               (#opt_val1 @% "valid") &&
-               ((#opt_val1 @% "data") @% "tag" == $DRetTag)
+               (#opt_val2 @% "valid") && ((#opt_val2 @% "data") @% "tag" == $DRetTag)
               then
                 Read prv : Bit 2 <- @^"prv";
                 exitDebugMode #dpc #prv ;

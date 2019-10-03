@@ -74,20 +74,21 @@ Definition FrmValue : Kind := Bit FrmWidth.
 Definition FflagsWidth : nat := 5.
 Definition FflagsValue : Kind := Bit FflagsWidth.
 
-Definition RoutingTagSz := 4.
+Definition RoutingTagSz := 3.
 Definition RoutingTag := Bit RoutingTagSz.
 
-Definition PcTag := 0.
-Definition IntRegTag := 1.
-Definition FloatRegTag := 2.
-Definition MemDataTag := 3.
-Definition MemAddrTag := 4.
-Definition FflagsTag := 5.
-Definition RetTag := 6.
-Definition CsrWriteTag := 7.
-Definition CsrSetTag := 8.
-Definition CsrClearTag := 9.
-Definition DRetTag := 10.
+Definition IntRegTag := 0. (* 1 *)
+Definition FloatRegTag := 1. (*  1 *)
+Definition MemDataTag := 2. (* 1 *)
+Definition CsrWriteTag := 3. (* 1 *)
+Definition CsrSetTag := 4. (* 1 *)
+Definition CsrClearTag := 5. (* 1 *)
+
+Definition PcTag := 0. (* 2 *)
+Definition MemAddrTag := 1. (* 2 *)
+Definition FflagsTag := 2. (* 2 *)
+Definition RetTag := 3. (* 2 *)
+Definition DRetTag := 4. (* 2 *)
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.

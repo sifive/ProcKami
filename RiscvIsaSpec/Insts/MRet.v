@@ -24,7 +24,7 @@ Section mret.
                      (STRUCT {
                         "fst"
                           ::= ((noUpdPkt ty)
-                                @%["val1"
+                                @%["val2"
                                     <- (Valid (STRUCT {
                                          "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
                                          "data" ::= ZeroExtendTruncLsb Rlen (funct7 (#in_pkt @% "fst"))
@@ -129,7 +129,7 @@ Section mret.
                 => RetE (STRUCT {
                        "fst"
                          ::= (noUpdPkt ty)
-                               @%["val1"
+                               @%["val2"
                                     <- Valid (STRUCT {
                                          "tag"  ::= $DRetTag;
                                          "data" ::= $0
