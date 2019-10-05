@@ -20,8 +20,7 @@ Section pt_walker.
   Variable mem_table : list (MemTableEntry mem_devices).
   Local Definition DeviceTag := (DeviceTag mem_devices).
 
-  Variable baseIndex : nat. (* the read port that should be used by the first page table walker read. *)
-  Variable callIndex : nat. (* 0 based index identifying which call to the page table walker this is. *)
+  Variable baseIndex : nat.
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -235,7 +234,7 @@ Section pt_walker.
                      LETA read_result
                        : Maybe Data
                        <- mem_region_read
-                            (baseIndex + ((maxPageLevels - 1) * callIndex) + index)%nat
+                            (baseIndex + index)%nat
                             (#pmp_result @% "fst" @% "fst")
                             (#pmp_result @% "fst" @% "snd")
                             $(Nat.log2_up Xlen_over_8);

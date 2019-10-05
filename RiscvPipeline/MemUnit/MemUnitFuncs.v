@@ -24,8 +24,6 @@ Section mem_unit.
 
   Local Definition DeviceTag := (DeviceTag mem_devices).
 
-  Local Definition baseIndex := 3. (* the first available read port available to the page table walker. *)
-
   Open Scope kami_expr.
   Open Scope kami_action.
 
@@ -49,7 +47,6 @@ Section mem_unit.
            LETA paddr : PktWithException PAddr
              <- pt_walker
                   mem_table
-                  baseIndex
                   index
                   satp_mode
                   #mxr
@@ -81,7 +78,7 @@ Section mem_unit.
        Read mprv : Bool <- @^"mprv";
        LETA paddr
          :  PktWithException PAddr
-         <- memTranslate (3 * index) satp_mode mode #mprv $VmAccessInst vaddr;
+         <- memTranslate (3 * (S index)) satp_mode mode #mprv $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
@@ -235,7 +232,7 @@ Section mem_unit.
                (* III. get the physical address *)
                LETA mpaddr
                  :  PktWithException PAddr
-                 <- memTranslate 0 satp_mode mode mprv
+                 <- memTranslate 3 satp_mode mode mprv
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
                         else $VmAccessLoad)
