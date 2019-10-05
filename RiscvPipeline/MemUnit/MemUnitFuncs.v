@@ -81,7 +81,7 @@ Section mem_unit.
        Read mprv : Bool <- @^"mprv";
        LETA paddr
          :  PktWithException PAddr
-         <- memTranslate index satp_mode mode #mprv $VmAccessInst vaddr;
+         <- memTranslate (3 * index) satp_mode mode #mprv $VmAccessInst vaddr;
        System [
          DispString _ "[memFetch] paddr: ";
          DispHex #paddr;
@@ -235,7 +235,7 @@ Section mem_unit.
                (* III. get the physical address *)
                LETA mpaddr
                  :  PktWithException PAddr
-                 <- memTranslate 2 satp_mode mode mprv
+                 <- memTranslate 0 satp_mode mode mprv
                       (IF #mis_write @% "data"
                         then $VmAccessSAmo
                         else $VmAccessLoad)

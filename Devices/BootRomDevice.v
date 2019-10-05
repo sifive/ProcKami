@@ -37,7 +37,7 @@ Section device.
                             :  Array Rlen_over_8 (Bit 8)
                             <- (read_name index) (SignExtendTruncLsb _ paddr : Bit lgMemSz);
                           Ret (Valid (pack #result): Maybe (Bit Rlen) @# _))
-                     (seq 0 mem_device_num_reads);
+                     (seq 0 12);
          mem_device_write := fun ty => [];
          mem_device_read_resv
            := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
@@ -50,7 +50,7 @@ Section device.
                     true
                     Rlen_over_8
                     (@^"rom_rom_file")
-                    (Async (map read_name (seq 0 mem_device_num_reads)))
+                    (Async (map read_name (seq 0 12)))
                     (@^"writeROM0") (* never used *)
                     (pow2 lgMemSz)
                     (Bit 8)

@@ -58,7 +58,7 @@ Section mem_devices.
          mem_device_type := main_memory;
          mem_device_pmas := pmas_default;
          mem_device_read
-           := fun ty => map (fun index => @pMemRead ty index) (seq 0 mem_device_num_reads);
+           := fun ty => map (fun index => @pMemRead ty index) (seq 0 12);
          mem_device_write
            := fun ty
                 => [ pMemWrite 0 ];

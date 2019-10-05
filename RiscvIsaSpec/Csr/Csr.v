@@ -40,10 +40,30 @@ Section csrs.
            csrName := "utvec";
            csrAddr := natToWord CsrIdWidth 5;
            csrViews
-             := let fields := [ @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None ] in
-                repeatCsrView 2
-                  (@csrViewDefaultReadXform _ fields)
-                  (@csrViewDefaultWriteXform _ fields);
+             := [
+                  let fields
+                    := [
+                         @tvecField _ "u" 30;
+                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
+                       ] in
+                  {|
+                    csrViewContext := fun ty => $1;
+                    csrViewFields  := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields
+                    := [
+                         @tvecField _ "u" 62;
+                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
+                       ] in
+                  {|
+                    csrViewContext := fun ty => $2;
+                    csrViewFields  := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
            csrAccess := accessAny
          |};
          {|
