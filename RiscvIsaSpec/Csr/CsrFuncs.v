@@ -508,38 +508,20 @@ Section CsrInterface.
 
     Open Scope kami_scope.
 
-    Definition csr_regs
-      :  list (Tree ModuleElt)
-      := map snd
-           (fold_right
-             (fun csr csrs_acc
-               => fold_right
-                    (fun view views_acc
-                      => fold_right
-                           (fun field fields_acc
-                             => match csrFieldValue field with
-                                  | csrFieldValueReg reg
-                                    => if existsb
-                                            (fun entry
-                                              => String.eqb (csrFieldRegisterName reg) (fst entry))
-                                            fields_acc
-                                         then fields_acc
-                                         else
-                                           (csrFieldRegisterName reg,
-                                            Register (csrFieldRegisterName reg)
-                                              :  (csrFieldRegisterKind reg)
-                                              <- (match csrFieldRegisterValue reg with
-                                                   | Some value => value
-                                                   | None => getDefaultConst (csrFieldRegisterKind reg)
-                                                   end)) ::
-                                           fields_acc
-                                  | _ => fields_acc
-                                  end)
-                           views_acc
-                           (csrViewFields view))
-                    csrs_acc
-                    (csrViews csr))
-             [] Csrs).
+    Definition csr_reg_csr_field_reg k (r: CsrFieldRegister k) :=
+      (csrFieldRegisterName r, existT RegInitValT (SyntaxKind (csrFieldRegisterKind r)) (match csrFieldRegisterValue r with
+                                                                                         | None => None
+                                                                                         | Some x => Some (SyntaxConst x)
+                                                                                         end)).
+   
+    Definition csr_reg_csr_field (f: CsrField): list RegInitT :=
+      match csrFieldValue f with
+      | csrFieldValueReg r => [csr_reg_csr_field_reg r]
+      | _ => nil
+      end.
+
+    Definition csr_regs := map MERegister
+                               (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews Csrs)))))).
 
     Close Scope kami_scope.
 
