@@ -520,8 +520,7 @@ Section CsrInterface.
       | _ => nil
       end.
 
-    Definition csr_regs := map MERegister
-                               (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews Csrs)))))).
+    Definition csr_regs := concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews Csrs))))).
 
     Close Scope kami_scope.
 

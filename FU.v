@@ -884,7 +884,7 @@ Section Params.
     Definition mmregs_regs (mmregs : MMRegs)
       := map
            (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-            => (Register (gr_name x) : (gr_kind x) <- (getDefaultConst (gr_kind x))))%kami
+            => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
            (mmregs_dev_regs mmregs).
 
     Record MemDevice
@@ -932,33 +932,23 @@ Section Params.
       :  option (MemWrite @# ty -> ActionT ty Bool)
       := List.nth_error (mem_device_write device ty) index.
 
-    Definition mem_device_files
-      :  list MemDevice -> list RegFileBase
-      := fold_right
-           (fun device acc
-            => match mem_device_file device with
-               | Some res
-                 => match res with
-                    | inl files => files ++ acc
-                    | _ => acc
-                    end
-               | _ => acc
-               end)
-           [].
+    Definition get_mem_device_file (device: MemDevice) :=
+      match mem_device_file device with
+      | None => nil
+      | Some (inl x) => x
+      | Some _ => nil
+      end.
+    
+    Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
 
-    Definition mem_device_regs
-      :  list MemDevice -> list (Tree ModuleElt)
-      := fold_right
-           (fun device acc
-            => match mem_device_file device with
-               | Some res
-                 => match res with
-                    | inr mmregs => (mmregs_regs mmregs) ++ acc
-                    | _ => acc
-                    end
-               | _ => acc
-               end)
-           [].
+    Definition get_mem_device_regs (device: MemDevice) :=
+      match mem_device_file device with
+      | None => nil
+      | Some (inr x) => mmregs_regs x
+      | Some _ => nil
+      end.
+    
+    Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
 
     Definition DeviceTag (mem_devices : list MemDevice)
       := Bit (Nat.log2_up (length mem_devices)).

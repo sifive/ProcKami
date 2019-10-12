@@ -50,11 +50,11 @@ Section Params.
       := MODULE {
               Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
               Register @^"pc"               : VAddr <- ConstBit pc_init with
-              Leaf (csr_regs Csrs) with
+              Registers (csr_regs Csrs) with
               Register @^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
-              Node (mem_device_regs mem_devices) with
-              Node debug_internal_regs with
-              Leaf (csr_regs debug_csrs) with
+              Registers (mem_device_regs mem_devices) with
+              Registers debug_internal_regs with
+              Registers (csr_regs debug_csrs) with
               Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
               Rule @^"debug_hart_send_resume_req" := debug_harts_send_resume_req _ with
               Rule @^"debug_hart_halt" := debug_hart_halt _ with

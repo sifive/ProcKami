@@ -98,17 +98,26 @@ Section debug.
 
   Definition debug_internal_regs
     := [
-         (* request sent to hart to execute abstract command *)
-         Register @^"debug_executing" : Bool <- ConstBool false;
-         (* hart state registers 3.5 *)
-         Register @^"hart_states"
-           :  Array debug_num_harts debug_hart_state
-           <- ConstArray (fun _ => getDefaultConst debug_hart_state);
-         Register @^"debug_progbuf_end"
-           :  Bit InstSz
-           <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
-                then (ConstBit debug_inst_ebreak)
-                else (ConstBit (wzero InstSz))
+        (* request sent to hart to execute abstract command *)
+        (@^"debug_executing", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
+          (* Register @^"debug_executing" : Bool <- ConstBool false; *)
+          
+          (* hart state registers 3.5 *)
+          (@^"hart_states", existT RegInitValT (SyntaxKind (Array debug_num_harts debug_hart_state))
+                                   (Some (SyntaxConst (ConstArray (fun _ => getDefaultConst debug_hart_state)))));
+          (* Register @^"hart_states" *)
+          (*   :  Array debug_num_harts debug_hart_state *)
+          (*   <- ConstArray (fun _ => getDefaultConst debug_hart_state); *)
+
+          (@^"debug_progbuf_end", existT RegInitValT (SyntaxKind (Bit InstSz))
+                                         (Some (SyntaxConst (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
+                                                             then (ConstBit debug_inst_ebreak)
+                                                             else (ConstBit (wzero InstSz))))))
+         (* Register @^"debug_progbuf_end" *)
+         (*   :  Bit InstSz *)
+         (*   <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1) *)
+         (*        then (ConstBit debug_inst_ebreak) *)
+         (*        else (ConstBit (wzero InstSz)) *)
        ].
 
   (* II. Debug CSR Registers *)
