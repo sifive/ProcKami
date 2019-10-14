@@ -3,7 +3,7 @@
   RISC-V processor core model into Haskell, which is the first step
   in generating the model's Verilog.
 *)
-Require Import Kami.All.
+Require Import Kami.All Kami.CVSimple.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import List.
@@ -47,9 +47,18 @@ Definition kami_model32 := snd (separateModRemove model32Val).
 Definition kami_model64 := snd (separateModRemove model64Val).
 
 Separate Extraction
+         pred_pack
+         or_kind
+         createWriteRq
+         createWriteRqMask
+         pointwiseIntersection
+         
+         CA_simple
+         RME_simple
+         RtlModule
+         
+         model32
+         model64
 
-  model32
-  model64
-
-  kami_model32
-  kami_model64.
+         kami_model32
+         kami_model64.
