@@ -510,7 +510,7 @@ Section CsrInterface.
 
     Definition csr_reg_csr_field_reg k (r: CsrFieldRegister k) :=
       (csrFieldRegisterName r, existT RegInitValT (SyntaxKind (csrFieldRegisterKind r)) (match csrFieldRegisterValue r with
-                                                                                         | None => None
+                                                                                         | None => Some (SyntaxConst (getDefaultConst (csrFieldRegisterKind r)))
                                                                                          | Some x => Some (SyntaxConst x)
                                                                                          end)).
    
@@ -520,7 +520,9 @@ Section CsrInterface.
       | _ => nil
       end.
 
-    Definition csr_regs := concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews Csrs))))).
+    Definition csr_regs := nubBy (fun '(x, _) '(y, _) => String.eqb x y)
+                                 (concat (map csr_reg_csr_field
+                                              (concat (map csrViewFields (concat (map csrViews Csrs)))))).
 
     Close Scope kami_scope.
 
