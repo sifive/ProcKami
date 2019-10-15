@@ -51,7 +51,10 @@ Separate Extraction
          or_kind
          createWriteRq
          createWriteRqMask
+         pointwiseIntersectionNoMask
+         pointwiseIntersectionMask
          pointwiseIntersection
+         pointwiseBypass
          
          CA_simple
          RME_simple
