@@ -302,7 +302,7 @@ Section Params.
                                floatRegFile; 
                                memReservationRegFile
                            ] ++ (mem_device_files mem_devices)))) in
-         (createHideMod md (getCallsPerMod md)).
+         (createHideMod md (map fst (getAllMethods md))).
 
     Local Close Scope list.
 
