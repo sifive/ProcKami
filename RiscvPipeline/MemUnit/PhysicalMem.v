@@ -168,26 +168,24 @@ Section pmem.
       the constraints we apply in generating them.
      *)
     Definition mem_device_apply ty
-               (mem_devices : list MemDevice)
-               (tag : DeviceTag mem_devices @# ty)
-               (k : Kind)
-               (f : MemDevice -> ActionT ty k)
+      (mem_devices : list MemDevice)
+      (deviceTag : DeviceTag mem_devices @# ty)
+      (k : Kind)
+      (f : MemDevice -> ActionT ty k)
       :  ActionT ty k
-      :=  LETA result
-         :  Maybe k
-                  <- snd
-                  (fold_left
-                     (fun '(num, acc) device
-                      => (S num,
-                          If ($num == tag)
-                          then LETA result : k <- f device;
-                                 System [DispString _ ("[mem_device_apply] reading/writing to " ++ (mem_device_name device) ++ "\n")];
-                                 Ret (Valid #result: Maybe k @# _)
-                          else acc as retVal;
-                          Ret #retVal))
-                     mem_devices
-                     (0, Ret Invalid));
-           Ret (#result @% "data").
+      := LETA result
+           <- utila_acts_find_pkt
+                (map
+                  (fun device : nat * MemDevice
+                    => If deviceTag == $(fst device)
+                         then
+                           LETA result <- f (snd device);
+                           Ret (Valid #result : Maybe k @# ty)
+                         else Ret Invalid 
+                         as result;
+                       Ret #result)
+                  (tag mem_devices));
+         Ret (#result @% "data").
         
     Local Definition checkPMAs
       (access_type : VmAccessType @# ty)
