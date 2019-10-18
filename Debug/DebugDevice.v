@@ -98,18 +98,14 @@ Section debug_device.
   Definition debugDevice
     := @gen_reg_device procParams 
          (Nat.log2_up debug_device_regs_size)
-         (snd
-           (fold_left
-             (fun acc x
-               => let '(i, xs) := acc in
-                  ((i + 1)%nat,
-                   {|
-                     gr_addr := ($i)%word;
-                     gr_kind := debug_device_kind x;
-                     gr_name := debug_device_name x
-                    |} :: xs))
-             debug_device_regs
-             (0, [])))
+         (map
+           (fun x
+             => {|
+                  gr_addr := ($(fst x)%word);
+                  gr_kind := debug_device_kind (snd x);
+                  gr_name := debug_device_name (snd x)
+                |})
+           (tag debug_device_regs))
          "debug_device" false.
 
   Close Scope kami_action.

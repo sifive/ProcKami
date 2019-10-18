@@ -413,20 +413,29 @@ Section Params.
        then xlen
        else $maxXlen)%kami_expr.
 
+    Section test.
+      Variable ls : list (Bool @# type).
+
+      Eval simpl in (evalExpr (utila_any ls)).
+
+    (* = fold_left orb (map (evalExpr (exprT:=SyntaxKind Bool)) ls) false *)
+
+    End test.
+
     Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => $x) ImplXlens).
     Proof.
       unfold xlenFix; simpl; intros.
       match goal with
       | |- context [if ?P then _ else _] => destruct P eqn: G
       end.
-      - rewrite utila_any_correct in G.
+      - rewrite fold_left_orb_exists in G.
         rewrite Exists_exists in G.
         dest.
         repeat (rewrite in_map_iff in *; dest); subst.
         simpl in *.
         exists x0; repeat constructor; auto.
         destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
-      - rewrite utila_any_correct_false in G.
+      - rewrite fold_left_orb_exists_false in G.
         rewrite Forall_forall in G.
         repeat (rewrite in_map_iff in *; dest); subst.
         exists maxXlen.
@@ -443,7 +452,7 @@ Section Params.
       match goal with
       | |- context [if ?P then _ else _] => destruct P eqn: G
       end; auto.
-      rewrite utila_any_correct_false in G.
+      rewrite fold_left_orb_exists_false in G.
       rewrite Forall_forall in *.
       rewrite in_map_iff in H; dest.
       specialize (G (xlen == Const type ($x)%word)%kami_expr); simpl in *.
@@ -455,7 +464,7 @@ Section Params.
       exists x.
       repeat split; auto.
     Qed.
-    
+
     Lemma xlenFix_idempotent: forall xlen , evalExpr (xlenFix (xlenFix xlen)) =  evalExpr (xlenFix xlen).
     Proof.
       intros.
