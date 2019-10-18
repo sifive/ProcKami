@@ -434,10 +434,7 @@ Section Params.
         repeat (rewrite in_map_iff in *; dest); subst.
         simpl in *.
         exists x0; repeat constructor; auto.
-        destruct (weq (evalExpr xlen) $x0);
-        unfold evalExpr in *;
-        simpl in *;
-        congruence.
+        destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
       - rewrite fold_left_orb_exists_false in G.
         rewrite Forall_forall in G.
         repeat (rewrite in_map_iff in *; dest); subst.
