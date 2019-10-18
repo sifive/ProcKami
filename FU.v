@@ -413,15 +413,6 @@ Section Params.
        then xlen
        else $maxXlen)%kami_expr.
 
-    Section test.
-      Variable ls : list (Bool @# type).
-
-      Eval simpl in (evalExpr (utila_any ls)).
-
-    (* = fold_left orb (map (evalExpr (exprT:=SyntaxKind Bool)) ls) false *)
-
-    End test.
-
     Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => $x) ImplXlens).
     Proof.
       unfold xlenFix; simpl; intros.
