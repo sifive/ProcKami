@@ -201,16 +201,16 @@ Section debug.
            csrViews
              := debug_csr_view
                   [
-                    @csrFieldAny _ "haltreq" Bool Bool None;
-                    @csrFieldAny _ "resumereq" Bool Bool None;
-                    @csrFieldAny _ "hartreset" Bool Bool None;
-                    @csrFieldAny _ "ackhavereset" Bool Bool None;
+                    @csrFieldAny _ "haltreq" Bool Bool (Some (ConstBool false));
+                    @csrFieldAny _ "resumereq" Bool Bool (Some (ConstBool false));
+                    @csrFieldAny _ "hartreset" Bool Bool (Some (ConstBool false));
+                    @csrFieldAny _ "ackhavereset" Bool Bool (Some (ConstBool false));
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
-                    @csrFieldAny _ "hasel" Bool Bool None;
+                    @csrFieldAny _ "hasel" Bool Bool (Some (ConstBool false));
                     @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) None;
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
-                    @csrFieldAny _ "ndmreset" Bool Bool None;
-                    @csrFieldAny _ "dmactive" Bool Bool None
+                    @csrFieldAny _ "ndmreset" Bool Bool (Some (ConstBool false));
+                    @csrFieldAny _ "dmactive" Bool Bool (Some (ConstBool false))
                   ];
            csrAccess := accessDMode
          |};
@@ -282,7 +282,7 @@ Section debug.
                     @csrFieldNoReg _ "reserved0" (Bit 3) (getDefaultConst _);
                     @csrFieldNoReg _ "progbufsize" (Bit 5) (getDefaultConst _);
                     @csrFieldNoReg _ "reserved1" (Bit 11) (getDefaultConst _);
-                    @csrFieldAny _ "busy" Bool Bool None;
+                    @csrFieldAny _ "busy" Bool Bool (Some (ConstBool false));
                     @csrFieldNoReg _ "reserved2" (Bit 1) (getDefaultConst _);
                     @csrFieldAny _ "cmderr" (Bit 3) (Bit 3) None;
                     @csrFieldNoReg _ "reserved3" (Bit 4) (getDefaultConst _);
@@ -299,8 +299,8 @@ Section debug.
                     := [
                          @csrFieldAny _ "cmderr" (Bit 3) (Bit 3) None; (* side effect write reg *)
                          @csrFieldAny _ "busy" Bool Bool None; (* side effect write reg *)
-                         @csrFieldAny _ "cmdtype" (Bit 8) (Bit 8) None;
-                         @csrFieldAny _ "control" (Bit 24) (Bit 24) None
+                         @csrFieldAny _ "cmdtype" (Bit 8) (Bit 8) (Some (ConstBit (wzero 8)));
+                         @csrFieldAny _ "control" (Bit 24) (Bit 24) (Some (ConstBit (wzero 24)))
                        ] in
                   {|
                     csrViewContext := fun ty => $0;
