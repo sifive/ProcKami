@@ -127,6 +127,7 @@ Section CsrInterface.
              DispHex #input_value;
              DispString _ "\n"
            ];
+(*
            fold_right
              (fun (fieldIndex : Fin.t (length (csrViewFields view))) (acc : ActionT ty Void)
                => LETA _
@@ -160,6 +161,40 @@ Section CsrInterface.
                   acc)
              Retv
              (getFins (length (csrViewFields view)));
+*)
+           GatherActions
+             (map
+               (fun fieldIndex : Fin.t (length (csrViewFields view))
+                 => let get_kind  := fun i => csrFieldKind (nth_Fin (csrViewFields view) i) in
+                    let get_name  := fun i => csrFieldName (nth_Fin (csrViewFields view) i) in
+                    let get_value := fun i => nth_Fin (csrViewFields view) i in
+                    match csrFieldValue (get_value fieldIndex) with
+                    | csrFieldValueReg interface
+                      => Read curr_value
+                           :  csrFieldRegisterKind interface
+                           <- csrFieldRegisterName interface;
+                         LET write_value
+                           :  get_kind fieldIndex
+                           <- ReadStruct #input_value fieldIndex;
+                         System [
+                           DispString _ ("[csrViewReadWrite] writing to register " ++ csrFieldRegisterName interface ++ "\n");
+                           DispString _ "[csrViewReadWrite] curr value: ";
+                           DispHex #curr_value;
+                           DispString _ "\n";
+                           DispString _ "[csrViewReadWrite] write value: ";
+                           DispHex #write_value;
+                           DispString _ "\n"
+                         ];
+                         Write (csrFieldRegisterName interface)
+                           :  csrFieldRegisterKind interface
+                           <- csrFieldRegisterWriteXform interface
+                                upd_pkt #curr_value #write_value;
+                         Retv
+                    | _ => Retv
+                    end)
+               (getFins (length (csrViewFields view))))
+             as discard;
+           Retv;
        System [DispString _ "[csrViewReadWrite] done\n"];
        Ret (csrViewReadXform view upd_pkt #csr_value).
 
