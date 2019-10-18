@@ -21,9 +21,13 @@ Section pmem.
 
   Record MemRegion
     := {
+         mem_region_addr : N;
          mem_region_width : N;
+         mem_region_device_offset : N; (* device offset *)
          mem_region_device : option (Fin.t (length mem_devices))
        }.
+
+  Local Definition list_sum : list N -> N := fold_right N.add 0%N.
 
   (* memory regions from largest start address to smallest start address *)
   Local Definition mem_table_regions
@@ -34,9 +38,23 @@ Section pmem.
                 | None => None
                 | Some (end_addr, regions)
                   => let next_end_addr := ((mtbl_entry_addr x) + (mtbl_entry_width x))%N in
+                     let gap_addr := list_sum (map mem_region_width regions) in
+                     let gap_width := ((mtbl_entry_addr x) - end_addr)%N in
                      let device_region
                        := {|
-                            mem_region_width  := mtbl_entry_width x;
+                            mem_region_addr := (gap_addr + gap_width)%N;
+                            mem_region_width := mtbl_entry_width x;
+                            mem_region_device_offset
+                              := list_sum
+                                   (map mem_region_width
+                                     (filter
+                                       (fun prev_region
+                                         => fromOption
+                                              (option_map
+                                                (Fin.eqb (mtbl_entry_device x))
+                                                (mem_region_device prev_region))
+                                              false)
+                                       regions));
                             mem_region_device := Some (mtbl_entry_device x)
                           |} in
                      if (end_addr <? (mtbl_entry_addr x))%N
@@ -44,7 +62,9 @@ Section pmem.
                        Some (next_end_addr,
                          device_region ::
                          {|
-                           mem_region_width  := ((mtbl_entry_addr x) - end_addr)%N;
+                           mem_region_addr := gap_addr;
+                           mem_region_width := gap_width;
+                           mem_region_device_offset := 0%N; (* no device offset *)
                            mem_region_device := None
                          |} ::
                          regions)
@@ -75,8 +95,6 @@ Section pmem.
          | _ => []
          end.
 
-  Local Definition list_sum : list N -> N := fold_right N.add 0%N.
-
   Local Definition option_eqb (A : Type) (H : A -> A -> bool) (x y : option A) : bool
     :=  match x, y with
          | None, None => true
@@ -90,11 +108,12 @@ Section pmem.
   Section ty.
 
     Local Definition mem_region_match
-      (region_addr : N)
+      (* (region_addr : N) *)
       (region : MemRegion)
       (paddr : PAddr @# ty)
       :  Bool @# ty
-      := (($$(NToWord PAddrSz region_addr) <= paddr) &&
+      := let region_addr := mem_region_addr region in
+         (($$(NToWord PAddrSz region_addr) <= paddr) &&
          (paddr < $$(NToWord PAddrSz (region_addr + mem_region_width region)%N))).
 
     Local Definition mem_region_apply
@@ -102,42 +121,22 @@ Section pmem.
       (paddr : PAddr @# ty)
       (f : MemRegion -> PAddr @# ty -> ActionT ty k)
       :  ActionT ty (Maybe k)
-      := snd
-           (fold_right
-             (fun region acc
-               => (region :: (fst acc),
-                   let region_addr := list_sum (map mem_region_width (fst acc)) in
-                   LETA acc_result : Maybe k <- snd acc;
-                   (* System [
-                     DispString _ "[mem_region_apply] paddr: ";
-                     DispHex paddr;
-                     DispString _ "\n";
-                     DispString _ ("[mem_region_apply] region start: " ++ nat_hex_string (N.to_nat region_addr) ++ "\n");
-                     DispString _ ("[mem_region_apply] region width: " ++ nat_hex_string (N.to_nat (mem_region_width region)) ++ "\n");
-                     DispString _ ("[mem_region_apply] region end: " ++ nat_hex_string (N.to_nat (region_addr + mem_region_width region)) ++ "\n")
-                   ]; *)
-                   If #acc_result @% "valid" || !(mem_region_match region_addr region paddr)
-                     then
-                       (* System [DispString _ "[mem_region_apply] did not match.\n"]; *)
-                       Ret #acc_result
-                     else
-                       (* System [DispString _ "[mem_region_apply] matched.\n"]; *)
-                       LETA result
-                         :  k
-                         <- f region
-                              ((paddr - $$(NToWord PAddrSz region_addr)) +
-                               ($$(NToWord PAddrSz (list_sum
-                                   (map mem_region_width
-                                     (filter
-                                       (fun prev_region
-                                         => option_eqb Fin.eqb 
-                                              (mem_region_device prev_region)
-                                              (mem_region_device region))
-                                       (fst acc)))))));
-                       Ret (Valid #result : Maybe k @# ty)
-                     as result;
-                   Ret #result))
-             ([], Ret Invalid)
+      := utila_acts_find_pkt
+           (map
+             (fun region
+               => If mem_region_match region paddr
+                    then
+                      System [
+                        DispString _ "[mem_region_apply] region matched\n"
+                      ];
+                      LETA result
+                        <- f region
+                             ((paddr - $$(NToWord PAddrSz (mem_region_addr region))) +
+                              $$(NToWord PAddrSz (mem_region_device_offset region)));
+                      Ret (Valid #result : Maybe k @# ty)
+                    else Ret Invalid
+                    as result;
+                  Ret #result)
              mem_regions).
 
     Local Definition PmaSuccessPkt
