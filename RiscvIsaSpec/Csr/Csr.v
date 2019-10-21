@@ -1081,7 +1081,7 @@ Section csrs.
                     := [
                          @csrFieldAny _ "satp_mode" (Bit 1) (Bit 4) (Some (ConstBit (wzero 4)));
                          @csrFieldAny _ "satp_asid" (Bit 9) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 22) (Bit 44) (Some (ConstBit (wzero 44)))
+                         @csrFieldAny _ "satp_ppn" (Bit 22) (Bit 44) None
                        ] in
                   {|
                     csrViewContext := fun ty => $1;
@@ -1093,7 +1093,7 @@ Section csrs.
                     := [
                          @csrFieldAny _ "satp_mode" (Bit 4) (Bit 4) (Some (ConstBit (wzero 4)));
                          @csrFieldAny _ "satp_asid" (Bit 16) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 44) (Bit 44) (Some (ConstBit (wzero 44)))
+                         @csrFieldAny _ "satp_ppn" (Bit 44) (Bit 44) None
                        ] in
                   {|
                     csrViewContext := fun ty => $2;
