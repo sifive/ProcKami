@@ -251,6 +251,7 @@ Section Params.
                        System [DispString _ "Inc PC\n"];
                        Retv;
                    Retv
+
          }.
 
     Definition intRegFile

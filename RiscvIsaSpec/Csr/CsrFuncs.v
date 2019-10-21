@@ -354,7 +354,7 @@ Section CsrInterface.
            :=  csrFieldValueReg {|
                   csrFieldRegisterName := @^name;
                   csrFieldRegisterKind := PmpCfg;
-                  csrFieldRegisterValue := None;
+                  csrFieldRegisterValue := Some (getDefaultConst PmpCfg);
                   csrFieldRegisterReadXform := fun _ _ => id;
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value input_value
@@ -472,13 +472,14 @@ Section CsrInterface.
     (name : string)
     (addr : word CsrIdWidth)
     (width : nat)
+    (init : option (ConstT (Bit width)))
     (access : forall ty, CsrAccessPkt @# ty -> Bool @# ty)
     :  Csr
     := {|
          csrName := name;
          csrAddr := addr;
          csrViews
-           := let fields := [ @csrFieldAny name (Bit width) (Bit width) None ] in
+           := let fields := [ @csrFieldAny name (Bit width) (Bit width) init ] in
               repeatCsrView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
@@ -490,12 +491,13 @@ Section CsrInterface.
     (addr : word CsrIdWidth)
     (width : nat)
     (access : forall ty, CsrAccessPkt @# ty -> Bool @# ty)
+    (init : option (ConstT (Bit width)))
     :  Csr
     := {|
          csrName := name;
          csrAddr := addr;
          csrViews
-           := let fields := [ @csrFieldReadOnly name (Bit width) (Bit width) None ] in
+           := let fields := [ @csrFieldReadOnly name (Bit width) (Bit width) init ] in
               repeatCsrView 2
                 (@csrViewDefaultReadXform fields)
                 (@csrViewDefaultWriteXform fields);
@@ -510,7 +512,7 @@ Section CsrInterface.
 
     Definition csr_reg_csr_field_reg k (r: CsrFieldRegister k) :=
       (csrFieldRegisterName r, existT RegInitValT (SyntaxKind (csrFieldRegisterKind r)) (match csrFieldRegisterValue r with
-                                                                                         | None => Some (SyntaxConst (getDefaultConst (csrFieldRegisterKind r)))
+                                                                                         | None => None
                                                                                          | Some x => Some (SyntaxConst x)
                                                                                          end)).
    
