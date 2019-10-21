@@ -123,81 +123,50 @@ Section pmp.
 (*                      DispHex #mask; *)
 (*                      DispString _ "\n" *)
 (*                    ]; *)
-                   LETA addr_result
+                   GatherActions
+                     (map
+                       (fun index
+                         => LET offset
+                              :  Bit MemRqSize
+                              <- Const ty (natToWord MemRqSize (4 * index)%nat);
+                            If #offset < ($1 << addr_len)
+                              then
+                                LET curr_addr
+                                  :  PAddr
+                                  <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
+                                LET napot_match
+                                  :  Bool
+                                  <- ((CABit Bxor [#curr_addr; #tor]) & #mask) == $0;
+                                LET tor_match
+                                  :  Bool
+                                  <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);
+                                LET matched
+                                  :  Bool
+                                  <- IF #entry @% "cfg" @% "A" == $1
+                                       then #tor_match
+                                       else #napot_match;
+                                Ret (Valid #matched : Maybe Bool @# ty)
+                              else Ret Invalid
+                              as result;
+                            Ret #result)
+                       (seq 0 (div_up Rlen_over_8 4)))
+                     as match_results;
+                   LET addr_result
                      :  pmp_addr_acc_kind
-                     <- fold_left
-                          (fun (addr_acc_act : ActionT ty pmp_addr_acc_kind) index
-                            => LET offset
-                                 :  Bit MemRqSize
-                                 <- Const ty (natToWord MemRqSize (4 * index)%nat);
-                               (* System [ *)
-(*                                  DispString _ "[pmp_check] --------------------------------------------------\n"; *)
-(*                                  DispString _ "[pmp_check] offset: "; *)
-(*                                  DispHex #offset; *)
-(*                                  DispString _ "\n" *)
-(*                                ]; *)
-                               If #offset < ($1 << addr_len)
-                                 then
-                                   LETA addr_acc <- addr_acc_act;
-                                   LET curr_addr
-                                     :  PAddr
-                                     <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
-                                   LET napot_match
-                                     :  Bool
-                                     <- ((CABit Bxor [#curr_addr; #tor]) & #mask) == $0;
-                                   LET tor_match
-                                     :  Bool
-                                     <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);
-                                   LET matched
-                                     :  Bool
-                                     <- IF #entry @% "cfg" @% "A" == $1
-                                          then #tor_match
-                                          else #napot_match;
-                                   (* System [ *)
-(*                                      DispString _ "[pmp_check] addr acc: "; *)
-(*                                      DispHex #addr_acc; *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] curr addr: "; *)
-(*                                      DispHex #curr_addr; *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] curr_addr ^ tor: "; *)
-(*                                      DispHex (CABit Bxor [#curr_addr; #tor]); *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] napot reference: "; *)
-(*                                      DispHex ((CABit Bxor [#curr_addr; #tor]) & (ZeroExtendTruncLsb PAddrSz #mask)); *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] napot match: "; *)
-(*                                      DispHex #napot_match; *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] tor match: "; *)
-(*                                      DispHex #tor_match; *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] matched: "; *)
-(*                                      DispHex #matched; *)
-(*                                      DispString _ "\n" *)
-(*                                    ]; *)
-                                   Ret (STRUCT {
-                                     "any_matched" ::= ((#addr_acc @% "any_matched") || #matched);
-                                     "all_matched" ::= ((#addr_acc @% "all_matched") && #matched)
-                                   } : pmp_addr_acc_kind @# ty)
-                                 else
-                                   (* System [ *)
-(*                                      DispString _ "[pmp_check] offset greater than region length.\n"; *)
-(*                                      DispString _ "[pmp_check] addr_len: "; *)
-(*                                      DispHex addr_len; *)
-(*                                      DispString _ "\n"; *)
-(*                                      DispString _ "[pmp_check] offset: "; *)
-(*                                      DispHex #offset; *)
-(*                                      DispString _ "\n" *)
-(*                                    ]; *)
-                                   addr_acc_act
-                                 as result;
-                               Ret #result)
-                          (seq 0 (div_up Rlen_over_8 4))
-                          (Ret (STRUCT {
-                             "any_matched" ::= $$false;
-                             "all_matched" ::= $$true
-                           } : pmp_addr_acc_kind @# ty));
+                     <- STRUCT {
+                          "any_matched"
+                            ::= CABool Or
+                                  (map
+                                    (fun result : Maybe Bool @# ty
+                                      => result @% "valid" && result @% "data")
+                                    match_results);
+                          "all_matched"
+                            ::= CABool And
+                                  (map
+                                    (fun result : Maybe Bool @# ty
+                                      => !(result @% "valid") || result @% "data") 
+                                    match_results)
+                        } : pmp_addr_acc_kind @# ty;
                    LET isOff <- #entry @% "cfg" @% "A" == $0;
                    Ret (STRUCT {
                             "any_on"  ::= ((#acc @% "any_on") || !#isOff) ;
