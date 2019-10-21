@@ -117,7 +117,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ "ucause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "ucause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "ucause_code" (Bit 31) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -128,7 +128,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny _ "ucause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "ucause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "ucause_code" (Bit 63) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -222,9 +222,9 @@ Section csrs.
                   (@csrViewDefaultWriteXform _ fields);
            csrAccess := accessAny
          |};
-         simpleCsr "mcycle" (CsrIdWidth 'h"c00") 64 (fun ty => accessCounter "CY");
+         simpleCsr "mcycle" (CsrIdWidth 'h"c00") (Some (ConstBit (wzero 64))) (fun ty => accessCounter "CY");
          readonlyCsr "mtime" (CsrIdWidth 'h"c01") accessAny (Some (ConstBit (wzero 64)));
-         simpleCsr "minstret" (CsrIdWidth 'h"c02") 64 (fun ty => accessCounter "IR");
+         simpleCsr "minstret" (CsrIdWidth 'h"c02") (Some (ConstBit (wzero 64))) (fun ty => accessCounter "IR");
          {|
            csrName := "cycleh";
            csrAddr := CsrIdWidth 'h"c80";
@@ -478,7 +478,7 @@ Section csrs.
                 ];
            csrAccess := accessMModeOnly
          |};
-         simpleCsr "mcounteren" (CsrIdWidth 'h"306") 32 accessMModeOnly;
+         simpleCsr "mcounteren" (CsrIdWidth 'h"306") (Some (ConstBit (wzero 32))) accessMModeOnly;
          {|
            csrName := "mcountinhibit";
            csrAddr := CsrIdWidth 'h"320";
@@ -546,7 +546,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ "mcause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "mcause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "mcause_code" (Bit 31) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -557,7 +557,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny _ "mcause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "mcause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "mcause_code" (Bit 63) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -751,22 +751,22 @@ Section csrs.
                   => context @% "xlen" == $1 &&
                      context @% "mode" == $MachineMode
          |};
-         simpleCsr "pmpaddr0" (CsrIdWidth 'h"3b0") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr1" (CsrIdWidth 'h"3b1") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr2" (CsrIdWidth 'h"3b2") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr3" (CsrIdWidth 'h"3b3") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr4" (CsrIdWidth 'h"3b4") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr5" (CsrIdWidth 'h"3b5") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr6" (CsrIdWidth 'h"3b6") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr7" (CsrIdWidth 'h"3b7") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr8" (CsrIdWidth 'h"3b8") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr9" (CsrIdWidth 'h"3b9") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr10" (CsrIdWidth 'h"3ba") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr11" (CsrIdWidth 'h"3bb") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr12" (CsrIdWidth 'h"3bc") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr13" (CsrIdWidth 'h"3bd") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr14" (CsrIdWidth 'h"3be") pmp_reg_width accessMModeOnly;
-         simpleCsr "pmpaddr15" (CsrIdWidth 'h"3bf") pmp_reg_width accessMModeOnly;
+         simpleCsr "pmpaddr0" (CsrIdWidth 'h"3b0") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr1" (CsrIdWidth 'h"3b1") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr2" (CsrIdWidth 'h"3b2") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr3" (CsrIdWidth 'h"3b3") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr4" (CsrIdWidth 'h"3b4") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr5" (CsrIdWidth 'h"3b5") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr6" (CsrIdWidth 'h"3b6") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr7" (CsrIdWidth 'h"3b7") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr8" (CsrIdWidth 'h"3b8") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr9" (CsrIdWidth 'h"3b9") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr10" (CsrIdWidth 'h"3ba") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr11" (CsrIdWidth 'h"3bb") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr12" (CsrIdWidth 'h"3bc") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr13" (CsrIdWidth 'h"3bd") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr14" (CsrIdWidth 'h"3be") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr15" (CsrIdWidth 'h"3bf") (width := pmp_reg_width) None accessMModeOnly;
          {|
            csrName := "sstatus";
            csrAddr := CsrIdWidth 'h"100";
@@ -941,7 +941,7 @@ Section csrs.
                 ];
            csrAccess := accessSMode
          |};
-         simpleCsr "scounteren" (CsrIdWidth 'h"106") 32 accessSMode;
+         simpleCsr "scounteren" (CsrIdWidth 'h"106") (Some (ConstBit (wzero 32))) accessSMode;
          {|
            csrName := "sscratch";
            csrAddr := CsrIdWidth 'h"140";
@@ -993,7 +993,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @csrFieldAny _ "scause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "scause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "scause_code" (Bit 31) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -1004,7 +1004,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @csrFieldAny _ "scause_interrupt" Bool Bool None;
+                         @csrFieldAny _ "scause_interrupt" Bool Bool (Some (ConstBool false));
                          @csrFieldAny _ "scause_code" (Bit 63) (Bit (Xlen - 1)) None
                        ] in
                   {|
@@ -1313,7 +1313,7 @@ Section csrs.
                   (@csrViewUpperWriteXform _ fields);
                 csrAccess := accessDMode
          |};
-         simpleCsr "dpc" (CsrIdWidth 'h"7b1") Xlen accessDMode
+         simpleCsr "dpc" (CsrIdWidth 'h"7b1") (width := Xlen) None accessDMode
        ].
 
   Close Scope kami_expr.

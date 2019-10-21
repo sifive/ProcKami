@@ -207,7 +207,7 @@ Section debug.
                     @csrFieldAny _ "ackhavereset" Bool Bool (Some (ConstBool false));
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
                     @csrFieldAny _ "hasel" Bool Bool (Some (ConstBool false));
-                    @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) None;
+                    @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) (Some (ConstBit (wzero 20)));
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
                     @csrFieldAny _ "ndmreset" Bool Bool (Some (ConstBool false));
                     @csrFieldAny _ "dmactive" Bool Bool (Some (ConstBool false))
@@ -298,9 +298,9 @@ Section debug.
                   let fields
                     := [
                          @csrFieldAny _ "cmderr" (Bit 3) (Bit 3) None; (* side effect write reg *)
-                         @csrFieldAny _ "busy" Bool Bool None; (* side effect write reg *)
-                         @csrFieldAny _ "cmdtype" (Bit 8) (Bit 8) (Some (ConstBit (wzero 8)));
-                         @csrFieldAny _ "control" (Bit 24) (Bit 24) (Some (ConstBit (wzero 24)))
+                         @csrFieldAny _ "busy" Bool Bool (Some (ConstBool false)); (* side effect write reg *)
+                         @csrFieldAny _ "cmdtype" (Bit 8) (Bit 8) None;
+                         @csrFieldAny _ "control" (Bit 24) (Bit 24) None
                        ] in
                   {|
                     csrViewContext := fun ty => $0;
