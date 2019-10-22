@@ -6,6 +6,7 @@
 Require Import Kami.AllNotations.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
+Require Import StdLibKami.TagTranslator.
 Require Import List.
 Import ListNotations.
 Require Import BinNat.
@@ -93,6 +94,15 @@ Definition DRetTag := 4. (* 2 *)
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
 Definition RetCodeM := 24.
+
+Definition Ld  := 0.
+Definition St  := 1.
+Definition Lr  := 2.
+Definition Sc  := 3.
+Definition Amo := 4.
+
+Definition MemOp := Bit 3.
+Definition AmoOp := Bit 4.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -264,25 +274,6 @@ Section Params.
         "rl"         :: Bool ;
         "fence.i"    :: Bool
       }.
-
-  Definition MemoryInput := STRUCT_TYPE {
-                                "aq" :: Bool ;
-                                "rl" :: Bool ;
-                                "reservation" :: Array Rlen_over_8 Bool ;
-                                "mem" :: Data ;
-                                "reg_data" :: Data }.
-
-  Definition MemoryOutput := STRUCT_TYPE {
-                                 "aq" :: Bool ;
-                                 "rl" :: Bool ;
-                                 "isWr" :: Bool ;
-                                 "size" :: Bit (Nat.log2_up Rlen_over_8) ;
-                                 "mask" :: Array Rlen_over_8 Bool ;
-                                 "data" :: Data ;
-                                 "isLrSc" :: Bool ;
-                                 "reservation" :: Array Rlen_over_8 Bool ;
-                                 "tag" :: RoutingTag ;
-                                 "reg_data" :: Maybe Data }.
 
   Definition IntRegWrite := STRUCT_TYPE {
                              "addr" :: RegId ;
@@ -816,10 +807,17 @@ Section Params.
           decompressFn: (CompInst @# ty) -> (Inst ## ty)
         }.
 
+    Inductive MemEntry :=
+    | LdEntry
+    | StEntry
+    | LrEntry
+    | ScEntry
+    | AmoEntry (xform: Data @# ty -> Data @# ty).
+
     Record MemInstParams
       := {
           accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
-          memXform : MemoryInput ## ty -> MemoryOutput ## ty
+          memXform : MemEntry
        }.
 
     Record InstEntry ik ok :=
@@ -856,8 +854,6 @@ Section Params.
           pma_amo : PMAAmoClass
         }.
 
-    Inductive MemDeviceType := main_memory | io_device.
-
     Definition pmas_default
       := map
            (fun x
@@ -887,65 +883,39 @@ Section Params.
             => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
            (mmregs_dev_regs mmregs).
 
+    Definition MemDeviceRq := STRUCT_TYPE {
+                                  "memOp" :: MemOp ;
+                                  "amoOp" :: AmoOp ;
+                                  "addr"  :: PAddr ;
+                                  "mask"  :: DataMask ;
+                                  "data"  :: Data ;
+                                  "rqSz"  :: MemRqLgSize ;
+                                  "aq"    :: Bool ;
+                                  "rl"    :: Bool
+                                }.
+
+    Definition MemDeviceRs := STRUCT_TYPE {
+                                  "data" :: Data ;
+                                  "rsv"  :: Bool }.
+
     Record MemDevice
       := {
           mem_device_name : string;
-          mem_device_type : MemDeviceType; (* 3.5.1 *)
+          mem_device_io : bool; (* 3.5.1 *)
           mem_device_pmas : list PMA;
-          mem_device_read
-          : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
-          mem_device_write
-          : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
-          mem_device_read_resv
-          : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
-          mem_device_write_resv
-          : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
-          mem_device_file
-          : option ((list RegFileBase) + MMRegs)%type
+          mem_device_outstanding_num : nat;
+          mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
+                                     -> ActionT ty Bool;
+          mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
+          mem_device_file : option MMRegs%type
         }.
 
     Local Open Scope kami_action.
 
-    Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
-      :  ActionT ty Data 
-      := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
-           Ret $0.
-
-    Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
-      :  ActionT ty Bool
-      := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
-           Ret $$false.
-
-    Local Close Scope kami_action.
-
-    Definition mem_device_read_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
-      := List.nth_error (mem_device_read device ty) index.
-
-    Definition mem_device_write_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (MemWrite @# ty -> ActionT ty Bool)
-      := List.nth_error (mem_device_write device ty) index.
-
-    Definition get_mem_device_file (device: MemDevice) :=
-      match mem_device_file device with
-      | None => nil
-      | Some (inl x) => x
-      | Some _ => nil
-      end.
-    
-    Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
-
     Definition get_mem_device_regs (device: MemDevice) :=
       match mem_device_file device with
       | None => nil
-      | Some (inr x) => mmregs_regs x
-      | Some _ => nil
+      | Some x => mmregs_regs x
       end.
     
     Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
