@@ -94,6 +94,14 @@ Definition RetCodeU := 0.
 Definition RetCodeS := 8.
 Definition RetCodeM := 24.
 
+Definition Ld  := 0.
+Definition St  := 1.
+Definition Lr  := 2.
+Definition Sc  := 3.
+Definition Amo := 4.
+
+Definition MemOp := Bit 3.
+
 Record InstHints :=
   { hasRs1      : bool ;
     hasRs2      : bool ;
@@ -221,7 +229,7 @@ Section ParamDefinitions.
 End ParamDefinitions.
 
 Section Params.
-  Context `{procPrams: ProcParams}.
+  Context `{procParams: ProcParams}.
   
   Definition PrivModeWidth  := 2.
   Definition PrivMode       := Bit PrivModeWidth.
@@ -265,25 +273,6 @@ Section Params.
         "fence.i"    :: Bool
       }.
 
-  Definition MemoryInput := STRUCT_TYPE {
-                                "aq" :: Bool ;
-                                "rl" :: Bool ;
-                                "reservation" :: Array Rlen_over_8 Bool ;
-                                "mem" :: Data ;
-                                "reg_data" :: Data }.
-
-  Definition MemoryOutput := STRUCT_TYPE {
-                                 "aq" :: Bool ;
-                                 "rl" :: Bool ;
-                                 "isWr" :: Bool ;
-                                 "size" :: Bit (Nat.log2_up Rlen_over_8) ;
-                                 "mask" :: Array Rlen_over_8 Bool ;
-                                 "data" :: Data ;
-                                 "isLrSc" :: Bool ;
-                                 "reservation" :: Array Rlen_over_8 Bool ;
-                                 "tag" :: RoutingTag ;
-                                 "reg_data" :: Maybe Data }.
-
   Definition IntRegWrite := STRUCT_TYPE {
                              "addr" :: RegId ;
                              "data" :: Array 1 (Bit Xlen) }.
@@ -316,6 +305,18 @@ Section Params.
          "mepc" :: VAddr;
          "compressed?" :: Bool
        }.
+
+  Inductive LdExtend :=
+    | LdExtendZero
+    | LdExtendOne
+    | LdExtendSign.
+
+  Inductive MemEntry :=
+  | LdEntry (zeroExtend : LdExtend)
+  | StEntry
+  | LrEntry
+  | ScEntry
+  | AmoEntry (xform: forall ty, Data @# ty -> Data @# ty -> Data @# ty).
 
   Definition debug_hart_state
     := STRUCT_TYPE {
@@ -410,12 +411,6 @@ Section Params.
         "fs"               :: Bit 2;
         "xs"               :: Bit 2
       }.
-
-  Record MemInstParams
-    := {
-        accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
-        memXform : forall ty, MemoryInput ## ty -> MemoryOutput ## ty
-     }.
 
   Record InstEntry ik ok :=
     { instName     : string ;
@@ -856,8 +851,6 @@ Section Params.
           pma_amo : PMAAmoClass
         }.
 
-    Inductive MemDeviceType := main_memory | io_device.
-
     Definition pmas_default
       := map
            (fun x
@@ -881,71 +874,63 @@ Section Params.
           mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
         }.
 
-    Definition mmregs_regs (mmregs : MMRegs)
-      := map
-           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-            => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
-           (mmregs_dev_regs mmregs).
+    Section func_units.
+      Context `{func_units : list FUEntry}.
 
-     Record MemDevice
-       := {
-           mem_device_name : string;
-           mem_device_type : MemDeviceType; (* 3.5.1 *)
-           mem_device_pmas : list PMA;
-           mem_device_read
-           : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
-           mem_device_write
-           : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
-           mem_device_read_resv
-           : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
-           mem_device_write_resv
-           : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
-           mem_device_file
-           : option ((list RegFileBase) + MMRegs)%type
-         }.
+      Definition amoInstNames
+        :  list string
+        := concat
+             (map
+               (fun func_unit
+                 => map (@instName _ _)
+                      (filter
+                        (fun inst
+                          => match optMemParams inst with
+                             | Some params
+                               => match memXform params with
+                                  | AmoEntry _ => true
+                                  | _ => false
+                                  end
+                             | _ => false
+                             end)
+                        (fuInsts func_unit)))
+               func_units).
 
-    Local Open Scope kami_action.
+      Definition AmoOpWidth
+        := Nat.log2_up (length amoInstNames).
 
-    Local Definition null_read (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : PAddr @# ty) (_ : MemRqLgSize @# ty)
-      :  ActionT ty Data 
-      := System [DispString _ "[null_read] Error: reading an invalid device read port.\n"];
-           Ret $0.
+      Definition AmoOp
+        := Bit AmoOpWidth.
 
-    Local Definition null_write (ty : Kind -> Type) (_ : PrivMode @# ty) (_ : MemWrite @# ty)
-      :  ActionT ty Bool
-      := System [DispString _ "[null_write] Error: writing to an invalid device write port.\n"];
-           Ret $$false.
-
-    Local Close Scope kami_action.
-
-    Definition mem_device_read_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
-      := List.nth_error (mem_device_read device ty) index.
-
-    Definition mem_device_write_nth
-               (ty : Kind -> Type)
-               (device : MemDevice)
-               (index : nat)
-      :  option (MemWrite @# ty -> ActionT ty Bool)
-      := List.nth_error (mem_device_write device ty) index.
+      Definition MemDeviceRq := STRUCT_TYPE {
+                                    "memOp" :: MemOp ;
+                                    "amoOp" :: AmoOp ;
+                                    "addr"  :: PAddr ;
+                                    "mask"  :: DataMask ;
+                                    "data"  :: Data ;
+                                    "rqSz"  :: MemRqLgSize ;
+                                    "aq"    :: Bool ;
+                                    "rl"    :: Bool
+                                  }.
+      Definition MemDeviceRs := STRUCT_TYPE {
+                                    "data" :: Data ;
+                                    "rsv"  :: Bool }.
+      Record MemDevice
+        := {
+            mem_device_name : string;
+            mem_device_io : bool; (* 3.5.1 *)
+            mem_device_pmas : list PMA;
+            mem_device_outstanding_num : nat;
+            mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
+                                       -> ActionT ty Bool;
+            mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
+            mem_device_file : option MMRegs%type
+          }.
 
     Definition get_mem_device_file (device: MemDevice) :=
       match mem_device_file device with
       | None => nil
-      | Some (inl x) => x
-      | Some _ => nil
-      end.
-    
-    Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
-
-    Definition get_mem_device_regs (device: MemDevice) :=
-      match mem_device_file device with
-       | None => nil
-       | Some (inr x) => mmregs_regs x
-       | Some _ => nil
+      | Some x => mmregs_regs x
       end.
     
     Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
@@ -960,6 +945,8 @@ Section Params.
           mtbl_entry_width : N;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
+
+    End func_units.
 
   End Device.
 
