@@ -6,6 +6,7 @@
 Require Import Kami.AllNotations.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
+Require Import StdLibKami.TagTranslator.
 Require Import List.
 Import ListNotations.
 Require Import BinNat.
@@ -179,8 +180,6 @@ Class FpuParams
       fpu_exts_64        : list string
     }.
 
-
-
 Section ParamDefinitions.
   Context `{procParams: ProcParams}.
   Context `{fpuParams: FpuParams}.
@@ -317,6 +316,12 @@ Section Params.
   | LrEntry
   | ScEntry
   | AmoEntry (xform: forall ty, Data @# ty -> Data @# ty -> Data @# ty).
+
+  Record MemInstParams
+    := {
+        accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
+        memXform : MemEntry
+     }.
 
   Definition debug_hart_state
     := STRUCT_TYPE {
@@ -874,6 +879,12 @@ Section Params.
           mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
         }.
 
+    Definition mmregs_regs (mmregs : MMRegs)
+      := map
+           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
+            => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
+           (mmregs_dev_regs mmregs).
+
     Section func_units.
       Context `{func_units : list FUEntry}.
 
@@ -915,8 +926,13 @@ Section Params.
       Definition MemDeviceRs := STRUCT_TYPE {
                                     "data" :: Data ;
                                     "rsv"  :: Bool }.
+
+
+      Inductive MemDeviceType := main_memory | io_device.
+
       Record MemDevice
         := {
+(*
             mem_device_name : string;
             mem_device_io : bool; (* 3.5.1 *)
             mem_device_pmas : list PMA;
@@ -925,26 +941,68 @@ Section Params.
                                        -> ActionT ty Bool;
             mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
             mem_device_file : option MMRegs%type
+*)
+            mem_device_name : string;
+            mem_device_type : MemDeviceType; (* 3.5.1 *)
+            mem_device_pmas : list PMA;
+            mem_device_read
+            : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
+            mem_device_write
+            : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
+            mem_device_read_resv
+            : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
+            mem_device_write_resv
+            : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
+            mem_device_file
+            : option ((list RegFileBase) + MMRegs)%type
+         }.
+
+      Definition mem_device_read_nth
+                 (ty : Kind -> Type)
+                 (device : MemDevice)
+                 (index : nat)
+        :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
+        := List.nth_error (mem_device_read device ty) index.
+
+      Definition mem_device_write_nth
+                 (ty : Kind -> Type)
+                 (device : MemDevice)
+                 (index : nat)
+        :  option (MemWrite @# ty -> ActionT ty Bool)
+        := List.nth_error (mem_device_write device ty) index.
+
+      Definition get_mem_device_file (device: MemDevice) :=
+        match mem_device_file device with
+        | None => nil
+        | Some (inl x) => x
+        | Some _ => nil
+        end.
+
+      Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
+
+      Definition get_mem_device_regs (device: MemDevice) :=
+        match mem_device_file device with
+(*
+        | None => nil
+        | Some x => mmregs_regs x
+*)
+        | None => nil
+        | Some (inr x) => mmregs_regs x
+        | Some _ => nil
+        end.
+      
+      Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
+
+      Definition DeviceTag (mem_devices : list MemDevice)
+        := Bit (Nat.log2_up (length mem_devices)).
+
+      Record MemTableEntry
+             (mem_devices : list MemDevice)
+        := {
+            mtbl_entry_addr : N;
+            mtbl_entry_width : N;
+            mtbl_entry_device : Fin.t (length mem_devices)
           }.
-
-    Definition get_mem_device_file (device: MemDevice) :=
-      match mem_device_file device with
-      | None => nil
-      | Some x => mmregs_regs x
-      end.
-    
-    Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
-
-    Definition DeviceTag (mem_devices : list MemDevice)
-      := Bit (Nat.log2_up (length mem_devices)).
-
-    Record MemTableEntry
-           (mem_devices : list MemDevice)
-      := {
-          mtbl_entry_addr : N;
-          mtbl_entry_width : N;
-          mtbl_entry_device : Fin.t (length mem_devices)
-        }.
 
     End func_units.
 

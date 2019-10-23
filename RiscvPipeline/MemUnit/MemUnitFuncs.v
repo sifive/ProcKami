@@ -304,31 +304,67 @@ Section mem_unit.
                                  (* #mpaddr @% "fst" *)
                            (* VI. apply the memory transform to compute the write value *)
                            LETA mwrite_value
-                             :  Maybe MemoryOutput
+                             (* :  Maybe MemoryOutput *)
+                             :  Maybe Data
+                             <- Ret Invalid;
+(*
                              <- convertLetExprSyntax_ActionT
                                   (inst_db_get_pkt
                                     (fun _ _ tagged_inst
                                       => let inst := snd (tagged_inst) in
-                                         match optMemParams inst return MemoryOutput ## ty with
-                                           | Some params
-                                             => (((memXform params (ty := ty))
-                                                  (RetE
-                                                    (STRUCT {
-                                                      "aq" ::= input_pkt @% "aq" ;
-                                                      "rl" ::= input_pkt @% "rl" ;
-                                                      "reservation" ::= #read_reservation_result;
-                                                      "mem" ::= #read_result @% "data";
-                                                      "reg_data" ::= input_pkt @% "reg_data"
-                                                     } : MemoryInput @# ty))) : MemoryOutput ## ty)
-                                           | None (* impossible case *)
-                                             => RetE $$(getDefaultConst MemoryOutput)
-                                           end)
+                                         RetE
+                                           (match optMemParams inst (* return MemoryOutput ## ty *) with
+                                             | Some params
+                                               => match memXform params with
+                                                  | LdEntry _ => Invalid
+                                                  | StEntry => (input_pkt @% "reg_data")
+                                                  | LrEntry => Invalid
+                                                  | ScEntry => (input_pkt @% "reg_data")
+                                                  | AmoEntry xform
+                                                    => (xform
+                                                         (input_pkt @% "reg_data")
+                                                         (#read_result @% "data"))
+                                                  end
+(*
+                                               => (((memXform params (ty := ty))
+                                                    (RetE
+                                                      (STRUCT {
+                                                        "aq" ::= input_pkt @% "aq" ;
+                                                        "rl" ::= input_pkt @% "rl" ;
+                                                        "reservation" ::= #read_reservation_result;
+                                                        "mem" ::= #read_result @% "data";
+                                                        "reg_data" ::= input_pkt @% "reg_data"
+                                                       } : MemoryInput @# ty))) : MemoryOutput ## ty)
+*)
+                                             | None (* impossible case *)
+                                               (* => $$(getDefaultConst MemoryOutput) *)
+                                               => Invalid
+                                             end))
                                     func_unit_id
                                     inst_id);
+*)
                            LET write_mask
                              :  Array Rlen_over_8 Bool
-                             <- #mwrite_value @% "data" @% "mask";
-                           If #mwrite_value @% "data" @% "isWr"
+                             (* <- #mwrite_value @% "data" @% "mask"; *)
+                             <- $$(getDefaultConst (Array Rlen_over_8 Bool));
+(*
+                             <- convertLetExprSyntax_ActionT
+                                  (inst_db_get_pkt
+                                    (fun _ _ tagged_inst
+                                      => let inst := snd (tagged_inst) in
+                                         let size : nat
+                                           := match optMemParams inst (* return MemoryOutput ## ty *) with
+                                              | Some params => accessSize params
+                                              | None => 0
+                                              end in
+                                         RetE
+                                           (unpack (Array Rlen_over_8 Bool)
+                                             ($(pow2 (pow2 size) - 1))))
+                                    func_unit_id
+                                    inst_id);
+*)
+                           (* If #mwrite_value @% "data" @% "isWr" *)
+                           If #mwrite_value @% "valid"
                              then
                                (* VII. write to memory. *)
                                LETA write_result
@@ -336,7 +372,8 @@ Section mem_unit.
                                  <- mem_region_write 0
                                       (#pmp_result @% "fst" @% "fst")
                                       (#pmp_result @% "fst" @% "snd")
-                                      (#mwrite_value @% "data" @% "data" : Data @# ty)
+                                      (* (#mwrite_value @% "data" @% "data" : Data @# ty) *)
+                                      (#mwrite_value @% "data" : Data @# ty)
                                       (#write_mask : DataMask @# ty)
                                       (#msize @% "data");
                                Ret
@@ -351,22 +388,53 @@ Section mem_unit.
                              DispHex #write_result;
                              DispString _ "\n"
                            ];
-                           If #mwrite_value @% "data" @% "isLrSc"
+                           (* If #mwrite_value @% "data" @% "isLrSc" *)
+                           LETA mreservation
+                             :  Maybe Reservation
+                             <- Ret Invalid;
+(*
+                             <- convertLetExprSyntax_ActionT
+                                  (inst_db_get_pkt
+                                    (fun _ _ tagged_inst
+                                      => let inst := snd (tagged_inst) in
+                                         RetE
+                                           (match optMemParams inst (* return MemoryOutput ## ty *) with
+                                            | Some params
+                                              => match memXform params with
+                                                 | LrEntry
+                                                   => Valid $$(ConstArray
+                                                        (fun i : Fin.t Rlen_over_8
+                                                          => Nat.ltb (proj1_sig (Fin.to_nat i))
+                                                               (if Nat.eqb accessSize 2
+                                                                 then Xlen_over_8/2
+                                                                 else Xlen_over_8)))
+                                                 | _ => Invalid
+                                                 end
+                                            | None => Invalid
+                                            end))
+                                    func_unit_id
+                                    inst_id);
+*)
+                           If #mreservation @% "valid"
                              then
                                mem_region_write_resv
                                  (#pmp_result @% "fst" @% "fst")
                                  (#pmp_result @% "fst" @% "snd")
                                  (#write_mask : DataMask @# ty)
-                                 (#mwrite_value @% "data" @% "reservation")
+                                 (* (#mwrite_value @% "data" @% "reservation") *)
+                                 (#mreservation @% "data")
                                  (#msize @% "data");
                                  (* #mpaddr @% "fst" *)
                            LET memRet
                              :  MemRet
+                             <- $$(getDefaultConst MemRet);
+(*
                              <- STRUCT {
                                   "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
                                   "tag"  ::= #mwrite_value @% "data" @% "tag";
                                   "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
                                 } : MemRet @# ty;
+*)
                            mem_unit_exec_pkt #memRet #write_result
                        (*   else mem_unit_exec_pkt_access_fault addr $$false *)
                        (*   as result; *)
