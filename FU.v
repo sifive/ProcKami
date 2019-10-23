@@ -6,7 +6,6 @@
 Require Import Kami.AllNotations.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
-Require Import StdLibKami.TagTranslator.
 Require Import List.
 Import ListNotations.
 Require Import BinNat.
@@ -936,7 +935,6 @@ Section Params.
     Definition get_mem_device_file (device: MemDevice) :=
       match mem_device_file device with
       | None => nil
-      (* | Some x => mmregs_regs x *)
       | Some (inl x) => x
       | Some _ => nil
       end.
@@ -948,7 +946,6 @@ Section Params.
        | None => nil
        | Some (inr x) => mmregs_regs x
        | Some _ => nil
-
       end.
     
     Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
