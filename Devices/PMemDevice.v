@@ -50,7 +50,7 @@ Section mem_devices.
          Ret ($$true).
 
   End ty.
-(*
+
   Definition pMemDevice
     :  MemDevice
     := {|
@@ -98,17 +98,6 @@ Section mem_devices.
                   (Bit 8) (* rfData: Kind *)
                   (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _))])
        |}.
-*)
-  Section func_units.
-    Context `{func_units : list FUEntry}.
-
-    Definition memDeviceMod
-      :  BaseModule
-      := MODULE {
-           Method @^"request" (req : MemDeviceRq (func_units := func_units)) : Void := Retv
-         }.
-
-  End func_units.
 
   Close Scope kami_action.
   Close Scope kami_expr.

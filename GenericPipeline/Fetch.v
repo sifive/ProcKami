@@ -5,9 +5,8 @@ Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 Section fetch.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
-  Context `{func_units : list FUEntry}.
   
-  Variable mem_devices : list (MemDevice (func_units := func_units)).
+  Variable mem_devices : list MemDevice.
   Variable mem_table : list (MemTableEntry mem_devices).
 
   Open Scope kami_expr.

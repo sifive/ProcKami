@@ -293,10 +293,8 @@ Section exts.
   End ty.
 
   Definition mem_devices
-    :  list (@MemDevice procParams param_func_units)
+    :  list (@MemDevice procParams)
     := [
-(* TODO *)
-(*
          debugDevice   ;
          bootRomDevice ;
          msipDevice    ;
@@ -304,7 +302,6 @@ Section exts.
          mtimeDevice   ;
          pMemDevice    ;
          uartDevice    
-*)
        ].
 
   (* nat_lt n m : n < m *)
@@ -315,8 +312,6 @@ Section exts.
   Definition mem_table
     :  list (MemTableEntry mem_devices)
     := [
-(* TODO *)
-(*
          {|
            mtbl_entry_addr := hex"0";
            mtbl_entry_width := hex"1000";
@@ -352,22 +347,20 @@ Section exts.
            mtbl_entry_width := hex"80";
            mtbl_entry_device := (@nat_deviceTag 6 ltac:(nat_lt))
          |}
-*)
       ].
 
   (* verify tha the memory table is valid *)
-(* TODO *)
-(*
   Goal (mem_regions mem_table) <> [].
   Proof.
     unfold mem_regions, mem_table.
     discriminate.
   Qed.
-*)
+
   (* V. the model generator. *)
 
   Definition generate_model
     := processor
+         param_func_units
          mem_table.
 
   Close Scope kami_expr.

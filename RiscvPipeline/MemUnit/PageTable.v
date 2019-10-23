@@ -14,9 +14,9 @@ Import ListNotations.
 
 Section pt_walker.
   Context `{procParams: ProcParams}.
-  Context `{func_units : list FUEntry}.
+  Variable ty: Kind -> Type.
 
-  Variable mem_devices : list (MemDevice (func_units := func_units)).
+  Variable mem_devices : list MemDevice.
   Variable mem_table : list (MemTableEntry mem_devices).
   Local Definition DeviceTag := (DeviceTag mem_devices).
 
@@ -26,7 +26,6 @@ Section pt_walker.
   Local Open Scope kami_action.
 
   Section VirtMem.
-    Variable ty : Kind -> Type.
     Variable satp_mode: Bit SatpModeWidth @# ty.
     Variable mxr: Bool @# ty.
     Variable sum: Bool @# ty.

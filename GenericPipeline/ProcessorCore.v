@@ -38,7 +38,7 @@ Section Params.
 
     Variable supported_exts : list (string * bool).
     Variable func_units : list FUEntry.
-    Variable mem_devices : list (MemDevice (func_units := func_units)).
+    Variable mem_devices : list MemDevice.
     Variable mem_table : list (MemTableEntry mem_devices).
 
     Local Open Scope list.
@@ -220,9 +220,6 @@ Section Params.
                          ];
                        LETA mem_update_pkt
                          :  PktWithException ExecUpdPkt
-(* TODO *)
-                         <- Ret $$(getDefaultConst (PktWithException ExecUpdPkt));
-(*
                          <- MemUnit mem_table
                               (#cfg_pkt @% "extensions")
                               (#cfg_pkt @% "xlen")
@@ -232,7 +229,6 @@ Section Params.
                               (#exec_context_pkt @% "fst")
                               (#exec_update_pkt @% "fst")
                               (#csr_update_pkt @% "snd");
-*)
                        System
                          [
                            DispString _ "Memory Unit:\n";
@@ -304,9 +300,7 @@ Section Params.
                              intRegFile; 
                                floatRegFile; 
                                memReservationRegFile
-(* TODO *)
-                           (* ] ++ (mem_device_files mem_devices)))) in *)
-                           ]))) in
+                           ] ++ (mem_device_files mem_devices)))) in
          (createHideMod md (map fst (getAllMethods md))).
 
     Local Close Scope list.

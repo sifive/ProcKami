@@ -1,4 +1,3 @@
-(*
 Require Import Kami.All.
 Require Import ProcKami.FU.
 
@@ -85,4 +84,3 @@ Section device.
   Close Scope kami_expr.
 
 End device.
-*)

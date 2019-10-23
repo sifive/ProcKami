@@ -94,7 +94,7 @@ Section debug_device.
   Definition debug_device_arg1_addr := (debug_device_arg0_addr + Xlen)%nat.
 
   Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
-(*
+
   Definition debugDevice
     := @gen_reg_device procParams 
          (Nat.log2_up debug_device_regs_size)
@@ -107,7 +107,7 @@ Section debug_device.
                 |})
            (tag debug_device_regs))
          "debug_device" false.
-*)
+
   Close Scope kami_action.
   Close Scope kami_expr.
 

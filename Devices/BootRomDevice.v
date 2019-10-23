@@ -10,7 +10,7 @@ Section device.
 
   Open Scope kami_expr.
   Open Scope kami_action.
-(*
+
   Definition bootRomDevice
     :  MemDevice
     := {|
@@ -56,7 +56,7 @@ Section device.
                     (Bit 8)
                     (RFFile true true "boot_rom" 0 (pow2 lgMemSz) (fun _ => wzero _))])
        |}.
-*)
+
   Close Scope kami_action.
   Close Scope kami_expr.
 
