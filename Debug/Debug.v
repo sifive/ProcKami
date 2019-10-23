@@ -13,8 +13,6 @@ Import ListNotations.
 
 Section debug.
   Context `{procParams: ProcParams}.
-  Variable mem_devices : list MemDevice.
-  Variable mem_table : list (MemTableEntry mem_devices).
 
   Local Definition debug_num_harts := 1.
   Local Definition debug_hart_indexSz := Nat.log2_up debug_num_harts.
@@ -328,7 +326,7 @@ Section debug.
 
   Section ty.
     Variable ty : Kind -> Type.
-    Variable func_units : list (FUEntry ty).
+    Variable func_units : list FUEntry.
 
     (* III. Hart state functions. *)
 

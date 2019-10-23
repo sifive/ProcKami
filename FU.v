@@ -102,7 +102,6 @@ Definition Sc  := 3.
 Definition Amo := 4.
 
 Definition MemOp := Bit 3.
-Definition AmoOp := Bit 4.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -181,8 +180,6 @@ Class FpuParams
       fpu_exts_64        : list string
     }.
 
-
-
 Section ParamDefinitions.
   Context `{procParams: ProcParams}.
   Context `{fpuParams: FpuParams}.
@@ -231,7 +228,7 @@ Section ParamDefinitions.
 End ParamDefinitions.
 
 Section Params.
-  Context `{procPrams: ProcParams}.
+  Context `{procParams: ProcParams}.
   
   Definition PrivModeWidth  := 2.
   Definition PrivMode       := Bit PrivModeWidth.
@@ -308,6 +305,34 @@ Section Params.
          "compressed?" :: Bool
        }.
 
+  Inductive LdExtend :=
+    | LdExtendZero
+    | LdExtendOne
+    | LdExtendSign.
+
+  Inductive MemEntry :=
+  | LdEntry (zeroExtend : LdExtend)
+  | StEntry
+  | LrEntry
+  | ScEntry
+  | AmoEntry (xform: forall ty, Data @# ty -> Data @# ty -> Data @# ty).
+
+  Record MemInstParams
+    := {
+        accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
+        memXform : MemEntry
+     }.
+
+  Definition debug_hart_state
+    := STRUCT_TYPE {
+         "halted"    :: Bool; (* not executing instructions *)
+         "haltreq"   :: Bool;
+         "resumereq" :: Bool;
+         "resumeack" :: Bool;
+         "debug"     :: Bool; (* grant debug privileges when running. *)
+         "command"   :: Bool  (* hart selected to execute abstract command. *) 
+       }.
+
   Section Extensions.
     
     Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
@@ -377,6 +402,38 @@ Section Params.
                          end)%kami_expr.
 
   End Extensions.
+
+  Definition ContextCfgPkt :=
+    STRUCT_TYPE {
+        "xlen"             :: XlenValue;
+        "satp_mode"        :: Bit SatpModeWidth;
+        "debug_hart_state" :: debug_hart_state;
+        "mode"             :: PrivMode;
+        "tsr"              :: Bool;
+        "tvm"              :: Bool;
+        "tw"               :: Bool;
+        "extensions"       :: Extensions;
+        "fs"               :: Bit 2;
+        "xs"               :: Bit 2
+      }.
+
+  Record InstEntry ik ok :=
+    { instName     : string ;
+      xlens        : list nat ;
+      extensions   : list string ;
+      ext_ctxt_off : list string ;
+      uniqId       : UniqId ;        
+      inputXform   : forall ty, ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
+      outputXform  : forall ty, ok ## ty -> PktWithException ExecUpdPkt ## ty ;
+      optMemParams : option MemInstParams ;
+      instHints    : InstHints }.
+
+  Record FUEntry :=
+    { fuName    : string ;
+      fuInputK  : Kind ;
+      fuOutputK : Kind ;
+      fuFunc    : forall ty, fuInputK ## ty -> fuOutputK ## ty ;
+      fuInsts   : list (InstEntry fuInputK fuOutputK) }.
   
   Section Xlen.
     Definition ImplXlens' :=
@@ -759,30 +816,6 @@ Section Params.
                                else $Xlen64)%kami_expr.
     End XlenInterface.
     
-    Definition debug_hart_state
-      := STRUCT_TYPE {
-           "halted"    :: Bool; (* not executing instructions *)
-           "haltreq"   :: Bool;
-           "resumereq" :: Bool;
-           "resumeack" :: Bool;
-           "debug"     :: Bool; (* grant debug privileges when running. *)
-           "command"   :: Bool  (* hart selected to execute abstract command. *) 
-         }.
-
-    Definition ContextCfgPkt :=
-      STRUCT_TYPE {
-          "xlen"             :: XlenValue;
-          "satp_mode"        :: Bit SatpModeWidth;
-          "debug_hart_state" :: debug_hart_state;
-          "mode"             :: PrivMode;
-          "tsr"              :: Bool;
-          "tvm"              :: Bool;
-          "tw"               :: Bool;
-          "extensions"       :: Extensions;
-          "fs"               :: Bit 2;
-          "xs"               :: Bit 2
-        }.
-
     Local Open Scope kami_expr.
 
     (* See 3.1.1 and 3.1.15 *)
@@ -806,37 +839,6 @@ Section Params.
           comp_inst_id: UniqId;
           decompressFn: (CompInst @# ty) -> (Inst ## ty)
         }.
-
-    Inductive MemEntry :=
-    | LdEntry
-    | StEntry
-    | LrEntry
-    | ScEntry
-    | AmoEntry (xform: Data @# ty -> Data @# ty).
-
-    Record MemInstParams
-      := {
-          accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
-          memXform : MemEntry
-       }.
-
-    Record InstEntry ik ok :=
-      { instName     : string ;
-        xlens        : list nat ;
-        extensions   : list string ;
-        ext_ctxt_off : list string ;
-        uniqId       : UniqId ;        
-        inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
-        outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;
-        optMemParams : option MemInstParams ;
-        instHints    : InstHints }.
-
-    Record FUEntry :=
-      { fuName    : string ;
-        fuInputK  : Kind ;
-        fuOutputK : Kind ;
-        fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
-        fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
   End ty.
 
@@ -883,34 +885,59 @@ Section Params.
             => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
            (mmregs_dev_regs mmregs).
 
-    Definition MemDeviceRq := STRUCT_TYPE {
-                                  "memOp" :: MemOp ;
-                                  "amoOp" :: AmoOp ;
-                                  "addr"  :: PAddr ;
-                                  "mask"  :: DataMask ;
-                                  "data"  :: Data ;
-                                  "rqSz"  :: MemRqLgSize ;
-                                  "aq"    :: Bool ;
-                                  "rl"    :: Bool
-                                }.
+    Section func_units.
+      Context `{func_units : list FUEntry}.
 
-    Definition MemDeviceRs := STRUCT_TYPE {
-                                  "data" :: Data ;
-                                  "rsv"  :: Bool }.
+      Definition amoInstNames
+        :  list string
+        := concat
+             (map
+               (fun func_unit
+                 => map (@instName _ _)
+                      (filter
+                        (fun inst
+                          => match optMemParams inst with
+                             | Some params
+                               => match memXform params with
+                                  | AmoEntry _ => true
+                                  | _ => false
+                                  end
+                             | _ => false
+                             end)
+                        (fuInsts func_unit)))
+               func_units).
 
-    Record MemDevice
-      := {
-          mem_device_name : string;
-          mem_device_io : bool; (* 3.5.1 *)
-          mem_device_pmas : list PMA;
-          mem_device_outstanding_num : nat;
-          mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
-                                     -> ActionT ty Bool;
-          mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
-          mem_device_file : option MMRegs%type
-        }.
+      Definition AmoOpWidth
+        := Nat.log2_up (length amoInstNames).
 
-    Local Open Scope kami_action.
+      Definition AmoOp
+        := Bit AmoOpWidth.
+
+      Definition MemDeviceRq := STRUCT_TYPE {
+                                    "memOp" :: MemOp ;
+                                    "amoOp" :: AmoOp ;
+                                    "addr"  :: PAddr ;
+                                    "mask"  :: DataMask ;
+                                    "data"  :: Data ;
+                                    "rqSz"  :: MemRqLgSize ;
+                                    "aq"    :: Bool ;
+                                    "rl"    :: Bool
+                                  }.
+      Definition MemDeviceRs := STRUCT_TYPE {
+                                    "data" :: Data ;
+                                    "rsv"  :: Bool }.
+
+      Record MemDevice
+        := {
+            mem_device_name : string;
+            mem_device_io : bool; (* 3.5.1 *)
+            mem_device_pmas : list PMA;
+            mem_device_outstanding_num : nat;
+            mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
+                                       -> ActionT ty Bool;
+            mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
+            mem_device_file : option MMRegs%type
+          }.
 
     Definition get_mem_device_regs (device: MemDevice) :=
       match mem_device_file device with
@@ -930,6 +957,8 @@ Section Params.
           mtbl_entry_width : N;
           mtbl_entry_device : Fin.t (length mem_devices)
         }.
+
+    End func_units.
 
   End Device.
 

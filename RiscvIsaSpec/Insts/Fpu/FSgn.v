@@ -20,7 +20,6 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpuParams : FpuParams}.
-  Variable ty : Kind -> Type.
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -35,37 +34,41 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FSgnInput
-    (op : Bit 2 @# ty)
-    (_ : ContextCfgPkt @# ty)
-    (context_pkt_expr : ExecContextPkt ## ty)
-    :  FSgnInputType ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       LETC reg1
-         :  Bit fpu_len
-         <- fp_get_float Flen (#context_pkt @% "reg1");
-       LETC reg2
-         :  Bit fpu_len
-         <- fp_get_float Flen (#context_pkt @% "reg2");
-       RetE
-         (STRUCT {
-            "sign_bit"
-              ::= Switch op Retn (Bit 1) With {
-                    (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 #reg2;
-                    (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 #reg2);
-                    (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 #reg1) ^
-                                                    (ZeroExtendTruncMsb 1 #reg2))
-                  };
-            "arg1" ::= #reg1
-          } : FSgnInputType @# ty).
+  Section ty.
+    Variable ty : Kind -> Type.
+
+    Definition FSgnInput
+      (op : Bit 2 @# ty)
+      (_ : ContextCfgPkt @# ty)
+      (context_pkt_expr : ExecContextPkt ## ty)
+      :  FSgnInputType ## ty
+      := LETE context_pkt
+           <- context_pkt_expr;
+         LETC reg1
+           :  Bit fpu_len
+           <- fp_get_float Flen (#context_pkt @% "reg1");
+         LETC reg2
+           :  Bit fpu_len
+           <- fp_get_float Flen (#context_pkt @% "reg2");
+         RetE
+           (STRUCT {
+              "sign_bit"
+                ::= Switch op Retn (Bit 1) With {
+                      (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 #reg2;
+                      (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 #reg2);
+                      (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 #reg1) ^
+                                                      (ZeroExtendTruncMsb 1 #reg2))
+                    };
+              "arg1" ::= #reg1
+            } : FSgnInputType @# ty).
+  End ty.
 
   Definition FSgn
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "fsgn" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : FSgnInputType ## ty
+           := fun ty (sem_in_pkt_expr : FSgnInputType ## ty)
                 => LETE sem_in_pkt
                      :  FSgnInputType
                           <- sem_in_pkt_expr;
@@ -107,8 +110,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"000");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := FSgnInput $0;
-                  outputXform := id;
+                  inputXform  := fun ty => FSgnInput (ty := ty) $0;
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -125,8 +128,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := FSgnInput $1;
-                  outputXform := id;
+                  inputXform  := fun ty => FSgnInput (ty := ty) $1;
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -143,8 +146,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"010");
                          fieldVal rs3Field      ('b"00100")
                        ];
-                  inputXform  := FSgnInput $2;
-                  outputXform := id;
+                  inputXform  := fun ty => FSgnInput (ty := ty) $2;
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}

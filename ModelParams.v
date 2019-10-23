@@ -185,67 +185,67 @@ Section exts.
     Section func_units.
 
       Local Definition func_units 
-        :  list (@FUEntry procParams ty)
+        :  list (@FUEntry procParams)
         := [
-             MRet   _;
-             ECall  _;
-             Fence  _;
-             EBreak _;
-             Wfi    _;
+             MRet   ;
+             ECall  ;
+             Fence  ;
+             EBreak ;
+             Wfi    ;
 
              (* RVI logical instructions. *)
-             Add     _;
-             Logical _;
-             Shift   _;
-             Branch  _;
-             Jump    _;
-             Mult    _;
-             DivRem  _;
+             Add     ;
+             Logical ;
+             Shift   ;
+             Branch  ;
+             Jump    ;
+             Mult    ;
+             DivRem  ;
 
              (* RVI memory instructions. *)
-             Mem     _;
-             Amo32   _;
-             Amo64   _;
-             LrSc32  _;
-             LrSc64  _;
+             Mem     ;
+             Amo32   ;
+             Amo64   ;
+             LrSc32  ;
+             LrSc64  ;
 
              (* RVF instructions. *)
 
-             Float_double fpu_params_single fpu_params_double _;
-             Double_float fpu_params_single fpu_params_double _;
+             Float_double fpu_params_single fpu_params_double;
+             Double_float fpu_params_single fpu_params_double;
 
-             @Mac        _ fpu_params_single _;
-             @FMinMax    _ fpu_params_single _;
-             @FSgn       _ fpu_params_single _;
-             @FMv        _ fpu_params_single _;
-             @Float_word _ fpu_params_single _;
-             @Float_long _ fpu_params_single _;
-             @Word_float _ fpu_params_single _;
-             @Long_float _ fpu_params_single _;
-             @FCmp       _ fpu_params_single _;
-             @FClass     _ fpu_params_single _;
-             @FDivSqrt   _ fpu_params_single _;
+             @Mac        _ fpu_params_single;
+             @FMinMax    _ fpu_params_single;
+             @FSgn       _ fpu_params_single;
+             @FMv        _ fpu_params_single;
+             @Float_word _ fpu_params_single;
+             @Float_long _ fpu_params_single;
+             @Word_float _ fpu_params_single;
+             @Long_float _ fpu_params_single;
+             @FCmp       _ fpu_params_single;
+             @FClass     _ fpu_params_single;
+             @FDivSqrt   _ fpu_params_single;
 
-             @Mac        _ fpu_params_double _;
-             @FMinMax    _ fpu_params_double _;
-             @FSgn       _ fpu_params_double _;
-             @FMv        _ fpu_params_double _;
-             @Float_word _ fpu_params_double _;
-             @Float_long _ fpu_params_double _;
-             @Word_float _ fpu_params_double _;
-             @Long_float _ fpu_params_double _;
-             @FCmp       _ fpu_params_double _;
-             @FClass     _ fpu_params_double _;
-             @FDivSqrt   _ fpu_params_double _;
+             @Mac        _ fpu_params_double;
+             @FMinMax    _ fpu_params_double;
+             @FSgn       _ fpu_params_double;
+             @FMv        _ fpu_params_double;
+             @Float_word _ fpu_params_double;
+             @Float_long _ fpu_params_double;
+             @Word_float _ fpu_params_double;
+             @Long_float _ fpu_params_double;
+             @FCmp       _ fpu_params_double;
+             @FClass     _ fpu_params_double;
+             @FDivSqrt   _ fpu_params_double;
 
              (* RV Zicsr instructions. *)
-             Zicsr _
+             Zicsr
           ].
 
       Local Definition param_filter_xlens
             (fuInputK fuOutputK: Kind)
-        (e: @InstEntry procParams ty fuInputK fuOutputK)
-        : @InstEntry procParams ty fuInputK fuOutputK
+        (e: @InstEntry procParams fuInputK fuOutputK)
+        : @InstEntry procParams fuInputK fuOutputK
         := {| instName := instName e ;
               xlens := filter (fun x => existsb (Nat.eqb x) supported_xlens) (xlens e) ;
               extensions := extensions e ;
@@ -258,8 +258,8 @@ Section exts.
 
       Local Definition param_filter_insts
         (fuInputK fuOutputK : Kind)
-        :  list (@InstEntry procParams ty fuInputK fuOutputK) ->
-           list (@InstEntry procParams ty fuInputK fuOutputK)
+        :  list (@InstEntry procParams fuInputK fuOutputK) ->
+           list (@InstEntry procParams fuInputK fuOutputK)
         := filter
              (fun inst
                => andb
@@ -272,8 +272,8 @@ Section exts.
         extensions.
       *)
       Local Definition param_filter_func_unit
-        (func_unit : FUEntry ty)
-        :  FUEntry ty
+        (func_unit : FUEntry)
+        :  FUEntry
         := {|
              fuName  := fuName func_unit;
              fuFunc  := fuFunc func_unit;
@@ -281,11 +281,11 @@ Section exts.
            |}.
         
       Local Definition param_filter_func_units
-        :  list (@FUEntry procParams ty) -> list (@FUEntry procParams ty)
+        :  list (@FUEntry procParams) -> list (@FUEntry procParams)
         := filter (fun func_unit => negb (emptyb (fuInsts func_unit))).
 
       Definition param_func_units
-        :  list (@FUEntry procParams ty)
+        :  list (@FUEntry procParams)
         := param_filter_func_units (map param_filter_func_unit func_units).
 
     End func_units.
@@ -293,8 +293,10 @@ Section exts.
   End ty.
 
   Definition mem_devices
-    :  list (@MemDevice procParams)
+    :  list (@MemDevice procParams param_func_units)
     := [
+(* TODO *)
+(*
          debugDevice   ;
          bootRomDevice ;
          msipDevice    ;
@@ -302,6 +304,7 @@ Section exts.
          mtimeDevice   ;
          pMemDevice    ;
          uartDevice    
+*)
        ].
 
   (* nat_lt n m : n < m *)
@@ -312,6 +315,8 @@ Section exts.
   Definition mem_table
     :  list (MemTableEntry mem_devices)
     := [
+(* TODO *)
+(*
          {|
            mtbl_entry_addr := hex"0";
            mtbl_entry_width := hex"1000";
@@ -347,21 +352,23 @@ Section exts.
            mtbl_entry_width := hex"80";
            mtbl_entry_device := (@nat_deviceTag 6 ltac:(nat_lt))
          |}
+*)
       ].
 
   (* verify tha the memory table is valid *)
+(* TODO *)
+(*
   Goal (mem_regions mem_table) <> [].
   Proof.
     unfold mem_regions, mem_table.
     discriminate.
   Qed.
-
+*)
   (* V. the model generator. *)
 
   Definition generate_model
     := processor
-         mem_table
-         param_func_units.
+         mem_table.
 
   Close Scope kami_expr.
 

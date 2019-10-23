@@ -13,9 +13,9 @@ Import BinNat.
 
 Section pmem.
   Context `{procParams: ProcParams}.
-  Variable ty: Kind -> Type.
+  Context `{func_units : list FUEntry}.
 
-  Variable mem_devices : list MemDevice.
+  Variable mem_devices : list (MemDevice (func_units := func_units)).
 
   Variable mem_table : list (MemTableEntry mem_devices).
 
@@ -87,7 +87,7 @@ Section pmem.
 
   Definition mem_table_sort
     :  list (MemTableEntry mem_devices) -> list (MemTableEntry mem_devices)
-    := fold_right (mem_table_insert (@mtbl_entry_addr _ mem_devices)) [].
+    := fold_right (mem_table_insert (@mtbl_entry_addr _ _ mem_devices)) [].
 
   Definition mem_regions
     := match mem_table_regions (mem_table_sort mem_table) with
@@ -106,6 +106,7 @@ Section pmem.
   Open Scope kami_action.
 
   Section ty.
+    Variable ty : Kind -> Type.
 
     Local Definition mem_region_match
       (* (region_addr : N) *)
@@ -167,16 +168,16 @@ Section pmem.
       Note: we assume that device tags will always be valid given
       the constraints we apply in generating them.
      *)
-    Definition mem_device_apply ty
-      (mem_devices : list MemDevice)
+    Definition mem_device_apply
+      (mem_devices : list (MemDevice (func_units := func_units)))
       (deviceTag : DeviceTag mem_devices @# ty)
       (k : Kind)
-      (f : MemDevice -> ActionT ty k)
+      (f : MemDevice (func_units := func_units) -> ActionT ty k)
       :  ActionT ty k
       := LETA result
            <- utila_acts_find_pkt
                 (map
-                  (fun device : nat * MemDevice
+                  (fun device : nat * (MemDevice (func_units := func_units))
                     => If deviceTag == $(fst device)
                          then
                            LETA result <- f (snd device);
@@ -186,7 +187,7 @@ Section pmem.
                        Ret #result)
                   (tag mem_devices));
          Ret (#result @% "data").
-        
+
     Local Definition checkPMAs
       (access_type : VmAccessType @# ty)
       (paddr : PAddr @# ty)
@@ -279,6 +280,9 @@ Section pmem.
       (daddr : PAddr @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty (Maybe Data)
+(* TODO *)
+      := Ret Invalid.
+(*
       := mem_device_apply dtag 
            (fun device
              => match mem_device_read_nth ty device index with
@@ -304,6 +308,7 @@ Section pmem.
                        ];
                        Ret #result
                  end).
+*)
 
     Definition mem_region_write
       (index : nat)
@@ -313,6 +318,9 @@ Section pmem.
       (mask : DataMask @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty Bool
+(* TODO *)
+      := Ret $$false.
+(*
       := mem_device_apply dtag
            (fun device
              => match mem_device_write_nth ty device index with
@@ -326,17 +334,20 @@ Section pmem.
                             "size" ::= size
                           } : MemWrite @# ty)
                   end).
-
+*)
     Definition mem_region_read_resv
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty (Array Rlen_over_8 Bool)
+      := Ret $$(getDefaultConst (Array Rlen_over_8 Bool)).
+(* TODO *)
+(*
       := mem_device_apply dtag 
            (fun device
             => LETA result <- mem_device_read_resv device daddr size;
                  Ret #result).
-
+*)
     Definition mem_region_write_resv
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
@@ -344,9 +355,13 @@ Section pmem.
       (resv : Reservation @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty Void
+(* TODO *)
+      := Retv.
+(*
       := mem_device_apply dtag
            (fun device
             => mem_device_write_resv device daddr mask resv size).
+*)
   End ty.
 
   Close Scope kami_action.

@@ -87,7 +87,7 @@ Section mmapped.
               }).
 
     End ty.
-
+(*
     Definition gen_reg_device
       (device_name : string)
       (gen_regs : bool)
@@ -130,9 +130,9 @@ Section mmapped.
                         |})
                   else None
          |}.
-
+*)
   End params.
-
+(*
   Definition msipDevice
     := @gen_reg_device
          (Nat.log2_up 1)
@@ -165,7 +165,7 @@ Section mmapped.
              gr_name := @^"mtimecmp"
            |}
          ] "mtimecmp" false.
-
+*)
   Close Scope kami_action.
   Close Scope kami_expr.
 

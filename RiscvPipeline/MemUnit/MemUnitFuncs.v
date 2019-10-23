@@ -15,10 +15,9 @@ Import ListNotations.
 Section mem_unit.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
+  Context `{func_units : list FUEntry}.
 
-  Variable func_units : list (FUEntry ty).
-
-  Variable mem_devices : list MemDevice.
+  Variable mem_devices : list (MemDevice (func_units := func_units)).
 
   Variable mem_table : list (MemTableEntry mem_devices).
 
@@ -179,6 +178,9 @@ Section mem_unit.
     (inst_id : InstId func_units @# ty)
     (input_pkt : MemUnitInput @# ty)
     :  ActionT ty (PktWithException MemRet)
+(* TODO *)
+    := Ret $$(getDefaultConst (PktWithException MemRet)).
+(*
     := (* I. does the instruction perform a memory operation? *)
        System [
          DispString _ "[mem_unit_exec] input pkt:\n";
@@ -396,7 +398,7 @@ Section mem_unit.
            DispString _ "\n"
          ];
        Ret #result.
-
+*)
   Definition MemUnit
     (exts : Extensions @# ty)
     (xlen : XlenValue @# ty)

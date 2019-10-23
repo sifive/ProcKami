@@ -12,8 +12,6 @@ Import ListNotations.
 Section zicsr.
   Context `{procParams: ProcParams}.
 
-  Variable ty : Kind -> Type.
-
   Definition ZicsrOpWidth : nat := 2.
   Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
   Definition zicsrOpWrite := 0.
@@ -28,11 +26,11 @@ Section zicsr.
 
   Local Open Scope kami_expr.
 
-  Definition Zicsr : FUEntry ty
+  Definition Zicsr : FUEntry
     := {|
         fuName := "zicsr";
         fuFunc
-        := fun sem_in_pkt_expr : ZicsrInput ## ty
+        := fun ty (sem_in_pkt_expr : ZicsrInput ## ty)
            => LETE sem_in_pkt
               :  ZicsrInput
                    <- sem_in_pkt_expr;
@@ -82,7 +80,7 @@ Section zicsr.
                     fieldVal funct3Field   ('b"001")
                 ];
               inputXform
-              := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+              := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                  => LETE exec_context_pkt
                     :  ExecContextPkt
                          <- exec_context_pkt_expr;
@@ -94,7 +92,7 @@ Section zicsr.
                              (ZeroExtendTruncLsb CsrValueWidth
                                 (#exec_context_pkt @% "reg1"))
                    } : ZicsrInput @# ty);
-              outputXform := id;
+              outputXform := fun ty => id;
               optMemParams := None;
               instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
             |};
@@ -110,7 +108,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"010")
                   ];
                 inputXform
-                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+                := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -122,7 +120,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                outputXform := fun ty => id;
                 optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
@@ -138,7 +136,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"011")
                   ];
                 inputXform
-                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+                := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -150,7 +148,7 @@ Section zicsr.
                                (ZeroExtendTruncLsb CsrValueWidth
                                  (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                outputXform := fun ty => id;
                 optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
@@ -166,7 +164,7 @@ Section zicsr.
                       fieldVal funct3Field ('b"101")
                   ];
                 inputXform
-                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+                := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -178,7 +176,7 @@ Section zicsr.
                              (ZeroExtendTruncLsb CsrValueWidth
                                (rs1 (#exec_context_pkt @% "inst")))
                      } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                outputXform := fun ty => id;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
@@ -194,7 +192,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"110")
                   ];
                 inputXform
-                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+                := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -206,7 +204,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                outputXform := fun ty => id;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
@@ -222,7 +220,7 @@ Section zicsr.
                       fieldVal funct3Field   ('b"111")
                   ];
                 inputXform
-                := fun (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
+                := fun ty (_ : ContextCfgPkt @# ty) exec_context_pkt_expr
                    => LETE exec_context_pkt
                       :  ExecContextPkt
                            <- exec_context_pkt_expr;
@@ -234,7 +232,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
-                outputXform := fun pkt => pkt;
+                outputXform := fun ty => id;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |}

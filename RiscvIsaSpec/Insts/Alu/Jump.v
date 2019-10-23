@@ -65,101 +65,104 @@ Section Alu.
                 >});
          RetE (#sem_output @%["newPc" <- #newPc]).
 
-    Definition Jump: FUEntry ty
-      := {|
-           fuName := "jump";
-           fuFunc
-             := fun sem_in_pkt_expr : JumpInputType ## ty
-                  => LETE sem_in_pkt
-                       :  JumpInputType
-                       <- sem_in_pkt_expr;
-                     LETC new_pc
-                       :  VAddr
-                       <- #sem_in_pkt @% "new_pc";
-                     RetE
-                       (STRUCT {
-                          "misaligned?"
-                          ::= !($$allow_inst_misaligned) &&
-                               ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0);
-                          "newPc" ::= #new_pc;
-                          "retPc"
-                            ::= ((#sem_in_pkt @% "pc") +
-                                 (IF (#sem_in_pkt @% "compressed?")
-                                    then $2
-                                    else $4))
-                        } : JumpOutputType @# ty);
-           fuInsts
-             := {|
-                  instName     := "jal" ; 
-                  xlens        := xlens_all;
-                  extensions   := "I" :: nil;
-                  ext_ctxt_off := nil;
-                  uniqId       := fieldVal instSizeField ('b"11") ::
-                                  fieldVal opcodeField ('b"11011") ::
-                                  nil;
-                  inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) exec_context_pkt
-                         => LETE exec_pkt
-                              <- exec_context_pkt;
-                            LETC inst
-                              :  Inst
-                              <- #exec_pkt @% "inst";
-                            RetE
-                              (STRUCT {
-                                 "pc" ::= #exec_pkt @% "pc";
-                                 "new_pc"
-                                   ::= ((#exec_pkt @% "pc") +
-                                        (SignExtendTruncLsb Xlen 
-                                           ({<
-                                             (#inst $[31:31]),
-                                             (#inst $[19:12]),
-                                             (#inst $[20:20]),
-                                             (#inst $[30:21]),
-                                             $$ WO~0
-                                           >})));
-                                  "compressed?" ::= (#exec_pkt @% "compressed?")
-                               } : JumpInputType @# ty);
-                  outputXform  := jumpTag;
-                  optMemParams  := None ;
-                  instHints    := falseHints<|hasRd := true|>
-                |} ::
-                {| instName     := "jalr" ; 
-                   xlens        := xlens_all;
-                   extensions   := "I" :: nil;
-                   ext_ctxt_off := nil;
-                   uniqId       := fieldVal instSizeField ('b"11") ::
-                                   fieldVal opcodeField ('b"11001") ::
-                                   nil;
-                   inputXform
-                     := fun (cfg_pkt : ContextCfgPkt @# ty) expr_context_pkt
-                          => LETE exec_pkt
-                               <- expr_context_pkt;
-                             LETC inst
-                               :  Inst
-                               <- #exec_pkt @% "inst";
-                             RetE
-                               (STRUCT {
-                                  "pc" ::= #exec_pkt @% "pc";
-                                  "new_pc"
-                                    ::= SignExtendTruncLsb Xlen (* bit type cast *)
-                                          ({<
-                                            ZeroExtendTruncMsb (Xlen - 1)
-                                              ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#exec_pkt @% "reg1")) +
-                                               (SignExtendTruncLsb Xlen (imm #inst))),
-                                            $$ WO~0
-                                          >});
-                                  "compressed?" ::= (#exec_pkt @% "compressed?")
-                                } : JumpInputType @# ty);
-                   outputXform  := fun (sem_output_expr : JumpOutputType ## ty)
-                                     => jumpTag (transPC sem_output_expr);
-                   optMemParams  := None ;
-                   instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
-                |} ::
-                nil
-         |}.
-
     Local Close Scope kami_expr.
 
   End Ty.
 
+  Local Open Scope kami_expr.
+
+  Definition Jump: FUEntry
+    := {|
+         fuName := "jump";
+         fuFunc
+           := fun ty (sem_in_pkt_expr : JumpInputType ## ty)
+                => LETE sem_in_pkt
+                     :  JumpInputType
+                     <- sem_in_pkt_expr;
+                   LETC new_pc
+                     :  VAddr
+                     <- #sem_in_pkt @% "new_pc";
+                   RetE
+                     (STRUCT {
+                        "misaligned?"
+                        ::= !($$allow_inst_misaligned) &&
+                             ((unsafeTruncLsb 2 #new_pc)$[1:1] != $0);
+                        "newPc" ::= #new_pc;
+                        "retPc"
+                          ::= ((#sem_in_pkt @% "pc") +
+                               (IF (#sem_in_pkt @% "compressed?")
+                                  then $2
+                                  else $4))
+                      } : JumpOutputType @# ty);
+         fuInsts
+           := {|
+                instName     := "jal" ; 
+                xlens        := xlens_all;
+                extensions   := "I" :: nil;
+                ext_ctxt_off := nil;
+                uniqId       := fieldVal instSizeField ('b"11") ::
+                                fieldVal opcodeField ('b"11011") ::
+                                nil;
+                inputXform 
+                  := fun ty (cfg_pkt : ContextCfgPkt @# ty) exec_context_pkt
+                       => LETE exec_pkt
+                            <- exec_context_pkt;
+                          LETC inst
+                            :  Inst
+                            <- #exec_pkt @% "inst";
+                          RetE
+                            (STRUCT {
+                               "pc" ::= #exec_pkt @% "pc";
+                               "new_pc"
+                                 ::= ((#exec_pkt @% "pc") +
+                                      (SignExtendTruncLsb Xlen 
+                                         ({<
+                                           (#inst $[31:31]),
+                                           (#inst $[19:12]),
+                                           (#inst $[20:20]),
+                                           (#inst $[30:21]),
+                                           $$ WO~0
+                                         >})));
+                                "compressed?" ::= (#exec_pkt @% "compressed?")
+                             } : JumpInputType @# ty);
+                outputXform  := jumpTag;
+                optMemParams  := None ;
+                instHints    := falseHints<|hasRd := true|>
+              |} ::
+              {| instName     := "jalr" ; 
+                 xlens        := xlens_all;
+                 extensions   := "I" :: nil;
+                 ext_ctxt_off := nil;
+                 uniqId       := fieldVal instSizeField ('b"11") ::
+                                 fieldVal opcodeField ('b"11001") ::
+                                 nil;
+                 inputXform
+                   := fun ty (cfg_pkt : ContextCfgPkt @# ty) expr_context_pkt
+                        => LETE exec_pkt
+                             <- expr_context_pkt;
+                           LETC inst
+                             :  Inst
+                             <- #exec_pkt @% "inst";
+                           RetE
+                             (STRUCT {
+                                "pc" ::= #exec_pkt @% "pc";
+                                "new_pc"
+                                  ::= SignExtendTruncLsb Xlen (* bit type cast *)
+                                        ({<
+                                          ZeroExtendTruncMsb (Xlen - 1)
+                                            ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#exec_pkt @% "reg1")) +
+                                             (SignExtendTruncLsb Xlen (imm #inst))),
+                                          $$ WO~0
+                                        >});
+                                "compressed?" ::= (#exec_pkt @% "compressed?")
+                              } : JumpInputType @# ty);
+                 outputXform  := fun ty (sem_output_expr : JumpOutputType ## ty)
+                                   => jumpTag (transPC sem_output_expr);
+                 optMemParams  := None ;
+                 instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
+              |} ::
+              nil
+       |}.
+
+  Close Scope kami_expr.
 End Alu.

@@ -10,15 +10,13 @@ Import ListNotations.
 Section mret.
   Context `{procParams: ProcParams}.
 
-  Variable ty: Kind -> Type.
-
   Local Open Scope kami_expr.
 
-  Definition MRet : FUEntry ty
+  Definition MRet : FUEntry
     := {|
          fuName := "mret";
          fuFunc
-           := fun in_pkt_expr : Pair Inst Bool ## ty
+           := fun ty (in_pkt_expr : Pair Inst Bool ## ty)
                 => LETE in_pkt : Pair Inst Bool <- in_pkt_expr;
                    RetE
                      (STRUCT {
@@ -53,14 +51,14 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun _ context_pkt_expr
+                    := fun ty _ context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
                             RetE
                               (STRUCT {
                                  "fst" ::= #context_pkt @% "inst";
                                  "snd" ::= $$false
                                } : Pair Inst Bool @# ty);
-                  outputXform := id;
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |};
@@ -80,14 +78,14 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun cfg_pkt context_pkt_expr
+                    := fun ty cfg_pkt context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
                             RetE
                               (STRUCT {
                                  "fst" ::= #context_pkt @% "inst";
                                  "snd" ::= (cfg_pkt @% "mode" == $SupervisorMode) && cfg_pkt @% "tsr"
                                } : Pair Inst Bool @# ty);
-                  outputXform := id;
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |};
@@ -107,25 +105,25 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun _ context_pkt_expr
+                    := fun ty _ context_pkt_expr
                          => LETE context_pkt <- context_pkt_expr;
                             RetE
                               (STRUCT {
                                  "fst" ::= #context_pkt @% "inst";
                                  "snd" ::= $$false
                                } : Pair Inst Bool @# ty);
-                  outputXform := id;
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
        |}.
 
-  Definition DRet : FUEntry ty
+  Definition DRet : FUEntry
     := {|
          fuName := "dret";
          fuFunc
-           := fun in_pkt_expr : Bool ## ty
+           := fun ty (in_pkt_expr : Bool ## ty)
                 => RetE (STRUCT {
                        "fst"
                          ::= (noUpdPkt ty)
@@ -155,20 +153,20 @@ Section mret.
                        ];
 
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) _
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
                          => RetE ((cfg_pkt @% "debug_hart_state" @% "debug") : Bool @# ty);
-                  outputXform  := id;
+                  outputXform  := fun ty => id;
                   optMemParams := None;
                   instHints    := falseHints
                 |}
               ]
        |}.
 
-  Definition ECall : FUEntry ty
+  Definition ECall : FUEntry
     := {|
          fuName := "ecall";
          fuFunc
-           := (fun mode_pkt : PrivMode ## ty
+           := (fun ty (mode_pkt : PrivMode ## ty)
                => LETE mode : PrivMode <- mode_pkt;
                     LETC sndVal <- Switch #mode Retn Exception With {
                                          Const ty (natToWord PrivModeWidth MachineMode)
@@ -199,19 +197,19 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (cfg_pkt @% "mode");
-                  outputXform := id;
+                  inputXform  := fun ty (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (cfg_pkt @% "mode");
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
        |}.
 
-  Definition Fence : FUEntry ty
+  Definition Fence : FUEntry
     := {|
          fuName := "fence";
          fuFunc
-           := fun in_pkt : Maybe Inst ## ty
+           := fun ty (in_pkt : Maybe Inst ## ty)
                 => LETE inst : Maybe Inst <- in_pkt;
                    RetE
                      (STRUCT {
@@ -235,8 +233,8 @@ Section mret.
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun _ _ => RetE Invalid;
-                  outputXform := fun (upkt: PktWithException ExecUpdPkt ## ty) =>
+                  inputXform  := fun ty _ _ => RetE (Invalid : Maybe Inst @# ty);
+                  outputXform := fun ty (upkt: PktWithException ExecUpdPkt ## ty) =>
                                    LETE u: (PktWithException ExecUpdPkt) <- upkt;
                                    RetE (#u @%["fst" <- ((#u @% "fst") @%["fence.i" <- $$ true])]);
                   optMemParams := None;
@@ -253,8 +251,8 @@ Section mret.
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun _ _ => RetE Invalid;
-                  outputXform := id;
+                  inputXform  := fun ty _ _ => RetE (Invalid : Maybe Inst @# ty);
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |};
@@ -272,25 +270,25 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) (gcpin : ExecContextPkt ## ty)
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) (gcpin : ExecContextPkt ## ty)
                          => LETE gcp : ExecContextPkt <- gcpin;
                             (RetE
                               (IF cfg_pkt @% "tvm"
                                 then Valid (#gcp @% "inst")
                                 else @Invalid ty Inst
                                 ) :  Maybe Inst ## ty);
-                  outputXform := id;
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
        |}.
 
-  Definition EBreak : FUEntry ty
+  Definition EBreak : FUEntry
     := {|
          fuName := "ebreak";
          fuFunc
-           := (fun in_pkt : Inst ## ty
+           := (fun ty (in_pkt : Inst ## ty)
                => LETE inst : Inst <- in_pkt;
                   LETC exception
                     <- Valid ($Breakpoint: Exception @# ty);
@@ -318,21 +316,21 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform 
-                    := fun _ (gcpin : ExecContextPkt ## ty)
+                    := fun ty _ (gcpin : ExecContextPkt ## ty)
                          => LETE gcp : ExecContextPkt <- gcpin;
                             RetE (#gcp @% "inst");
-                  outputXform := id;
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints
                 |}
               ]
        |}.
 
-  Definition Wfi : FUEntry ty
+  Definition Wfi : FUEntry
     := {|
          fuName := "wfi";
          fuFunc
-           := fun trap_expr : Bool ## ty
+           := fun ty (trap_expr : Bool ## ty)
                 => LETE trap : Bool <- trap_expr;
                    SystemE [
                      DispString _ "[wfi]\n"
@@ -366,9 +364,9 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
                   inputXform
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) _
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
                          => RetE ((!(cfg_pkt @% "debug_hart_state" @% "debug")) && cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
-                  outputXform := id; 
+                  outputXform := fun ty => id; 
                   optMemParams := None;
                   instHints   := falseHints
                 |}

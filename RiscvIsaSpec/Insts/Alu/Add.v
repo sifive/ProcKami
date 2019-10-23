@@ -23,9 +23,9 @@ Section Alu.
 
     Local Open Scope kami_expr.
 
-    Definition Add: FUEntry ty :=
+    Definition Add: FUEntry :=
       {| fuName := "add" ;
-         fuFunc := (fun i => LETE x: AddInputType <- i;
+         fuFunc := (fun ty i => LETE x: AddInputType <- i;
                                LETC a: Bit (Xlen + 1) <- #x @% "arg1";
                                LETC b: Bit (Xlen + 1) <- #x @% "arg2";
                                LETC res: Bit (Xlen + 1) <- #a + #b ;
@@ -41,12 +41,12 @@ Section Alu.
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"000") :: nil ;
-                       inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                       inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                        RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                        "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                        "arg2" ::= SignExtendTruncLsb (Xlen + 1) (imm (#gcp @% "inst"))
                                                              }): AddInputType @# _)) ;
-                       outputXform  := (fun resultExpr : AddOutputType ## ty
+                       outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                          => LETE res <- resultExpr;
                                             RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
                        optMemParams  := None ;
@@ -59,13 +59,13 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"010") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (SignExtendTruncLsb
                                                                                             (Xlen + 1) (imm (#gcp @% "inst")))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen #resultMsb)));
@@ -79,7 +79,7 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"011") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin
                                              => LETE gcp: ExecContextPkt <- gcpin;
                                                 RetE
                                                   ((STRUCT {
@@ -87,7 +87,7 @@ Section Alu.
                                                     "arg1" ::= ZeroExtendTruncLsb (Xlen + 1) (xlen_sign_extend (Xlen) (cfg_pkt @% "xlen") (#gcp @% "reg1"));
                                                     "arg2" ::= neg (ZeroExtendTruncLsb (Xlen + 1) (SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))))
                                                   }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen #resultMsb))) ;
@@ -102,12 +102,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
                           optMemParams  := None ;
@@ -121,12 +121,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")))) ;
                           optMemParams  := None ;
@@ -140,12 +140,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"010") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                LETC resultMsb : Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res") ;
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen (#resultMsb)))) ;
@@ -160,14 +160,14 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"011") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin
                                             => LETE gcp: ExecContextPkt <- gcpin;
                                                RetE ((STRUCT {
                                                  "xlen"  ::= (cfg_pkt @% "xlen");
                                                  "arg1" ::= xlen_zero_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                  "arg2" ::= neg (xlen_zero_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2"))
                                                }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty 
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                LETC resultMsb: Bit 1 <- UniBit (TruncMsb _ 1) (#res @% "res");
                                                RetE (intRegTag (ZeroExtendTruncLsb Rlen (#resultMsb)))) ;
@@ -184,7 +184,7 @@ Section Alu.
                                fieldVal funct3Field ('b"000") ::
                                nil;
                           inputXform  
-                            := fun (cfg_pkt : ContextCfgPkt @# ty) gcpin
+                            := fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin
                                  => LETE gcp
                                       :  ExecContextPkt
                                       <- gcpin;
@@ -195,7 +195,7 @@ Section Alu.
                                          "arg2" ::= SignExtendTruncLsb (Xlen + 1) (imm (#gcp @% "inst")) 
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr : AddOutputType ## ty
+                            := fun ty (resultExpr : AddOutputType ## ty)
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")));
                           optMemParams  := None ;
@@ -209,12 +209,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") :: 
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res")))) ;
                           optMemParams  := None ;
@@ -228,12 +228,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01110") ::
                                                    fieldVal funct3Field ('b"000") ::
                                                    fieldVal funct7Field ('b"0100000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "xlen"  ::= (cfg_pkt @% "xlen");
                                                                           "arg1" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg1");
                                                                           "arg2" ::= neg (xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "reg2"))
                                                                 }): AddInputType @# _)) ;
-                          outputXform  := (fun resultExpr : AddOutputType ## ty
+                          outputXform  := (fun ty (resultExpr : AddOutputType ## ty)
                                             => LETE res <- resultExpr;
                                                RetE (intRegTag (sign_extend_trunc 32 Rlen (#res @% "res"))));
                           optMemParams  := None ;
@@ -248,7 +248,7 @@ Section Alu.
                                fieldVal opcodeField ('b"01101") ::
                                nil;
                           inputXform
-                            := fun (cfg_pkt : ContextCfgPkt @# ty) gcpin
+                            := fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin
                                  => LETE gcp
                                       :  ExecContextPkt
                                       <- gcpin;
@@ -265,7 +265,7 @@ Section Alu.
                                          "arg2" ::= $0
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr : AddOutputType ## ty
+                            := fun ty (resultExpr : AddOutputType ## ty)
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
                           optMemParams  := None ;
@@ -280,7 +280,7 @@ Section Alu.
                                fieldVal opcodeField ('b"00101") ::
                                nil;
                           inputXform
-                            := fun (cfg_pkt : ContextCfgPkt @# ty) gcpin
+                            := fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin
                                  => LETE gcp: ExecContextPkt <- gcpin;
                                     RetE
                                       (STRUCT {
@@ -294,7 +294,7 @@ Section Alu.
                                          "arg2" ::= xlen_sign_extend (Xlen + 1) (cfg_pkt @% "xlen") (#gcp @% "pc")
                                        }: AddInputType @# _);
                           outputXform
-                            := fun resultExpr : AddOutputType ## ty
+                            := fun ty (resultExpr : AddOutputType ## ty)
                                  => LETE res <- resultExpr;
                                     RetE (intRegTag (xlen_sign_extend Rlen (#res @% "xlen") (#res @% "res")));
                           optMemParams  := None ;

@@ -4,10 +4,9 @@ Require Import ProcKami.GenericPipeline.Decompressor.
 
 Section decoder.
   Context `{procParams: ProcParams}.
-  Variable ty: Kind -> Type.
 
   (* instruction database parameters. *)
-  Variable func_units : list (FUEntry ty).
+  Variable func_units : list FUEntry.
 
   (* instruction database ids. *)
   Definition FuncUnitIdWidth := Nat.log2_up (length func_units).
@@ -57,6 +56,7 @@ Section decoder.
   Definition tag := @tag' 0.
 
   Section Decoder.
+    Variable ty : Kind -> Type.
     Local Open Scope kami_expr.
 
     (* decode functions *)
@@ -67,19 +67,19 @@ Section decoder.
     *)
     Definition inst_db_find_pkt
         (result_kind : Kind)
-        (p : forall func_unit : FUEntry ty,
+        (p : forall func_unit : FUEntry,
                nat ->
-               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
                Bool ## ty)
-        (f : forall func_unit : FUEntry ty,
+        (f : forall func_unit : FUEntry,
                nat ->
-               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
                result_kind ## ty)
 
       :  Maybe result_kind ## ty
       := utila_expr_find_pkt
            (map
-              (fun tagged_func_unit : (nat * FUEntry ty)
+              (fun tagged_func_unit : (nat * FUEntry)
                  => let (func_unit_id, func_unit)
                       := tagged_func_unit in
                     utila_expr_lookup_table
@@ -93,6 +93,7 @@ Section decoder.
                               func_unit_id
                               tagged_inst))
               (tag func_units)).
+
     (*
       Applies [f] to every instruction in the instruction database and
       returns the result for the instruction referenced by [func_unit_id]
@@ -100,9 +101,9 @@ Section decoder.
     *)
     Definition inst_db_get_pkt
         (result_kind : Kind)
-        (f : forall func_unit : FUEntry ty,
+        (f : forall func_unit : FUEntry,
                nat ->
-               (nat * InstEntry ty (fuInputK func_unit) (fuOutputK func_unit)) ->
+               (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
                result_kind ## ty)
         (sel_func_unit_id : FuncUnitId @# ty)
         (sel_inst_id : InstId @# ty)
@@ -128,7 +129,7 @@ Section decoder.
 
     Definition decode_match_enabled_exts_on
                (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry ty sem_input_kind sem_output_kind)
+               (inst : InstEntry sem_input_kind sem_output_kind)
                (ctxt : ContextCfgPkt @# ty)
       :  Bool ## ty
       := LETE ret : Bool <- (utila_expr_any
@@ -140,7 +141,7 @@ Section decoder.
 
     Definition decode_match_inst
                (sem_input_kind sem_output_kind : Kind)
-               (inst : InstEntry ty sem_input_kind sem_output_kind)
+               (inst : InstEntry sem_input_kind sem_output_kind)
                (ctxt : ContextCfgPkt @# ty)
                (raw_inst : Inst @# ty)
       :  Bool ## ty

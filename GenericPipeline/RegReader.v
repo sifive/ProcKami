@@ -8,7 +8,7 @@ Section reg_reader.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Variable func_units : list (FUEntry ty).
+  Variable func_units : list FUEntry.
   Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
     
   Open Scope kami_expr.
@@ -17,7 +17,7 @@ Section reg_reader.
   Definition reg_reader_insts_match
              (sem_input_kind sem_output_kind : Kind)
              (inst_id : InstId func_units @# ty)
-             (insts : list (nat * InstEntry ty sem_input_kind sem_output_kind))
+             (insts : list (nat * InstEntry sem_input_kind sem_output_kind))
     :  Bool @# ty
     := utila_any (map (fun inst =>  $(fst inst) == inst_id) insts).
 
@@ -27,15 +27,15 @@ Section reg_reader.
    *)
   Definition reg_reader_match
              (p : forall sem_input_kind sem_output_kind : Kind,
-                 InstEntry ty sem_input_kind sem_output_kind ->
+                 InstEntry sem_input_kind sem_output_kind ->
                  bool)
              (decoder_pkt : DecoderPkt func_units @# ty)
     :  Bool @# ty
     := utila_any
          (map
-            (fun tagged_func_unit : (nat * FUEntry ty)
+            (fun tagged_func_unit : (nat * FUEntry)
              => let func_unit
-                    :  FUEntry ty
+                    :  FUEntry
                     := snd tagged_func_unit in
                 ((reg_reader_insts_match
                     (decoder_pkt @% "instTag")

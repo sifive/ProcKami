@@ -19,16 +19,15 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpu_params : FpuParams}.
-  Variable ty : Kind -> Type.
 
   Open Scope kami_expr.
 
   Definition FMv
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "fmv" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt : Pair Bool (Bit Rlen) ## ty
+           := fun ty (sem_in_pkt : Pair Bool (Bit Rlen) ## ty)
                 => LETE inp <- sem_in_pkt;
                    LETC isInt <- #inp @% "fst";
                    LETC val1 <- ((STRUCT {
@@ -83,7 +82,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11100")
                        ];
                   inputXform
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE inp <- context_pkt_expr;
                             LETC ret
                               :  Pair Bool (Bit Rlen)
@@ -92,7 +91,7 @@ Section Fpu.
                                    "snd" ::= #inp @% "reg1"
                                  };
                             RetE #ret;
-                  outputXform := id;
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
@@ -111,7 +110,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11110")
                        ];
                   inputXform
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE inp <- context_pkt_expr;
                             LETC ret
                               :  Pair Bool (Bit Rlen)
@@ -120,7 +119,7 @@ Section Fpu.
                                    "snd" ::= #inp @% "reg1"
                                  };
                                  RetE #ret;
-                  outputXform := id;
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
