@@ -328,7 +328,7 @@ Section debug.
 
   Section ty.
     Variable ty : Kind -> Type.
-    Variable func_units : list (FUEntry ty).
+    Variable func_units : list FUEntry.
 
     (* III. Hart state functions. *)
 

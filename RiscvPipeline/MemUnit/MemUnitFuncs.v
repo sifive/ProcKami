@@ -16,7 +16,7 @@ Section mem_unit.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Variable func_units : list (FUEntry ty).
+  Variable func_units : list FUEntry.
 
   Variable mem_devices : list MemDevice.
 
@@ -311,7 +311,7 @@ Section mem_unit.
                                       => let inst := snd (tagged_inst) in
                                          match optMemParams inst return MemoryOutput ## ty with
                                            | Some params
-                                             => (((memXform params)
+                                             => (((memXform params (ty := ty))
                                                   (RetE
                                                     (STRUCT {
                                                       "aq" ::= input_pkt @% "aq" ;

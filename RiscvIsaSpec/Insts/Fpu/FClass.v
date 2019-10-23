@@ -21,49 +21,51 @@ Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpuParams: FpuParams}.
 
-  Variable ty : Kind -> Type.
-
   Open Scope kami_expr.
 
-  Definition FClassInput
-    (_ : ContextCfgPkt @# ty)
-    (context_pkt_expr : ExecContextPkt ## ty)
-    :  FN expWidthMinus2 sigWidthMinus2 ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (bitToFN (fp_get_float Flen (#context_pkt @% "reg1"))).
+  Section ty.
+    Variable ty : Kind -> Type.
 
-  Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
-    :  PktWithException ExecUpdPkt ## ty
-    := LETE res
-         :  Bit Xlen
-                <- sem_out_pkt_expr;
-       LETC val1: RoutedReg <- (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= SignExtendTruncLsb Rlen #res
-                                  });
-       LETC fstVal: ExecUpdPkt <- (STRUCT {
-                     "val1" ::= Valid #val1;
-                     "val2" ::= @Invalid ty _;
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false;
-                     "fence.i" ::= $$false
-                   });
-       RetE
-         (STRUCT {
-            "fst" ::= #fstVal;
-            "snd" ::= Invalid
-          } : PktWithException ExecUpdPkt @# ty).
+    Definition FClassInput
+      (_ : ContextCfgPkt @# ty)
+      (context_pkt_expr : ExecContextPkt ## ty)
+      :  FN expWidthMinus2 sigWidthMinus2 ## ty
+      := LETE context_pkt
+           <- context_pkt_expr;
+         RetE
+           (bitToFN (fp_get_float Flen (#context_pkt @% "reg1"))).
+
+    Definition FClassOutput (sem_out_pkt_expr : Bit Xlen ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE res
+           :  Bit Xlen
+                  <- sem_out_pkt_expr;
+         LETC val1: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                               "data" ::= SignExtendTruncLsb Rlen #res
+                                    });
+         LETC fstVal: ExecUpdPkt <- (STRUCT {
+                       "val1" ::= Valid #val1;
+                       "val2" ::= @Invalid ty _;
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                     });
+         RetE
+           (STRUCT {
+              "fst" ::= #fstVal;
+              "snd" ::= Invalid
+            } : PktWithException ExecUpdPkt @# ty).
+  End ty.
 
   Definition FClass
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "fclass" fpu_suffix;
          fuFunc
-           := fun x_expr : FN expWidthMinus2 sigWidthMinus2 ## ty
+           := fun ty (x_expr : FN expWidthMinus2 sigWidthMinus2 ## ty)
                 => LETE x
                      :  FN expWidthMinus2 sigWidthMinus2
                      <- x_expr;
@@ -84,8 +86,8 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11100")
                        ];
-                  inputXform  := FClassInput;
-                  outputXform := FClassOutput;
+                  inputXform  := fun ty => FClassInput (ty := ty);
+                  outputXform := fun ty => FClassOutput (ty := ty);
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}

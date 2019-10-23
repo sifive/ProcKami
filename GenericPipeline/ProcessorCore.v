@@ -32,16 +32,14 @@ Section Params.
 
   Variable pmp_addr_ub : option (word pmp_reg_width).
 
-  Variable mem_devices : list MemDevice.
-
-  Variable mem_table : list (MemTableEntry mem_devices).
-
   Section model.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
     Variable supported_exts : list (string * bool).
-    Variable func_units : forall ty, list (FUEntry ty).
+    Variable func_units : list FUEntry.
+    Variable mem_devices : list MemDevice.
+    Variable mem_table : list (MemTableEntry mem_devices).
 
     Local Open Scope list.
 
@@ -140,9 +138,9 @@ Section Params.
                        LET comp_inst: CompInst <- UniBit (TruncLsb CompInstSz CompInstSz) (#fetch_pkt @% "fst" @%  "inst");
                        LET isCompressed: Bool <- !isInstUncompressed #comp_inst;
                        LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) #cfg_pkt #comp_inst);
-                       LETA decoded_inst: Maybe (DecoderPkt (func_units _)) <-
+                       LETA decoded_inst: Maybe (DecoderPkt func_units) <-
                                                 convertLetExprSyntax_ActionT (
-                                                  decode (func_units _) #cfg_pkt (IF #isCompressed
+                                                  decode func_units #cfg_pkt (IF #isCompressed
                                                                                   then #uncompressed_inst @% "data"
                                                                                   else #fetch_pkt @% "fst" @% "inst"));
 
@@ -151,7 +149,7 @@ Section Params.
                        LET decoded_exception: Maybe Exception <- STRUCT { "valid" ::= !#decoded_inst_valid;
                                                                           "data" ::= #decoded_full_exception};
                        LET decoder_pkt
-                         :  PktWithException (DecoderPkt (func_units _))
+                         :  PktWithException (DecoderPkt func_units)
                                              <- (STRUCT {
                                                      "fst" ::= #decoded_inst @% "data";
                                                      "snd" ::= (IF #fetch_pkt @% "snd" @% "valid"
@@ -159,8 +157,8 @@ Section Params.
                                                                 else #decoded_exception)});
 
                        (* LETA decoder_pkt *)
-                       (*   :  PktWithException (DecoderPkt (func_units _)) *)
-                       (*   <- decoderWithException (func_units _) (CompInstDb _) #cfg_pkt #fetch_pkt; *)
+                       (*   :  PktWithException (DecoderPkt func_units) *)
+                       (*   <- decoderWithException func_units (CompInstDb _) #cfg_pkt #fetch_pkt; *)
                        System
                          [
                            DispString _ "Decode:\n";
@@ -182,7 +180,7 @@ Section Params.
                          ];
                        System [DispString _ "Trans\n"];
                        LETA trans_pkt
-                         :  PktWithException (InputTransPkt (func_units _))
+                         :  PktWithException (InputTransPkt func_units)
                          <- transWithException #cfg_pkt (#decoder_pkt @% "fst") #exec_context_pkt;
                        System [DispString _ "Executor\n"];
                        LETA exec_update_pkt

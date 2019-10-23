@@ -23,7 +23,6 @@ Section Fpu.
 
   Variable fpuParamsSingle : FpuParams.
   Variable fpuParamsDouble : FpuParams.
-  Variable ty : Kind -> Type.
 
   Local Notation single_expWidthMinus2 := (@expWidthMinus2 fpuParamsSingle).
   Local Notation single_sigWidthMinus2 := (@sigWidthMinus2 fpuParamsSingle).
@@ -36,11 +35,11 @@ Section Fpu.
   Open Scope kami_expr.
 
   Definition Float_double
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := "float_double";
          fuFunc
-           := fun sem_in_pkt_expr : RoundInput single_expWidthMinus2 single_sigWidthMinus2 ## ty
+           := fun ty (sem_in_pkt_expr : RoundInput single_expWidthMinus2 single_sigWidthMinus2 ## ty)
                 => LETE sem_in_pkt
                      :  RoundInput single_expWidthMinus2 single_sigWidthMinus2
                      <- sem_in_pkt_expr;
@@ -60,7 +59,7 @@ Section Fpu.
                          fieldVal funct7Field   ('b"0100001")
                        ];
                   inputXform
-                    := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := (fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
@@ -74,7 +73,7 @@ Section Fpu.
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput single_expWidthMinus2 single_sigWidthMinus2 @# ty));
                   outputXform
-                    := (fun sem_out_pkt_expr : OpOutput double_expWidthMinus2 double_sigWidthMinus2 ## ty
+                    := (fun ty (sem_out_pkt_expr : OpOutput double_expWidthMinus2 double_sigWidthMinus2 ## ty)
                         => LETE sem_out_pkt <- sem_out_pkt_expr;
                              LETC val1: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
@@ -108,11 +107,11 @@ Section Fpu.
        |}.
 
   Definition Double_float
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := "double_float";
          fuFunc
-           := fun sem_in_pkt_expr : RoundInput double_expWidthMinus2 double_sigWidthMinus2 ## ty
+           := fun ty (sem_in_pkt_expr : RoundInput double_expWidthMinus2 double_sigWidthMinus2 ## ty)
                 => LETE sem_in_pkt
                      :  RoundInput double_expWidthMinus2 double_sigWidthMinus2
                      <- sem_in_pkt_expr;
@@ -132,7 +131,7 @@ Section Fpu.
                          fieldVal funct7Field   ('b"0100000")
                        ];
                   inputXform
-                    := (fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := (fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                           => LETE context_pkt <- context_pkt_expr;
                              RetE
                                (STRUCT {
@@ -146,7 +145,7 @@ Section Fpu.
                                   "roundingMode"  ::= rounding_mode (#context_pkt)
                                 } : RoundInput double_expWidthMinus2 double_sigWidthMinus2 @# ty));
                   outputXform
-                    := (fun sem_out_pkt_expr : OpOutput single_expWidthMinus2 single_sigWidthMinus2 ## ty
+                    := (fun ty (sem_out_pkt_expr : OpOutput single_expWidthMinus2 single_sigWidthMinus2 ## ty)
                         => LETE sem_out_pkt <- sem_out_pkt_expr;
                              LETC val1: RoutedReg <- (STRUCT {
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);

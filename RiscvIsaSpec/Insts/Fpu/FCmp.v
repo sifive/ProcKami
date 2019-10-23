@@ -20,77 +20,85 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpuParams : FpuParams}.
-  Variable ty : Kind -> Type.
+
+  Section ty.
+    Variable ty : Kind -> Type.
+
+    Open Scope kami_expr.
+
+    Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
+
+    Definition cmp_cond_width := 2.
+
+    Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
+
+    Definition cmp_cond_not_used : cmp_cond_kind @# ty := $0.
+    Definition cmp_cond_eq : cmp_cond_kind @# ty := $1.
+    Definition cmp_cond_lt : cmp_cond_kind @# ty := $2.
+    Definition cmp_cond_gt : cmp_cond_kind @# ty := $3.
+
+    Definition cmp_cond_get (cond : cmp_cond_kind @# ty) (result : Compare_Output @# ty)
+      := ITE (cond == cmp_cond_not_used)
+             ($$false)
+             (ITE (cond == cmp_cond_eq)
+                  (result @% "eq")
+                  (ITE (cond == cmp_cond_lt)
+                       (result @% "lt")
+                       (result @% "gt"))). 
+
+    Close Scope kami_expr.
+
+    Definition FCmpInputType
+      :  Kind
+      := STRUCT_TYPE {
+             "fflags" :: FflagsValue;
+             "signal" :: Bool;
+             "cond0"  :: cmp_cond_kind;
+             "cond1"  :: cmp_cond_kind;
+             "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
+             "arg2"   :: NF expWidthMinus2 sigWidthMinus2
+           }.
+
+    Definition FCmpOutputType
+      :  Kind
+      := STRUCT_TYPE {
+             "fflags" :: Maybe FflagsValue;
+             "result" :: Bit fpu_len
+           }.
+
+    Open Scope kami_expr.
+
+    Definition FCmpInput
+        (signal : Bool @# ty)
+        (cond0 : cmp_cond_kind @# ty)
+        (cond1 : cmp_cond_kind @# ty)
+        (_ : ContextCfgPkt @# ty)
+        (context_pkt_expr : ExecContextPkt ## ty)
+      :  FCmpInputType ## ty
+      := LETE context_pkt
+           <- context_pkt_expr;
+         RetE
+           (STRUCT {
+              "fflags" ::= #context_pkt @% "fflags";
+              "signal" ::= signal;
+              "cond0"  ::= cond0;
+              "cond1"  ::= cond1;
+              "arg1"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
+              "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"))
+            } : FCmpInputType @# ty).
+
+    Close Scope kami_expr.
+
+  End ty.
 
   Open Scope kami_expr.
-
-  Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
-
-  Definition cmp_cond_width := 2.
-
-  Definition cmp_cond_kind : Kind := Bit cmp_cond_width.
-
-  Definition cmp_cond_not_used : cmp_cond_kind @# ty := $0.
-  Definition cmp_cond_eq : cmp_cond_kind @# ty := $1.
-  Definition cmp_cond_lt : cmp_cond_kind @# ty := $2.
-  Definition cmp_cond_gt : cmp_cond_kind @# ty := $3.
-
-  Definition cmp_cond_get (cond : cmp_cond_kind @# ty) (result : Compare_Output @# ty)
-    := ITE (cond == cmp_cond_not_used)
-           ($$false)
-           (ITE (cond == cmp_cond_eq)
-                (result @% "eq")
-                (ITE (cond == cmp_cond_lt)
-                     (result @% "lt")
-                     (result @% "gt"))). 
-
-  Close Scope kami_expr.
-
-  Definition FCmpInputType
-    :  Kind
-    := STRUCT_TYPE {
-           "fflags" :: FflagsValue;
-           "signal" :: Bool;
-           "cond0"  :: cmp_cond_kind;
-           "cond1"  :: cmp_cond_kind;
-           "arg1"   :: NF expWidthMinus2 sigWidthMinus2;
-           "arg2"   :: NF expWidthMinus2 sigWidthMinus2
-         }.
-
-  Definition FCmpOutputType
-    :  Kind
-    := STRUCT_TYPE {
-           "fflags" :: Maybe FflagsValue;
-           "result" :: Bit fpu_len
-         }.
-
-  Open Scope kami_expr.
-
-  Definition FCmpInput
-      (signal : Bool @# ty)
-      (cond0 : cmp_cond_kind @# ty)
-      (cond1 : cmp_cond_kind @# ty)
-      (_ : ContextCfgPkt @# ty)
-      (context_pkt_expr : ExecContextPkt ## ty)
-    :  FCmpInputType ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fflags" ::= #context_pkt @% "fflags";
-            "signal" ::= signal;
-            "cond0"  ::= cond0;
-            "cond1"  ::= cond1;
-            "arg1"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
-            "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"))
-          } : FCmpInputType @# ty).
 
   Definition FCmp
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "fcmp" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : FCmpInputType ## ty
+           := fun ty (sem_in_pkt_expr : FCmpInputType ## ty)
                 => LETE sem_in_pkt
                      :  FCmpInputType
                      <- sem_in_pkt_expr;
@@ -100,7 +108,7 @@ Section Fpu.
                    LETC fflags
                      :  FflagsValue
                      <- ((#sem_in_pkt @% "fflags") |
-                         (ZeroExtendTruncLsb FflagsWidth csr_invalid_mask));
+                         (ZeroExtendTruncLsb FflagsWidth (csr_invalid_mask ty)));
                    LETC result
                      :  FCmpOutputType
                      <- STRUCT {
@@ -167,8 +175,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"010");
                          fieldVal rs3Field      ('b"10100")
                        ];
-                  inputXform  := FCmpInput ($$false) cmp_cond_eq cmp_cond_not_used;
-                  outputXform := id;
+                  inputXform  := fun ty => FCmpInput (ty := ty) ($$false) (cmp_cond_eq ty) (cmp_cond_not_used ty);
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -185,8 +193,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs3Field      ('b"10100")
                        ];
-                  inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_not_used;
-                  outputXform := id;
+                  inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_not_used ty);
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -203,8 +211,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"000");
                          fieldVal rs3Field      ('b"10100")
                        ];
-                  inputXform  := FCmpInput ($$true) cmp_cond_lt cmp_cond_eq;
-                  outputXform := id;
+                  inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_eq ty);
+                  outputXform := fun _ => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |}

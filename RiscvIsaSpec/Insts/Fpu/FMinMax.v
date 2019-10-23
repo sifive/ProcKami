@@ -20,7 +20,6 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpuParams: FpuParams}.
-  Variable ty : Kind -> Type.
   Definition add_format_field
     :  UniqId -> UniqId
     := cons (fieldVal fmtField fpu_format_field).
@@ -43,28 +42,32 @@ Section Fpu.
 
   Open Scope kami_expr.
 
-  Definition FMinMaxInput
-    (max : Bool @# ty)
-    (_ : ContextCfgPkt @# ty)
-    (context_pkt_expr : ExecContextPkt ## ty)
-    :  FMinMaxInputType ## ty
-    := LETE context_pkt
-         :  ExecContextPkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "fflags" ::= #context_pkt @% "fflags";
-            "arg1"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
-            "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
-            "max"    ::= max
-          } : FMinMaxInputType @# ty).
+  Section ty.
+    Variable ty : Kind -> Type.
+
+    Definition FMinMaxInput
+      (max : Bool @# ty)
+      (_ : ContextCfgPkt @# ty)
+      (context_pkt_expr : ExecContextPkt ## ty)
+      :  FMinMaxInputType ## ty
+      := LETE context_pkt
+           :  ExecContextPkt
+           <- context_pkt_expr;
+         RetE
+           (STRUCT {
+              "fflags" ::= #context_pkt @% "fflags";
+              "arg1"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
+              "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
+              "max"    ::= max
+            } : FMinMaxInputType @# ty).
+  End ty.
 
   Definition FMinMax
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "fmin_max" fpu_suffix;
          fuFunc
-           := fun (sem_in_pkt_expr : FMinMaxInputType ## ty)
+           := fun ty (sem_in_pkt_expr : FMinMaxInputType ## ty)
                 => LETE sem_in_pkt
                      :  FMinMaxInputType
                      <- sem_in_pkt_expr;
@@ -152,8 +155,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"000");
                          fieldVal rs3Field      ('b"00101")
                        ];
-                  inputXform  := FMinMaxInput ($$false);
-                  outputXform := id;
+                  inputXform  := fun ty => FMinMaxInput (ty := ty) ($$false);
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -170,8 +173,8 @@ Section Fpu.
                          fieldVal funct3Field   ('b"001");
                          fieldVal rs3Field      ('b"00101")
                        ];
-                  inputXform  := FMinMaxInput ($$true);
-                  outputXform := id;
+                  inputXform  := fun ty => FMinMaxInput (ty := ty) ($$true);
+                  outputXform := fun ty => id;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}

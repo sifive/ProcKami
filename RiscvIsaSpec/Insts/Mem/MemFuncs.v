@@ -30,6 +30,7 @@ Section Mem.
 
     Definition loadInput
       (size: nat)
+      (ty : Kind -> Type)
       (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       :  MemInputAddrType ## ty
@@ -107,6 +108,7 @@ Section Mem.
 
     Definition storeInput
       (size: nat)
+      (ty : Kind -> Type)
       (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
       : MemInputAddrType ## ty :=
@@ -182,8 +184,9 @@ Section Mem.
                                "tag" ::= $IntRegTag ;
                                "reg_data" ::= (Invalid: Maybe Data @# ty) };
           RetE #outMemReg.
-    
+   
     Definition amoInput
+      (ty : Kind -> Type)
       sz
       (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
@@ -328,5 +331,6 @@ Section Mem.
                      "reg_data" ::= Valid #loadVal
                    };
               RetE #outMemReg.
+
   End Ty.
 End Mem.

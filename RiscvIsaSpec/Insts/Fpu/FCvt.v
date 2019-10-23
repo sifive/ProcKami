@@ -21,60 +21,99 @@ Import ListNotations.
 Section Fpu.
   Context `{procParams: ProcParams}.
   Context `{fpuParams : FpuParams}.
-  Variable ty : Kind -> Type.
   Open Scope kami_expr.
 
-  Definition Float_Int_Input
-    (signed : Bool @# ty)
-    (_ : ContextCfgPkt @# ty)
-    (context_pkt_expr : ExecContextPkt ## ty)
-    :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
-    := LETE context_pkt
-         <- context_pkt_expr;
-       RetE
-         (STRUCT {
-            "inNF"         ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
-            "roundingMode" ::= rounding_mode (#context_pkt);
-            "signedOut"    ::= signed
-          } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
+  Section ty.
+    Variable ty : Kind -> Type.
 
-  Definition Float_Int_Output (size : nat) (sem_out_pkt_expr : NFToINOutput size ## ty)
-    :  PktWithException ExecUpdPkt ## ty
-    := LETE sem_out_pkt
-         :  NFToINOutput size
-                         <- sem_out_pkt_expr;
-       LETC val1: RoutedReg <- (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
-                             "data" ::= SignExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
-                               });
-       LETC val2: RoutedReg <- (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
-                             "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
-                               });
-       LETC fstVal: ExecUpdPkt <- (STRUCT {
-                     "val1"
-                       ::= Valid #val1;
-                     "val2"
-                       ::= Valid #val2;
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false;
-                     "fence.i" ::= $$false
-                   });
-       RetE
-         (STRUCT {
-            "fst"
-              ::= #fstVal;
-            "snd" ::= Invalid
-          } : PktWithException ExecUpdPkt @# ty).
+    Definition Float_Int_Input
+      (signed : Bool @# ty)
+      (_ : ContextCfgPkt @# ty)
+      (context_pkt_expr : ExecContextPkt ## ty)
+      :  NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
+      := LETE context_pkt
+           <- context_pkt_expr;
+         RetE
+           (STRUCT {
+              "inNF"         ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg1"));
+              "roundingMode" ::= rounding_mode (#context_pkt);
+              "signedOut"    ::= signed
+            } : NFToINInput expWidthMinus2 sigWidthMinus2 @# ty).
+
+    Definition Float_Int_Output (size : nat) (sem_out_pkt_expr : NFToINOutput size ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE sem_out_pkt
+           :  NFToINOutput size
+                           <- sem_out_pkt_expr;
+         LETC val1: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                               "data" ::= SignExtendTruncLsb Rlen ((#sem_out_pkt) @% "outIN")
+                                 });
+         LETC val2: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
+                               "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
+                                 });
+         LETC fstVal: ExecUpdPkt <- (STRUCT {
+                       "val1"
+                         ::= Valid #val1;
+                       "val2"
+                         ::= Valid #val2;
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                     });
+         RetE
+           (STRUCT {
+              "fst"
+                ::= #fstVal;
+              "snd" ::= Invalid
+            } : PktWithException ExecUpdPkt @# ty).
+
+    Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE sem_out_pkt
+           :  OpOutput expWidthMinus2 sigWidthMinus2
+                       <- sem_out_pkt_expr;
+         LETC val1: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                               "data"
+                                 ::= OneExtendTruncLsb Rlen
+                                       (NFToBit
+                                          ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
+                                        : Bit fpu_len @# ty)
+                                 });
+         LETC val2: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
+                               "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
+                                 });
+         LETC fstVal <- (STRUCT {
+                       "val1"
+                         ::= Valid #val1;
+                       "val2"
+                         ::= Valid #val2;
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                     } : ExecUpdPkt @# ty);
+         RetE
+           (STRUCT {
+              "fst"
+                ::= #fstVal;
+              "snd" ::= Invalid
+            } : PktWithException ExecUpdPkt @# ty).
+
+  End ty.
 
   Definition Float_word
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "float_word" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
+           := fun ty (sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty)
                 => LETE sem_in_pkt
                      :  NFToINInput expWidthMinus2 sigWidthMinus2
                      <- sem_in_pkt_expr;
@@ -101,11 +140,11 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00000");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := Float_Int_Input ($$true);
-                  outputXform := @Float_Int_Output (32 - 2);
+                  inputXform  := fun ty => Float_Int_Input (ty := ty) ($$true);
+                  outputXform := fun ty => @Float_Int_Output ty (32 - 2);
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
-                |};
+                |}; 
                 {|
                   instName   := append "fcvt.wu" fpu_suffix;
                   xlens      := xlens_all;
@@ -119,8 +158,8 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00001");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := Float_Int_Input ($$false);
-                  outputXform := @Float_Int_Output (32 - 2);
+                  inputXform  := fun ty => Float_Int_Input (ty := ty) ($$false);
+                  outputXform := fun ty => @Float_Int_Output ty (32 - 2);
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}
@@ -128,11 +167,11 @@ Section Fpu.
       |}.
 
   Definition Float_long
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "float_long" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty
+           := fun ty (sem_in_pkt_expr : NFToINInput expWidthMinus2 sigWidthMinus2 ## ty)
                 => LETE sem_in_pkt
                      :  NFToINInput expWidthMinus2 sigWidthMinus2
                      <- sem_in_pkt_expr;
@@ -159,8 +198,8 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00010");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := Float_Int_Input ($$true);
-                  outputXform := @Float_Int_Output (64 - 2);
+                  inputXform  := fun ty => Float_Int_Input (ty := ty) ($$true);
+                  outputXform := fun ty => @Float_Int_Output ty (64 - 2);
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |};
@@ -177,55 +216,20 @@ Section Fpu.
                          fieldVal rs2Field      ('b"00011");
                          fieldVal rs3Field      ('b"11000")
                        ];
-                  inputXform  := Float_Int_Input ($$false);
-                  outputXform := @Float_Int_Output (64 - 2);
+                  inputXform  := fun ty => Float_Int_Input (ty := ty) ($$false);
+                  outputXform := fun ty => @Float_Int_Output ty (64 - 2);
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasRd := true|> 
                 |}
               ]
       |}.
 
-  Definition Int_float_Output (sem_out_pkt_expr : OpOutput expWidthMinus2 sigWidthMinus2 ## ty)
-    :  PktWithException ExecUpdPkt ## ty
-    := LETE sem_out_pkt
-         :  OpOutput expWidthMinus2 sigWidthMinus2
-                     <- sem_out_pkt_expr;
-       LETC val1: RoutedReg <- (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FloatRegTag);
-                             "data"
-                               ::= OneExtendTruncLsb Rlen
-                                     (NFToBit
-                                        ((#sem_out_pkt @% "out") : NF expWidthMinus2 sigWidthMinus2 @# ty)
-                                      : Bit fpu_len @# ty)
-                               });
-       LETC val2: RoutedReg <- (STRUCT {
-                             "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
-                             "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
-                               });
-       LETC fstVal <- (STRUCT {
-                     "val1"
-                       ::= Valid #val1;
-                     "val2"
-                       ::= Valid #val2;
-                     "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                     "taken?" ::= $$false;
-                     "aq" ::= $$false;
-                     "rl" ::= $$false;
-                     "fence.i" ::= $$false
-                   } : ExecUpdPkt @# ty);
-       RetE
-         (STRUCT {
-            "fst"
-              ::= #fstVal;
-            "snd" ::= Invalid
-          } : PktWithException ExecUpdPkt @# ty).
-
   Definition Word_float
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "word_float" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : INToNFInput (32 - 2) ## ty
+           := fun ty (sem_in_pkt_expr : INToNFInput (32 - 2) ## ty)
                 => LETE sem_in_pkt
                      :  INToNFInput (32 - 2)
                      <- sem_in_pkt_expr;
@@ -249,7 +253,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                        => LETE context_pkt
                             <- context_pkt_expr;
                           RetE
@@ -259,7 +263,7 @@ Section Fpu.
                                "afterRounding" ::= $$true;
                                "roundingMode" ::= rounding_mode (#context_pkt)
                              } : INToNFInput (32 - 2) @# ty);
-                  outputXform := Int_float_Output;
+                  outputXform := fun ty => Int_float_Output (ty := ty);
                   optMemParams := None;
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
@@ -277,7 +281,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE
@@ -287,7 +291,7 @@ Section Fpu.
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
                                } : INToNFInput (32 - 2) @# ty);
-                  outputXform := Int_float_Output;
+                  outputXform := fun ty => Int_float_Output (ty := ty);
                   optMemParams := None;
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}
@@ -295,11 +299,11 @@ Section Fpu.
       |}.
 
   Definition Long_float
-    :  FUEntry ty
+    :  FUEntry
     := {|
          fuName := append "long_float" fpu_suffix;
          fuFunc
-           := fun sem_in_pkt_expr : INToNFInput (64 - 2) ## ty
+           := fun ty (sem_in_pkt_expr : INToNFInput (64 - 2) ## ty)
                 => LETE sem_in_pkt
                      :  INToNFInput (64 - 2)
                      <- sem_in_pkt_expr;
@@ -323,7 +327,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE
@@ -333,7 +337,7 @@ Section Fpu.
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
                                } : INToNFInput (64 - 2) @# ty);
-                  outputXform := Int_float_Output;
+                  outputXform := fun ty => Int_float_Output (ty := ty);
                   optMemParams := None;
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |};
@@ -351,7 +355,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"11010")
                        ];
                   inputXform 
-                    := fun (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) context_pkt_expr
                          => LETE context_pkt
                               <- context_pkt_expr;
                             RetE
@@ -361,7 +365,7 @@ Section Fpu.
                                  "afterRounding" ::= $$true;
                                  "roundingMode" ::= rounding_mode (#context_pkt)
                                } : INToNFInput (64 - 2) @# ty);
-                  outputXform := Int_float_Output;
+                  outputXform := fun ty => Int_float_Output (ty := ty);
                   optMemParams := None;
                   instHints   := falseHints<|hasRs1 := true|><|hasFrd := true|> 
                 |}

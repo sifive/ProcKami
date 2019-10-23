@@ -317,6 +317,16 @@ Section Params.
          "compressed?" :: Bool
        }.
 
+  Definition debug_hart_state
+    := STRUCT_TYPE {
+         "halted"    :: Bool; (* not executing instructions *)
+         "haltreq"   :: Bool;
+         "resumereq" :: Bool;
+         "resumeack" :: Bool;
+         "debug"     :: Bool; (* grant debug privileges when running. *)
+         "command"   :: Bool  (* hart selected to execute abstract command. *) 
+       }.
+
   Section Extensions.
     
     Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
@@ -386,6 +396,44 @@ Section Params.
                          end)%kami_expr.
 
   End Extensions.
+
+  Definition ContextCfgPkt :=
+    STRUCT_TYPE {
+        "xlen"             :: XlenValue;
+        "satp_mode"        :: Bit SatpModeWidth;
+        "debug_hart_state" :: debug_hart_state;
+        "mode"             :: PrivMode;
+        "tsr"              :: Bool;
+        "tvm"              :: Bool;
+        "tw"               :: Bool;
+        "extensions"       :: Extensions;
+        "fs"               :: Bit 2;
+        "xs"               :: Bit 2
+      }.
+
+  Record MemInstParams
+    := {
+        accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
+        memXform : forall ty, MemoryInput ## ty -> MemoryOutput ## ty
+     }.
+
+  Record InstEntry ik ok :=
+    { instName     : string ;
+      xlens        : list nat ;
+      extensions   : list string ;
+      ext_ctxt_off : list string ;
+      uniqId       : UniqId ;        
+      inputXform   : forall ty, ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
+      outputXform  : forall ty, ok ## ty -> PktWithException ExecUpdPkt ## ty ;
+      optMemParams : option MemInstParams ;
+      instHints    : InstHints }.
+
+  Record FUEntry :=
+    { fuName    : string ;
+      fuInputK  : Kind ;
+      fuOutputK : Kind ;
+      fuFunc    : forall ty, fuInputK ## ty -> fuOutputK ## ty ;
+      fuInsts   : list (InstEntry fuInputK fuOutputK) }.
   
   Section Xlen.
     Definition ImplXlens' :=
@@ -768,30 +816,6 @@ Section Params.
                                else $Xlen64)%kami_expr.
     End XlenInterface.
     
-    Definition debug_hart_state
-      := STRUCT_TYPE {
-           "halted"    :: Bool; (* not executing instructions *)
-           "haltreq"   :: Bool;
-           "resumereq" :: Bool;
-           "resumeack" :: Bool;
-           "debug"     :: Bool; (* grant debug privileges when running. *)
-           "command"   :: Bool  (* hart selected to execute abstract command. *) 
-         }.
-
-    Definition ContextCfgPkt :=
-      STRUCT_TYPE {
-          "xlen"             :: XlenValue;
-          "satp_mode"        :: Bit SatpModeWidth;
-          "debug_hart_state" :: debug_hart_state;
-          "mode"             :: PrivMode;
-          "tsr"              :: Bool;
-          "tvm"              :: Bool;
-          "tw"               :: Bool;
-          "extensions"       :: Extensions;
-          "fs"               :: Bit 2;
-          "xs"               :: Bit 2
-        }.
-
     Local Open Scope kami_expr.
 
     (* See 3.1.1 and 3.1.15 *)
@@ -815,30 +839,6 @@ Section Params.
           comp_inst_id: UniqId;
           decompressFn: (CompInst @# ty) -> (Inst ## ty)
         }.
-
-    Record MemInstParams
-      := {
-          accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
-          memXform : MemoryInput ## ty -> MemoryOutput ## ty
-       }.
-
-    Record InstEntry ik ok :=
-      { instName     : string ;
-        xlens        : list nat ;
-        extensions   : list string ;
-        ext_ctxt_off : list string ;
-        uniqId       : UniqId ;        
-        inputXform   : ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
-        outputXform  : ok ## ty -> PktWithException ExecUpdPkt ## ty ;
-        optMemParams : option MemInstParams ;
-        instHints    : InstHints }.
-
-    Record FUEntry :=
-      { fuName    : string ;
-        fuInputK  : Kind ;
-        fuOutputK : Kind ;
-        fuFunc    : fuInputK ## ty -> fuOutputK ## ty ;
-        fuInsts   : list (InstEntry fuInputK fuOutputK) }.
 
   End ty.
 
@@ -887,22 +887,22 @@ Section Params.
             => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
            (mmregs_dev_regs mmregs).
 
-    Record MemDevice
-      := {
-          mem_device_name : string;
-          mem_device_type : MemDeviceType; (* 3.5.1 *)
-          mem_device_pmas : list PMA;
-          mem_device_read
-          : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
-          mem_device_write
-          : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
-          mem_device_read_resv
-          : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
-          mem_device_write_resv
-          : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
-          mem_device_file
-          : option ((list RegFileBase) + MMRegs)%type
-        }.
+     Record MemDevice
+       := {
+           mem_device_name : string;
+           mem_device_type : MemDeviceType; (* 3.5.1 *)
+           mem_device_pmas : list PMA;
+           mem_device_read
+           : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
+           mem_device_write
+           : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
+           mem_device_read_resv
+           : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
+           mem_device_write_resv
+           : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
+           mem_device_file
+           : option ((list RegFileBase) + MMRegs)%type
+         }.
 
     Local Open Scope kami_action.
 
@@ -943,9 +943,9 @@ Section Params.
 
     Definition get_mem_device_regs (device: MemDevice) :=
       match mem_device_file device with
-      | None => nil
-      | Some (inr x) => mmregs_regs x
-      | Some _ => nil
+       | None => nil
+       | Some (inr x) => mmregs_regs x
+       | Some _ => nil
       end.
     
     Definition mem_device_regs ls := concat (map get_mem_device_regs ls).

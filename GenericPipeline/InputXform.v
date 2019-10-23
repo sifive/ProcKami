@@ -6,7 +6,7 @@ Section FUInputTrans.
   Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Variable func_units : list (FUEntry ty).
+  Variable func_units : list FUEntry.
 
   Local Open Scope kami_expr.
 

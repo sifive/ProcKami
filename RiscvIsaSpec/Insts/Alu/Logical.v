@@ -15,9 +15,9 @@ Section Alu.
 
     Local Open Scope kami_expr.
 
-    Definition Logical: FUEntry ty :=
+    Definition Logical: FUEntry :=
       {| fuName := "logical" ;
-         fuFunc := (fun i
+         fuFunc := (fun ty i
                       => LETE x: LogicalType <- i;
                          RetE (IF (#x @% "op") == $ XorOp
                                  then ((#x @% "arg1") ^ (#x @% "arg2"))
@@ -31,12 +31,12 @@ Section Alu.
                        uniqId       := fieldVal instSizeField ('b"11") ::
                                                 fieldVal opcodeField ('b"00100") ::
                                                 fieldVal funct3Field ('b"100") :: nil ;
-                       inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                       inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                        RetE ((STRUCT { "op" ::= $ XorOp ;
                                                                        "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                        "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                              }): LogicalType @# _)) ;
-                       outputXform  := (fun resultExpr => LETE result <- resultExpr;
+                       outputXform  := (fun ty resultExpr => LETE result <- resultExpr;
                                                             RetE (intRegTag (SignExtendTruncLsb Rlen #result)));
                        optMemParams  := None ;
                        instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -48,12 +48,12 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"110") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
                                                                           "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE result <- resultExpr;
+                          outputXform  := (fun ty resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -65,12 +65,12 @@ Section Alu.
                           uniqId       := fieldVal instSizeField ('b"11") ::
                                                    fieldVal opcodeField ('b"00100") ::
                                                    fieldVal funct3Field ('b"111") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
                                                                           "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"))
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE result <- resultExpr;
+                          outputXform  := (fun ty resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
@@ -83,12 +83,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"100") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ XorOp ;
                                                                           "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= SignExtendTruncLsb Xlen (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE result <- resultExpr;
+                          outputXform  := (fun ty resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
@@ -101,12 +101,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"110") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ OrOp ;
                                                                           "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr
+                          outputXform  := (fun ty resultExpr
                                              => LETE result <- resultExpr;
                                                 RetE (intRegTag (SignExtendTruncLsb Rlen #result))); 
                           optMemParams  := None ;
@@ -120,12 +120,12 @@ Section Alu.
                                                    fieldVal opcodeField ('b"01100") ::
                                                    fieldVal funct3Field ('b"111") ::
                                                    fieldVal funct7Field ('b"0000000") :: nil ;
-                          inputXform   := (fun (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
+                          inputXform   := (fun ty (cfg_pkt : ContextCfgPkt @# ty) gcpin => LETE gcp: ExecContextPkt <- gcpin;
                                                           RetE ((STRUCT { "op" ::= $ AndOp ;
                                                                           "arg1" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg1") ;
                                                                           "arg2" ::= xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#gcp @% "reg2")
                                                                 }): LogicalType @# _)) ;
-                          outputXform  := (fun resultExpr => LETE result <- resultExpr;
+                          outputXform  := (fun ty resultExpr => LETE result <- resultExpr;
                                                                RetE (intRegTag (SignExtendTruncLsb Rlen #result))) ;
                           optMemParams  := None ;
                           instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
