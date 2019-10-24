@@ -55,6 +55,8 @@ Separate Extraction
          pointwiseIntersectionMask
          pointwiseIntersection
          pointwiseBypass
+         getDefaultConstFullKind
+         CAS_RulesRf
          
          CompActionSimple
          RmeSimple
