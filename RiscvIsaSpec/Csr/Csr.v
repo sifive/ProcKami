@@ -44,7 +44,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "u" 30;
-                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $1;
@@ -55,7 +55,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "u" 62;
-                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $2;
@@ -456,7 +456,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "m" 30;
-                         @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $1;
@@ -467,7 +467,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "m" 62;
-                         @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $2;
@@ -751,22 +751,22 @@ Section csrs.
                   => context @% "xlen" == $1 &&
                      context @% "mode" == $MachineMode
          |};
-         simpleCsr "pmpaddr0" (CsrIdWidth 'h"3b0") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr1" (CsrIdWidth 'h"3b1") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr2" (CsrIdWidth 'h"3b2") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr3" (CsrIdWidth 'h"3b3") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr4" (CsrIdWidth 'h"3b4") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr5" (CsrIdWidth 'h"3b5") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr6" (CsrIdWidth 'h"3b6") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr7" (CsrIdWidth 'h"3b7") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr8" (CsrIdWidth 'h"3b8") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr9" (CsrIdWidth 'h"3b9") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr10" (CsrIdWidth 'h"3ba") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr11" (CsrIdWidth 'h"3bb") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr12" (CsrIdWidth 'h"3bc") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr13" (CsrIdWidth 'h"3bd") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr14" (CsrIdWidth 'h"3be") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
-         simpleCsr "pmpaddr15" (CsrIdWidth 'h"3bf") (width := pmp_reg_width) (Some (ConstBit (wzero pmp_reg_width))) accessMModeOnly;
+         simpleCsr "pmpaddr0" (CsrIdWidth 'h"3b0") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr1" (CsrIdWidth 'h"3b1") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr2" (CsrIdWidth 'h"3b2") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr3" (CsrIdWidth 'h"3b3") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr4" (CsrIdWidth 'h"3b4") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr5" (CsrIdWidth 'h"3b5") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr6" (CsrIdWidth 'h"3b6") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr7" (CsrIdWidth 'h"3b7") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr8" (CsrIdWidth 'h"3b8") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr9" (CsrIdWidth 'h"3b9") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr10" (CsrIdWidth 'h"3ba") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr11" (CsrIdWidth 'h"3bb") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr12" (CsrIdWidth 'h"3bc") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr13" (CsrIdWidth 'h"3bd") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr14" (CsrIdWidth 'h"3be") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddr15" (CsrIdWidth 'h"3bf") (width := pmp_reg_width) None accessMModeOnly;
          {|
            csrName := "sstatus";
            csrAddr := CsrIdWidth 'h"100";
@@ -919,7 +919,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "s" 30;
-                         @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $1;
@@ -930,7 +930,7 @@ Section csrs.
                   let fields
                     := [
                          @tvecField _ "s" 62;
-                         @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) (Some (ConstBit (wzero 2)))
+                         @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
                     csrViewContext := fun ty => $2;
@@ -1081,7 +1081,7 @@ Section csrs.
                     := [
                          @csrFieldAny _ "satp_mode" (Bit 1) (Bit 4) (Some (ConstBit (wzero 4)));
                          @csrFieldAny _ "satp_asid" (Bit 9) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 22) (Bit 44) (Some (ConstBit (wzero 44)))
+                         @csrFieldAny _ "satp_ppn" (Bit 22) (Bit 44) None
                        ] in
                   {|
                     csrViewContext := fun ty => $1;
@@ -1093,7 +1093,7 @@ Section csrs.
                     := [
                          @csrFieldAny _ "satp_mode" (Bit 4) (Bit 4) (Some (ConstBit (wzero 4)));
                          @csrFieldAny _ "satp_asid" (Bit 16) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 44) (Bit 44) (Some (ConstBit (wzero 44)))
+                         @csrFieldAny _ "satp_ppn" (Bit 44) (Bit 44) None
                        ] in
                   {|
                     csrViewContext := fun ty => $2;

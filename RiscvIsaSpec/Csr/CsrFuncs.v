@@ -395,7 +395,7 @@ Section CsrInterface.
            := csrFieldValueReg {|
                   csrFieldRegisterName := @^(prefix ++ "tvec_base");
                   csrFieldRegisterKind := Bit width;
-                  csrFieldRegisterValue := Some (ConstBit (wzero width));
+                  csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform := fun _ _ => id;
                   (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
                   (* isAligned (SignExtendTruncLsb Xlen input_value) $2; *)
