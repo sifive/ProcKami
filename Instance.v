@@ -43,8 +43,8 @@ Definition model64Val := model [Xlen32; Xlen64].
 Definition model32 := getRtlSafe model32Val.
 Definition model64 := getRtlSafe model64Val.
 
-Definition kami_model32 := snd (separateModRemove model32Val).
-Definition kami_model64 := snd (separateModRemove model64Val).
+Definition kami_model32 := (separateModRemove model32Val).
+Definition kami_model64 := (separateModRemove model64Val).
 
 Separate Extraction
          predPack
@@ -55,6 +55,8 @@ Separate Extraction
          pointwiseIntersectionMask
          pointwiseIntersection
          pointwiseBypass
+         getDefaultConstFullKind
+         CAS_RulesRf
          
          CompActionSimple
          RmeSimple
