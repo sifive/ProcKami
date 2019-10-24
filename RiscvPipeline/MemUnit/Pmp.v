@@ -83,46 +83,50 @@ Section pmp.
          <- fold_left
               (fun (acc_act : ActionT ty pmp_entry_acc_kind) entry_index
                 => LETA acc <- acc_act;
-(* *)
-(*                    System [ *)
-(*                      DispString _ "[pmp_check] ==================================================\n"; *)
-(*                      DispString _ ("[pmp_check] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n"); *)
-(*                      DispString _ "[pmp_check] acc: "; *)
-(*                      DispHex #acc; *)
-(*                      DispString _ "\n" *)
-(*                    ]; *)
-(* *)
+(*
+                   System [
+                     DispString _ "[pmp_check] ==================================================\n";
+                     DispString _ ("[pmp_check] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
+                     DispString _ "[pmp_check] acc: ";
+                     DispHex #acc;
+                     DispString _ "\n"
+                   ];
+*)
                    LETA entry
                      :  PmpEntryPkt
                      <- pmp_entry_read entry_index;
                    LET tor
                      :  PAddr
                      <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 2 2)));
-                   (* System [ *)
-(*                      DispString _ "[pmp_check] entry: "; *)
-(*                      DispHex #entry; *)
-(*                      DispString _ "\n"; *)
-(*                      DispString _ "[pmp_check] entry addr: "; *)
-(*                      DispHex (#entry @% "addr"); *)
-(*                      DispString _ "\n"; *)
-(*                      DispString _ "[pmp_check] sign extended entry addr: "; *)
-(*                      DispHex (#entry @% "addr"); *)
-(*                      DispString _ "\n"; *)
-(*                      DispString _ "[pmp_check] tor: "; *)
-(*                      DispHex #tor; *)
-(*                      DispString _ "\n" *)
-(*                    ]; *)
+(*
+                   System [
+                     DispString _ "[pmp_check] entry: ";
+                     DispHex #entry;
+                     DispString _ "\n";
+                     DispString _ "[pmp_check] entry addr: ";
+                     DispHex (#entry @% "addr");
+                     DispString _ "\n";
+                     DispString _ "[pmp_check] sign extended entry addr: ";
+                     DispHex (#entry @% "addr");
+                     DispString _ "\n";
+                     DispString _ "[pmp_check] tor: ";
+                     DispHex #tor;
+                     DispString _ "\n"
+                   ];
+*)
                    LET mask0
                      :  PAddr
                      <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
                    LET mask
                      :  PAddr
                      <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
-                   (* System [ *)
-(*                      DispString _ "[pmp_check] mask: "; *)
-(*                      DispHex #mask; *)
-(*                      DispString _ "\n" *)
-(*                    ]; *)
+(*
+                   System [
+                     DispString _ "[pmp_check] mask: ";
+                     DispHex #mask;
+                     DispString _ "\n"
+                   ];
+*)
                    GatherActions
                      (map
                        (fun index

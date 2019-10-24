@@ -301,59 +301,56 @@ Section mem_unit.
                                  (#pmp_result @% "fst" @% "fst")
                                  (#pmp_result @% "fst" @% "snd")
                                  (#msize @% "data");
-                                 (* #mpaddr @% "fst" *)
                            (* VI. apply the memory transform to compute the write value *)
                            LETA mwrite_value
-                             (* :  Maybe MemoryOutput *)
-                             :  Maybe Data
-                             <- Ret Invalid;
-(*
+                             :  Maybe (Maybe Data)
                              <- convertLetExprSyntax_ActionT
                                   (inst_db_get_pkt
                                     (fun _ _ tagged_inst
                                       => let inst := snd (tagged_inst) in
-                                         RetE
-                                           (match optMemParams inst (* return MemoryOutput ## ty *) with
-                                             | Some params
-                                               => match memXform params with
-                                                  | LdEntry _ => Invalid
-                                                  | StEntry => (input_pkt @% "reg_data")
-                                                  | LrEntry => Invalid
-                                                  | ScEntry => (input_pkt @% "reg_data")
-                                                  | AmoEntry xform
-                                                    => (xform
-                                                         (input_pkt @% "reg_data")
-                                                         (#read_result @% "data"))
-                                                  end
-(*
-                                               => (((memXform params (ty := ty))
-                                                    (RetE
-                                                      (STRUCT {
-                                                        "aq" ::= input_pkt @% "aq" ;
-                                                        "rl" ::= input_pkt @% "rl" ;
-                                                        "reservation" ::= #read_reservation_result;
-                                                        "mem" ::= #read_result @% "data";
-                                                        "reg_data" ::= input_pkt @% "reg_data"
-                                                       } : MemoryInput @# ty))) : MemoryOutput ## ty)
-*)
-                                             | None (* impossible case *)
-                                               (* => $$(getDefaultConst MemoryOutput) *)
-                                               => Invalid
-                                             end))
+                                         match optMemParams inst return Maybe Data ## ty with
+                                          | Some params
+                                            => match memXform params return Maybe Data ## ty with
+                                               | LdEntry _ => RetE (Invalid : Maybe Data @# ty)
+                                               | StEntry => RetE (Valid (input_pkt @% "reg_data"))
+                                               | LrEntry => RetE (Invalid : Maybe Data @# ty)
+                                               | ScEntry
+                                                 => LETC isStore
+                                                      :  Bool
+                                                      <- CABool And
+                                                           (map
+                                                             (ReadArrayConst #read_reservation_result)
+                                                             (getFinsBound
+                                                               (if Nat.eqb (accessSize params) 2
+                                                                 then Xlen_over_8/2
+                                                                 else Xlen_over_8)
+                                                               Rlen_over_8));
+                                                    RetE
+                                                      (IF #isStore
+                                                        then
+                                                          Valid
+                                                            (if Nat.eqb (accessSize params) 2
+                                                              then sign_extend_trunc 32 Rlen (input_pkt @% "reg_data")
+                                                              else input_pkt @% "reg_data")
+                                                        else (Invalid : Maybe Data @# ty))
+                                               | AmoEntry xform
+                                                 => RetE (Valid (xform ty
+                                                      (input_pkt @% "reg_data")
+                                                      (#read_result @% "data")))
+                                               end
+                                          | None (* impossible case *)
+                                            => RetE (Invalid : Maybe Data @# ty)
+                                          end)
                                     func_unit_id
                                     inst_id);
-*)
-                           LET write_mask
-                             :  Array Rlen_over_8 Bool
-                             (* <- #mwrite_value @% "data" @% "mask"; *)
-                             <- $$(getDefaultConst (Array Rlen_over_8 Bool));
-(*
+                           LETA write_mask
+                             :  Maybe DataMask
                              <- convertLetExprSyntax_ActionT
                                   (inst_db_get_pkt
                                     (fun _ _ tagged_inst
                                       => let inst := snd (tagged_inst) in
                                          let size : nat
-                                           := match optMemParams inst (* return MemoryOutput ## ty *) with
+                                           := match optMemParams inst with
                                               | Some params => accessSize params
                                               | None => 0
                                               end in
@@ -362,9 +359,15 @@ Section mem_unit.
                                              ($(pow2 (pow2 size) - 1))))
                                     func_unit_id
                                     inst_id);
-*)
-                           (* If #mwrite_value @% "data" @% "isWr" *)
-                           If #mwrite_value @% "valid"
+                           System [
+                             DispString _ "[mem_unit_exec] mwrite_value:\n";
+                             DispHex #mwrite_value;
+                             DispString _ "\n";
+                             DispString _ "[mem_unit_exec] write_mask:\n";
+                             DispHex #write_mask;
+                             DispString _ "\n"
+                           ];
+                           If #mwrite_value @% "data" @% "valid"
                              then
                                (* VII. write to memory. *)
                                LETA write_result
@@ -372,9 +375,8 @@ Section mem_unit.
                                  <- mem_region_write 0
                                       (#pmp_result @% "fst" @% "fst")
                                       (#pmp_result @% "fst" @% "snd")
-                                      (* (#mwrite_value @% "data" @% "data" : Data @# ty) *)
-                                      (#mwrite_value @% "data" : Data @# ty)
-                                      (#write_mask : DataMask @# ty)
+                                      (#mwrite_value @% "data" @% "data" : Data @# ty)
+                                      (#write_mask @% "data" : DataMask @# ty)
                                       (#msize @% "data");
                                Ret
                                  (IF #write_result
@@ -388,54 +390,105 @@ Section mem_unit.
                              DispHex #write_result;
                              DispString _ "\n"
                            ];
-                           (* If #mwrite_value @% "data" @% "isLrSc" *)
                            LETA mreservation
                              :  Maybe Reservation
-                             <- Ret Invalid;
-(*
                              <- convertLetExprSyntax_ActionT
                                   (inst_db_get_pkt
                                     (fun _ _ tagged_inst
                                       => let inst := snd (tagged_inst) in
                                          RetE
-                                           (match optMemParams inst (* return MemoryOutput ## ty *) with
+                                           (match optMemParams inst return (@Reservation procParams) @# ty with
                                             | Some params
                                               => match memXform params with
                                                  | LrEntry
-                                                   => Valid $$(ConstArray
+                                                   => $$(ConstArray
                                                         (fun i : Fin.t Rlen_over_8
                                                           => Nat.ltb (proj1_sig (Fin.to_nat i))
-                                                               (if Nat.eqb accessSize 2
+                                                               (if Nat.eqb (accessSize params) 2
                                                                  then Xlen_over_8/2
                                                                  else Xlen_over_8)))
-                                                 | _ => Invalid
+                                                 | _ => $$(getDefaultConst Reservation)
                                                  end
-                                            | None => Invalid
+                                            | None => $$(getDefaultConst Reservation)
                                             end))
                                     func_unit_id
                                     inst_id);
-*)
                            If #mreservation @% "valid"
                              then
                                mem_region_write_resv
                                  (#pmp_result @% "fst" @% "fst")
                                  (#pmp_result @% "fst" @% "snd")
-                                 (#write_mask : DataMask @# ty)
-                                 (* (#mwrite_value @% "data" @% "reservation") *)
+                                 (#write_mask @% "data": DataMask @# ty)
                                  (#mreservation @% "data")
                                  (#msize @% "data");
-                                 (* #mpaddr @% "fst" *)
-                           LET memRet
-                             :  MemRet
-                             <- $$(getDefaultConst MemRet);
-(*
-                             <- STRUCT {
-                                  "writeReg?" ::= #mwrite_value @% "data" @% "reg_data" @% "valid";
-                                  "tag"  ::= #mwrite_value @% "data" @% "tag";
-                                  "data" ::= #mwrite_value @% "data" @% "reg_data" @% "data"
-                                } : MemRet @# ty;
-*)
-                           mem_unit_exec_pkt #memRet #write_result
+                           LETA memRet
+                             :  Maybe MemRet
+                             <- convertLetExprSyntax_ActionT
+                                  (inst_db_get_pkt
+                                    (fun _ _ tagged_inst
+                                      => let inst := snd (tagged_inst) in
+                                         LETE data
+                                           :  Maybe Data
+                                           <- option_rect
+                                                (fun _ => Maybe Data ## ty)
+                                                (fun params : @MemInstParams procParams
+                                                  => match memXform params with
+                                                     | LdEntry op
+                                                       => let size : nat
+                                                            := (8 * pow2 (accessSize params))%nat in
+                                                          RetE (Valid match op with
+                                                          | LdExtendSign
+                                                            => sign_extend_trunc size Rlen (#read_result @% "data")
+                                                          | LdExtendZero
+                                                            => zero_extend_trunc size Rlen (#read_result @% "data")
+                                                          | LdExtendOne
+                                                            => one_extend_trunc size Rlen (#read_result @% "data")
+                                                          end)
+                                                     | StEntry
+                                                       => RetE Invalid
+                                                     | LrEntry
+                                                       => RetE (Valid (sign_extend_trunc
+                                                            (if Nat.eqb (accessSize params) 2
+                                                              then Xlen/2
+                                                              else Xlen)
+                                                            Rlen
+                                                            (#read_result @% "data")))
+                                                     | ScEntry
+                                                       => LETC isStore
+                                                            :  Bool
+                                                            <- CABool And
+                                                                 (map
+                                                                   (ReadArrayConst #read_reservation_result)
+                                                                   (getFinsBound
+                                                                     (if Nat.eqb (accessSize params) 2
+                                                                       then Xlen_over_8/2
+                                                                       else Xlen_over_8)
+                                                                     Rlen_over_8));
+                                                          RetE (Valid (IF #isStore then $0 else $1 : Data @# ty) : Maybe Data @# ty)
+                                                     | AmoEntry _
+                                                       => RetE (Valid
+                                                            (if Nat.eqb (accessSize params) 2
+                                                              then sign_extend_trunc 32 Rlen (#read_result @% "data")
+                                                              else #read_result @% "data"))
+                                                       end)
+                                                (RetE Invalid)
+                                                (optMemParams inst);
+                                         RetE (STRUCT {
+                                           "writeReg?" ::= #data @% "valid";
+                                           "tag"  ::= if hasFrd (instHints inst) then $FloatRegTag else $IntRegTag;
+                                           "data" ::= #data @% "data"
+                                         } : MemRet @# ty))
+                                    func_unit_id
+                                    inst_id);
+                           System [
+                             DispString _ "[mem_unit_exec] mreservation:\n";
+                             DispHex #mreservation;
+                             DispString _ "\n";
+                             DispString _ "[mem_unit_exec] memRet:\n";
+                             DispHex #memRet;
+                             DispString _ "\n"
+                           ];
+                           mem_unit_exec_pkt (#memRet @% "data") #write_result
                        (*   else mem_unit_exec_pkt_access_fault addr $$false *)
                        (*   as result; *)
                        (* Ret #result *)

@@ -293,7 +293,7 @@ Section exts.
   End ty.
 
   Definition mem_devices
-    :  list (@MemDevice procParams param_func_units)
+    :  list (@MemDevice procParams)
     := [
          debugDevice   ;
          bootRomDevice ;

@@ -80,7 +80,7 @@ Section Mem.
                          then Valid #fullException
                          else Invalid)} ;
          RetE #retval.
-
+(*
     Definition loadXform (tag: RoutingTag @# ty) (size: nat)
                (ext: forall (ty : Kind -> Type)
                             (ni: nat) (no : nat), Expr ty (SyntaxKind (Bit ni)) -> Expr ty (SyntaxKind (Bit no))) :=
@@ -105,7 +105,7 @@ Section Mem.
                                    "tag" ::= tag ;
                                    "reg_data" ::= #memOut };
               RetE #outMemReg.
-
+*)
     Definition storeInput
       (size: nat)
       (ty : Kind -> Type)
@@ -164,7 +164,7 @@ Section Mem.
          RetE #retval.
 
     Definition storeTag := storeTagGeneric allow_misaligned false.
-
+(*
     Definition storeXform (size: nat) :=
       fun memRegIn =>
         LETE memReg : MemoryInput <- memRegIn ;
@@ -184,7 +184,7 @@ Section Mem.
                                "tag" ::= $IntRegTag ;
                                "reg_data" ::= (Invalid: Maybe Data @# ty) };
           RetE #outMemReg.
-   
+*)   
     Definition amoInput
       (ty : Kind -> Type)
       sz
@@ -210,7 +210,7 @@ Section Mem.
       RetE #ret.
 
     Definition amoTag := storeTagGeneric allow_misaligned false.
-
+(*
     Definition amoXform (half: bool) (fn: Data @# ty -> Data @# ty -> Data @# ty) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       fun memRegIn =>
@@ -243,11 +243,11 @@ Section Mem.
                                "tag" ::= $IntRegTag ;
                                "reg_data" ::= #finalLoadVal };
           RetE #outMemReg.
-
+*)
     Definition lrInput := amoInput.
 
     Definition lrTag := storeTagGeneric allow_misaligned true.
-
+(*
     Definition lrXform (half: bool) :=
       let dohalf := andb half (getBool (Nat.eq_dec Xlen 64)) in
       fun memRegIn =>
@@ -284,11 +284,11 @@ Section Mem.
                                "tag" ::= $IntRegTag ;
                                "reg_data" ::= #finalLoadVal };
           RetE #outMemReg.
-
+*)
     Definition scInput := amoInput.
 
     Definition scTag := storeTagGeneric allow_misaligned false.
-
+(*
     (* TODO: should this use dohalf like those above? *)
     Definition scXform (half: bool)
       := let dohalf
@@ -331,6 +331,6 @@ Section Mem.
                      "reg_data" ::= Valid #loadVal
                    };
               RetE #outMemReg.
-
+*)
   End Ty.
 End Mem.

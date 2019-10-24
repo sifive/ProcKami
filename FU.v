@@ -792,6 +792,8 @@ Section Params.
 
       Definition sign_extend_trunc := extendTruncLsb (@SignExtendTruncLsb ty).
 
+      Definition one_extend_trunc := extendTruncLsb (@OneExtendTruncLsb ty).
+
       Definition extendMsbWithFunc
                  (f : forall n m : nat, Bit n @# ty -> Bit m @# ty)
                  (n m : nat)
