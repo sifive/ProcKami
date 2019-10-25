@@ -6,7 +6,6 @@
 Require Import Kami.AllNotations.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
-Require Import StdLibKami.Arbiter.
 Require Import List.
 Import ListNotations.
 Require Import BinNat.
