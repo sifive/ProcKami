@@ -5,6 +5,8 @@
 
 Require Import Kami.AllNotations.
 Require Import Kami.Notations_rewrites.
+Require Import Kami.Properties.
+Require Import Kami.PProperties.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
@@ -32,27 +34,36 @@ Require Import ProcKami.GenericPipeline.ProcessorCore.
 Section WfModProcessorProof.
   Context `{procParams: ProcParams}.  Open Scope kami_expr.
 
-  Open Scope kami_action.
+  Variable pmp_addr_ub : option (word pmp_reg_width).
 
-Lemma csrViews_reference (p:ProcParams): forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
+  Section model.
+    Local Open Scope kami_action.
+    Local Open Scope kami_expr.
+
+    Variable supported_exts : list (string * bool).
+    Variable func_units : list FUEntry.
+    Variable mem_devices : list MemDevice.
+    Variable mem_table : list (MemTableEntry mem_devices).
+
+Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
 Proof.
   reflexivity.
 Qed.
 
-Lemma csrViews_reference_list (p:ProcParams): forall a b c d r, map csrViews ({| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |}::r) = c::(map csrViews r).
+Lemma csrViews_reference_list: forall a b c d r, map csrViews ({| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |}::r) = c::(map csrViews r).
 Proof.
   reflexivity.
 Qed.
 
-Lemma csrViews_reference_nil_list (p: ProcParams) : forall n w a r, map csrViews
+Lemma csrViews_reference_nil_list: forall n w a r, map csrViews
                                  ((nilCsr n w a)::r)= (repeatCsrView 2
-                (@csrViewDefaultReadXform p [])
-                (@csrViewDefaultWriteXform p []))::(map csrViews r).
+                (@csrViewDefaultReadXform procParams [])
+                (@csrViewDefaultWriteXform procParams []))::(map csrViews r).
 Proof.
   reflexivity.
 Qed.
 
-Lemma csrFields_reference_list (p:ProcParams): forall a b c d r, map csrViewFields
+Lemma csrFields_reference_list: forall a b c d r, map csrViewFields
                                 ({| csrViewContext := a;
                                  csrViewFields := b;
                                  csrViewReadXform := c;
@@ -62,20 +73,20 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma csr_regs_Csrs {p:ProcParams} : csr_regs Csrs=nubBy (fun '(x, _) '(y, _) => String.eqb x y)
-                                 (concat (map csr_reg_csr_field
-                                              (concat (map csrViewFields (concat (map csrViews Csrs)))))).
+Lemma csr_regs_Csrs: csr_regs Csrs=nubBy (fun '(x, _) '(y, _) => String.eqb x y)
+                              (concat (map csr_reg_csr_field
+                                      (concat (map csrViewFields (concat (map csrViews Csrs)))))).
 Proof.
     unfold csr_regs.
     reflexivity.
 Qed.
 
-Lemma repeatCsrView_0 {p:ProcParams}: forall f r w, @repeatCsrView p 0 f r w=[].
+Lemma repeatCsrView_0: forall f r w, @repeatCsrView procParams 0 f r w=[].
 Proof.
   reflexivity.
 Qed.
 
-Lemma repeatCsrView_S {p:ProcParams}: forall f r w n, @repeatCsrView p (S n) f r w=
+Lemma repeatCsrView_S: forall f r w n, @repeatCsrView procParams (S n) f r w=
     ({|
         csrViewContext    := fun ty => $(S n);
         csrViewFields     := f;
@@ -88,7 +99,7 @@ Qed.
 
 Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_list csrFields_reference_list repeatCsrView_0 repeatCsrView_S : simp_csrs.
 
-Inductive isSubModule: Mod -> Mod -> Prop :=
+(*Inductive isSubModule: Mod -> Mod -> Prop :=
   | isSubModule_Base: forall m, isSubModule m m
   | isSubModule_ConcatMod1: forall m1 m2 m, isSubModule m m1 -> isSubModule m (ConcatMod m1 m2)
   | isSubModule_ConcatMod2: forall m1 m2 m, isSubModule m m2 -> isSubModule m (ConcatMod m1 m2).
@@ -115,13 +126,7 @@ Theorem isSubModule_fold_right_ConcatMod: forall m x yl, isSubModule m x -> isSu
       Theorem wfMod_createHideMod : forall x m, allMethodsIn m x -> WfMod x -> WfMod (createHideMod x m).
       Admitted.
 
-    Theorem not_In_pc_intRegFile: ~ In @^"pc" (map fst (getAllRegisters (BaseRegFile intRegFile))).
-    Admitted.
-
-    Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
-    Admitted.
-
-Ltac wfMod_createHideMod_Helper :=
+      Ltac wfMod_createHideMod_Helper :=
   match goal with
   | |- allMethodsIn (_ ++ _) _ => rewrite allMethodsIn_append;split;wfMod_createHideMod_Helper
   | |- allMethodsIn (map fst (getAllMethods _)) _ => apply allMethodsIn_map_fst_getAllMethods;wfMod_createHideMod_Helper
@@ -133,38 +138,46 @@ Ltac wfMod_createHideMod_Helper :=
 end.
 
 Ltac ltac_wfMod_createHideMod :=
-  apply wfMod_createHideMod;[wfMod_createHideMod_Helper|idtac].
+  apply wfMod_createHideMod;[wfMod_createHideMod_Helper|idtac].*)
+
+
+    Theorem not_In_pc_intRegFile: ~ In @^"pc" (map fst (getAllRegisters (BaseRegFile intRegFile))).
+    Admitted.
+
+    Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
+    Admitted.
 
 Ltac ltac_wfMod_ConcatMod :=
   apply ConcatModWf;autorewrite with kami_rewrite_db;repeat split;try assumption.
 
-Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile: forall x,
-    @DisjKey x (getAllRegisters (BaseRegFile intRegFile))
-      (@getAllRegisters (BaseRegFile floatRegFile)).
-Admitted.
+(*Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile: forall x,
+    @DisjKey x (@getAllRegisters x (BaseRegFile intRegFile))
+      (@getAllRegisters x (BaseRegFile floatRegFile)).
+Admitted.*)
 
 (*Hint apply DisjKey_getAllRegisters_intRegFile_flatRegFile : wfMod_ConcatMod_Helper.*)
 
 
-Lemma WfModProcessor (p: ProcParams)
-                     (fu: list FUEntry)
+Lemma WfModProcessor
+                     (*(fu: list FUEntry)
                      (mem_devices: list MemDevice)
-                     (memTable: list (MemTableEntry mem_devices)) :
-        WfMod (processor fu memTable).
+                     (memTable: list (MemTableEntry mem_devices))*) :
+        WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
       unfold processor.
+     
       unfold processorCore.
       unfold makeModule.
+      apply WfMod_createHideMod.
+      split.
+      apply SubList_refl.
+
       autorewrite with kami_rewrite_db.
       rewrite ?map_app.
-      ltac_wfMod_createHideMod.
-
-      (*apply ConcatModWf;autorewrite with kami_rewrite_db.
-
-      repeat split.*)
 
       ltac_wfMod_ConcatMod.
       apply DisjKey_getAllRegisters_intRegFile_floatRegFile.
+
       (* END *)
 
       apply wfMod_createHideMod.
@@ -326,5 +339,6 @@ Lemma WfModProcessor (p: ProcParams)
 Close Scope kami_expr.
 
 Close Scope kami_action.
+End model.
 End WfModProcessorProof.
 
