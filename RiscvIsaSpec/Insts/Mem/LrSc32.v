@@ -35,7 +35,7 @@ Section Mem.
                                      nil ;
             inputXform   := fun ty => lrInput 2 (ty := ty);
             outputXform  := fun ty => lrTag (ty := ty);
-            optMemParams := Some {| accessSize := 2; memXform := LrEntry |};
+            optMemParams := Some LrW;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
          |} ::
             {| instName     := "sc.w" ;
@@ -49,7 +49,7 @@ Section Mem.
                                         nil ;
                inputXform   := fun ty => scInput 2 (ty := ty);
                outputXform  := fun ty => scTag (ty := ty);
-               optMemParams := Some {| accessSize := 2; memXform := ScEntry |};
+               optMemParams := Some ScW;
                instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
             |} ::
             nil |}.
