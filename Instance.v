@@ -65,4 +65,4 @@ Separate Extraction
          model32
          model64
 
-         TestMod.
+         testMod.
