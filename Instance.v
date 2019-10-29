@@ -3,7 +3,7 @@
   RISC-V processor core model into Haskell, which is the first step
   in generating the model's Verilog.
 *)
-Require Import Kami.All Kami.Compiler.Compiler.
+Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.Compile.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import List.
@@ -12,7 +12,7 @@ Require Import ProcKami.ModelParams.
 Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
-Require Import Kami.Test.Test.
+Require Import Kami.Compiler.Test.Test.
 
 Definition supportedExts
   :  list SupportedExt
@@ -37,14 +37,8 @@ Definition debug_impebreak := true.
 
 Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak.
 
-Definition model32Val := model [Xlen32].
-Definition model64Val := model [Xlen32; Xlen64].
-
-Definition model32 := getRtlSafe model32Val.
-Definition model64 := getRtlSafe model64Val.
-
-Definition kami_model32 := (separateModRemove model32Val).
-Definition kami_model64 := (separateModRemove model64Val).
+Definition model32 := model [Xlen32].
+Definition model64 := model [Xlen32; Xlen64].
 
 Separate Extraction
          predPack
@@ -57,15 +51,18 @@ Separate Extraction
          pointwiseBypass
          getDefaultConstFullKind
          CAS_RulesRf
+
+         getCallsWithSignPerMod
+         RtlExpr'
+         getRtl
          
          CompActionSimple
          RmeSimple
          RtlModule
+         getRules
+         separateModRemove
          
          model32
          model64
 
-         kami_model32
-         kami_model64
-         
          TestMod.
