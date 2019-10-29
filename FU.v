@@ -93,7 +93,7 @@ Definition DRetTag := 4. (* 2 *)
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
 Definition RetCodeM := 24.
-
+(*
 Definition Ld  := 0.
 Definition St  := 1.
 Definition Lr  := 2.
@@ -101,6 +101,16 @@ Definition Sc  := 3.
 Definition Amo := 4.
 
 Definition MemOp := Bit 3.
+*)
+Inductive MemOpName : Set :=
+  Lb | Lh | Lw | Lbu | Lhu | Lwu | Ld |
+  Sb | Sh | Sw | Sd |
+  Flw | Fld |
+  Fsw | Fsd |
+  AmoSwapW | AmoAddW | AmoXorW | AmoAndW | AmoOrW | AmoMinW | AmoMaxW | AmoMinuW | AmoMaxuW |
+  AmoSwapD | AmoAddD | AmoXorD | AmoAndD | AmoOrD | AmoMinD | AmoMaxD | AmoMinuD | AmoMaxuD |
+  LrW | ScW |
+  LrD | ScD.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -424,7 +434,7 @@ Section Params.
       uniqId       : UniqId ;        
       inputXform   : forall ty, ContextCfgPkt @# ty -> ExecContextPkt ## ty -> ik ## ty ;
       outputXform  : forall ty, ok ## ty -> PktWithException ExecUpdPkt ## ty ;
-      optMemParams : option MemInstParams ;
+      optMemParams : option MemOpName ;
       instHints    : InstHints }.
 
   Record FUEntry :=
@@ -843,171 +853,285 @@ Section Params.
 
   End ty.
 
-  Section Device.
-    Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
 
-    Record PMA
-      := {
-          pma_width : nat; (* in bytes *)
-          pma_readable : bool;
-          pma_writeable : bool;
-          pma_executable : bool;
-          pma_misaligned : bool;
-          pma_lrsc : bool;
-          pma_amo : PMAAmoClass
+  Record PMA
+    := {
+        pma_width : nat; (* in bytes *)
+        pma_readable : bool;
+        pma_writeable : bool;
+        pma_executable : bool;
+        pma_misaligned : bool;
+        pma_lrsc : bool;
+        pma_amo : PMAAmoClass
+      }.
+
+  Definition pmas_default
+    := map
+         (fun x
+          => {|
+              pma_width      := x;
+              pma_readable   := true;
+              pma_writeable  := true;
+              pma_executable := true;
+              pma_misaligned := true;
+              pma_lrsc       := true;
+              pma_amo        := AMOArith
+            |})
+         [0; 1; 2; 3].
+
+  Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
+  Definition mmregs_lgMaskSz := Nat.log2_up 8.
+
+  Record MMRegs
+    := {
+        mmregs_dev_lgNumRegs : nat;
+        mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
+      }.
+
+  Definition mmregs_regs (mmregs : MMRegs)
+    := map
+         (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
+          => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
+         (mmregs_dev_regs mmregs).
+(*
+  Definition amoInstNames
+    :  list string
+    := concat
+         (map
+           (fun func_unit
+             => map (@instName _ _)
+                  (filter
+                    (fun inst
+                      => match optMemParams inst with
+                         | Some params
+                           => match memXform params with
+                              | AmoEntry _ => true
+                              | _ => false
+                              end
+                         | _ => false
+                         end)
+                    (fuInsts func_unit)))
+           func_units).
+
+  Definition AmoOpWidth
+    := Nat.log2_up (length amoInstNames).
+
+  Definition AmoOp
+    := Bit AmoOpWidth.
+*)
+  Definition numMemOp : nat := 37.
+
+  Definition MemOp := Bit (Nat.log2_up numMemOp).
+
+  Definition MemDeviceRq := STRUCT_TYPE {
+                                "memOp" :: MemOp ;
+                                (* "amoOp" :: AmoOp ; *)
+                                "addr"  :: PAddr ;
+                                "mask"  :: DataMask ;
+                                "data"  :: Data ;
+                                "rqSz"  :: MemRqLgSize ;
+                                "aq"    :: Bool ;
+                                "rl"    :: Bool
+                              }.
+
+  Definition MemDeviceRs := STRUCT_TYPE {
+                                "data" :: Data ;
+                                "rsv"  :: Bool }.
+
+  Inductive MemDeviceType := main_memory | io_device.
+
+  Record MemDevice
+    := {
+(*
+        mem_device_name : string;
+        mem_device_io : bool; (* 3.5.1 *)
+        mem_device_pmas : list PMA;
+        mem_device_outstanding_num : nat;
+        mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
+                                   -> ActionT ty Bool;
+        mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
+        mem_device_file : option MMRegs%type
+*)
+        mem_device_name : string;
+        mem_device_type : MemDeviceType; (* 3.5.1 *)
+        mem_device_pmas : list PMA;
+        mem_device_read
+        : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
+        mem_device_write
+        : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
+        mem_device_read_resv
+        : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
+        mem_device_write_resv
+        : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
+        mem_device_file
+        : option ((list RegFileBase) + MMRegs)%type
+     }.
+
+  Definition mem_device_read_nth
+             (ty : Kind -> Type)
+             (device : MemDevice)
+             (index : nat)
+    :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
+    := List.nth_error (mem_device_read device ty) index.
+
+  Definition mem_device_write_nth
+             (ty : Kind -> Type)
+             (device : MemDevice)
+             (index : nat)
+    :  option (MemWrite @# ty -> ActionT ty Bool)
+    := List.nth_error (mem_device_write device ty) index.
+
+  Definition get_mem_device_file (device: MemDevice) :=
+    match mem_device_file device with
+    | None => nil
+    | Some (inl x) => x
+    | Some _ => nil
+    end.
+
+  Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
+
+  Definition get_mem_device_regs (device: MemDevice) :=
+    match mem_device_file device with
+(*
+    | None => nil
+    | Some x => mmregs_regs x
+*)
+    | None => nil
+    | Some (inr x) => mmregs_regs x
+    | Some _ => nil
+    end.
+  
+  Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
+
+  Definition DeviceTag (mem_devices : list MemDevice)
+    := Bit (Nat.log2_up (length mem_devices)).
+
+  Record MemTableEntry
+         (mem_devices : list MemDevice)
+    := {
+        mtbl_entry_addr : N;
+        mtbl_entry_width : N;
+        mtbl_entry_device : Fin.t (length mem_devices)
+      }.
+
+  Section func_units.
+    Variable func_units : list FUEntry.
+
+    (* instruction database ids. *)
+    Definition FuncUnitIdWidth := Nat.log2_up (length func_units).
+
+    Definition inst_max_num :=
+      (fold_left
+         (fun acc func_unit => max acc (length (fuInsts func_unit)))
+         func_units
+         0).
+
+    Definition InstIdWidth := Nat.log2_up inst_max_num.
+    Definition FuncUnitId : Kind := Bit FuncUnitIdWidth.
+    Definition InstId : Kind := Bit InstIdWidth.
+
+    (* Represents the kind of packets output by the decoder. *)
+    Definition DecoderPkt := STRUCT_TYPE {
+                                 "funcUnitTag" :: FuncUnitId;
+                                 "instTag"     :: InstId;
+                                 "inst"        :: Inst }.
+
+    Definition FuncUnitInputWidth :=
+      fold_left
+        (fun acc func_unit => max acc (size (fuInputK func_unit)))
+        func_units
+        0.
+
+    Definition FuncUnitInput :=
+      Bit FuncUnitInputWidth.
+
+    Definition InputTransPkt :=
+      STRUCT_TYPE {
+          "funcUnitTag" :: FuncUnitId;
+          "instTag"     :: InstId;
+          "inp"         :: FuncUnitInput
         }.
 
-    Definition pmas_default
-      := map
-           (fun x
-            => {|
-                pma_width      := x;
-                pma_readable   := true;
-                pma_writeable  := true;
-                pma_executable := true;
-                pma_misaligned := true;
-                pma_lrsc       := true;
-                pma_amo        := AMOArith
-              |})
-           [0; 1; 2; 3].
+    Section ty.
+      Variable ty : Kind -> Type.
 
-    Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
-    Definition mmregs_lgMaskSz := Nat.log2_up 8.
+      Local Open Scope kami_expr.
 
-    Record MMRegs
-      := {
-          mmregs_dev_lgNumRegs : nat;
-          mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
-        }.
+      (*
+        Applies [f] to every instruction in the instruction database and
+        returns the result for the instruction entry that satisfies [p].
+      *)
+      Definition inst_db_find_pkt
+          (result_kind : Kind)
+          (p : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 Bool ## ty)
+          (f : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 result_kind ## ty)
 
-    Definition mmregs_regs (mmregs : MMRegs)
-      := map
-           (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-            => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
-           (mmregs_dev_regs mmregs).
-
-    Section func_units.
-      Context `{func_units : list FUEntry}.
-
-      Definition amoInstNames
-        :  list string
-        := concat
+        :  Maybe result_kind ## ty
+        := utila_expr_find_pkt
              (map
-               (fun func_unit
-                 => map (@instName _ _)
-                      (filter
-                        (fun inst
-                          => match optMemParams inst with
-                             | Some params
-                               => match memXform params with
-                                  | AmoEntry _ => true
-                                  | _ => false
-                                  end
-                             | _ => false
-                             end)
-                        (fuInsts func_unit)))
-               func_units).
+                (fun tagged_func_unit : (nat * FUEntry)
+                   => let (func_unit_id, func_unit)
+                        := tagged_func_unit in
+                      utila_expr_lookup_table
+                        (tag (fuInsts func_unit))
+                        (fun tagged_inst
+                           => p func_unit
+                                func_unit_id
+                                tagged_inst)
+                        (fun tagged_inst
+                           => f func_unit
+                                func_unit_id
+                                tagged_inst))
+                (tag func_units)).
 
-      Definition AmoOpWidth
-        := Nat.log2_up (length amoInstNames).
+      (*
+        Applies [f] to every instruction in the instruction database and
+        returns the result for the instruction referenced by [func_unit_id]
+        and [inst_id].
+      *)
+      Definition inst_db_get_pkt
+          (result_kind : Kind)
+          (f : forall func_unit : FUEntry,
+                 nat ->
+                 (nat * InstEntry (fuInputK func_unit) (fuOutputK func_unit)) ->
+                 result_kind ## ty)
+          (sel_func_unit_id : FuncUnitId @# ty)
+          (sel_inst_id : InstId @# ty)
+        :  Maybe result_kind ## ty
+        := inst_db_find_pkt
+             (fun _ func_unit_id tagged_inst
+                => RetE
+                     (($(fst tagged_inst) == sel_inst_id) &&
+                      ($(func_unit_id)    == sel_func_unit_id)))
+             f.
 
-      Definition AmoOp
-        := Bit AmoOpWidth.
+      Definition applyInst
+        (k : Kind)
+        (f : forall t u : Kind, InstEntry t u -> k ## ty)
+        (func_unit_id : FuncUnitId @# ty)
+        (inst_id : InstId @# ty)
+        :  k ## ty
+        := LETE result
+             :  Maybe k
+             <- inst_db_get_pkt
+                  (fun func_unit _ tagged_inst
+                    => f (fuInputK func_unit)
+                         (fuOutputK func_unit)
+                         (snd tagged_inst))
+                  func_unit_id
+                  inst_id;
+          RetE (#result @% "data").
 
-      Definition MemDeviceRq := STRUCT_TYPE {
-                                    "memOp" :: MemOp ;
-                                    "amoOp" :: AmoOp ;
-                                    "addr"  :: PAddr ;
-                                    "mask"  :: DataMask ;
-                                    "data"  :: Data ;
-                                    "rqSz"  :: MemRqLgSize ;
-                                    "aq"    :: Bool ;
-                                    "rl"    :: Bool
-                                  }.
-      Definition MemDeviceRs := STRUCT_TYPE {
-                                    "data" :: Data ;
-                                    "rsv"  :: Bool }.
-
-
-      Inductive MemDeviceType := main_memory | io_device.
-
-      Record MemDevice
-        := {
-(*
-            mem_device_name : string;
-            mem_device_io : bool; (* 3.5.1 *)
-            mem_device_pmas : list PMA;
-            mem_device_outstanding_num : nat;
-            mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
-                                       -> ActionT ty Bool;
-            mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
-            mem_device_file : option MMRegs%type
-*)
-            mem_device_name : string;
-            mem_device_type : MemDeviceType; (* 3.5.1 *)
-            mem_device_pmas : list PMA;
-            mem_device_read
-            : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
-            mem_device_write
-            : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
-            mem_device_read_resv
-            : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
-            mem_device_write_resv
-            : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
-            mem_device_file
-            : option ((list RegFileBase) + MMRegs)%type
-         }.
-
-      Definition mem_device_read_nth
-                 (ty : Kind -> Type)
-                 (device : MemDevice)
-                 (index : nat)
-        :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
-        := List.nth_error (mem_device_read device ty) index.
-
-      Definition mem_device_write_nth
-                 (ty : Kind -> Type)
-                 (device : MemDevice)
-                 (index : nat)
-        :  option (MemWrite @# ty -> ActionT ty Bool)
-        := List.nth_error (mem_device_write device ty) index.
-
-      Definition get_mem_device_file (device: MemDevice) :=
-        match mem_device_file device with
-        | None => nil
-        | Some (inl x) => x
-        | Some _ => nil
-        end.
-
-      Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
-
-      Definition get_mem_device_regs (device: MemDevice) :=
-        match mem_device_file device with
-(*
-        | None => nil
-        | Some x => mmregs_regs x
-*)
-        | None => nil
-        | Some (inr x) => mmregs_regs x
-        | Some _ => nil
-        end.
-      
-      Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
-
-      Definition DeviceTag (mem_devices : list MemDevice)
-        := Bit (Nat.log2_up (length mem_devices)).
-
-      Record MemTableEntry
-             (mem_devices : list MemDevice)
-        := {
-            mtbl_entry_addr : N;
-            mtbl_entry_width : N;
-            mtbl_entry_device : Fin.t (length mem_devices)
-          }.
-
-    End func_units.
-
-  End Device.
+      Local Open Scope kami_action.
+    End ty.
+  End func_units.
 
   Definition debug_device_addr : word PAddrSz := (($0)%word : word PAddrSz).
 
