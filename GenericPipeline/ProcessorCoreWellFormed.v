@@ -3,8 +3,12 @@
   into a single pipeline processor model.
 *)
 
+Require Import Coq.Logic.Classical_Prop.
+Require Import Classical.
+
 Require Import Kami.AllNotations.
 Require Import Kami.Notations_rewrites.
+Require Import Kami.WfMod_Helper.
 Require Import Kami.Properties.
 Require Import Kami.PProperties.
 Require Import ProcKami.FU.
@@ -140,34 +144,337 @@ end.
 Ltac ltac_wfMod_createHideMod :=
   apply wfMod_createHideMod;[wfMod_createHideMod_Helper|idtac].*)
 
+Theorem not_In_pc_intRegFile: ~ In @^"pc" (map fst (getAllRegisters (BaseRegFile intRegFile))).
+Admitted.
 
-    Theorem not_In_pc_intRegFile: ~ In @^"pc" (map fst (getAllRegisters (BaseRegFile intRegFile))).
-    Admitted.
+Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
+Admitted.
 
-    Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
-    Admitted.
+Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile:
+    DisjKey (getAllRegisters (BaseRegFile intRegFile))
+      (getAllRegisters (BaseRegFile floatRegFile)).
+Admitted.
+
+Theorem DisjKey_getAllRegisters_intRegFile_memReservationRegFile:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile))
+    (getAllRegisters (BaseRegFile memReservationRegFile)).
+Admitted.
+
+Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
+    DisjKey (getAllRegisters (BaseRegFile intRegFile))
+      (concat
+         (map getRegFileRegisters (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
+             DisjKey_getAllRegisters_intRegFile_memReservationRegFile
+             DisjKey_getAllRegisters_intRegFile_mem_devices : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile))
+    (mem_device_regs mem_devices).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile)) debug_internal_regs.
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs debug_csrs).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_intRegFile_floatRegFile:
+  DisjKey (getAllMethods (BaseRegFile intRegFile))
+    (getAllMethods (BaseRegFile floatRegFile)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_intRegFile_memReservationRegFile:
+  DisjKey (getAllMethods (BaseRegFile intRegFile))
+    (getAllMethods (BaseRegFile memReservationRegFile)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_intRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices:
+  DisjKey (getAllMethods (BaseRegFile intRegFile))
+    (concat
+       (map (fun mm : RegFileBase => getRegFileMethods mm)
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfMod_ConcatMod_Helper.
+
+Theorem WfMod_intRegFile:
+  WfMod (BaseRegFile intRegFile).
+Admitted.
+
+Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_intRegFile:
+  DisjKey (getAllRegisters (BaseRegFile intRegFile))
+    (getAllRegisters (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_intRegFile:
+  DisjKey (getAllMethods (BaseRegFile intRegFile))
+    (getAllMethods (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRules_intRegFile_processorCore:
+  DisjKey (getAllRules (BaseRegFile intRegFile))
+    (getAllRules (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat1:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth (getAllMethods (BaseRegFile intRegFile)) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v)
+    (ConcatMod (BaseRegFile floatRegFile)
+       (ConcatMod (BaseRegFile memReservationRegFile)
+          (fold_right ConcatMod (processorCore func_units mem_table)
+             (map (fun m : RegFileBase => Base (BaseRegFile m))
+                (mem_device_files mem_devices))))).
+Admitted.
+
+Hint Resolve WFConcat1 : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat2:
+  forall rule : RuleT,
+  In rule
+    (getAllRules
+       (ConcatMod (BaseRegFile floatRegFile)
+          (ConcatMod (BaseRegFile memReservationRegFile)
+             (fold_right ConcatMod (processorCore func_units mem_table)
+                (map (fun m : RegFileBase => Base (BaseRegFile m))
+                   (mem_device_files mem_devices)))))) ->
+  WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
+Admitted.
+
+Hint Resolve WFConcat2 : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat3:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth
+    (getAllMethods
+       (ConcatMod (BaseRegFile floatRegFile)
+          (ConcatMod (BaseRegFile memReservationRegFile)
+             (fold_right ConcatMod (processorCore func_units mem_table)
+                (map (fun m : RegFileBase => Base (BaseRegFile m))
+                   (mem_device_files mem_devices)))))) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile intRegFile).
+Admitted.
+
+Hint Resolve WFConcat3 : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_floatRefFile_memReservationRegFile:
+  DisjKey (getAllRegisters (BaseRegFile floatRegFile))
+    (getAllRegisters (BaseRegFile memReservationRegFile)).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_floatRefFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_floatRegFile_mem_device_files:
+  DisjKey (getAllRegisters (BaseRegFile floatRegFile))
+    (concat
+       (map (fun mm : RegFileBase => getRegFileRegisters mm)
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_floatRegFile_processorCore:
+  DisjKey (getAllRegisters (BaseRegFile floatRegFile))
+    (getAllRegisters (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_floatRegFile_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_floatRegFile_memReservationRegFile:
+  DisjKey (getAllMethods (BaseRegFile floatRegFile))
+    (getAllMethods (BaseRegFile memReservationRegFile)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_floatRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices:
+  DisjKey (getAllMethods (BaseRegFile floatRegFile))
+    (concat
+       (map (fun mm : RegFileBase => getRegFileMethods mm)
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_floatRegFile_processorCore:
+  DisjKey (getAllMethods (BaseRegFile floatRegFile))
+    (getAllMethods (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_floatRegFile_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat4:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth (getAllMethods (BaseRegFile floatRegFile)) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v)
+    (ConcatMod (BaseRegFile memReservationRegFile)
+       (fold_right ConcatMod (processorCore func_units mem_table)
+          (map (fun m : RegFileBase => Base (BaseRegFile m))
+             (mem_device_files mem_devices)))).
+Admitted.
+
+Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
+
+Theorem wfMod_floatRegFile:
+  WfMod (BaseRegFile floatRegFile).
+Admitted.
+
+Hint Resolve wfMod_floatRegFile : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat5:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth
+    (getAllMethods
+       (ConcatMod (BaseRegFile memReservationRegFile)
+          (fold_right ConcatMod (processorCore func_units mem_table)
+             (map (fun m : RegFileBase => Base (BaseRegFile m))
+                (mem_device_files mem_devices))))) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile floatRegFile).
+Admitted.
+
+Hint Resolve WFConcat5 : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat6:
+  forall rule : RuleT,
+  In rule
+    (getAllRules
+       (ConcatMod (BaseRegFile memReservationRegFile)
+          (fold_right ConcatMod (processorCore func_units mem_table)
+             (map (fun m : RegFileBase => Base (BaseRegFile m))
+                (mem_device_files mem_devices))))) ->
+  WfConcatActionT (snd rule type) (BaseRegFile floatRegFile).
+Admitted.
+
+Hint Resolve WFConcat6 : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_memReservationRegFile:
+  DisjKey (getAllRegisters (BaseRegFile memReservationRegFile))
+    (concat
+       (map (fun mm : RegFileBase => getRegFileRegisters mm)
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_memReservationRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_memReservationFile_processorCore:
+  DisjKey (getAllRegisters (BaseRegFile memReservationRegFile))
+    (getAllRegisters (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_memReservationRegFile:
+  DisjKey (getAllMethods (BaseRegFile memReservationRegFile))
+    (concat
+       (map (fun mm : RegFileBase => getRegFileMethods mm)
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_memReservationRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_memReservationFile_processorCore:
+  DisjKey (getAllMethods (BaseRegFile memReservationRegFile))
+    (getAllMethods (processorCore func_units mem_table)).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WfMod_memReservationFile:
+  WfMod (BaseRegFile memReservationRegFile).
+Admitted.
+
+Hint Resolve WfMod_memReservationFile : wfMod_ConcatMod_Helper.
+
+Theorem WfMod_processorCore_mem_devices:  
+  WfMod
+    (fold_right ConcatMod (processorCore func_units mem_table)
+       (map (fun m : RegFileBase => Base (BaseRegFile m))
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve WfMod_processorCore_mem_devices :wfMod_ConcatMod_Helper.
+
+Theorem WFConcat7:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth (getAllMethods (BaseRegFile memReservationRegFile)) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v)
+    (fold_right ConcatMod (processorCore func_units mem_table)
+       (map (fun m : RegFileBase => Base (BaseRegFile m))
+          (mem_device_files mem_devices))).
+Admitted.
+
+Hint Resolve WFConcat7 : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat8:
+  forall rule : RuleT,
+  In rule
+    (getAllRules
+       (fold_right ConcatMod (processorCore func_units mem_table)
+          (map (fun m : RegFileBase => Base (BaseRegFile m))
+             (mem_device_files mem_devices)))) ->
+  WfConcatActionT (snd rule type) (BaseRegFile memReservationRegFile).
+Admitted.
+
+Hint Resolve WFConcat8 : wfMod_ConcatMod_Helper.
+
+Theorem WFConcat9:
+  forall meth : string * {x : Signature & MethodT x},
+  In meth
+    (getAllMethods
+       (fold_right ConcatMod (processorCore func_units mem_table)
+          (map (fun m : RegFileBase => Base (BaseRegFile m))
+             (mem_device_files mem_devices)))) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v)
+    (BaseRegFile memReservationRegFile).
+Admitted.
+
+Hint Resolve WFConcat9 : wfMod_ConcatMod_Helper.
 
 Ltac ltac_wfMod_ConcatMod :=
-  apply ConcatModWf;autorewrite with kami_rewrite_db;repeat split;try assumption.
+  apply ConcatModWf;autorewrite with kami_rewrite_db;repeat split;try assumption;auto with wfMod_ConcatMod_Helper;trivialSolve.
 
-(*Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile: forall x,
-    @DisjKey x (@getAllRegisters x (BaseRegFile intRegFile))
-      (@getAllRegisters x (BaseRegFile floatRegFile)).
-Admitted.*)
-
-(*Hint apply DisjKey_getAllRegisters_intRegFile_flatRegFile : wfMod_ConcatMod_Helper.*)
-
-
-Lemma WfModProcessor
-                     (*(fu: list FUEntry)
-                     (mem_devices: list MemDevice)
-                     (memTable: list (MemTableEntry mem_devices))*) :
+Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
       unfold processor.
      
-      unfold processorCore.
-      unfold makeModule.
+      (*unfold processorCore.
+      unfold makeModule.*)
       apply WfMod_createHideMod.
       split.
       apply SubList_refl.
@@ -176,166 +483,13 @@ Lemma WfModProcessor
       rewrite ?map_app.
 
       ltac_wfMod_ConcatMod.
-      apply DisjKey_getAllRegisters_intRegFile_floatRegFile.
-
-      (* END *)
-
-      apply wfMod_createHideMod.
-
-      + repeat (rewrite allMethodsIn_append).
-        split.
-        apply allMethodsIn_map_fst_getAllMethods.
-        apply isSubModule_ConcatMod1.
-        apply isSubModule_Base.
-
-
-      (* END  *)
-
-      rewrite csr_regs_Csrs.
-      unfold Csrs.
-      autorewrite with simp_csrs.
-      rewrite ?repeatCsrView_S.
-      rewrite ?repeatCsrView_0.
-      rewrite ?concat_cons.
-      rewrite ?concat_nil.
-      repeat (rewrite <- app_comm_cons).
-      rewrite ?app_nil_l.
-      rewrite ?app_nil_r.
-      autorewrite with simp_csrs.
-      rewrite ?concat_cons.
-      rewrite ?concat_nil.
-      repeat (rewrite <- app_comm_cons).
-      rewrite ?app_nil_l.
-      rewrite ?app_nil_r.
-      rewrite ?map_cons.
-
-      match goal with
-      | |- context [csr_regs Csrs] =>
-      let x1 := eval unfold csr_regs in (csr_regs Csrs) in
-              replace (csr_regs Csrs) with x1
-      end.
-
-      unfold Csrs.
-      unfold csr_regs.
-
-      (*match goal with
-      | |- context [makeModule_regs ?P] =>
-      let x1 := eval cbn [makeModule_regs append] in (makeModule_regs P) in
-          (*let x2 := eval cbn in x1 in*)
-              replace (makeModule_regs P) with x1
-      end.
-      autorewrite with makeModule_regs_db.
-      unfold Csrs.
-      unfold csr_regs.
-       
-      (match goal with
-      | |- context [BaseMod ?P ?Q ?R] =>
-      let x1 := eval cbn [makeModule_regs nilCsr csrViews map csrViewFields concat csr_reg_csr_field csr_reg_csr_field_reg append csr_regs Csrs] in (BaseMod P Q R) in
-          (*let x2 := eval simpl in x1 in*)
-              replace (BaseMod P Q R) with x1
-       end).
-      repeat (rewrite map_app).
-
-      (match goal with
-       | |- context [BaseMod ?P ?Q ?R] =>
-       let x1 := eval cbn [map csrViewFields natToWord csrFieldAny] in (BaseMod P Q R) in
-           replace (BaseMod P Q R) with x1
-       end).
-
-
-
-      
-      (*match goal with
-      | |- context [makeModule_rules ?P] =>
-      let x1 := eval cbv [makeModule_rules append] in (makeModule_rules P) in
-          let x2 := eval simpl in x1 in
-              replace (makeModule_rules P) with x2
-      end.*)*)
-      intros.
-
-      (* let x1 := eval cbv [csr_regs Csrs] in (csr_regs Csrs) in
-          let x2 := eval simpl in x1 in
-              let x3 := eval cbv [csrViews csr_reg_csr_field_reg] in x2 in
-                  let x4 := eval simpl in x3 in
-                      replace (csr_regs Csrs) with x4.*)
-      
-      let x1 := eval cbv [csr_regs Csrs] in (csr_regs Csrs) in
-          let x3 := eval cbv [csr_reg_csr_field_reg] in x1 in
-              replace (csr_regs Csrs) with x3.
-
-      unfold nilCsr.
-      unfold simpleCsr.
-      unfold readonlyCsr.
-      rewrite ?csrViews_reference_list.
-      rewrite ?csrViews_reference_nil_list.
-      rewrite ?csrViews_reference_list.
-
-      repeat rewrite concat_cons.
-      repeat rewrite map_app.
-      rewrite ?csrFields_reference_list.
-
       autorewrite with kami_rewrite_db.
-      unfold nilCsr.
-      unfold simpleCsr.
-      unfold readonlyCsr.
-      rewrite ?csrViews_reference_list.
+
+      ltac_wfMod_ConcatMod.
+
+      ltac_wfMod_ConcatMod.
+Qed.
  
-      (* END *)
-
-      match goal with
-      | |- context [map csrViews ?P] =>
-      let x1 = eval rewrite ?map_cons in (map csrViews
-      rewrite ?csrViews_references.
-
-      autorewrite with kami_rewrite_db.
-
-      (*autorewrite with csr_regs_db.
-      autorewrite with makeModule_rules_db.
-      autorewrite with makeModule_meths_db.
-      autorewrite with makeModule_regs_db.
-      
-      repeat (rewrite app_nil_l).
-      repeat (rewrite app_nil_r).
-      repeat (rewrite map1).
-      repeat (rewrite fold_right1).
-      repeat (rewrite getCallsPerMod_ConcatMod).
-      repeat (rewrite getCallsPerMod_fold_right_ConcatMod).
-      repeat (rewrite map_getCallsPerMod_map_RegFileBase).
-      repeat (rewrite getCallsPerMod_BaseRegFile).
-      repeat (rewrite app_nil_l).
-      repeat (rewrite app_nil_r).*)
-
-      apply wfMod_createHideMod.
-      apply isSubModule_ConcatMod2.
-      apply isSubModule_ConcatMod2.
-      apply isSubModule_ConcatMod2.
-      apply isSubModule_fold_right_ConcatMod.
-      apply isSubModule_self.
-      reflexivity.
-
-      apply ConcatModWf.
-
-      repeat (rewrite getAllRegisters_ConcatMod).
-      repeat (rewrite DisjKey_Append2).
-      split.
-
-      apply DisjKey_intRegFile_floatRegFile.
-      split.
-      apply DisjKey_intRegFile_memReservationRegFile.
-      rewrite getAllRegisters_fold_right_ConcatMod.
-      repeat (rewrite DisjKey_Append2).
-
-      (match goal with
-       | |- context [(getAllRegisters (Base (BaseMod ?P ?Q ?R)))] =>
-       let x1 := eval cbn [getAllRegisters getRegisters] in (getAllRegisters (BaseMod P Q R)) in
-           replace (getAllRegisters (Base (BaseMod P Q R))) with x1
-       end).
-
-      repeat (rewrite  DisjKey_In_map2).
-      repeat (rewrite DisjKey_Append2).
-      repeat (rewrite DisjKey_In_map2).
-      repeat (split; try (apply  not_In_mode_intRegFile); try (apply not_In_pc_intRegFile); try (apply not_In_proc_name_intRegFile)).
-
 Close Scope kami_expr.
 
 Close Scope kami_action.
