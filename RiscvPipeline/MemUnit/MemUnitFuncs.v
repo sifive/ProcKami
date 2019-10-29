@@ -325,6 +325,12 @@ Section mem_unit.
                                           RetE (Valid #result : Maybe Data @# ty)
                                      | memWriteValueStore
                                        => RetE (Valid (input_pkt @% "reg_data"))
+                                     | memWriteValueSc
+                                       => RetE
+                                            (IF reservationValid (memOpSize memOp)
+                                              #read_reservation_result
+                                              then Valid (input_pkt @% "reg_data")
+                                              else Invalid : Maybe Data @# ty)
                                      | memWriteValueNone
                                        => RetE (Invalid : Maybe Data @# ty)
                                      end)
@@ -372,17 +378,19 @@ Section mem_unit.
                          DispString _ "\n"
                        ];
                        LETA mreservation
-                         :  Maybe Reservation
+                         :  Maybe (@Reservation procParams)
                          <- convertLetExprSyntax_ActionT
                               (applyMemInst
                                 (fun _ _ _ memOp
-                                  => match memOpReservation memOp with
-                                     | Some reservation
-                                       => LETE result : Reservation <- reservation ty;
-                                          RetE (Valid #result : Maybe Reservation @# ty)
-                                     | None
-                                       => RetE (Invalid : Maybe Reservation @# ty)
-                                     end)
+                                  => RetE
+                                       (match memOpReservation memOp return Maybe Reservation @# ty with
+                                        | memReservationSet
+                                          => Valid (lrReservation (memOpSize memOp) ty)
+                                        | memReservationClear
+                                          => Valid ($$(getDefaultConst (Reservation)))
+                                        | memReservationNone
+                                          => Invalid : Maybe Reservation @# ty
+                                        end))
                                 func_unit_id
                                 inst_id);
                        If #mreservation @% "valid"
@@ -409,8 +417,8 @@ Section mem_unit.
                                                  (Valid
                                                    (IF reservationValid (memOpSize memOp)
                                                          #read_reservation_result
-                                                      then $1 : Data @# ty
-                                                      else $0 : Data @# ty))
+                                                      then $0 : Data @# ty
+                                                      else $1 : Data @# ty))
                                          | memRegValueNone
                                            => RetE (Invalid : Maybe Data @# ty)
                                          end;
