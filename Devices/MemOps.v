@@ -378,30 +378,64 @@ Section memops.
   Definition memOpNameEqb (x y : MemOpName) : bool
     := if memOpNameEqDec x y then true else false.
 
-  Section func_units. 
-    Variable func_units : list FUEntry.
+  Definition numMemOps := length memOps.
+
+  Definition MemOpCodeSz := Nat.log2_up numMemOps.
+
+  Definition MemOpCode := Bit MemOpCodeSz.
+
+  Section ty.
     Variable ty : Kind -> Type.
 
     Local Open Scope kami_action.
 
-    Definition applyMemInst
+    Definition applyMemOp
       (k : Kind)
-      (f : forall t u, InstEntry t u -> MemOp -> k ## ty)
-      :  FuncUnitId func_units @# ty -> InstId func_units @# ty -> k ## ty
-      := applyInst
-           (fun t u inst
-             => match optMemParams inst with
-                | Some name
-                  => match find (fun memOp => memOpNameEqb name (memOpName memOp)) memOps with
-                     | Some memOp => f t u inst memOp
-                     | None => RetE $$(getDefaultConst k) (* impossible case. *)
-                     end
-                | None => RetE $$(getDefaultConst k) (* impossible case. *)
-                end).
+      (f : MemOp -> ActionT ty k)
+      (code : MemOpCode @# ty)
+      :  ActionT ty k
+      := LETA result
+           :  Maybe k
+           <- utila_acts_find_pkt
+                (map
+                  (fun memOp
+                    => If code == $(memOpCode memOp)
+                         then
+                           LETA result : k <- f memOp;
+                           Ret (Valid #result : Maybe k @# ty)
+                         else
+                           Ret (Invalid : Maybe k @# ty)
+                         as result;
+                       Ret #result)
+                  memOps);
+         Ret (#result @% "data").
 
     Local Close Scope kami_action.
 
-  End func_units.
+    Section func_units. 
+      Variable func_units : list FUEntry.
+
+      Local Open Scope kami_action.
+
+      Definition applyMemInst
+        (k : Kind)
+        (f : forall t u, InstEntry t u -> MemOp -> k ## ty)
+        :  FuncUnitId func_units @# ty -> InstId func_units @# ty -> k ## ty
+        := applyInst
+             (fun t u inst
+               => match optMemParams inst with
+                  | Some name
+                    => match find (fun memOp => memOpNameEqb name (memOpName memOp)) memOps with
+                       | Some memOp => f t u inst memOp
+                       | None => RetE $$(getDefaultConst k) (* impossible case. *)
+                       end
+                  | None => RetE $$(getDefaultConst k) (* impossible case. *)
+                  end).
+
+      Local Close Scope kami_action.
+
+    End func_units.
+  End ty.
 
   Local Close Scope kami_expr.
 End memops.
