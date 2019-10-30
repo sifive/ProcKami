@@ -482,12 +482,8 @@ Lemma WfModProcessor:
       autorewrite with kami_rewrite_db.
       rewrite ?map_app.
 
-      ltac_wfMod_ConcatMod.
-      autorewrite with kami_rewrite_db.
+      repeat ltac_wfMod_ConcatMod.
 
-      ltac_wfMod_ConcatMod.
-
-      ltac_wfMod_ConcatMod.
 Qed.
  
 Close Scope kami_expr.
