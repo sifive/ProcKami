@@ -140,7 +140,7 @@ Section Params.
                        LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) #cfg_pkt #comp_inst);
                        LETA decoded_inst: Maybe (DecoderPkt func_units) <-
                                                 convertLetExprSyntax_ActionT (
-                                                  decode func_units #cfg_pkt (IF #isCompressed
+                                                  decode #cfg_pkt (IF #isCompressed
                                                                                   then #uncompressed_inst @% "data"
                                                                                   else #fetch_pkt @% "fst" @% "inst"));
 

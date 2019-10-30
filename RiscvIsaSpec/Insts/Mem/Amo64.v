@@ -37,7 +37,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"00001") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => reg) |};
+              optMemParams := Some AmoSwapD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoadd.d" ;
@@ -50,7 +50,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"00000") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => reg + mem) |};
+              optMemParams := Some AmoAddD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoxor.d" ;
@@ -63,7 +63,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"00100") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => reg ^ mem) |};
+              optMemParams := Some AmoXorD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoand.d" ;
@@ -76,7 +76,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"01100") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => (reg & mem)%kami_expr) |};
+              optMemParams := Some AmoAndD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amoor.d" ;
@@ -89,7 +89,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"01000") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => (reg | mem)%kami_expr) |};
+              optMemParams := Some AmoOrD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomin.d" ;
@@ -102,7 +102,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"10000") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => IF (SignExtendTruncLsb 64 reg) >s (SignExtendTruncLsb (63+1) mem) then mem else reg) |};
+              optMemParams := Some AmoMinD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomax.d" ;
@@ -115,7 +115,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"10100") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => IF (SignExtendTruncLsb 64 reg) >s (SignExtendTruncLsb (63+1) mem) then reg else mem) |};
+              optMemParams := Some AmoMaxD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amominu.d" ;
@@ -128,7 +128,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"11000") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => IF (ZeroExtendTruncLsb 64 reg) > (ZeroExtendTruncLsb 64 mem) then mem else reg) |};
+              optMemParams := Some AmoMinuD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            {| instName     := "amomaxu.d" ;
@@ -141,7 +141,7 @@ Section Mem.
                                        fieldVal funct5Field ('b"11100") :: nil ;
               inputXform   := fun ty => amoInput 3 (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
-              optMemParams := Some {| accessSize := 3; memXform := AmoEntry (fun ty reg mem => IF (ZeroExtendTruncLsb 64 reg) > (ZeroExtendTruncLsb 64 mem) then reg else mem) |};
+              optMemParams := Some AmoMaxuD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
            |} ::
            nil |}.

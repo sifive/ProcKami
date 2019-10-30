@@ -43,7 +43,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @tvecField _ "u" 30;
+                         @tvecField _ "u" 30 (Xlen-2);
                          @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
@@ -54,7 +54,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @tvecField _ "u" 62;
+                         @tvecField _ "u" 62 (Xlen-2);
                          @csrFieldAny _ "utvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
@@ -455,7 +455,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @tvecField _ "m" 30;
+                         @tvecField _ "m" 30 (Xlen-2);
                          @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
@@ -466,7 +466,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @tvecField _ "m" 62;
+                         @tvecField _ "m" 62 (Xlen-2);
                          @csrFieldAny _ "mtvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
@@ -918,7 +918,7 @@ Section csrs.
              := [
                   let fields
                     := [
-                         @tvecField _ "s" 30;
+                         @tvecField _ "s" 30 (Xlen-2);
                          @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|
@@ -929,7 +929,7 @@ Section csrs.
                   |};
                   let fields
                     := [
-                         @tvecField _ "s" 62;
+                         @tvecField _ "s" 62 (Xlen-2);
                          @csrFieldAny _ "stvec_mode" (Bit 2) (Bit 2) None
                        ] in
                   {|

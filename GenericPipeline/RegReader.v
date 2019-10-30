@@ -56,7 +56,7 @@ Section reg_reader.
     (reg_id : RegId @# ty)
     :  ActionT ty Data
     := Call reg_val
-         :  Array 1 Data
+         :  Array 1 (Bit Xlen)
          <- (@^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
        Ret
          (IF reg_id == $0

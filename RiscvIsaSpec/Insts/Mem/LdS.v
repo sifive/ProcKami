@@ -34,7 +34,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"000") :: nil ;
             inputXform   := fun ty => loadInput 0 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 0; memXform := LdEntry LdExtendSign |};
+            optMemParams := Some Lb;
             instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
          |} ::
          {| instName     := "lh" ;
@@ -46,7 +46,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"001") :: nil ;
             inputXform   := fun ty => loadInput 1 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 1; memXform := LdEntry LdExtendSign |};
+            optMemParams := Some Lh;
             instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
          |} ::
          {| instName     := "lw" ;
@@ -58,7 +58,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"010") :: nil ;
             inputXform   := fun ty => loadInput 2 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 2; memXform := LdEntry LdExtendSign |};
+            optMemParams := Some Lw;
             instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
          |} ::
          {| instName     := "lbu" ;
@@ -70,7 +70,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"100") :: nil ;
             inputXform   := fun ty => loadInput 0 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 0; memXform := LdEntry LdExtendZero |};
+            optMemParams := Some Lbu;
             instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
          |} ::
          {| instName     := "lhu" ;
@@ -82,7 +82,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"101") :: nil ;
             inputXform   := fun ty => loadInput 1 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 1; memXform := LdEntry LdExtendZero |};
+            optMemParams := Some Lhu;
             instHints    := falseHints<|hasRs1 := true|><|hasRd := true|>
          |} ::
          {| instName     := "sb" ;
@@ -94,7 +94,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"000") :: nil ;
             inputXform   := fun ty => storeInput 0 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 0; memXform := StEntry |} ;
+            optMemParams := Some Sb ;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
          |} ::
          {| instName     := "sh" ;
@@ -106,7 +106,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"001") :: nil ;
             inputXform   := fun ty => storeInput 1 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 1; memXform := StEntry |} ;
+            optMemParams := Some Sh ;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
          |} ::
          {| instName     := "sw" ;
@@ -118,7 +118,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"010") :: nil ;
             inputXform   := fun ty => storeInput 2 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 2; memXform := StEntry |} ;
+            optMemParams := Some Sw ;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
          |} ::
          {| instName     := "lwu" ;
@@ -130,7 +130,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"110") :: nil ;
             inputXform   := fun ty => loadInput 2 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 2; memXform := LdEntry LdExtendZero |};
+            optMemParams := Some Lwu;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
          |} ::
          {| instName     := "ld" ;
@@ -142,7 +142,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"011") :: nil ;
             inputXform   := fun ty => loadInput 3 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 3; memXform := LdEntry LdExtendSign |};
+            optMemParams := Some Ld;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|>
          |} ::
          {| instName     := "sd" ;
@@ -154,7 +154,7 @@ Section Mem.
                                      fieldVal funct3Field ('b"011") :: nil ;
             inputXform   := fun ty => storeInput 3 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 3; memXform := StEntry |} ;
+            optMemParams := Some Sd ;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|writeMem := true|>
          |} ::
          {| instName     := "flw";
@@ -166,7 +166,7 @@ Section Mem.
                             fieldVal funct3Field ('b"010") :: nil;
             inputXform   := fun ty => loadInput 2 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 2; memXform := LdEntry LdExtendOne |};
+            optMemParams := Some Flw;
             instHints    := falseHints<|hasRs1 := true|><|hasFrd := true|>
          |} ::
          {| instName     := "fsw";
@@ -178,7 +178,7 @@ Section Mem.
                             fieldVal funct3Field ('b"010") :: nil;
             inputXform   := fun ty => storeInput 2 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 2; memXform := StEntry |} ;
+            optMemParams := Some Fsw ;
             instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
          |} ::
          {| instName     := "fld";
@@ -190,7 +190,7 @@ Section Mem.
                             fieldVal funct3Field ('b"011") :: nil;
             inputXform   := fun ty => loadInput 3 (ty := ty);
             outputXform  := loadTag ;
-            optMemParams := Some {| accessSize := 3; memXform := LdEntry LdExtendSign |} ;
+            optMemParams := Some Fld ;
             instHints    := falseHints<|hasRs1 := true|><|hasFrd := true|>
          |} ::
          {| instName     := "fsd";
@@ -202,7 +202,7 @@ Section Mem.
                             fieldVal funct3Field ('b"011") :: nil;
             inputXform   := fun ty => storeInput 3 (ty := ty);
             outputXform  := storeTag ;
-            optMemParams := Some {| accessSize := 3; memXform := StEntry |} ;
+            optMemParams := Some Fsd ;
             instHints    := falseHints<|hasRs1 := true|><|hasFrs2 := true|><|writeMem := true|>
          |} ::
          nil |}.
