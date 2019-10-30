@@ -853,33 +853,6 @@ Section Params.
 
   End ty.
 
-  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
-
-  Record PMA
-    := {
-        pma_width : nat; (* in bytes *)
-        pma_readable : bool;
-        pma_writeable : bool;
-        pma_executable : bool;
-        pma_misaligned : bool;
-        pma_lrsc : bool;
-        pma_amo : PMAAmoClass
-      }.
-
-  Definition pmas_default
-    := map
-         (fun x
-          => {|
-              pma_width      := x;
-              pma_readable   := true;
-              pma_writeable  := true;
-              pma_executable := true;
-              pma_misaligned := true;
-              pma_lrsc       := true;
-              pma_amo        := AMOArith
-            |})
-         [0; 1; 2; 3].
-
   Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
   Definition mmregs_lgMaskSz := Nat.log2_up 8.
 
@@ -895,52 +868,6 @@ Section Params.
           => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
          (mmregs_dev_regs mmregs).
 (*
-  Definition amoInstNames
-    :  list string
-    := concat
-         (map
-           (fun func_unit
-             => map (@instName _ _)
-                  (filter
-                    (fun inst
-                      => match optMemParams inst with
-                         | Some params
-                           => match memXform params with
-                              | AmoEntry _ => true
-                              | _ => false
-                              end
-                         | _ => false
-                         end)
-                    (fuInsts func_unit)))
-           func_units).
-
-  Definition AmoOpWidth
-    := Nat.log2_up (length amoInstNames).
-
-  Definition AmoOp
-    := Bit AmoOpWidth.
-*)
-  Definition numMemOp : nat := 37.
-
-  Definition MemOp := Bit (Nat.log2_up numMemOp).
-
-  Definition MemDeviceRq := STRUCT_TYPE {
-                                "memOp" :: MemOp ;
-                                (* "amoOp" :: AmoOp ; *)
-                                "addr"  :: PAddr ;
-                                "mask"  :: DataMask ;
-                                "data"  :: Data ;
-                                "rqSz"  :: MemRqLgSize ;
-                                "aq"    :: Bool ;
-                                "rl"    :: Bool
-                              }.
-
-  Definition MemDeviceRs := STRUCT_TYPE {
-                                "data" :: Data ;
-                                "rsv"  :: Bool }.
-
-  Inductive MemDeviceType := main_memory | io_device.
-
   Record MemDevice
     := {
 (*
@@ -981,40 +908,7 @@ Section Params.
              (index : nat)
     :  option (MemWrite @# ty -> ActionT ty Bool)
     := List.nth_error (mem_device_write device ty) index.
-
-  Definition get_mem_device_file (device: MemDevice) :=
-    match mem_device_file device with
-    | None => nil
-    | Some (inl x) => x
-    | Some _ => nil
-    end.
-
-  Definition mem_device_files ls : list RegFileBase := concat (map get_mem_device_file ls).
-
-  Definition get_mem_device_regs (device: MemDevice) :=
-    match mem_device_file device with
-(*
-    | None => nil
-    | Some x => mmregs_regs x
 *)
-    | None => nil
-    | Some (inr x) => mmregs_regs x
-    | Some _ => nil
-    end.
-  
-  Definition mem_device_regs ls := concat (map get_mem_device_regs ls).
-
-  Definition DeviceTag (mem_devices : list MemDevice)
-    := Bit (Nat.log2_up (length mem_devices)).
-
-  Record MemTableEntry
-         (mem_devices : list MemDevice)
-    := {
-        mtbl_entry_addr : N;
-        mtbl_entry_width : N;
-        mtbl_entry_device : Fin.t (length mem_devices)
-      }.
-
   Section func_units.
     Variable func_units : list FUEntry.
 

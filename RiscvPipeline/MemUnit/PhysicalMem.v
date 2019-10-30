@@ -4,8 +4,8 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
-Require Import StdLibKami.RegStruct.
-Require Import StdLibKami.RegMapper.
+Require Import ProcKami.Devices.MemOps.
+Require Import ProcKami.Devices.MemDevice.
 Require Import List.
 Import ListNotations.
 Require Import BinNums.
@@ -196,7 +196,7 @@ Section pmem.
       :  ActionT ty PmaSuccessPkt 
       := mem_device_apply dtag
            (fun device
-             => let acc_pmas f := CABool Or (map f (mem_device_pmas device)) in
+             => let acc_pmas f := CABool Or (map f memDevicePmas) in
                 let width_match pma := paddr_len == $(pma_width pma) in
                 Ret (STRUCT {
                     "width" ::= acc_pmas width_match;
@@ -281,72 +281,64 @@ Section pmem.
       :  ActionT ty (Maybe Data)
       := mem_device_apply dtag 
            (fun device
-             => match mem_device_read_nth ty device index with
-                  | None 
-                    => System [DispString _ "[mem_region_read] illegal index.\n"];
-                       Ret Invalid
-                  | Some read
-                    => System [
-                         DispString _ "[mem_region_read] sending read request to device.\n";
-                         DispString _ "[mem_region_read] device tag:";
-                         DispHex dtag;
-                         DispString _ "\n";
-                         DispString _ "[mem_region_read] device offset:";
-                         DispHex daddr;
-                         DispString _ "\n";
-                         DispString _ ("[mem_region_read] read index: " ++ nat_decimal_string index ++ "\n")
-                       ];
-                       LETA result : Maybe Data <- read daddr size;
-                       System [
-                         DispString _ "[mem_region_read] result: ";
-                         DispHex #result;
-                         DispString _ "\n"
-                       ];
-                       Ret #result
-                 end).
+             => LET req
+                  :  MemDeviceRq
+                  <- STRUCT {
+                       "memOp"
+                         ::= Switch size Retn MemOpCode With {
+                               ($0 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Lb;
+                               ($1 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Lh;
+                               ($2 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Lw;
+                               ($3 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Ld
+                             };
+                       "addr" ::= daddr;
+                       "data" ::= $0
+                     } : MemDeviceRq @# ty;
+                memDeviceRequestHandler
+                  (STRUCT {
+                     "tag" ::= $index;
+                     "req" ::= #req
+                   } : ClientMemDeviceRq @# ty)).
 
     Definition mem_region_write
       (index : nat)
       (dtag : DeviceTag mem_devices @# ty)
       (daddr : PAddr @# ty)
       (data : Data @# ty)
-      (mask : DataMask @# ty)
       (size : MemRqLgSize @# ty)
       :  ActionT ty Bool
-      := mem_device_apply dtag
-           (fun device
-             => match mem_device_write_nth ty device index with
-                  | None => Ret $$false
-                  | Some write
-                    => write
-                         (STRUCT {
-                            "addr" ::= daddr;
-                            "data" ::= data;
-                            "mask" ::= mask;
-                            "size" ::= size
-                          } : MemWrite @# ty)
-                  end).
-
-    Definition mem_region_read_resv
-      (dtag : DeviceTag mem_devices @# ty)
-      (daddr : PAddr @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty (Array Rlen_over_8 Bool)
       := mem_device_apply dtag 
            (fun device
-            => LETA result <- mem_device_read_resv device daddr size;
-                 Ret #result).
+             => LET req
+                  :  MemDeviceRq
+                  <- STRUCT {
+                       "memOp"
+                         ::= Switch size Retn MemOpCode With {
+                               ($0 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Sb;
+                               ($1 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Sh;
+                               ($2 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Sw;
+                               ($3 : MemRqLgSize @# ty)
+                                 ::= getMemOpCode ty Sd
+                             };
+                       "addr" ::= daddr;
+                       "data" ::= data
+                     } : MemDeviceRq @# ty;
+                LETA result
+                  :  Maybe Data
+                  <- memDeviceRequestHandler
+                       (STRUCT {
+                          "tag" ::= $index;
+                          "req" ::= #req
+                        } : ClientMemDeviceRq @# ty);
+                Ret (#result @% "valid")).
 
-    Definition mem_region_write_resv
-      (dtag : DeviceTag mem_devices @# ty)
-      (daddr : PAddr @# ty)
-      (mask : DataMask @# ty)
-      (resv : Reservation @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty Void
-      := mem_device_apply dtag
-           (fun device
-            => mem_device_write_resv device daddr mask resv size).
   End ty.
 
   Close Scope kami_action.

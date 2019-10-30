@@ -384,8 +384,25 @@ Section memops.
 
   Definition MemOpCode := Bit MemOpCodeSz.
 
+  Definition applyMemOpByName
+    (t : Type)
+    (f : MemOp -> t)
+    (default : t)
+    (name : MemOpName)
+    :  t
+    := match find (fun memOp => memOpNameEqb name (memOpName memOp)) memOps with
+       | None => default
+       | Some memOp => f memOp
+       end.
+
   Section ty.
     Variable ty : Kind -> Type.
+
+    Definition getMemOpCode
+      :  MemOpName -> MemOpCode @# ty
+      := applyMemOpByName
+           (fun memOp => $(memOpCode memOp) : MemOpCode @# ty)
+           $0.
 
     Local Open Scope kami_action.
 

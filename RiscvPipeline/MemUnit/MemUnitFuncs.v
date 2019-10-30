@@ -8,6 +8,7 @@ Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.Debug.DebugDevice.
 Require Import ProcKami.Devices.MemOps.
 Require Import List.
@@ -284,160 +285,49 @@ Section mem_unit.
                                  else $LoadAccessFault): Exception @# ty);
                        mem_unit_exec_pkt_def #exception
                      else
-                       (* IV. read the current value and place reservation *)
-                       LETA isRead : Bool
+                       LETA code
+                         :  MemOpCode
                          <- convertLetExprSyntax_ActionT
                               (applyMemInst
-                                (fun _ _ _ memOp
-                                  => RetE $$(orb
-                                       (isMemRegValueFn (memOpRegValue memOp))
-                                       (isMemWriteValueFn (memOpWriteValue memOp))))
+                                (fun _ _ _ memOp => RetE $(memOpCode memOp))
                                 func_unit_id
                                 inst_id);
-                       LETA read_result
+                       LETA regData
                          :  Maybe Data
-                         <- If #isRead
-                              then 
-                                mem_region_read 0
-                                  (#pmp_result @% "fst" @% "fst")
-                                  (#pmp_result @% "fst" @% "snd")
-                                  #size
-                              else
-                                Ret (Valid ($0 : Data @# ty))
-                              as read_result;
-                            Ret #read_result;
-                       (* TODO: should we place reservations on failed reads? *)
-                       LETA read_reservation_result
-                         :  Array Rlen_over_8 Bool
-                         <- mem_region_read_resv
-                             (#pmp_result @% "fst" @% "fst")
-                             (#pmp_result @% "fst" @% "snd")
-                             #size;
-                       (* VI. apply the memory transform to compute the write value *)
-                       LETA mwrite_value
-                         :  Maybe Data
-                         <- convertLetExprSyntax_ActionT
-                              (applyMemInst
-                                (fun _ _ _ memOp
-                                  => match memOpWriteValue memOp return Maybe Data ## ty with
-                                     | memWriteValueFn f
-                                       => LETE result : Data <- f ty (input_pkt @% "reg_data") (#read_result @% "data");
-                                          RetE (Valid #result : Maybe Data @# ty)
-                                     | memWriteValueStore
-                                       => RetE (Valid (input_pkt @% "reg_data"))
-                                     | memWriteValueSc
-                                       => RetE
-                                            (IF reservationValid (memOpSize memOp)
-                                              #read_reservation_result
-                                              then Valid (input_pkt @% "reg_data")
-                                              else Invalid : Maybe Data @# ty)
-                                     | memWriteValueNone
-                                       => RetE (Invalid : Maybe Data @# ty)
-                                     end)
-                                func_unit_id
-                                inst_id);
-                       LETA write_mask
-                         :  DataMask
-                         <- convertLetExprSyntax_ActionT
-                              (applyMemInst
-                                (fun _ _ _ memOp
-                                  => RetE
-                                       (unpack DataMask
-                                         ($(pow2 (pow2 (memOpSize memOp)) - 1))))
-                                func_unit_id
-                                inst_id);
-                       System [
-                         DispString _ "[mem_unit_exec] mwrite_value:\n";
-                         DispHex #mwrite_value;
-                         DispString _ "\n";
-                         DispString _ "[mem_unit_exec] write_mask:\n";
-                         DispHex #write_mask;
-                         DispString _ "\n"
-                       ];
-                       If #mwrite_value @% "valid"
-                         then
-                           (* VII. write to memory. *)
-                           LETA write_result
-                             :  Bool
-                             <- mem_region_write 0
-                                  (#pmp_result @% "fst" @% "fst")
-                                  (#pmp_result @% "fst" @% "snd")
-                                  (#mwrite_value @% "data" : Data @# ty)
-                                  (#write_mask : DataMask @# ty)
-                                  #size;
-                           Ret
-                             (IF #write_result
-                               then Invalid
-                               else
-                                 Valid ($SAmoAccessFault: Exception @# ty))
-                         else Ret Invalid
-                         as write_result;
-                       System [
-                         DispString _ "[mem_unit_exec] write result:\n";
-                         DispHex #write_result;
-                         DispString _ "\n"
-                       ];
-                       LETA mreservation
-                         :  Maybe (@Reservation procParams)
-                         <- convertLetExprSyntax_ActionT
-                              (applyMemInst
-                                (fun _ _ _ memOp
-                                  => RetE
-                                       (match memOpReservation memOp return Maybe Reservation @# ty with
-                                        | memReservationSet
-                                          => Valid (lrReservation (memOpSize memOp) ty)
-                                        | memReservationClear
-                                          => Valid ($$(getDefaultConst (Reservation)))
-                                        | memReservationNone
-                                          => Invalid : Maybe Reservation @# ty
-                                        end))
-                                func_unit_id
-                                inst_id);
-                       If #mreservation @% "valid"
-                         then
-                           mem_region_write_resv
-                             (#pmp_result @% "fst" @% "fst")
-                             (#pmp_result @% "fst" @% "snd")
-                             (#write_mask : DataMask @# ty)
-                             (#mreservation @% "data")
-                             #size;
-                       LETA memRet
+                         <- mem_device_apply
+                              (#pmp_result @% "fst" @% "fst")
+                              (fun device
+                                => LET req
+                                     :  MemDeviceRq
+                                     <- STRUCT {
+                                          "memOp" ::= #code;
+                                          "addr" ::= #pmp_result @% "fst" @% "snd";
+                                          "data" ::= input_pkt @% "reg_data"
+                                        } : MemDeviceRq @# ty;
+                                   memDeviceRequestHandler
+                                     (STRUCT {
+                                        "tag" ::= $0;
+                                        "req" ::= #req
+                                      } : ClientMemDeviceRq @# ty));
+                       LET exception
+                         :  Maybe Exception
+                         <- IF #regData @% "valid"
+                              then Invalid
+                              else Valid ($SAmoAccessFault: Exception @# ty);
+                       LETA result
                          :  MemRet
                          <- convertLetExprSyntax_ActionT
                               (applyMemInst
-                                (fun _ _ inst memOp
-                                  => LETE data
-                                       :  Maybe Data
-                                       <- match memOpRegValue memOp with
-                                          | memRegValueFn f
-                                            => LETE result : Data <- f ty (#read_result @% "data");
-                                               RetE (Valid #result : Maybe Data @# ty)
-                                          | memRegValueSc
-                                            => RetE
-                                                 (Valid
-                                                   (IF reservationValid (memOpSize memOp)
-                                                         #read_reservation_result
-                                                      then $0 : Data @# ty
-                                                      else $1 : Data @# ty))
-                                         | memRegValueNone
-                                           => RetE (Invalid : Maybe Data @# ty)
-                                         end;
-                                     RetE (STRUCT {
-                                       "writeReg?" ::= #data @% "valid";
-                                       "tag"  ::= if hasFrd (instHints inst) then $FloatRegTag else $IntRegTag;
-                                       "data" ::= #data @% "data"
-                                     } : MemRet @# ty))
+                                (fun _ _ inst _
+                                  => RetE
+                                       (STRUCT {
+                                          "writeReg?" ::= #regData @% "valid";
+                                          "tag"  ::= if hasFrd (instHints inst) then $FloatRegTag else $IntRegTag;
+                                          "data" ::= #regData @% "data"
+                                        } : MemRet @# ty))
                                 func_unit_id
                                 inst_id);
-                       System [
-                         DispString _ "[mem_unit_exec] mreservation:\n";
-                         DispHex #mreservation;
-                         DispString _ "\n";
-                         DispString _ "[mem_unit_exec] memRet:\n";
-                         DispHex #memRet;
-                         DispString _ "\n"
-                       ];
-                       mem_unit_exec_pkt #memRet #write_result
+                       mem_unit_exec_pkt #result #exception
                      as result;
                    Ret #result
                  as result;

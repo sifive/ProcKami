@@ -3,6 +3,7 @@
 *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.GenericPipeline.RegWriter.
