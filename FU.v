@@ -867,48 +867,7 @@ Section Params.
          (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
           => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
          (mmregs_dev_regs mmregs).
-(*
-  Record MemDevice
-    := {
-(*
-        mem_device_name : string;
-        mem_device_io : bool; (* 3.5.1 *)
-        mem_device_pmas : list PMA;
-        mem_device_outstanding_num : nat;
-        mem_device_rq : forall ty, MemReq MemDeviceRq mem_device_outstanding_num @# ty
-                                   -> ActionT ty Bool;
-        mem_device_rs : forall ty, Maybe MemDeviceRs @# ty -> ActionT ty Void;
-        mem_device_file : option MMRegs%type
-*)
-        mem_device_name : string;
-        mem_device_type : MemDeviceType; (* 3.5.1 *)
-        mem_device_pmas : list PMA;
-        mem_device_read
-        : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
-        mem_device_write
-        : forall ty, list (MemWrite @# ty -> ActionT ty Bool);
-        mem_device_read_resv
-        : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Array Rlen_over_8 Bool);
-        mem_device_write_resv
-        : forall ty, PAddr @# ty -> DataMask @# ty -> Reservation @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
-        mem_device_file
-        : option ((list RegFileBase) + MMRegs)%type
-     }.
 
-  Definition mem_device_read_nth
-             (ty : Kind -> Type)
-             (device : MemDevice)
-             (index : nat)
-    :  option (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data))
-    := List.nth_error (mem_device_read device ty) index.
-
-  Definition mem_device_write_nth
-             (ty : Kind -> Type)
-             (device : MemDevice)
-             (index : nat)
-    :  option (MemWrite @# ty -> ActionT ty Bool)
-    := List.nth_error (mem_device_write device ty) index.
-*)
   Section func_units.
     Variable func_units : list FUEntry.
 

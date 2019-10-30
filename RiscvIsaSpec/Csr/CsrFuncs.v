@@ -387,6 +387,7 @@ Section CsrInterface.
   Definition tvecField
     (prefix : string)
     (width : nat)
+    (reg_width: nat)
     :  CsrField
     := {|
          csrFieldName := (prefix ++ "tvec_base");
@@ -394,14 +395,14 @@ Section CsrInterface.
          csrFieldValue
            := csrFieldValueReg {|
                   csrFieldRegisterName := @^(prefix ++ "tvec_base");
-                  csrFieldRegisterKind := Bit width;
+                  csrFieldRegisterKind := Bit reg_width;
                   csrFieldRegisterValue := None;
-                  csrFieldRegisterReadXform := fun _ _ => id;
+                  csrFieldRegisterReadXform := fun _ _ => SignExtendTruncLsb width;
                   (* NOTE: address must be 4 byte aligned. See 3.1.12 *)
                   (* isAligned (SignExtendTruncLsb Xlen input_value) $2; *)
                   (* TODO: the test suite seems to assume that we will append two zeros and accept any value. Is this correct? *)
                   csrFieldRegisterWriteXform
-                    := fun _ _ _ => ZeroExtendTruncLsb width
+                    := fun _ _ _ => SignExtendTruncLsb reg_width
                 |}
        |}.
 
