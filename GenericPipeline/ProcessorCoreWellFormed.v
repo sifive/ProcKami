@@ -5,6 +5,7 @@
 
 Require Import Coq.Logic.Classical_Prop.
 Require Import Classical.
+Require Import Coq.Logic.ClassicalFacts.
 
 Require Import Kami.AllNotations.
 Require Import Kami.Notations_rewrites.
@@ -77,6 +78,12 @@ Proof.
   reflexivity.
 Qed.
 
+(*Lemma forall a b l: map csrViewFields ((csrFieldNoReg a b)::l)=
+            [csrFieldNoReg "reserved0" Default;
+            csrFieldAny "upie" Bool (Some false);
+            csrFieldNoReg "reserved1" Default;
+            csrFieldAny "uie" Bool (Some false)] ++*)
+
 Lemma csr_regs_Csrs: csr_regs Csrs=nubBy (fun '(x, _) '(y, _) => String.eqb x y)
                               (concat (map csr_reg_csr_field
                                       (concat (map csrViewFields (concat (map csrViews Csrs)))))).
@@ -101,7 +108,156 @@ Proof.
   reflexivity.
 Qed.
 
-Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_list csrFields_reference_list repeatCsrView_0 repeatCsrView_S : simp_csrs.
+Lemma map_csr_reg_csr_field_csrFieldNoReg:
+      forall a b c d l, map csr_reg_csr_field (@csrFieldNoReg a b c d::l)=
+                        []::(map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldNoReg.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_csrFieldAny:
+      forall a b c d e l, map csr_reg_csr_field (@csrFieldAny a b c d (Some e)::l)=
+[((proc_name ++ String "_" b)%string,
+ existT RegInitValT (SyntaxKind d) (Some (SyntaxConst e)))]::(map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldAny.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_csrFieldAny_None:
+      forall a b c d l, map csr_reg_csr_field (@csrFieldAny a b c d None::l)=
+[((proc_name ++ String "_" b)%string,
+ existT RegInitValT (SyntaxKind d) None)]::(map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldAny.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_csrFieldReadOnly:
+      forall a b c d e l, map csr_reg_csr_field (@csrFieldReadOnly a b c d (Some e)::l)=
+[((proc_name ++ String "_" b)%string,
+ existT RegInitValT (SyntaxKind d) (Some (SyntaxConst e)))]::
+ (map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldReadOnly.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_csrFieldReadOnly_None:
+      forall a b c d l, map csr_reg_csr_field (@csrFieldReadOnly a b c d None::l)=
+[((proc_name ++ String "_" b)%string,
+ existT RegInitValT (SyntaxKind d) None)]::
+ (map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldReadOnly.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_xlField:
+      forall a b l, map csr_reg_csr_field (@xlField a b::l)=
+[((proc_name ++ String "_" (b ++ "xl"))%string,
+ existT RegInitValT (SyntaxKind XlenValue) (Some (SyntaxConst initXlen)))]::
+ (map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldReadOnly.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_tvecField:
+      forall a b c d l, map csr_reg_csr_field (@tvecField a b c d::l)=
+[((proc_name ++ String "_" (b ++ "tvec_base"))%string,
+ existT RegInitValT (SyntaxKind (Bit d)) None)]::(map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldAny.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma csrViews_simpleCsr:
+  forall a b c d e f, csrViews (@simpleCsr a b c d e f)=
+    repeatCsrView 2 (csrViewDefaultReadXform (fields:=[csrFieldAny b (Bit d) e]))
+      (csrViewDefaultWriteXform (fields:=[csrFieldAny b (Bit d) e])).
+Proof.
+    intros.
+    unfold simpleCsr.
+    unfold csrViews.
+    reflexivity.
+Qed.
+
+Lemma csrViews_readOnlyCsr:
+      forall a b c d e f, csrViews (@readonlyCsr a b c d e f)=
+          repeatCsrView 2
+            (csrViewDefaultReadXform (fields:=[csrFieldReadOnly b (Bit d) f]))
+            (csrViewDefaultWriteXform (fields:=[csrFieldReadOnly b (Bit d) f])).
+Proof.
+    intros.
+    unfold simpleCsr.
+    unfold csrViews.
+    unfold readonlyCsr.
+    reflexivity.
+Qed.
+
+Theorem reverse_app_comm_cons:
+  forall A (x y:list A) (a:A), (a :: x) ++ y = a :: (x ++ y).
+Proof.
+    intros.
+    rewrite app_comm_cons.
+    reflexivity.
+Qed.
+
+Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_list
+             csrFields_reference_list repeatCsrView_0 repeatCsrView_S
+             csrViews_simpleCsr
+             csrViews_readOnlyCsr
+             map_csr_reg_csr_field_xlField
+             map_csr_reg_csr_field_csrFieldReadOnly
+             map_csr_reg_csr_field_csrFieldReadOnly_None
+             map_csr_reg_csr_field_csrFieldNoReg
+             map_csr_reg_csr_field_tvecField
+             map_csr_reg_csr_field_csrFieldAny
+             map_csr_reg_csr_field_csrFieldAny_None : simp_csrs.
+Hint Rewrite concat_app concat_cons concat_nil map_app app_nil_l app_nil_r
+             reverse_app_comm_cons : simp_csrs.
 
 (*Inductive isSubModule: Mod -> Mod -> Prop :=
   | isSubModule_Base: forall m, isSubModule m m
@@ -145,33 +301,98 @@ Ltac ltac_wfMod_createHideMod :=
   apply wfMod_createHideMod;[wfMod_createHideMod_Helper|idtac].*)
 
 Theorem not_In_pc_intRegFile: ~ In @^"pc" (map fst (getAllRegisters (BaseRegFile intRegFile))).
-Admitted.
+Proof.
+    unfold intRegFile.
+    simpl.
+    trivialSolve.
+Qed.
 
 Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
 Admitted.
 
+Axiom EquivThenEqual: prop_extensionality.
+
+Theorem or_diff: forall a b, a<> b -> forall k : string,
+    ~ ((proc_name ++ a)%string = k \/ False) \/
+    ~ ((proc_name ++ b)%string = k \/ False).
+Proof.
+  intros.
+  classical_left.
+  apply NNPP in H0.
+  inversion H0;subst;clear H0.
+  + intro X.
+    inversion X;subst;clear X.
+    - apply string_equal_prefix in H0.
+      apply H in H0.
+      elim H0.
+    - elim H0.
+  + elim H1.
+Qed.
+
 Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
       (getAllRegisters (BaseRegFile floatRegFile)).
-Admitted.
+Proof.
+    unfold intRegFile.
+    unfold floatRegFile.
+    simpl.
+    unfold DisjKey.
+    apply or_diff.
+    intro X.
+    inversion X.
+Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (BaseRegFile memReservationRegFile)).
-Admitted.
+Proof.
+    unfold intRegFile.
+    unfold memReservationRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    unfold getRegFileRegisters.
+    unfold DisjKey.
+    simpl.
+    apply or_diff.
+    intro X.
+    inversion X.
+Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
       (concat
          (map getRegFileRegisters (mem_device_files mem_devices))).
+(*Proof.
+    unfold intRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    simpl.*)
+
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
              DisjKey_getAllRegisters_intRegFile_memReservationRegFile
              DisjKey_getAllRegisters_intRegFile_mem_devices : wfMod_ConcatMod_Helper.
 
+Theorem DisjKey_NubBy2: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey x (nubBy (fun '(x,_) '(y,_) => String.eqb x y) y).
+Admitted.
+
+Theorem DisjKey_NubBy1: forall T (x: list (string * T)) (y: list (string * T)), DisjKey y x -> DisjKey (nubBy (fun '(x,_) '(y,_) => String.eqb x y) y) x.
+Admitted.
+
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
+Proof.
+    unfold intRegFile.
+    unfold Csrs.
+    unfold csr_regs.
+    autorewrite with kami_rewrite_db.
+    autorewrite with simp_csrs.
+    apply DisjKey_NubBy2.
+    simpl.
+    unfold DisjKey.
+    simpl.
+
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfMod_ConcatMod_Helper.
