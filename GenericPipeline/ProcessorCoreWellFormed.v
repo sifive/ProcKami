@@ -245,6 +245,62 @@ Proof.
     reflexivity.
 Qed.
 
+Theorem map_fst_csr_reg_csr_field_csrFieldAny:
+  forall a b c d e,
+    (map fst (csr_reg_csr_field (@csrFieldAny a b c d e)))=
+        [(proc_name ++ String "_" b)%string].
+Proof.
+    intros.
+    unfold csrFieldAny.
+    simpl.
+    reflexivity.
+Qed.
+
+Theorem csr_reg_csr_field_reg_some:
+  forall T k kk (v: (ConstT kk)) n r w,
+      @csr_reg_csr_field_reg T k
+        {|
+        csrFieldRegisterName := n;
+        csrFieldRegisterKind := kk;
+        csrFieldRegisterValue := Some v;
+        csrFieldRegisterReadXform := r;
+        csrFieldRegisterWriteXform := w |}
+       =
+       (n, existT RegInitValT (SyntaxKind kk) (Some (SyntaxConst v))).
+Proof.
+  intros.
+  unfold csr_reg_csr_field_reg.
+  simpl.
+  reflexivity.
+Qed.
+
+Theorem csr_reg_csr_field_reg_none:
+  forall T k kk n r w,
+      @csr_reg_csr_field_reg T k
+        {|
+        csrFieldRegisterName := n;
+        csrFieldRegisterKind := kk;
+        csrFieldRegisterValue := None;
+        csrFieldRegisterReadXform := r;
+        csrFieldRegisterWriteXform := w |}
+       =
+       (n, existT RegInitValT (SyntaxKind kk) None).
+Proof.
+  intros.
+  unfold csr_reg_csr_field_reg.
+  simpl.
+  reflexivity.
+Qed.
+
+Theorem csr_reg_csr_field_csrFieldNoReg:
+    forall a b c d, csr_reg_csr_field (@csrFieldNoReg a b c d)=[].
+Proof.
+  intros.
+  unfold csrFieldNoReg.
+  unfold csr_reg_csr_field.
+  reflexivity.
+Qed.
+
 Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_list
              csrFields_reference_list repeatCsrView_0 repeatCsrView_S
              csrViews_simpleCsr
@@ -255,6 +311,10 @@ Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_l
              map_csr_reg_csr_field_csrFieldNoReg
              map_csr_reg_csr_field_tvecField
              map_csr_reg_csr_field_csrFieldAny
+             map_fst_csr_reg_csr_field_csrFieldAny
+             csr_reg_csr_field_reg_some
+             csr_reg_csr_field_reg_none
+             csr_reg_csr_field_csrFieldNoReg
              map_csr_reg_csr_field_csrFieldAny_None : simp_csrs.
 Hint Rewrite concat_app concat_cons concat_nil map_app app_nil_l app_nil_r
              reverse_app_comm_cons : simp_csrs.
@@ -312,23 +372,6 @@ Admitted.
 
 Axiom EquivThenEqual: prop_extensionality.
 
-Theorem or_diff: forall a b, a<> b -> forall k : string,
-    ~ ((proc_name ++ a)%string = k \/ False) \/
-    ~ ((proc_name ++ b)%string = k \/ False).
-Proof.
-  intros.
-  classical_left.
-  apply NNPP in H0.
-  inversion H0;subst;clear H0.
-  + intro X.
-    inversion X;subst;clear X.
-    - apply string_equal_prefix in H0.
-      apply H in H0.
-      elim H0.
-    - elim H0.
-  + elim H1.
-Qed.
-
 Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
       (getAllRegisters (BaseRegFile floatRegFile)).
@@ -336,10 +379,7 @@ Proof.
     unfold intRegFile.
     unfold floatRegFile.
     simpl.
-    unfold DisjKey.
-    apply or_diff.
-    intro X.
-    inversion X.
+    DisjKey_solve.
 Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_memReservationRegFile:
@@ -351,11 +391,7 @@ Proof.
     unfold getAllRegisters.
     unfold getRegisters.
     unfold getRegFileRegisters.
-    unfold DisjKey.
-    simpl.
-    apply or_diff.
-    intro X.
-    inversion X.
+    DisjKey_solve.
 Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
@@ -374,26 +410,78 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
              DisjKey_getAllRegisters_intRegFile_memReservationRegFile
              DisjKey_getAllRegisters_intRegFile_mem_devices : wfMod_ConcatMod_Helper.
 
-Theorem DisjKey_NubBy2: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey x (nubBy (fun '(x,_) '(y,_) => String.eqb x y) y).
+Theorem DisjKey_NubBy1: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey (nubBy (fun '(a,_) '(b,_) => String.eqb a b) x) y.
 Admitted.
 
-Theorem DisjKey_NubBy1: forall T (x: list (string * T)) (y: list (string * T)), DisjKey y x -> DisjKey (nubBy (fun '(x,_) '(y,_) => String.eqb x y) y) x.
+Theorem DisjKey_NubBy2: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey x (nubBy (fun '(a,_) '(b,_) => String.eqb a b) y).
 Admitted.
+
+Theorem NoDup_NubBy: forall T (x: list (string * T)), NoDup (map fst (nubBy (fun '(a,_) '(b,_) => String.eqb a b) x)).
+Admitted.
+
+Theorem ne_disjunction_break: forall a b c, (~(a \/ False) \/ ~(b \/ False)) /\
+                                       (~(a \/ False) \/ ~c) ->
+                                        ~(a \/ False) \/ ~(b \/ c).
+Proof.
+    intros.
+    inversion H; subst; clear H.
+    inversion H0; subst; clear H0.
+    + left.
+      apply H.
+    + inversion H1; subst; clear H1.
+      - apply not_or_and in H.
+        inversion H; subst; clear H.
+        apply not_or_and in H0.
+        inversion H0; subst; clear H0.
+        left.
+        apply and_not_or.
+        split.
+        ++ apply H.
+        ++ intro X.
+           elim X.
+      - right.
+        apply not_or_and in H.
+        inversion H; subst; clear H.
+        apply and_not_or.
+        split.
+        ++ apply H1.
+        ++ apply H0.
+Qed.
+
+Ltac DisjKey_solve :=
+  match goal with
+  | |- ~((?P++_)%string = _ \/ False) \/ ~((?P++_)%string = _ \/ False) => let X := fresh in try (apply or_diff;intro X;inversion X)
+  | |- ~(_ \/ False) \/ ~(_ \/ _) => apply ne_disjunction_break;split;DisjKey_solve
+  | |- DisjKey _ _ => unfold DisjKey; simpl; intros;DisjKey_solve
+  | |- _ => trivialSolve
+  end.
 
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
-Proof.
+Admitted.
+(*SLOW Proof.
     unfold intRegFile.
     unfold Csrs.
     unfold csr_regs.
     autorewrite with kami_rewrite_db.
     autorewrite with simp_csrs.
     apply DisjKey_NubBy2.
-    simpl.
-    unfold DisjKey.
-    simpl.
-
-Admitted.
+    DisjKey_solve.
+    remember (
+          existsb
+            (fun '{| ext_name := x; ext_edit := z |} =>
+             (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll
+    ).
+    destruct b.
+    + autorewrite with kami_rewrite_db.
+      autorewrite with simp_csrs.
+      simpl.
+      DisjKey_solve.
+    + rewrite csr_reg_csr_field_csrFieldNoReg.
+      autorewrite with simp_csrs.
+      simpl.
+      DisjKey_solve.
+Qed.*)
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfMod_ConcatMod_Helper.
 
