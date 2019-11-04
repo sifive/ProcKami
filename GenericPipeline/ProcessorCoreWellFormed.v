@@ -198,6 +198,53 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma map_csr_reg_csr_field_misa:
+      forall l, map csr_reg_csr_field (misa::l)=
+[((proc_name ++ "_extRegs")%string,
+   existT RegInitValT (SyntaxKind ExtensionsReg)
+     (Some (SyntaxConst InitExtsRegVal)))]::
+ (map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold csrFieldReadOnly.
+    simpl.
+    unfold csr_reg_csr_field at 1.
+    simpl.
+    unfold csr_reg_csr_field_reg.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma csr_reg_csr_field_reg_default: forall (k:Kind) p a b c d, @csr_reg_csr_field_reg p k {|
+     csrFieldRegisterName :=a;
+     csrFieldRegisterKind := b;
+     csrFieldRegisterValue := Some Default;
+     csrFieldRegisterReadXform := c;
+     csrFieldRegisterWriteXform := d |}=(a,existT RegInitValT (SyntaxKind b) (Some (SyntaxConst Default))).
+Proof.
+  unfold csr_reg_csr_field_reg.
+  simpl.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma map_csr_reg_csr_field_pmpField:
+  forall l n, map csr_reg_csr_field ((pmpField n)::l)=
+                [(@^ ("pmp" ++ nat_decimal_string n ++ "cfg"),
+   existT RegInitValT (SyntaxKind Pmp.PmpCfg) (Some (SyntaxConst Default)))]::
+          (map csr_reg_csr_field l).
+Proof.
+    simpl.
+    unfold pmpField.
+    unfold csr_reg_csr_field at 1.
+    unfold csrFieldValue.
+    intros.
+    rewrite csr_reg_csr_field_reg_default.
+    unfold csr_reg_csr_field_reg.
+    
+    reflexivity.
+Qed.
+
 Lemma map_csr_reg_csr_field_tvecField:
       forall a b c d l, map csr_reg_csr_field (@tvecField a b c d::l)=
 [((proc_name ++ String "_" (b ++ "tvec_base"))%string,
@@ -229,6 +276,30 @@ Lemma csrViews_readOnlyCsr:
           repeatCsrView 2
             (csrViewDefaultReadXform (fields:=[csrFieldReadOnly b (Bit d) f]))
             (csrViewDefaultWriteXform (fields:=[csrFieldReadOnly b (Bit d) f])).
+Proof.
+    intros.
+    unfold simpleCsr.
+    unfold csrViews.
+    unfold readonlyCsr.
+    reflexivity.
+Qed.
+
+Lemma map_csrViews_simpleCsr:
+  forall a b c d e f l,map  csrViews ((@simpleCsr a b c d e f)::l) =
+    (repeatCsrView 2 (csrViewDefaultReadXform (fields:=[csrFieldAny b (Bit d) e]))
+      (csrViewDefaultWriteXform (fields:=[csrFieldAny b (Bit d) e])))::(map csrViews l).
+Proof.
+    intros.
+    unfold simpleCsr.
+    unfold csrViews.
+    reflexivity.
+Qed.
+
+Lemma map_csrViews_readOnlyCsr:
+      forall a b c d e f l, map csrViews ((@readonlyCsr a b c d e f)::l) =
+          (repeatCsrView 2
+            (csrViewDefaultReadXform (fields:=[csrFieldReadOnly b (Bit d) f]))
+            (csrViewDefaultWriteXform (fields:=[csrFieldReadOnly b (Bit d) f])))::(map csrViews l).
 Proof.
     intros.
     unfold simpleCsr.
@@ -305,12 +376,16 @@ Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_l
              csrFields_reference_list repeatCsrView_0 repeatCsrView_S
              csrViews_simpleCsr
              csrViews_readOnlyCsr
+             map_csrViews_simpleCsr
+             map_csrViews_readOnlyCsr
              map_csr_reg_csr_field_xlField
              map_csr_reg_csr_field_csrFieldReadOnly
              map_csr_reg_csr_field_csrFieldReadOnly_None
              map_csr_reg_csr_field_csrFieldNoReg
              map_csr_reg_csr_field_tvecField
+             map_csr_reg_csr_field_pmpField
              map_csr_reg_csr_field_csrFieldAny
+             map_csr_reg_csr_field_misa
              map_fst_csr_reg_csr_field_csrFieldAny
              csr_reg_csr_field_reg_some
              csr_reg_csr_field_reg_none
@@ -367,8 +442,8 @@ Proof.
     trivialSolve.
 Qed.
 
-Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
-Admitted.
+(*Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
+Admitted.*)
 
 Axiom EquivThenEqual: prop_extensionality.
 
@@ -398,63 +473,11 @@ Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
       (concat
          (map getRegFileRegisters (mem_device_files mem_devices))).
-(*Proof.
-    unfold intRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    simpl.*)
-
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
              DisjKey_getAllRegisters_intRegFile_memReservationRegFile
              DisjKey_getAllRegisters_intRegFile_mem_devices : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_NubBy1: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey (nubBy (fun '(a,_) '(b,_) => String.eqb a b) x) y.
-Admitted.
-
-Theorem DisjKey_NubBy2: forall T (x: list (string * T)) (y: list (string * T)), DisjKey x y -> DisjKey x (nubBy (fun '(a,_) '(b,_) => String.eqb a b) y).
-Admitted.
-
-Theorem NoDup_NubBy: forall T (x: list (string * T)), NoDup (map fst (nubBy (fun '(a,_) '(b,_) => String.eqb a b) x)).
-Admitted.
-
-Theorem ne_disjunction_break: forall a b c, (~(a \/ False) \/ ~(b \/ False)) /\
-                                       (~(a \/ False) \/ ~c) ->
-                                        ~(a \/ False) \/ ~(b \/ c).
-Proof.
-    intros.
-    inversion H; subst; clear H.
-    inversion H0; subst; clear H0.
-    + left.
-      apply H.
-    + inversion H1; subst; clear H1.
-      - apply not_or_and in H.
-        inversion H; subst; clear H.
-        apply not_or_and in H0.
-        inversion H0; subst; clear H0.
-        left.
-        apply and_not_or.
-        split.
-        ++ apply H.
-        ++ intro X.
-           elim X.
-      - right.
-        apply not_or_and in H.
-        inversion H; subst; clear H.
-        apply and_not_or.
-        split.
-        ++ apply H1.
-        ++ apply H0.
-Qed.
-
-Ltac DisjKey_solve :=
-  match goal with
-  | |- ~((?P++_)%string = _ \/ False) \/ ~((?P++_)%string = _ \/ False) => let X := fresh in try (apply or_diff;intro X;inversion X)
-  | |- ~(_ \/ False) \/ ~(_ \/ _) => apply ne_disjunction_break;split;DisjKey_solve
-  | |- DisjKey _ _ => unfold DisjKey; simpl; intros;DisjKey_solve
-  | |- _ => trivialSolve
-  end.
 
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
@@ -494,12 +517,31 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wf
 
 Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) debug_internal_regs.
-Admitted.
+Proof.
+  unfold intRegFile.
+  unfold debug_internal_regs.
+  autorewrite with kami_rewrite_db.
+  autorewrite with simp_csrs.
+  simpl.
+  DisjKey_solve.
+Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfMod_ConcatMod_Helper.
 
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs debug_csrs).
+(*Proof.
+  unfold intRegFile.
+  unfold debug_csrs.
+  unfold csr_regs.
+  unfold Debug.debug_csrs_data.
+  autorewrite with kami_rewrite_db.
+  autorewrite with simp_csrs.
+  apply DisjKey_NubBy2.
+  unfold debug_csrs_num_data.*)
+
+
+
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_ConcatMod_Helper.
@@ -507,14 +549,28 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_Conc
 Theorem DisjKey_getAllMethods_intRegFile_floatRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (BaseRegFile floatRegFile)).
-Admitted.
+Proof.
+    unfold intRegFile.
+    unfold memReservationRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    unfold getRegFileRegisters.
+    DisjKey_solve.
+Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
 
 Theorem DisjKey_getAllMethods_intRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (BaseRegFile memReservationRegFile)).
-Admitted.
+Proof.
+    unfold intRegFile.
+    unfold memReservationRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    unfold getRegFileRegisters.
+    DisjKey_solve.
+Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
 
@@ -533,9 +589,41 @@ Admitted.
 
 Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
 
+Set Printing Depth 500.
+
 Theorem DisjKey_getAllRegisters_intRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
+Proof.
+    (*Set Printing Depth 4000.
+    unfold intRegFile.
+    unfold processorCore.
+    autorewrite with kami_rewrite_db.
+    autorewrite with simp_csrs.
+    autorewrite with kami_rewrite_db.
+    simpl.
+    repeat split.
+    + trivialSolve.
+    + trivialSolve.
+    + unfold Csrs.
+      unfold csr_regs.
+      autorewrite with simp_csrs.
+      remember (existsb
+                                                      (fun '{| ext_name := x;
+                                                      ext_edit := z |} =>
+                                                      (((x =? "F") || (x =? "D")) &&
+                                                                                  z)%bool) InitExtsAll).
+      destruct b.
+    - autorewrite with simp_csrs.
+      apply DisjKey_NubBy2.
+      
+      DisjKey_solve.
+    - apply DisjKey_NubBy2.
+      autorewrite with simp_csrs.
+      DisjKey_solve.
+      + trivialSolve.*)
+        
+
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile : wfMod_ConcatMod_Helper.
@@ -600,7 +688,14 @@ Hint Resolve WFConcat3 : wfMod_ConcatMod_Helper.
 Theorem DisjKey_getAllRegisters_floatRefFile_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (getAllRegisters (BaseRegFile memReservationRegFile)).
-Admitted.
+Proof.
+    unfold floatRegFile.
+    unfold memReservationRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    unfold getRegFileRegisters.
+    DisjKey_solve.
+Qed.
 
 Hint Resolve DisjKey_getAllRegisters_floatRefFile_memReservationRegFile : wfMod_ConcatMod_Helper.
 
@@ -623,7 +718,14 @@ Hint Resolve DisjKey_getAllRegisters_floatRegFile_processorCore : wfMod_ConcatMo
 Theorem DisjKey_getAllMethods_floatRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
     (getAllMethods (BaseRegFile memReservationRegFile)).
-Admitted.
+Proof.
+    unfold floatRegFile.
+    unfold memReservationRegFile.
+    unfold getAllRegisters.
+    unfold getRegisters.
+    unfold getRegFileRegisters.
+    DisjKey_solve.
+Qed.
 
 Hint Resolve DisjKey_getAllMethods_floatRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
 
