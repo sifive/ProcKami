@@ -29,7 +29,7 @@ Section Mem.
          fuInsts :=
            {| instName     := "amoswap.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -42,7 +42,7 @@ Section Mem.
            |} ::
            {| instName     := "amoadd.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -55,7 +55,7 @@ Section Mem.
            |} ::
            {| instName     := "amoxor.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -68,7 +68,7 @@ Section Mem.
            |} ::
            {| instName     := "amoand.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -81,7 +81,7 @@ Section Mem.
            |} ::
            {| instName     := "amoor.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -94,7 +94,7 @@ Section Mem.
            |} ::
            {| instName     := "amomin.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -107,7 +107,7 @@ Section Mem.
            |} ::
            {| instName     := "amomax.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -120,7 +120,7 @@ Section Mem.
            |} ::
            {| instName     := "amominu.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
@@ -133,7 +133,7 @@ Section Mem.
            |} ::
            {| instName     := "amomaxu.d" ;
               xlens        :=  [Xlen64];
-              extensions   := ["I"];
+              extensions   := ["A"];
               ext_ctxt_off := nil;
               uniqId       := fieldVal instSizeField ('b"11") ::
                                        fieldVal opcodeField ('b"01011") ::
