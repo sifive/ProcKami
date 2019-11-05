@@ -163,6 +163,20 @@ Section pmem.
                            } : Pair (DeviceTag mem_devices) PAddr @# ty)
                     end)).
 
+    Definition mem_device_at ty
+      (mem_devices : list MemDevice)
+      (deviceTag : DeviceTag mem_devices @# ty)
+      (f : MemDevice -> ActionT ty Void)
+      :  ActionT ty Void
+      := GatherActions 
+           (map 
+             (fun device : nat * MemDevice
+               => If deviceTag == $(fst device)
+                    then f (snd device);
+                  Retv)
+             (tag mem_devices)) as _;
+         Retv.
+        
     (*
       Note: we assume that device tags will always be valid given
       the constraints we apply in generating them.
@@ -298,11 +312,17 @@ Section pmem.
                        "addr" ::= daddr;
                        "data" ::= $0
                      } : MemDeviceRq @# ty;
-                memDeviceRequestHandler
-                  (STRUCT {
-                     "tag" ::= $index;
-                     "req" ::= #req
-                   } : ClientMemDeviceRq @# ty)).
+                LETA result
+                  :  Maybe (Maybe Data)
+                  <- memDeviceRequestHandler
+                       (STRUCT {
+                          "tag" ::= $index;
+                          "req" ::= #req
+                        } : ClientMemDeviceRq @# ty);
+                Ret
+                  (IF #result @% "valid"
+                     then Valid (#result @% "data" @% "data") : Maybe Data @# ty
+                     else Invalid : Maybe Data @# ty)).
 
     Definition mem_region_write
       (index : nat)
@@ -331,7 +351,7 @@ Section pmem.
                        "data" ::= data
                      } : MemDeviceRq @# ty;
                 LETA result
-                  :  Maybe Data
+                  :  Maybe (Maybe Data)
                   <- memDeviceRequestHandler
                        (STRUCT {
                           "tag" ::= $index;

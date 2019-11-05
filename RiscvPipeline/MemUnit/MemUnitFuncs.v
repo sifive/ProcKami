@@ -293,7 +293,7 @@ Section mem_unit.
                                 func_unit_id
                                 inst_id);
                        LETA regData
-                         :  Maybe Data
+                         :   Maybe (Maybe Data)
                          <- mem_device_apply
                               (#pmp_result @% "fst" @% "fst")
                               (fun device
@@ -314,20 +314,20 @@ Section mem_unit.
                          <- IF #regData @% "valid"
                               then Invalid
                               else Valid ($SAmoAccessFault: Exception @# ty);
-                       LETA result
+                       LETA memRet
                          :  MemRet
                          <- convertLetExprSyntax_ActionT
                               (applyMemInst
                                 (fun _ _ inst _
                                   => RetE
                                        (STRUCT {
-                                          "writeReg?" ::= #regData @% "valid";
+                                          "writeReg?" ::= #regData @% "data" @% "valid";
                                           "tag"  ::= if hasFrd (instHints inst) then $FloatRegTag else $IntRegTag;
-                                          "data" ::= #regData @% "data"
+                                          "data" ::= #regData @% "data" @% "data"
                                         } : MemRet @# ty))
                                 func_unit_id
                                 inst_id);
-                       mem_unit_exec_pkt #result #exception
+                       mem_unit_exec_pkt #memRet #exception
                      as result;
                    Ret #result
                  as result;

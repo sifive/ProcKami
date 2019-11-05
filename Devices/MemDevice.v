@@ -64,7 +64,7 @@ Section deviceIfc.
     memDeviceName : string;
     memDeviceIO   : bool;
     memDevicePmas : list PMA;
-    memDeviceRequestHandler : forall ty, ClientMemDeviceRq @# ty -> ActionT ty (Maybe Data);
+    memDeviceRequestHandler : forall ty, ClientMemDeviceRq @# ty -> ActionT ty (Maybe (Maybe Data));
     memDeviceFile : option ((list RegFileBase) + MMRegs)%type
   }.
 
@@ -116,185 +116,242 @@ Section deviceIfc.
           ActionT ty Void
   }.
 
-  Section device.
-    Variable params : MemDeviceParams.
+  Section ty.
     Variable ty : Kind -> Type.
 
     Local Open Scope kami_expr.
     Local Open Scope kami_action.
 
-    Local Definition memDeviceSize
-      :  MemOpCode @# ty -> ActionT ty MemRqLgSize
-      := applyMemOp (fun memOp => Ret $(memOpSize memOp)).
+    Section device.
+      Variable params : MemDeviceParams.
 
-    Local Definition memDeviceIsRead
-      :  MemOpCode @# ty -> ActionT ty Bool
-      := applyMemOp
-           (fun memOp
-             => Ret
-                  $$(orb
-                    (isMemRegValueFn (memOpRegValue memOp))
-                    (isMemWriteValueFn (memOpWriteValue memOp)))).
+      Local Definition memDeviceSize
+        :  MemOpCode @# ty -> ActionT ty MemRqLgSize
+        := applyMemOp (fun memOp => Ret $(memOpSize memOp)).
 
-    Local Definition memDeviceRead
-      (tag : ClientRqTag @# ty)
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty (Maybe Data)
-      := LETA isRead : Bool <- memDeviceIsRead code;
-         If #isRead
-           then memDeviceParamsRead tag addr size
-           else Ret Invalid
-           as result;
-         Ret #result.
+      Local Definition memDeviceIsRead
+        :  MemOpCode @# ty -> ActionT ty Bool
+        := applyMemOp
+             (fun memOp
+               => Ret
+                    $$(orb
+                      (isMemRegValueFn (memOpRegValue memOp))
+                      (isMemWriteValueFn (memOpWriteValue memOp)))).
 
-    Local Definition memDeviceUsesReservation
-      :  MemOpCode @# ty -> ActionT ty Bool
-      := applyMemOp
-           (fun memOp
-             => Ret
-                  $$(match memOpWriteValue memOp with
-                     | memWriteValueSc => true
-                     | _ => false
+      Local Definition memDeviceRead
+        (tag : ClientRqTag @# ty)
+        (code : MemOpCode @# ty)
+        (addr : PAddr @# ty)
+        (size : MemRqLgSize @# ty)
+        :  ActionT ty (Maybe Data)
+        := LETA isRead : Bool <- memDeviceIsRead code;
+           If #isRead
+             then memDeviceParamsRead tag addr size
+             else Ret Invalid
+             as result;
+           Ret #result.
+
+      Local Definition memDeviceUsesReservation
+        :  MemOpCode @# ty -> ActionT ty Bool
+        := applyMemOp
+             (fun memOp
+               => Ret
+                    $$(match memOpWriteValue memOp with
+                       | memWriteValueSc => true
+                       | _ => false
+                       end)).
+
+      Local Definition memDeviceReadReservation
+        (code : MemOpCode @# ty)
+        (addr : PAddr @# ty)
+        (size : MemRqLgSize @# ty)
+        :  ActionT ty Reservation
+        := LETA usesReservation : Bool <- memDeviceUsesReservation code;
+           If #usesReservation
+             then memDeviceParamsReadReservation addr size
+             else Ret $$(getDefaultConst Reservation)
+             as result;
+           Ret #result.
+
+      Local Definition memDeviceIsReservationValid
+        (code : MemOpCode @# ty)
+        (reservation : Reservation @# ty)
+        :  ActionT ty Bool
+        := applyMemOp
+             (fun memOp => Ret (reservationValid (memOpSize memOp) reservation))
+             code.
+
+      Local Definition memDeviceWriteValue
+        (code : MemOpCode @# ty)
+        (memData : Data @# ty)
+        (regData : Data @# ty)
+        (isReservationValid : Bool @# ty)
+        :  ActionT ty (Maybe Data)
+        := applyMemOp
+             (fun memOp
+               => match memOpWriteValue memOp return ActionT ty (Maybe Data) with
+                  | memWriteValueFn f
+                    => LETA result : Data
+                         <- convertLetExprSyntax_ActionT
+                              (f ty regData memData);
+                       Ret (Valid #result : Maybe Data @# ty)
+                  | memWriteValueStore
+                    => Ret (Valid regData)
+                  | memWriteValueSc
+                    => Ret
+                         (IF isReservationValid
+                           then Valid regData
+                           else Invalid : Maybe Data @# ty)
+                  | memWriteValueNone
+                    => Ret (Invalid : Maybe Data @# ty)
+                  end)
+             code.
+
+      Local Definition memDeviceWriteMask
+        :  MemOpCode @# ty -> ActionT ty DataMask
+        := applyMemOp
+             (fun memOp
+               => Ret
+                    (unpack DataMask
+                      ($(pow2 (pow2 (memOpSize memOp)) - 1)))).
+
+      Local Definition memDeviceWrite
+        (tag : ClientRqTag @# ty)
+        (addr : PAddr @# ty)
+        (writeMask : DataMask @# ty)
+        (writeData : Maybe Data @# ty)
+        (size : MemRqLgSize @# ty)
+        :  ActionT ty Bool
+        := If writeData @% "valid"
+             then 
+               LET writeReq
+                 :  MemWrite
+                 <- STRUCT {
+                      "addr" ::= addr;
+                      "data" ::= writeData @% "data";
+                      "mask" ::= writeMask;
+                      "size" ::= size
+                    } : MemWrite @# ty;
+               memDeviceParamsWrite tag #writeReq
+             else Ret $$true
+             as result;
+           Ret #result.
+
+      Local Definition memDeviceReservation
+        :  MemOpCode @# ty -> ActionT ty (Maybe Reservation)
+        := applyMemOp
+             (fun memOp
+               => Ret
+                    (match memOpReservation memOp return Maybe Reservation @# ty with
+                     | memReservationSet
+                       => Valid (lrReservation (memOpSize memOp) ty)
+                     | memReservationClear
+                       => Valid ($$(getDefaultConst (Reservation)))
+                     | memReservationNone
+                       => Invalid : Maybe Reservation @# ty
                      end)).
 
-    Local Definition memDeviceReadReservation
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty Reservation
-      := LETA usesReservation : Bool <- memDeviceUsesReservation code;
-         If #usesReservation
-           then memDeviceParamsReadReservation addr size
-           else Ret $$(getDefaultConst Reservation)
-           as result;
-         Ret #result.
+      Local Definition memDeviceWriteReservation
+        (code : MemOpCode @# ty)
+        (addr : PAddr @# ty)
+        (writeMask : DataMask @# ty)
+        (size : MemRqLgSize @# ty)
+        :  ActionT ty Void
+        := LETA reservation : Maybe Reservation <- memDeviceReservation code;
+           If #reservation @% "valid"
+             then 
+               memDeviceParamsWriteReservation addr writeMask
+                 (#reservation @% "data" : Reservation @# ty)
+                 size;
+           Retv.
 
-    Local Definition memDeviceIsReservationValid
-      (code : MemOpCode @# ty)
-      (reservation : Reservation @# ty)
-      :  ActionT ty Bool
-      := applyMemOp
-           (fun memOp => Ret (reservationValid (memOpSize memOp) reservation))
-           code.
+      Local Definition memDeviceRegValue
+        (code : MemOpCode @# ty)
+        (memData : Data @# ty)
+        (isReservationValid : Bool @# ty)
+        :  ActionT ty (Maybe Data)
+        := applyMemOp
+             (fun memOp
+               => match memOpRegValue memOp return ActionT ty (Maybe Data) with
+                    | memRegValueFn f
+                      => LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
+                         Ret (Valid #result : Maybe Data @# ty)
+                    | memRegValueSc
+                      => Ret (Valid (IF isReservationValid then $0 : Data @# ty else $1))
+                    | memRegValueNone
+                      => Ret (Invalid : Maybe Data @# ty)
+                    end)
+             code.
 
-    Local Definition memDeviceWriteValue
-      (code : MemOpCode @# ty)
-      (memData : Data @# ty)
-      (regData : Data @# ty)
-      (isReservationValid : Bool @# ty)
-      :  ActionT ty (Maybe Data)
-      := applyMemOp
-           (fun memOp
-             => match memOpWriteValue memOp return ActionT ty (Maybe Data) with
-                | memWriteValueFn f
-                  => LETA result : Data
-                       <- convertLetExprSyntax_ActionT
-                            (f ty regData memData);
-                     Ret (Valid #result : Maybe Data @# ty)
-                | memWriteValueStore
-                  => Ret (Valid regData)
-                | memWriteValueSc
-                  => Ret
-                       (IF isReservationValid
-                         then Valid regData
-                         else Invalid : Maybe Data @# ty)
-                | memWriteValueNone
-                  => Ret (Invalid : Maybe Data @# ty)
-                end)
-           code.
+      Definition memDeviceHandleRequest
+        (tag : ClientRqTag @# ty)
+        (req : MemDeviceRq @# ty)
+        :  ActionT ty (Maybe (Maybe Data))
+        := LETA size
+             :  MemRqLgSize
+             <- memDeviceSize (req @% "memOp");
+           LETA memData
+             :  Maybe Data
+             <- memDeviceRead tag (req @% "memOp") (req @% "addr") #size;
+           LETA reservation
+             :  Reservation
+             <- memDeviceReadReservation (req @% "memOp") (req @% "addr") #size;
+           LETA isReservationValid
+             :  Bool
+             <- memDeviceIsReservationValid (req @% "memOp") #reservation;
+           LETA writeData
+             :  Maybe Data
+             <- memDeviceWriteValue (req @% "memOp") (#memData @% "data") (req @% "data") #isReservationValid;
+           LETA writeMask
+             :  DataMask
+             <- memDeviceWriteMask (req @% "memOp");
+           LETA writeSucceeded
+             :  Bool
+             <- memDeviceWrite tag (req @% "addr") #writeMask #writeData #size;
+           LETA _ <- memDeviceWriteReservation (req @% "memOp") (req @% "addr") #writeMask #size;
+           LETA regData
+             :  Maybe Data
+             <- memDeviceRegValue (req @% "memOp") (#memData @% "data") #isReservationValid;
+           System [
+             DispString _ "[memDeviceHandleRequest] request: ";
+             DispHex req;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] size: ";
+             DispHex #size;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] mem data: ";
+             DispHex #memData;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] reservation: ";
+             DispHex #reservation;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] reservation valid: ";
+             DispHex #isReservationValid;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] write data: ";
+             DispHex #writeData;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] write mask: ";
+             DispHex #writeMask;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] write succeeded: ";
+             DispHex #writeSucceeded;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] write succeeded: ";
+             DispHex #writeSucceeded;
+             DispString _ "\n";
+             DispString _ "[memDeviceHandleRequest] reg data: ";
+             DispHex #regData;
+             DispString _ "\n"
+           ];
+           Ret
+             (IF #writeSucceeded
+               then Valid #regData : Maybe (Maybe Data) @# ty
+               else Invalid : Maybe (Maybe Data) @# ty).
 
-    Local Definition memDeviceWriteMask
-      :  MemOpCode @# ty -> ActionT ty DataMask
-      := applyMemOp
-           (fun memOp
-             => Ret
-                  (unpack DataMask
-                    ($(pow2 (pow2 (memOpSize memOp)) - 1)))).
-
-    Local Definition memDeviceWrite
-      (tag : ClientRqTag @# ty)
-      (addr : PAddr @# ty)
-      (writeMask : DataMask @# ty)
-      (writeData : Maybe Data @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty Bool
-      := If writeData @% "valid"
-           then 
-             LET writeReq
-               :  MemWrite
-               <- STRUCT {
-                    "addr" ::= addr;
-                    "data" ::= writeData @% "data";
-                    "mask" ::= writeMask;
-                    "size" ::= size
-                  } : MemWrite @# ty;
-             memDeviceParamsWrite tag #writeReq
-           else Ret $$true
-           as result;
-         Ret #result.
-
-    Local Definition memDeviceReservation
-      :  MemOpCode @# ty -> ActionT ty (Maybe Reservation)
-      := applyMemOp
-           (fun memOp
-             => Ret
-                  (match memOpReservation memOp return Maybe Reservation @# ty with
-                   | memReservationSet
-                     => Valid (lrReservation (memOpSize memOp) ty)
-                   | memReservationClear
-                     => Valid ($$(getDefaultConst (Reservation)))
-                   | memReservationNone
-                     => Invalid : Maybe Reservation @# ty
-                   end)).
-
-    Local Definition memDeviceWriteReservation
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      (writeMask : DataMask @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty Void
-      := LETA reservation : Maybe Reservation <- memDeviceReservation code;
-         If #reservation @% "valid"
-           then 
-             memDeviceParamsWriteReservation addr writeMask
-               (#reservation @% "data" : Reservation @# ty)
-               size;
-         Retv.
-
-    Definition memDeviceHandleRequest
-      (tag : ClientRqTag @# ty)
-      (req : MemDeviceRq @# ty)
-      :  ActionT ty (Maybe Data)
-      := LETA size
-           :  MemRqLgSize
-           <- memDeviceSize (req @% "memOp");
-         LETA memData
-           :  Maybe Data
-           <- memDeviceRead tag (req @% "memOp") (req @% "addr") #size;
-         LETA reservation
-           :  Reservation
-           <- memDeviceReadReservation (req @% "memOp") (req @% "addr") #size;
-         LETA isReservationValid
-           :  Bool
-           <- memDeviceIsReservationValid (req @% "memOp") #reservation;
-         LETA writeData
-           :  Maybe Data
-           <- memDeviceWriteValue (req @% "memOp") (#memData @% "data") (req @% "data") #isReservationValid;
-         LETA writeMask
-           :  DataMask
-           <- memDeviceWriteMask (req @% "memOp");
-         LETA writeResult
-           :  Bool
-           <- memDeviceWrite tag (req @% "addr") #writeMask #writeData #size;
-         LETA _ <- memDeviceWriteReservation (req @% "memOp") (req @% "addr") #writeMask #size;
-         Ret
-           (IF #writeResult
-             then Valid (#memData @% "data") : Maybe Data @# ty
-             else (Invalid : Maybe Data @# ty)).
+    End device.
 
     Local Close Scope kami_action.
     Local Close Scope kami_expr.
-  End device.
+  End ty.
 End deviceIfc.
