@@ -454,7 +454,17 @@ Proof.
     unfold intRegFile.
     unfold floatRegFile.
     simpl.
-    DisjKey_solve.
+    rewrite DisjKeyWeak_same.
+    unfold DisjKeyWeak; simpl.
+    intros.
+    inversion H; subst; clear H.
+    inversion H0; subst; clear H0.
+    apply string_equal_prefix in H.
+    inversion H.
+    elim H.
+    elim H1.
+    intros.
+    repeat (decide equality).
 Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_memReservationRegFile:
@@ -585,7 +595,16 @@ Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfM
 
 Theorem WfMod_intRegFile:
   WfMod (BaseRegFile intRegFile).
-Admitted.
+Proof.
+    unfold intRegFile.
+    WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+Qed.
 
 Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
 
@@ -760,7 +779,18 @@ Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
 
 Theorem wfMod_floatRegFile:
   WfMod (BaseRegFile floatRegFile).
-Admitted.
+Proof.
+    unfold floatRegFile.
+    WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+    + simpl.
+      WfMod_Solve.
+Qed.
 
 Hint Resolve wfMod_floatRegFile : wfMod_ConcatMod_Helper.
 
