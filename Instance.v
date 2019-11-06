@@ -12,7 +12,7 @@ Require Import ProcKami.ModelParams.
 Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
-Require Import Kami.Compiler.Test.Test.
+Require Import Kami.Compiler.Test.
 
 Definition supportedExts
   :  list SupportedExt
