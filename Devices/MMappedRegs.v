@@ -1,6 +1,7 @@
 (* This module defines the memory mapped register interface. *)
 Require Import Kami.All.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
@@ -88,38 +89,58 @@ Section mmapped.
 
     End ty.
 
+    Local Definition regDeviceParams := {|
+      memDeviceParamsRead
+        := fun ty _ addr _
+             => System [
+                  DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
+                ];
+                LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                Ret (STRUCT {
+                  "valid" ::= $$true;
+                  "data" ::= ZeroExtendTruncLsb Rlen #result
+                } : Maybe (Bit Rlen) @# _);
+
+      memDeviceParamsWrite
+        := fun ty _ req
+             => LET addr
+                  :  Bit mmregs_realAddrSz
+                  <- unsafeTruncLsb mmregs_realAddrSz (req @% "addr");
+                LETA _
+                  <- mm_write #addr
+                       (ZeroExtendTruncLsb dataSz (req @% "data"));
+                Ret $$true;
+
+      memDeviceParamsReadReservation
+        := fun ty _ _ => Ret $$(getDefaultConst Reservation);
+
+      memDeviceParamsWriteReservation
+        := fun ty _ _ _ _ => Retv
+    |}.
+
     Definition gen_reg_device
       (device_name : string)
       (gen_regs : bool)
       :  MemDevice
       := {|
-           mem_device_name := device_name;
-           mem_device_type := io_device;
-           mem_device_pmas := pmas_default;
-           mem_device_read
-             := fun ty
-                  => [fun addr _
-                       => System [
-                            DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
-                          ];
-                          LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                          Ret (STRUCT {
-                                   "valid" ::= $$true;
-                                   "data" ::= ZeroExtendTruncLsb Rlen #result}
-                               : Maybe (Bit Rlen) @# _)];
-           mem_device_write
-             := fun ty
-                  => [fun (write_pkt : MemWrite @# ty)
-                         => LET addr : Bit mmregs_realAddrSz <- unsafeTruncLsb mmregs_realAddrSz (write_pkt @% "addr");
-                            LETA _
-                              <- mm_write #addr
-                                   (ZeroExtendTruncLsb dataSz (write_pkt @% "data"));
-                            Ret $$true];
-           mem_device_read_resv
-             := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
-           mem_device_write_resv
-             := fun ty addr _ _ _ => Retv;
-           mem_device_file
+           memDeviceName := device_name;
+           memDeviceIO := true;
+           memDevicePmas
+             := map
+                  (fun width
+                    => {|
+                         pma_width      := width;
+                         pma_readable   := true;
+                         pma_writeable  := true;
+                         pma_executable := true;
+                         pma_misaligned := true;
+                         pma_lrsc       := false;
+                         pma_amo        := AMONone
+                       |})
+                  (seq 0 4);
+           memDeviceRequestHandler
+             := fun _ req => memDeviceHandleRequest regDeviceParams (req @% "tag") (req @% "req");
+           memDeviceFile
              := if gen_regs
                   then
                     Some
