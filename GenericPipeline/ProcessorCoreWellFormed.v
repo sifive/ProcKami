@@ -534,6 +534,9 @@ Proof.
   autorewrite with simp_csrs.
   simpl.
   DisjKey_solve.
+  repeat (decide equality).
+  repeat (decide equality).
+  repeat (decide equality).
 Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfMod_ConcatMod_Helper.
@@ -596,14 +599,7 @@ Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfM
 Theorem WfMod_intRegFile:
   WfMod (BaseRegFile intRegFile).
 Proof.
-    unfold intRegFile.
     WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
 Qed.
 
 Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
@@ -671,7 +667,12 @@ Theorem WFConcat1:
           (fold_right ConcatMod (processorCore func_units mem_table)
              (map (fun m : RegFileBase => Base (BaseRegFile m))
                 (mem_device_files mem_devices))))).
-Admitted.
+Proof.
+    intros.
+    simpl.
+    unfold intRegFile in H.
+    WfConcatAction_Solve.
+Qed.
 
 Hint Resolve WFConcat1 : wfMod_ConcatMod_Helper.
 
@@ -773,23 +774,16 @@ Theorem WFConcat4:
        (fold_right ConcatMod (processorCore func_units mem_table)
           (map (fun m : RegFileBase => Base (BaseRegFile m))
              (mem_device_files mem_devices)))).
-Admitted.
+Proof.
+    WfConcatAction_Solve.
+Qed.
 
 Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
 
 Theorem wfMod_floatRegFile:
   WfMod (BaseRegFile floatRegFile).
 Proof.
-    unfold floatRegFile.
     WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
-    + simpl.
-      WfMod_Solve.
 Qed.
 
 Hint Resolve wfMod_floatRegFile : wfMod_ConcatMod_Helper.
@@ -853,10 +847,44 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
 
+Opaque getFins.
+Opaque Nat.mul.
+
 Theorem WfMod_memReservationFile:
   WfMod (BaseRegFile memReservationRegFile).
 Admitted.
+(*Proof.
+  unfold memReservationRegFile.
+  apply BaseWf.
+  unfold WfBaseModule.
+  split.
+  intros.
+  simpl in H.
+  inversion H.
+  split.
+  intros.
+  simpl in H.
+  simpl.
 
+  split.
+
+  apply BaseWf.
+  simpl in H.
+
+  WfMod_Solve.
+
+
+  split.
+  + intros.
+    simpl in H.
+    inversion H.
+  + split.
+    - intros.
+      unfold getMethods in H.
+      unfold getRegFileMethods in H.
+      unfold writeRegFileFn in H.
+      simpl.
+*)
 Hint Resolve WfMod_memReservationFile : wfMod_ConcatMod_Helper.
 
 Theorem WfMod_processorCore_mem_devices:  
@@ -925,6 +953,21 @@ Lemma WfModProcessor:
 
       repeat ltac_wfMod_ConcatMod.
 
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
+      repeat (decide equality).
 Qed.
  
 Close Scope kami_expr.
