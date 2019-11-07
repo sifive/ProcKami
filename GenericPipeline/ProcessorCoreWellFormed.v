@@ -454,19 +454,24 @@ Proof.
     unfold intRegFile.
     unfold floatRegFile.
     simpl.
-    DisjKey_solve.
+    rewrite DisjKeyWeak_same.
+    unfold DisjKeyWeak; simpl.
+    intros.
+    inversion H; subst; clear H.
+    inversion H0; subst; clear H0.
+    apply string_equal_prefix in H.
+    inversion H.
+    elim H.
+    elim H1.
+    intros.
+    apply string_dec.
 Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (BaseRegFile memReservationRegFile)).
 Proof.
-    unfold intRegFile.
-    unfold memReservationRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    unfold getRegFileRegisters.
-    DisjKey_solve.
+    discharge_DisjKey.
 Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
@@ -518,19 +523,98 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wf
 Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) debug_internal_regs.
 Proof.
-  unfold intRegFile.
-  unfold debug_internal_regs.
-  autorewrite with kami_rewrite_db.
-  autorewrite with simp_csrs.
-  simpl.
-  DisjKey_solve.
+  discharge_DisjKey.
 Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfMod_ConcatMod_Helper.
 
+Theorem string_append_assoc: forall a b c, ((a++b)++c)%string=(a++(b++c))%string.
+Proof.
+    induction a.
+    + simpl.
+      reflexivity.
+    + intros.
+      simpl.
+      rewrite IHa.
+      reflexivity.
+Qed.
+
+Theorem string_glue: forall x y, (x++(String "_" y))%string=(x++"_"++y)%string.
+Proof.
+    intros.
+    simpl.
+    reflexivity.
+Qed.
+
+Theorem debug_csr_data_disjoint: forall x n,
+  In x%string (map fst (concat (map csr_reg_csr_field (concat (map csrViewFields (csrViews (Debug.debug_csr_data n))))))) ->
+     exists (q:string), x%string=@^("data"++q).
+Proof.
+    intros.
+    unfold Debug.debug_csr_data in H.
+    simpl in H. 
+    inversion H; subst; clear H.
+    + simpl.
+      eapply ex_intro.
+      rewrite ?string_append_assoc.
+      simpl.
+      apply <- string_equal_prefix.
+      econstructor.
+    + inversion H0.
+Qed.
+
+Theorem debug_csr_data_seq_disjoint: forall x n m,
+  In x 
+      (map fst
+         (concat
+            (map csr_reg_csr_field
+               (concat
+                  (map csrViewFields
+                     (concat
+                        (map csrViews
+                           (map Debug.debug_csr_data
+                              (seq m n))))))))) ->
+  exists (q:string), x%string=@^("data" ++q).
+Proof.
+     induction n.
+     + intros.
+       simpl in H.
+       inversion H.
+     + intros.
+       simpl in H.
+       inversion H; subst; clear H.
+       - eapply ex_intro.
+         discharge_append.
+       - eapply IHn.
+         apply H0.
+Qed.
+
+Theorem debug_csrs_prog_buf_disjoint: forall x n m,
+  In x
+    (map fst
+       (concat
+          (map csr_reg_csr_field
+             (concat
+                (map csrViewFields
+                   (concat (map csrViews (map Debug.debug_csr_progbuf (seq m n))))))))) ->
+  exists (q:string), x%string=@^("progbuf" ++q).
+Proof.
+     induction n.
+     + intros.
+       simpl in H.
+       inversion H.
+     + intros.
+       simpl in H.
+       inversion H; subst; clear H.
+       - eapply ex_intro.
+         discharge_append.
+       - eapply IHn.
+         apply H0.
+Qed.
+
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs debug_csrs).
-(*Proof.
+Proof.
   unfold intRegFile.
   unfold debug_csrs.
   unfold csr_regs.
@@ -538,11 +622,28 @@ Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   autorewrite with kami_rewrite_db.
   autorewrite with simp_csrs.
   apply DisjKey_NubBy2.
-  unfold debug_csrs_num_data.*)
-
-
-
-Admitted.
+  unfold debug_csrs_num_data.
+  simpl.
+  autorewrite with simp_csrs.
+  autorewrite with kami_rewrite_db;try (apply string_dec).
+  rewrite ?map_app.
+  simpl.
+  rewrite ?in_app.
+  split.
+  + intro X.
+    inversion X; subst; clear X.
+    - apply debug_csr_data_seq_disjoint in H.
+      inversion H; subst; clear H.
+      simpl in H0.
+      apply string_equal_prefix in H0.
+      inversion H0; subst; clear H0.
+    - simpl in H.
+      discharge_DisjKey.
+      apply debug_csrs_prog_buf_disjoint in H.
+      inversion H;subst;clear H.
+      discharge_append.
+  + repeat split;  discharge_DisjKey.
+Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_ConcatMod_Helper.
 
@@ -550,12 +651,7 @@ Theorem DisjKey_getAllMethods_intRegFile_floatRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (BaseRegFile floatRegFile)).
 Proof.
-    unfold intRegFile.
-    unfold memReservationRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    unfold getRegFileRegisters.
-    DisjKey_solve.
+    discharge_DisjKey.
 Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
@@ -564,12 +660,7 @@ Theorem DisjKey_getAllMethods_intRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (BaseRegFile memReservationRegFile)).
 Proof.
-    unfold intRegFile.
-    unfold memReservationRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    unfold getRegFileRegisters.
-    DisjKey_solve.
+    discharge_DisjKey.
 Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
@@ -585,7 +676,9 @@ Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfM
 
 Theorem WfMod_intRegFile:
   WfMod (BaseRegFile intRegFile).
-Admitted.
+Proof.
+   discharge_wf.
+Qed.
 
 Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
 
@@ -652,7 +745,9 @@ Theorem WFConcat1:
           (fold_right ConcatMod (processorCore func_units mem_table)
              (map (fun m : RegFileBase => Base (BaseRegFile m))
                 (mem_device_files mem_devices))))).
-Admitted.
+Proof.
+    discharge_wf.
+Qed.
 
 Hint Resolve WFConcat1 : wfMod_ConcatMod_Helper.
 
@@ -689,12 +784,7 @@ Theorem DisjKey_getAllRegisters_floatRefFile_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (getAllRegisters (BaseRegFile memReservationRegFile)).
 Proof.
-    unfold floatRegFile.
-    unfold memReservationRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    unfold getRegFileRegisters.
-    DisjKey_solve.
+    discharge_DisjKey.
 Qed.
 
 Hint Resolve DisjKey_getAllRegisters_floatRefFile_memReservationRegFile : wfMod_ConcatMod_Helper.
@@ -719,12 +809,7 @@ Theorem DisjKey_getAllMethods_floatRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
     (getAllMethods (BaseRegFile memReservationRegFile)).
 Proof.
-    unfold floatRegFile.
-    unfold memReservationRegFile.
-    unfold getAllRegisters.
-    unfold getRegisters.
-    unfold getRegFileRegisters.
-    DisjKey_solve.
+    discharge_DisjKey.
 Qed.
 
 Hint Resolve DisjKey_getAllMethods_floatRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
@@ -754,13 +839,17 @@ Theorem WFConcat4:
        (fold_right ConcatMod (processorCore func_units mem_table)
           (map (fun m : RegFileBase => Base (BaseRegFile m))
              (mem_device_files mem_devices)))).
-Admitted.
+Proof.
+    discharge_wf.
+Qed.
 
 Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
 
 Theorem wfMod_floatRegFile:
   WfMod (BaseRegFile floatRegFile).
-Admitted.
+Proof.
+    discharge_wf.
+Qed.
 
 Hint Resolve wfMod_floatRegFile : wfMod_ConcatMod_Helper.
 
@@ -823,9 +912,18 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
 
+Opaque getFins.
+Opaque Nat.mul.
+
 Theorem WfMod_memReservationFile:
   WfMod (BaseRegFile memReservationRegFile).
-Admitted.
+(*Admitted.*)
+Proof.
+  unfold memReservationRegFile.
+  apply BaseWf.
+  unfold WfBaseModule.
+  discharge_wf.
+Qed.
 
 Hint Resolve WfMod_memReservationFile : wfMod_ConcatMod_Helper.
 
@@ -876,9 +974,6 @@ Admitted.
 
 Hint Resolve WFConcat9 : wfMod_ConcatMod_Helper.
 
-Ltac ltac_wfMod_ConcatMod :=
-  apply ConcatModWf;autorewrite with kami_rewrite_db;repeat split;try assumption;auto with wfMod_ConcatMod_Helper;trivialSolve.
-
 Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
@@ -893,8 +988,7 @@ Lemma WfModProcessor:
       autorewrite with kami_rewrite_db.
       rewrite ?map_app.
 
-      repeat ltac_wfMod_ConcatMod.
-
+      repeat ltac_wfMod_ConcatMod;try apply string_dec.
 Qed.
  
 Close Scope kami_expr.
