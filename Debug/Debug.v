@@ -181,7 +181,7 @@ Section debug.
     := map debug_csr_data (seq 0 (debug_csrs_num_data - 1)%nat).
 
   Local Definition debug_csr_progbuf n
-    := let name := @^("progbuf" ++ nat_decimal_string n) in
+    := let name := ("progbuf" ++ nat_decimal_string n)%string in
        debug_csr name 
          (natToWord CsrIdWidth (32 + n)%nat)
          [@csrFieldAny _ name (Bit 32) (Bit 32) (Some (ConstBit debug_inst_ebreak))].
