@@ -546,9 +546,9 @@ Proof.
     reflexivity.
 Qed.
 
-(*Theorem debug_csr_data_disjoint: forall x n,
+Theorem debug_csr_data_disjoint: forall x n,
   In x%string (map fst (concat (map csr_reg_csr_field (concat (map csrViewFields (csrViews (Debug.debug_csr_data n))))))) ->
-     exists (q:string), x%string=@^(proc_name ++ "_data"++q).
+     exists (q:string), x%string=@^("data"++q).
 Proof.
     intros.
     unfold Debug.debug_csr_data in H.
@@ -574,7 +574,7 @@ Theorem debug_csr_data_seq_disjoint: forall x n m,
                         (map csrViews
                            (map Debug.debug_csr_data
                               (seq m n))))))))) ->
-  exists (q:string), x%string=@^(proc_name ++ "_data" ++q).
+  exists (q:string), x%string=@^("data" ++q).
 Proof.
      induction n.
      + intros.
@@ -584,17 +584,37 @@ Proof.
        simpl in H.
        inversion H; subst; clear H.
        - eapply ex_intro.
-         rewrite ?string_append_assoc.
-         simpl.
-         apply <- string_equal_prefix.
-         econstructor.
+         discharge_append.
        - eapply IHn.
          apply H0.
-Qed.*)
+Qed.
+
+Theorem debug_csrs_prog_buf_disjoint: forall x n m,
+  In x
+    (map fst
+       (concat
+          (map csr_reg_csr_field
+             (concat
+                (map csrViewFields
+                   (concat (map csrViews (map Debug.debug_csr_progbuf (seq m n))))))))) ->
+  exists (q:string), x%string=@^("progbuf" ++q).
+Proof.
+     induction n.
+     + intros.
+       simpl in H.
+       inversion H.
+     + intros.
+       simpl in H.
+       inversion H; subst; clear H.
+       - eapply ex_intro.
+         discharge_append.
+       - eapply IHn.
+         apply H0.
+Qed.
 
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs debug_csrs).
-(*Proof.
+Proof.
   unfold intRegFile.
   unfold debug_csrs.
   unfold csr_regs.
@@ -605,7 +625,7 @@ Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   unfold debug_csrs_num_data.
   simpl.
   autorewrite with simp_csrs.
-  autorewrite with kami_rewrite_db.
+  autorewrite with kami_rewrite_db;try (apply string_dec).
   rewrite ?map_app.
   simpl.
   rewrite ?in_app.
@@ -616,10 +636,14 @@ Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
       inversion H; subst; clear H.
       simpl in H0.
       apply string_equal_prefix in H0.
-      inversion H0; subst; clear H0.*)
-
-
-Admitted.
+      inversion H0; subst; clear H0.
+    - simpl in H.
+      discharge_DisjKey.
+      apply debug_csrs_prog_buf_disjoint in H.
+      inversion H;subst;clear H.
+      discharge_append.
+  + repeat split;  discharge_DisjKey.
+Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_ConcatMod_Helper.
 
