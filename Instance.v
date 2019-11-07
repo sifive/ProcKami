@@ -54,14 +54,17 @@ Separate Extraction
 
          getCallsWithSignPerMod
          RtlExpr'
-         
+
          CompActionSimple
          RmeSimple
          RtlModule
          getRules
          separateModRemove
-         
+
          model32
          model64
 
-         testMod.
+         testRegMod
+         testAsyncMod
+         testSyncIsAddrMod
+         testSyncNotIsAddrMod.
