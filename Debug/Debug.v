@@ -173,7 +173,7 @@ Section debug.
 
   Local Definition debug_csr_data n
     := debug_simple_csr
-         (@^"data" ++ nat_decimal_string n)
+         ("data" ++ nat_decimal_string n)
          (natToWord CsrIdWidth (4 + n)%nat)
          (Bit 32).
 
