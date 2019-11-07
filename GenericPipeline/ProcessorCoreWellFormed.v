@@ -950,9 +950,6 @@ Admitted.
 
 Hint Resolve WFConcat9 : wfMod_ConcatMod_Helper.
 
-Ltac ltac_wfMod_ConcatMod :=
-  apply ConcatModWf;autorewrite with kami_rewrite_db;repeat split;try assumption;auto with wfMod_ConcatMod_Helper;trivialSolve.
-
 Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
