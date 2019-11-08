@@ -3,9 +3,9 @@
   into a single pipeline processor model.
 *)
 
-Require Import Coq.Logic.Classical_Prop.
+(*Require Import Coq.Logic.Classical_Prop.
 Require Import Classical.
-Require Import Coq.Logic.ClassicalFacts.
+Require Import Coq.Logic.ClassicalFacts.*)  
 
 Require Import Kami.AllNotations.
 Require Import Kami.Notations_rewrites.
@@ -457,7 +457,7 @@ Qed.
 (*Theorem not_In_proc_name_intRegFile: forall x, ~ In ((proc_name++x)%string) (map fst (getAllRegisters (BaseRegFile intRegFile))).
 Admitted.*)
 
-Axiom EquivThenEqual: prop_extensionality.
+(*Axiom EquivThenEqual: prop_extensionality.*)
 
 Theorem DisjKey_getAllRegisters_intRegFile_floatRegFile:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
@@ -508,7 +508,7 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
              DisjKey_getAllRegisters_intRegFile_memReservationRegFile
              DisjKey_getAllRegisters_intRegFile_mem_devices : wfModProcessor_db.
 
-Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
+(*Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
 Admitted.
 (*SLOW Proof.
@@ -535,9 +535,9 @@ Admitted.
       DisjKey_solve.
 Qed.*)
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfModProcessor_db.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfModProc_db.*)
 
-Theorem DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices:
+(*Theorem DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (mem_device_regs mem_devices).
 Proof.
@@ -554,15 +554,15 @@ Proof.
   + inversion H1.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wfModProcessor_db.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wfModProc_db.*)
 
-Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
+(*Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) debug_internal_regs.
 Proof.
   discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfModProcessor_db.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfModProc_db.*)
 
 Theorem string_append_assoc: forall a b c, ((a++b)++c)%string=(a++(b++c))%string.
 Proof.
@@ -648,7 +648,7 @@ Proof.
          apply H0.
 Qed.
 
-Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
+(*Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs debug_csrs).
 Proof.
   unfold intRegFile.
@@ -681,7 +681,7 @@ Proof.
   + repeat split;  discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfModProcessor_db.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfModProc_db.*)
 
 Theorem DisjKey_getAllMethods_intRegFile_floatRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
@@ -839,10 +839,23 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile : wfModProcessor_db.
 
+Theorem intRegFile_no_rules: getAllRules (BaseRegFile intRegFile)=[].
+Proof.
+    reflexivity.
+Qed.
+
 Theorem DisjKey_getAllRules_intRegFile_processorCore:
   DisjKey (getAllRules (BaseRegFile intRegFile))
     (getAllRules (processorCore func_units mem_table)).
-Admitted.
+Proof.
+  rewrite intRegFile_no_rules.
+  unfold DisjKey.
+  intros.
+  left.
+  simpl.
+  intro X.
+  apply X.
+Qed.
 
 Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfModProcessor_db.
 
@@ -1138,6 +1151,11 @@ Admitted.
 
 Hint Resolve WFConcat9 : wfModProcessor_db.
 
+Theorem x: 1=1.
+Admitted.
+
+Hint Resolve x : wfModProc_db.
+
 Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
@@ -1161,4 +1179,7 @@ Close Scope kami_expr.
 Close Scope kami_action.
 End model.
 End WfModProcessorProof.
+
+Transparent getFins.
+Transparent Nat.mul.
 
