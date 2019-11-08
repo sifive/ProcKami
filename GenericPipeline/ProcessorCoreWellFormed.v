@@ -36,6 +36,9 @@ Require Import ProcKami.RiscvPipeline.Commit.
 Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 
+Opaque getFins.
+Opaque Nat.mul.
+
 Section WfModProcessorProof.
   Context `{procParams: ProcParams}.  Open Scope kami_expr.
 
@@ -49,6 +52,15 @@ Section WfModProcessorProof.
     Variable func_units : list FUEntry.
     Variable mem_devices : list MemDevice.
     Variable mem_table : list (MemTableEntry mem_devices).
+    Variable mem_separate_name_space_registers: forall r,
+       ~(In @^r (map fst (concat (map getRegFileRegisters (mem_device_files mem_devices))))).
+    Variable mem_separate_name_space_regs: forall r,
+       ~(In @^r (map fst (mem_device_regs mem_devices))).
+    Variable mem_separate_name_space_methods: forall r,
+      ~In @^r (map fst (concat
+        (map (fun mm : RegFileBase => getRegFileMethods mm)
+          (mem_device_files mem_devices)))).
+
 
 Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
 Proof.
@@ -478,11 +490,23 @@ Theorem DisjKey_getAllRegisters_intRegFile_mem_devices:
     DisjKey (getAllRegisters (BaseRegFile intRegFile))
       (concat
          (map getRegFileRegisters (mem_device_files mem_devices))).
-Admitted.
+Proof.
+    unfold intRegFile.
+    simpl.
+    apply DisjKeyWeak_same.
+    apply string_dec.
+    unfold DisjKeyWeak.
+    intros.
+    simpl in H.
+    inversion H; subst; clear H.
+    + apply mem_separate_name_space_registers in H0.
+      inversion H0.
+    + inversion H1.
+Qed.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile_floatRegFile
              DisjKey_getAllRegisters_intRegFile_memReservationRegFile
-             DisjKey_getAllRegisters_intRegFile_mem_devices : wfMod_ConcatMod_Helper.
+             DisjKey_getAllRegisters_intRegFile_mem_devices : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) (csr_regs Csrs).
@@ -511,14 +535,26 @@ Admitted.
       DisjKey_solve.
 Qed.*)
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_Csrs : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (mem_device_regs mem_devices).
-Admitted.
+Proof.
+  unfold intRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_regs in H0.
+    inversion H0.
+  + inversion H1.
+Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_mem_device_regs_mem_devices : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_intRegFile_debug_internal_regs:
   DisjKey (getAllRegisters (BaseRegFile intRegFile)) debug_internal_regs.
@@ -526,7 +562,7 @@ Proof.
   discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_debug_internal_regs : wfModProcessor_db.
 
 Theorem string_append_assoc: forall a b c, ((a++b)++c)%string=(a++(b++c))%string.
 Proof.
@@ -645,7 +681,7 @@ Proof.
   + repeat split;  discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_intRegFile_csr_regs_debug_csrs : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_intRegFile_floatRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
@@ -654,7 +690,7 @@ Proof.
     discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_intRegFile_floatRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_intRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
@@ -663,16 +699,34 @@ Proof.
     discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllMethods_intRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_intRegFile_memReservationRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (concat
        (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+  unfold intRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_methods in H0.
+    inversion H0.
+  + inversion H1;subst;clear H1.
+    - apply mem_separate_name_space_methods in H0.
+      inversion H0.
+    - inversion H;subst;clear H.
+      * apply mem_separate_name_space_methods in H0.
+        inversion H0.
+      * inversion H1.
+Qed.
 
-Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfModProcessor_db.
 
 Theorem WfMod_intRegFile:
   WfMod (BaseRegFile intRegFile).
@@ -680,15 +734,16 @@ Proof.
    discharge_wf.
 Qed.
 
-Hint Resolve WfMod_intRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve WfMod_intRegFile : wfModProcessor_db.
 
 Set Printing Depth 500.
 
 Theorem DisjKey_getAllRegisters_intRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
-Proof.
-    (*Set Printing Depth 4000.
+Admitted.
+(*SLOW Proof.
+    Set Printing Depth 4000.
     unfold intRegFile.
     unfold processorCore.
     autorewrite with kami_rewrite_db.
@@ -710,30 +765,86 @@ Proof.
     - autorewrite with simp_csrs.
       apply DisjKey_NubBy2.
       
-      DisjKey_solve.
+      discharge_DisjKey.
     - apply DisjKey_NubBy2.
       autorewrite with simp_csrs.
-      DisjKey_solve.
-      + trivialSolve.*)
-        
+      discharge_DisjKey.
+      + trivialSolve.
+      + apply DisjKeyWeak_same.
+        apply string_dec.
+        unfold DisjKeyWeak.
+        intros.
+        simpl in H.
+        inversion H;subst;clear H.
+        * apply mem_separate_name_space_regs in H0.
+          inversion H0.
+        * inversion H1.
+    + unfold debug_internal_regs.
+      discharge_DisjKey.
+    + unfold debug_csrs.
+      unfold csr_regs.
+      autorewrite with simp_csrs.
+      apply DisjKey_NubBy2.
+      unfold Debug.debug_csrs_data.
+      unfold Debug.debug_csr_view.
+      autorewrite with kami_rewrite_db.
+      autorewrite with simp_csrs.
+      split.
+      - intro X.
+        apply in_app_or in X.
+        inversion X;subst;clear X.
+        * apply debug_csr_data_seq_disjoint in H.
+          inversion H;subst;clear H.
+          simpl in H0.
+          discharge_DisjKey.
+        * apply in_app_or in H.
+          inversion H;subst;clear H.
+          ++ simpl in H0.
+             discharge_DisjKey.
+          ++ apply in_app_or in H0.
+             inversion H0; subst; clear H0.
+             -- simpl in H.
+                discharge_DisjKey.
+             -- simpl in H.
+                discharge_DisjKey.
+                apply debug_csrs_prog_buf_disjoint in H.
+                inversion H.
+                discharge_DisjKey.
+      - repeat (split;discharge_DisjKey).
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+      - apply string_dec.
+    + discharge_DisjKey.
+    + apply string_dec.
+    + apply string_dec.
+    + apply string_dec.
+    + apply string_dec.
+    + apply string_dec.
+    + apply string_dec.
+    + apply string_dec.
+Qed.*)
 
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_intRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_intRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_intRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllMethods_intRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_intRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllRules_intRegFile_processorCore:
   DisjKey (getAllRules (BaseRegFile intRegFile))
     (getAllRules (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfModProcessor_db.
 
 Theorem WFConcat1:
   forall meth : string * {x : Signature & MethodT x},
@@ -749,7 +860,7 @@ Proof.
     discharge_wf.
 Qed.
 
-Hint Resolve WFConcat1 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat1 : wfModProcessor_db.
 
 Theorem WFConcat2:
   forall rule : RuleT,
@@ -763,7 +874,7 @@ Theorem WFConcat2:
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
 Admitted.
 
-Hint Resolve WFConcat2 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat2 : wfModProcessor_db.
 
 Theorem WFConcat3:
   forall meth : string * {x : Signature & MethodT x},
@@ -778,7 +889,7 @@ Theorem WFConcat3:
   WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile intRegFile).
 Admitted.
 
-Hint Resolve WFConcat3 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat3 : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_floatRefFile_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
@@ -787,23 +898,35 @@ Proof.
     discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllRegisters_floatRefFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_floatRefFile_memReservationRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_floatRegFile_mem_device_files:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (concat
        (map (fun mm : RegFileBase => getRegFileRegisters mm)
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+  unfold intRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_registers in H0.
+    inversion H0.
+  + inversion H1.
+Qed.
 
-Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_floatRegFile_processorCore:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllRegisters_floatRegFile_processorCore : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_floatRegFile_processorCore : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_floatRegFile_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
@@ -812,23 +935,44 @@ Proof.
     discharge_DisjKey.
 Qed.
 
-Hint Resolve DisjKey_getAllMethods_floatRegFile_memReservationRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_floatRegFile_memReservationRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
     (concat
        (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+  unfold intRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_methods in H0.
+    inversion H0.
+  + inversion H1;subst;clear H1.
+    - apply mem_separate_name_space_methods in H0.
+      inversion H0.
+    - inversion H; subst; clear H.
+      * apply mem_separate_name_space_methods in H0.
+        inversion H0.
+      * inversion H1; subst; clear H1.
+        ++ apply mem_separate_name_space_methods in H0.
+           inversion H0.
+        ++ inversion H.
+Qed.
 
-Hint Resolve DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_floatRegFile_processorCore:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
     (getAllMethods (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllMethods_floatRegFile_processorCore : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_floatRegFile_processorCore : wfModProcessor_db.
 
 Theorem WFConcat4:
   forall meth : string * {x : Signature & MethodT x},
@@ -843,7 +987,7 @@ Proof.
     discharge_wf.
 Qed.
 
-Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat4 : wfModProcessor_db.
 
 Theorem wfMod_floatRegFile:
   WfMod (BaseRegFile floatRegFile).
@@ -851,7 +995,7 @@ Proof.
     discharge_wf.
 Qed.
 
-Hint Resolve wfMod_floatRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve wfMod_floatRegFile : wfModProcessor_db.
 
 Theorem WFConcat5:
   forall meth : string * {x : Signature & MethodT x},
@@ -865,7 +1009,7 @@ Theorem WFConcat5:
   WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile floatRegFile).
 Admitted.
 
-Hint Resolve WFConcat5 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat5 : wfModProcessor_db.
 
 Theorem WFConcat6:
   forall rule : RuleT,
@@ -878,54 +1022,74 @@ Theorem WFConcat6:
   WfConcatActionT (snd rule type) (BaseRegFile floatRegFile).
 Admitted.
 
-Hint Resolve WFConcat6 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat6 : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_memReservationRegFile:
   DisjKey (getAllRegisters (BaseRegFile memReservationRegFile))
     (concat
        (map (fun mm : RegFileBase => getRegFileRegisters mm)
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+  unfold memReservationRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_registers in H0.
+    inversion H0.
+  + inversion H1.
+Qed.
 
-Hint Resolve DisjKey_getAllRegisters_memReservationRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_memReservationRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllRegisters_memReservationFile_processorCore:
   DisjKey (getAllRegisters (BaseRegFile memReservationRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllRegisters_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllRegisters_memReservationFile_processorCore : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_memReservationRegFile:
   DisjKey (getAllMethods (BaseRegFile memReservationRegFile))
     (concat
        (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+  unfold intRegFile.
+  simpl.
+  apply DisjKeyWeak_same.
+  apply string_dec.
+  unfold DisjKeyWeak.
+  intros.
+  simpl in H.
+  inversion H; subst; clear H.
+  + apply mem_separate_name_space_methods in H0.
+    inversion H0.
+  + inversion H1;subst;clear H1.
+    - apply mem_separate_name_space_methods in H0.
+      inversion H0.
+    - inversion H.
+Qed.
 
-Hint Resolve DisjKey_getAllMethods_memReservationRegFile : wfMod_ConcatMod_Helper.
+Hint Resolve DisjKey_getAllMethods_memReservationRegFile : wfModProcessor_db.
 
 Theorem DisjKey_getAllMethods_memReservationFile_processorCore:
   DisjKey (getAllMethods (BaseRegFile memReservationRegFile))
     (getAllMethods (processorCore func_units mem_table)).
 Admitted.
 
-Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfMod_ConcatMod_Helper.
-
-Opaque getFins.
-Opaque Nat.mul.
+Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfModProcessor_db.
 
 Theorem WfMod_memReservationFile:
   WfMod (BaseRegFile memReservationRegFile).
-(*Admitted.*)
 Proof.
-  unfold memReservationRegFile.
-  apply BaseWf.
-  unfold WfBaseModule.
   discharge_wf.
 Qed.
 
-Hint Resolve WfMod_memReservationFile : wfMod_ConcatMod_Helper.
+Hint Resolve WfMod_memReservationFile : wfModProcessor_db.
 
 Theorem WfMod_processorCore_mem_devices:  
   WfMod
@@ -934,7 +1098,7 @@ Theorem WfMod_processorCore_mem_devices:
           (mem_device_files mem_devices))).
 Admitted.
 
-Hint Resolve WfMod_processorCore_mem_devices :wfMod_ConcatMod_Helper.
+Hint Resolve WfMod_processorCore_mem_devices :wfModProcessor_db.
 
 Theorem WFConcat7:
   forall meth : string * {x : Signature & MethodT x},
@@ -946,7 +1110,7 @@ Theorem WFConcat7:
           (mem_device_files mem_devices))).
 Admitted.
 
-Hint Resolve WFConcat7 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat7 : wfModProcessor_db.
 
 Theorem WFConcat8:
   forall rule : RuleT,
@@ -958,7 +1122,7 @@ Theorem WFConcat8:
   WfConcatActionT (snd rule type) (BaseRegFile memReservationRegFile).
 Admitted.
 
-Hint Resolve WFConcat8 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat8 : wfModProcessor_db.
 
 Theorem WFConcat9:
   forall meth : string * {x : Signature & MethodT x},
@@ -972,7 +1136,7 @@ Theorem WFConcat9:
     (BaseRegFile memReservationRegFile).
 Admitted.
 
-Hint Resolve WFConcat9 : wfMod_ConcatMod_Helper.
+Hint Resolve WFConcat9 : wfModProcessor_db.
 
 Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
@@ -988,9 +1152,10 @@ Lemma WfModProcessor:
       autorewrite with kami_rewrite_db.
       rewrite ?map_app.
 
-      repeat ltac_wfMod_ConcatMod;try apply string_dec.
-Qed.
- 
+      ltac_wfMod_ConcatMod wfModProcessor_db.
+
+    Qed.
+
 Close Scope kami_expr.
 
 Close Scope kami_action.
