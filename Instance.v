@@ -12,7 +12,7 @@ Require Import ProcKami.ModelParams.
 Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
-Require Import Kami.Compiler.Test.Test.
+Require Import Kami.Compiler.Test.
 
 Definition supportedExts
   :  list SupportedExt
@@ -54,14 +54,17 @@ Separate Extraction
 
          getCallsWithSignPerMod
          RtlExpr'
-         
+
          CompActionSimple
          RmeSimple
          RtlModule
          getRules
          separateModRemove
-         
+
          model32
          model64
 
-         testMod.
+         testRegMod
+         testAsyncMod
+         testSyncIsAddrMod
+         testSyncNotIsAddrMod.
