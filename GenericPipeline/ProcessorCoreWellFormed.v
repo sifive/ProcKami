@@ -1151,11 +1151,6 @@ Admitted.
 
 Hint Resolve WFConcat9 : wfModProcessor_db.
 
-Theorem x: 1=1.
-Admitted.
-
-Hint Resolve x : wfModProc_db.
-
 Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
