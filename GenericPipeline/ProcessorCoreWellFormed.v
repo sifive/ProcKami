@@ -61,6 +61,12 @@ Section WfModProcessorProof.
         (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices)))).
 
+Ltac solve_mem_separate_names:=
+     repeat match goal with
+     | H: (In _ _) |- _ => try apply mem_separate_name_space_registers in H;try apply mem_separate_name_space_regs in H;try apply mem_separate_name_space_methods in H
+     end.
+
+Hint Resolve mem_separate_name_space_registers mem_separate_name_space_regs mem_separate_name_space_methods : mem_separate_names.
 
 Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
 Proof.
@@ -517,7 +523,7 @@ Admitted.
     unfold csr_regs.
     autorewrite with kami_rewrite_db.
     autorewrite with simp_csrs.
-    apply DisjKey_NubBy2.
+    (*apply DisjKey_NubBy2.*)
     DisjKey_solve.
     remember (
           existsb
@@ -592,10 +598,7 @@ Proof.
     inversion H; subst; clear H.
     + simpl.
       eapply ex_intro.
-      rewrite ?string_append_assoc.
-      simpl.
-      apply <- string_equal_prefix.
-      econstructor.
+      discharge_append.
     + inversion H0.
 Qed.
 
@@ -707,23 +710,7 @@ Theorem DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices:
        (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices))).
 Proof.
-  unfold intRegFile.
-  simpl.
-  apply DisjKeyWeak_same.
-  apply string_dec.
-  unfold DisjKeyWeak.
-  intros.
-  simpl in H.
-  inversion H; subst; clear H.
-  + apply mem_separate_name_space_methods in H0.
-    inversion H0.
-  + inversion H1;subst;clear H1.
-    - apply mem_separate_name_space_methods in H0.
-      inversion H0.
-    - inversion H;subst;clear H.
-      * apply mem_separate_name_space_methods in H0.
-        inversion H0.
-      * inversion H1.
+   repeat (progress (discharge_DisjKey);solve_mem_separate_names).
 Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfModProcessor_db.
@@ -742,85 +729,57 @@ Theorem DisjKey_getAllRegisters_intRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
 Admitted.
-(*SLOW Proof.
+(* SLOW Proof.
     Set Printing Depth 4000.
     unfold intRegFile.
     unfold processorCore.
     autorewrite with kami_rewrite_db.
     autorewrite with simp_csrs.
     autorewrite with kami_rewrite_db.
-    simpl.
-    repeat split.
-    + trivialSolve.
-    + trivialSolve.
+    discharge_DisjKey.
     + unfold Csrs.
       unfold csr_regs.
       autorewrite with simp_csrs.
+      apply DisjKey_NubBy2.
+      (*repeat match goal with
+         | |- DisjKey _ _ =>
+           rewrite (DisjKeyWeak_same string_dec); unfold DisjKeyWeak;simpl; intros
+         | H: _ \/ _ |- _ => destruct H; subst
+         (*| |- _ /\ _ => split*)
+         end;trivialSolve.*)
+      discharge_DisjKey.
       remember (existsb
                                                       (fun '{| ext_name := x;
                                                       ext_edit := z |} =>
                                                       (((x =? "F") || (x =? "D")) &&
                                                                                   z)%bool) InitExtsAll).
       destruct b.
-    - autorewrite with simp_csrs.
-      apply DisjKey_NubBy2.
-      
-      discharge_DisjKey.
-    - apply DisjKey_NubBy2.
-      autorewrite with simp_csrs.
-      discharge_DisjKey.
-      + trivialSolve.
-      + apply DisjKeyWeak_same.
-        apply string_dec.
-        unfold DisjKeyWeak.
-        intros.
-        simpl in H.
-        inversion H;subst;clear H.
-        * apply mem_separate_name_space_regs in H0.
-          inversion H0.
-        * inversion H1.
-    + unfold debug_internal_regs.
-      discharge_DisjKey.
+      - autorewrite with simp_csrs.
+        discharge_DisjKey.
+      - autorewrite with simp_csrs.
+        discharge_DisjKey.
+    + repeat (solve_mem_separate_names;discharge_DisjKey).
+    + discharge_DisjKey.
     + unfold debug_csrs.
       unfold csr_regs.
       autorewrite with simp_csrs.
-      apply DisjKey_NubBy2.
       unfold Debug.debug_csrs_data.
-      unfold Debug.debug_csr_view.
-      autorewrite with kami_rewrite_db.
-      autorewrite with simp_csrs.
-      split.
-      - intro X.
-        apply in_app_or in X.
-        inversion X;subst;clear X.
-        * apply debug_csr_data_seq_disjoint in H.
-          inversion H;subst;clear H.
-          simpl in H0.
-          discharge_DisjKey.
-        * apply in_app_or in H.
-          inversion H;subst;clear H.
-          ++ simpl in H0.
-             discharge_DisjKey.
-          ++ apply in_app_or in H0.
-             inversion H0; subst; clear H0.
-             -- simpl in H.
-                discharge_DisjKey.
-             -- simpl in H.
-                discharge_DisjKey.
-                apply debug_csrs_prog_buf_disjoint in H.
-                inversion H.
-                discharge_DisjKey.
-      - repeat (split;discharge_DisjKey).
+      apply DisjKey_NubBy2.
+      rewrite DisjKeyWeak_same.
+      unfold DisjKeyWeak.
+      intro k.
+      repeat (rewrite map_app).
+      repeat (rewrite in_app).
+      intros.
+      discharge_DisjKey.
+      - apply debug_csr_data_seq_disjoint in H0.
+        inversion H0; subst; clear H0.
+        discharge_append.
+      - apply debug_csrs_prog_buf_disjoint in H0.
+        inversion H0; subst; clear H0.
+        discharge_append.
       - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-      - apply string_dec.
-    + discharge_DisjKey.
+    + apply DisjKey_nil2.
     + apply string_dec.
     + apply string_dec.
     + apply string_dec.
@@ -1010,6 +969,130 @@ Qed.
 
 Hint Resolve wfMod_floatRegFile : wfModProcessor_db.
 
+Lemma wf_concat_reg_file: forall mm (meth : string * { x : Signature & MethodT x}),
+      In meth (getRegFileMethods mm) ->
+      forall x (v : type (fst (projT1 (snd meth)))),
+      WfConcatActionT (projT2 (snd meth) type v) x.
+Proof.
+    intros.
+    unfold getRegFileMethods in H.
+    destruct mm in H.
+    discharge_wf.
+    destruct rfRead.
+    + simpl in H.
+      inversion H;subst; clear H.
+      - destruct rfIsWrMask.
+        * discharge_wf.
+        * discharge_wf.
+      - unfold readRegFile in H0.
+        induction reads.
+        * inversion H0.
+        * simpl in H0.
+          inversion H0; subst; clear H0.
+          ++ discharge_wf.
+          ++ apply IHreads in H.
+             apply H.
+    + inversion H;subst;clear H.
+      - discharge_wf.
+        destruct rfIsWrMask.
+        * discharge_wf.
+        * discharge_wf.
+      - unfold readSyncRegFile in H0.
+        destruct isAddr in H0.
+        * apply in_app in H0.
+          inversion H0;subst;clear H0.
+          induction reads.
+          ++ inversion H.
+          ++ simpl in H.
+             inversion H;subst;clear H.
+             -- discharge_wf.
+             -- apply IHreads.
+                apply H0.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl in H.
+                inversion H;subst;clear H.
+                ** discharge_wf.
+                ** apply IHreads.
+                   apply H0.
+        * apply in_app in H0.
+          inversion H0;subst;clear H0.
+          induction reads.
+          ++ inversion H.
+          ++ simpl in H.
+             inversion H;subst;clear H.
+             -- discharge_wf.
+             -- apply IHreads.
+                apply H0.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl in H.
+                inversion H;subst;clear H.
+                ** discharge_wf.
+                ** apply IHreads.
+                   apply H0.
+Qed.
+
+Lemma wf_concat_reg_files: forall mm (meth : string * { x : Signature & MethodT x}),
+      In meth (concat (map getRegFileMethods mm)) ->
+      forall x (v : type (fst (projT1 (snd meth)))),
+      WfConcatActionT (projT2 (snd meth) type v) x.
+Proof.
+  intros.
+  induction mm.
+  + inversion H.
+  + simpl in H.
+    rewrite in_app in H.
+    inversion H; subst; clear H.
+    - eapply wf_concat_reg_file.
+      apply H0.
+    - apply IHmm.
+      apply H0.
+Qed.
+
+Lemma getAllMethods_makeModule_append: forall a b, getAllMethods (makeModule (a++b))=getAllMethods (makeModule a)++getAllMethods (makeModule b).
+(*Proof.
+    induction a.
+    + reflexivity.
+    + intros.
+      destruct a.
+      - apply IHa.
+      - apply IHa.
+      - unfold makeModule.
+        unfold*)
+Admitted.
+
+Hint Rewrite getAllMethods_makeModule_append : kami_rewrite_db.
+
+Lemma getAllMethods_makeModule_MERegister: forall a b, getAllMethods (makeModule ((MERegister a)::b))=getAllMethods (makeModule b).
+Admitted.
+
+Hint Rewrite getAllMethods_makeModule_MERegister : kami_rewrite_db.
+
+Lemma getAllMethods_makeModule_MERule: forall a b, getAllMethods (makeModule ((MERule a)::b))=getAllMethods (makeModule b).
+Admitted.
+
+Hint Rewrite getAllMethods_makeModule_MERule : kami_rewrite_db.
+
+Lemma getAllMethods_makeModule_Registers: forall a, getAllMethods (makeModule (Registers a))=[].
+Admitted.
+
+Hint Rewrite getAllMethods_makeModule_Registers : kami_rewrite_db.
+
+Lemma wf_concat_processor_core: forall (meth : string * { x : Signature & MethodT x}),
+      In meth (getAllMethods (processorCore func_units mem_table)) ->
+      forall x (v : type (fst (projT1 (snd meth)))),
+      WfConcatActionT (projT2 (snd meth) type v) x.
+(*SLOW Proof.
+    intros.
+    unfold processorCore in H.
+    autorewrite with kami_rewrite_db in H;trivialSolve;
+    repeat (match goal with
+            | H: In _ _ |- _ =>  inversion H; subst; clear H
+            end).
+Qed.*)
+Admitted.
+
 Theorem WFConcat5:
   forall meth : string * {x : Signature & MethodT x},
   In meth
@@ -1020,7 +1103,20 @@ Theorem WFConcat5:
                 (mem_device_files mem_devices))))) ->
   forall v : type (fst (projT1 (snd meth))),
   WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile floatRegFile).
-Admitted.
+Proof.
+    autorewrite with kami_rewrite_db.
+    intros.
+    rewrite ?in_app in H.
+    inversion H; subst; clear H.
+    + unfold memReservationRegFile in H0.
+      simpl in H0.
+      discharge_wf.
+    + inversion H0; subst; clear H0.
+      - eapply wf_concat_reg_files.
+        apply H.
+      - apply wf_concat_processor_core.
+        apply H.
+Qed.
 
 Hint Resolve WFConcat5 : wfModProcessor_db.
 
@@ -1165,7 +1261,7 @@ Lemma WfModProcessor:
       autorewrite with kami_rewrite_db.
       rewrite ?map_app.
 
-      ltac_wfMod_ConcatMod wfModProcessor_db.
+      ltac_wfMod_ConcatMod wfModProcessor_db;apply DisjKey_nil2.
 
     Qed.
 
