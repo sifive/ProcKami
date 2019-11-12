@@ -1050,35 +1050,6 @@ Proof.
       apply H0.
 Qed.
 
-Lemma getAllMethods_makeModule_append: forall a b, getAllMethods (makeModule (a++b))=getAllMethods (makeModule a)++getAllMethods (makeModule b).
-(*Proof.
-    induction a.
-    + reflexivity.
-    + intros.
-      destruct a.
-      - apply IHa.
-      - apply IHa.
-      - unfold makeModule.
-        unfold*)
-Admitted.
-
-Hint Rewrite getAllMethods_makeModule_append : kami_rewrite_db.
-
-Lemma getAllMethods_makeModule_MERegister: forall a b, getAllMethods (makeModule ((MERegister a)::b))=getAllMethods (makeModule b).
-Admitted.
-
-Hint Rewrite getAllMethods_makeModule_MERegister : kami_rewrite_db.
-
-Lemma getAllMethods_makeModule_MERule: forall a b, getAllMethods (makeModule ((MERule a)::b))=getAllMethods (makeModule b).
-Admitted.
-
-Hint Rewrite getAllMethods_makeModule_MERule : kami_rewrite_db.
-
-Lemma getAllMethods_makeModule_Registers: forall a, getAllMethods (makeModule (Registers a))=[].
-Admitted.
-
-Hint Rewrite getAllMethods_makeModule_Registers : kami_rewrite_db.
-
 Lemma wf_concat_processor_core: forall (meth : string * { x : Signature & MethodT x}),
       In meth (getAllMethods (processorCore func_units mem_table)) ->
       forall x (v : type (fst (projT1 (snd meth)))),
