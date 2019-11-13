@@ -54,6 +54,7 @@ Separate Extraction
 
          getCallsWithSignPerMod
          RtlExpr'
+         getRtl
 
          CompActionSimple
          RmeSimple
