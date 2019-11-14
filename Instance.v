@@ -3,7 +3,7 @@
   RISC-V processor core model into Haskell, which is the first step
   in generating the model's Verilog.
 *)
-Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl.
+Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.UnverifiedIncompleteCompiler.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import List.
