@@ -794,7 +794,11 @@ Hint Resolve DisjKey_getAllRegisters_intRegFile : wfModProcessor_db.
 Theorem DisjKey_getAllMethods_intRegFile:
   DisjKey (getAllMethods (BaseRegFile intRegFile))
     (getAllMethods (processorCore func_units mem_table)).
-Admitted.
+Proof.
+    unfold processorCore.
+    autorewrite with kami_rewrite_db;try (apply string_dec).
+    discharge_DisjKey;try (apply DisjKey_nil2); try (apply string_dec).
+Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile : wfModProcessor_db.
 
@@ -834,6 +838,252 @@ Qed.
 
 Hint Resolve WFConcat1 : wfModProcessor_db.
 
+Ltac unfold_WfConcatActionT_definition :=
+        match goal with
+        | |- WfConcatActionT ?X ?Y =>
+             let z := constr:(ltac:(unfold_beta_head X)) in
+                change (WfConcatActionT z Y)
+        end.
+
+Ltac Solve_WfConcatActionT db :=
+  match goal with
+  | |- forall _, _ => intros;Solve_WfConcatActionT db
+  | |- WfConcatActionT (LETA _ : _ <- _ ; _) _ => apply WfConcatLetAction;Solve_WfConcatActionT db
+  | |- WfConcatActionT (IfElse _ _ _ _) _ => apply  WfConcatIfElse;Solve_WfConcatActionT db
+  | |- WfConcatActionT (Return _) _ => apply  WfConcatReturn;Solve_WfConcatActionT db
+  | |- WfConcatActionT (Sys _ _) _ => apply  WfConcatSys;Solve_WfConcatActionT db
+  | |- WfConcatActionT (LetExpr _ _) _ => apply  WfConcatLetExpr;Solve_WfConcatActionT db
+  | |- WfConcatActionT (ReadReg _ _ _) _ => apply  WfConcatReadReg;Solve_WfConcatActionT db
+  | |- _ => idtac
+  end.
+
+Theorem WfConcatActionT_fold_left_stuff1:
+    forall A B f n r (rest:ActionT type A),
+    WfConcatActionT rest r ->
+    (forall (a:B) (rest:ActionT type A) r, WfConcatActionT rest r -> WfConcatActionT (f rest a) r) ->
+    WfConcatActionT
+      (@fold_left (ActionT type A) B f n rest) r.
+Proof.
+    intros A B f n r.
+    induction n.
+    + simpl.
+      intros.
+      apply H.
+    + simpl.
+      intros.
+      apply IHn.
+      - apply H0.
+        apply H.
+      - intros.
+        apply H0.
+        apply H1.
+Qed.
+
+(*Theorem WfConcatActionT_GatherActions1_helper:
+  forall (k_in:Kind) (k_out:Kind) al cont r v,
+  WfConcatActionT (gatherActions al cont) r ->
+  @WfConcatActionT k_out
+    (gatherActions al
+     (fun vals : list (Expr type (SyntaxKind k_in)) =>
+      cont (Var type (SyntaxKind k_in) v :: vals))) r.
+Proof.
+  intros.
+  induction al.
+  + simpl.
+    simpl in H.*)
+
+Theorem extensionality: forall t1 t2 (f:t1->t2) g x, f x = g x -> f=g.
+Admitted.
+
+Theorem WfConcatActionT_GatherActions1_Helper:
+    forall (k_out:Kind) (k_in:Kind) (al:list (ActionT _ k_in)) (cont: list (Expr _ (SyntaxKind k_in)) -> ActionT _ k_out) r pre,
+    (forall a c, In a al -> WfConcatActionT a c) ->
+    (forall x, WfConcatActionT (cont x) r) ->
+    WfConcatActionT (gatherActions al (fun vals => cont (pre++vals))) r.
+Proof.
+    intros.
+    generalize pre.
+    induction al.
+    + simpl.
+      intros.
+      rewrite app_nil_r.
+      apply H0.
+    + simpl.
+      Solve_WfConcatActionT kami_rewrite_db.
+      - apply H.
+        simpl.
+        left.
+        reflexivity.
+      - assert(
+         (fun vals : list (Expr type (SyntaxKind k_in)) =>
+          cont (pre0 ++ Var type (SyntaxKind k_in) v :: vals))=
+         (fun vals : list (Expr type (SyntaxKind k_in)) =>
+          cont ((pre0 ++ [Var type (SyntaxKind k_in) v])++vals))).
+            eapply extensionality.
+            assert (forall A (a:A) b, a::b=[a]++b).
+              simpl.
+              reflexivity.
+            rewrite H1.
+            rewrite app_assoc.
+            reflexivity.
+        rewrite H1.
+        eapply IHal.
+        intros.
+        apply H.
+        simpl.
+        right.
+        apply H2.
+Unshelve.
+    apply nil.
+Qed.
+
+Theorem WfConcatActionT_GatherActions1:
+    forall (k_out:Kind) (k_in:Kind) (al:list (ActionT _ k_in)) (cont: list (Expr _ (SyntaxKind k_in)) -> ActionT _ k_out) r,
+    (forall a c, In a al -> WfConcatActionT a c) ->
+    (forall x, WfConcatActionT (cont x) r) ->
+    WfConcatActionT (gatherActions al cont) r.
+Proof.
+    intros.
+    assert (cont = (fun x => cont ([]++x))).
+        simpl.
+        eapply extensionality.
+        simpl.
+        reflexivity.
+    rewrite H1.
+    eapply WfConcatActionT_GatherActions1_Helper.
+    + apply H.
+    + apply H0.
+Unshelve.
+    apply nil.
+Qed.
+
+
+Theorem forall_implies_in: forall T T' T'' (f:T->T') (c:T'->T''->Prop) l x (y:T''),
+      (forall fx, c (f fx) y) ->
+      In x (List.map f l) -> c x y.
+Proof.
+    intros.
+    induction l.
+    + simpl in H0.
+      inversion H0.
+    + simpl in H0.
+      inversion H0;subst;clear H0.
+      - apply H.
+      - apply IHl.
+        apply H1.
+Qed.
+
+Theorem WfConcatActionT_pmp_check: forall a b c d e,
+  WfConcatActionT (Pmp.pmp_check a b c d) e.
+Proof.
+    unfold Pmp.pmp_check.
+    Solve_WfConcatActionT kami_rewrite_db.
+    apply WfConcatActionT_fold_left_stuff1.
+    + discharge_wf.
+    + intros.
+      Solve_WfConcatActionT kami_rewrite_db.
+      - apply H.
+      - Solve_WfConcatActionT kami_rewrite_db.
+        unfold_WfConcatActionT_definition.
+        Solve_WfConcatActionT kami_rewrite_db.
+      - Solve_WfConcatActionT kami_rewrite_db.
+        eapply WfConcatActionT_GatherActions1.
+        intros.
+        eapply forall_implies_in.
+        2:
+        apply H0.
+        intros.
+        simpl.
+        Solve_WfConcatActionT kami_rewrite_db.
+        intros.
+        Solve_WfConcatActionT kami_rewrite_db.
+Qed.
+  
+(*Theorem WfConcatActionT_pmp_check_access: forall a b c d e,
+  WfConcatActionT (Pmp.pmp_check_access a b c d) e.
+Proof.
+    unfold Pmp.pmp_check_access.
+    Solve_WfConcatActionT kami_rewrite_db.
+
+Theorem WfConcatActionT_pmp_check: forall a b c d e,
+  WfConcatActionT (Pmp.pmp_check a b c d) e.
+Proof.
+    unfold Pmp.pmp_check.
+
+Theorem WfConcatActionT_checkForFault: forall a b c d e f g,
+  WfConcatActionT (PhysicalMem.checkForFault mem_table a b c d e f) g.
+Proof.
+    unfold PhysicalMem.checkForFault.
+    Solve_WfConcatActionT kami_rewrite_db.
+
+Theorem WfConcatActionT_translatePteLoop: forall b c d e f g h i j k, WfConcatActionT (PageTable.translatePteLoop mem_table b c d e f g h i j) k.
+Proof.
+    unfold PageTable.translatePteLoop.
+    Solve_WfConcatActionT rewrite_kami_db.
+  match goal with
+  | |- WfConcatActionT (IfElse _ _ _ _) => apply  WfConcatIfElse;Solve_WfConcatActionT db
+  end.
+    apply WfConcatIfElse;[discharge_wf|discharge_wf|idtac].
+    pply WfConcatIfElse;[discharge_wf|discharge_wf|idtac].
+
+
+Theorem WfConcatActionT_pt_walker: forall b c d e f g h i j, WfConcatActionT (PageTable.pt_walker mem_table b c d e f g h i) j.
+Proof.
+    unfold PageTable.pt_walker.
+    intros.
+    apply WfConcatLetAction;[discharge_wf|idtac].
+    simpl.
+    intros.
+    apply WfConcatLetExpr.
+    intros.
+    apply WfConcatLetAction;[idtac|discharge_wf].
+    apply WfConcatLetAction.
+    apply WfConcatLetAction.
+
+Theorem WfConcatActionT_memTranslate: forall b c d e f g h, WfConcatActionT (memTranslate mem_table b c d e f g) h.
+intros.
+    unfold memTranslate.
+    apply WfConcatReadReg.
+    intros.
+    apply WfConcatReadReg.
+    intros.
+    apply WfConcatReadReg.
+    intros.
+    apply WfConcatReadReg.
+    intros.
+    apply WfConcatLetExpr.
+    intros.
+    apply WfConcatIfElse.
+    intros.
+    apply WfConcatReturn.
+    apply WfConcatLetAction.
+
+Theorem WfConcatActionT_memFetch: forall b c d e f, WfConcatActionT (memFetch mem_table b c d e) f.
+Proof.
+    intros.
+    unfold memFetch.
+    apply WfConcatSys.
+    apply WfConcatReadReg.
+    intros.
+    apply WfConcatLetAction.
+
+Theorem WfConcatActionT_fetch:
+    forall a b c d e f,
+    WfConcatActionT (fetch mem_table a b c d e) f.
+Proof.
+    unfold fetch.
+    intros.
+    apply WfConcatIfElse;[discharge_wf|idtac|discharge_wf].
+    apply WfConcatLetAction.
+
+
+         (ReadStruct (Var type (SyntaxKind ContextCfgPkt) v1)
+            (FS (FS (FS (FS (FS (FS (FS F1))))))))
+         (ReadStruct (Var type (SyntaxKind ContextCfgPkt) v1) F1)
+         (ReadStruct (Var type (SyntaxKind ContextCfgPkt) v1) (FS F1))
+         (ReadStruct (Var type (SyntaxKind ContextCfgPkt) v1) (FS (FS (FS F1))))
+         (Var type (SyntaxKind VAddr) v2)) (BaseRegFile intRegFile)
+*)
 Theorem WFConcat2:
   forall rule : RuleT,
   In rule
@@ -844,6 +1094,43 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
+(*Proof.
+    intros.
+    autorewrite with kami_rewrite_db in H.
+    inversion H; subst; clear H.
+    + inversion H0.
+    + unfold processorCore in H0.
+      autorewrite with kami_rewrite_db in H0.
+      simpl in H0.
+
+      repeat (match goal with
+              | H: _ \/ _ |- _ => destruct H
+              | H: False |- _ => destruct H
+              end).
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst;discharge_wf.
+      - subst.
+        simpl.
+        apply WfConcatLetAction;[discharge_wf|idtac].
+        intros.
+        apply WfConcatLetAction;[discharge_wf|idtac].
+        intros.
+        apply WfConcatIfElse;[discharge_wf|idtac|discharge_wf].
+        apply WfConcatLetAction;[discharge_wf|idtac].
+        intros.
+        apply WfConcatReadReg.
+        intros.
+        apply WfConcatSys.
+        apply WfConcatLetAction.*)
+
+
 Admitted.
 
 Hint Resolve WFConcat2 : wfModProcessor_db.
