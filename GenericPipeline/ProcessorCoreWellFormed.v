@@ -60,6 +60,9 @@ Section WfModProcessorProof.
       ~In @^r (map fst (concat
         (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices)))).
+    Variable mem_device_read_wellformed:
+      forall m a x y r n, In m mem_devices -> Some a=mem_device_read_nth type m n -> WfConcatActionT (a x y) r.
+
 
 Ltac solve_mem_separate_names:=
      repeat match goal with
@@ -854,6 +857,8 @@ Ltac Solve_WfConcatActionT db :=
   | |- WfConcatActionT (Sys _ _) _ => apply  WfConcatSys;Solve_WfConcatActionT db
   | |- WfConcatActionT (LetExpr _ _) _ => apply  WfConcatLetExpr;Solve_WfConcatActionT db
   | |- WfConcatActionT (ReadReg _ _ _) _ => apply  WfConcatReadReg;Solve_WfConcatActionT db
+  | |- WfConcatActionT (MCall _ _ _ _) _ => apply  WfConcatMCall;Solve_WfConcatActionT db
+  | |- _ => progress (autounfold with db);Solve_WfConcatActionT db
   | |- _ => idtac
   end.
 
@@ -973,7 +978,39 @@ Proof.
         apply H1.
 Qed.
 
-Theorem WfConcatActionT_pmp_check: forall a b c d e,
+Theorem forall_implies_in2: forall T T' (f:T->T') l x,
+      In x (List.map f l) -> (exists xx, (x=(f xx) /\ In xx l)).
+Admitted.
+(*Proof.
+    intros.
+    induction l.
+    + inversion H.
+    + simpl.
+      simpl in H.
+      inversion H;subst;clear H.
+      eapply ex_intro.
+      - split.
+        * reflexivity.
+        * left.
+          reflexivity.
+      - split.
+        * apply IHl in H0.
+          inversion H0;subst;clear H0.
+          inversion H;subst;clear H.
+        *-
+
+      eapply ex_intro.
+      split.
+      - simpl in H.
+      simpl in H.
+      inversion H; subst; clear H.
+      - left.
+        reflexivity.
+      - right.
+        apply H1.
+Qed.*)
+
+(*Theorem WfConcatActionT_pmp_check: forall a b c d e,
   WfConcatActionT (Pmp.pmp_check a b c d) e.
 Proof.
     unfold Pmp.pmp_check.
@@ -999,7 +1036,7 @@ Proof.
         Solve_WfConcatActionT kami_rewrite_db.
 Qed.
   
-(*Theorem WfConcatActionT_pmp_check_access: forall a b c d e,
+Theorem WfConcatActionT_pmp_check_access: forall a b c d e,
   WfConcatActionT (Pmp.pmp_check_access a b c d) e.
 Proof.
     unfold Pmp.pmp_check_access.
@@ -1084,6 +1121,48 @@ Proof.
          (ReadStruct (Var type (SyntaxKind ContextCfgPkt) v1) (FS (FS (FS F1))))
          (Var type (SyntaxKind VAddr) v2)) (BaseRegFile intRegFile)
 *)
+
+Hint Unfold debug_hart_state_halted : processor_core_unfold_db.
+Hint Unfold debug_hart_state_read : processor_core_unfold_db.
+Hint Unfold debug_hart_state_command : processor_core_unfold_db.
+Hint Unfold readConfig : processor_core_unfold_db.
+Hint Unfold readXlen : processor_core_unfold_db.
+Hint Unfold fetch : processor_core_unfold_db.
+Hint Unfold memFetch : processor_core_unfold_db.
+Hint Unfold memTranslate : processor_core_unfold_db.
+Hint Unfold PageTable.pt_walker : processor_core_unfold_db.
+Hint Unfold PageTable.action_loop : processor_core_unfold_db.
+Hint Unfold PageTable.translatePteLoop : processor_core_unfold_db.
+Hint Unfold PageTable.translatePteLoop : processor_core_unfold_db.
+Hint Unfold PhysicalMem.checkForFault : processor_core_unfold_db.
+Hint Unfold Pmp.pmp_check_access : processor_core_unfold_db.
+Hint Unfold Pmp.pmp_check : processor_core_unfold_db.
+Hint Unfold Pmp.pmp_entry_read : processor_core_unfold_db.
+Hint Unfold PhysicalMem.getDTag : processor_core_unfold_db.
+Hint Unfold PhysicalMem.mem_region_apply : processor_core_unfold_db.
+Hint Unfold utila_acts_find_pkt : processor_core_unfold_db.
+Hint Unfold PhysicalMem.checkPMAs : processor_core_unfold_db.
+Hint Unfold PhysicalMem.mem_device_apply : processor_core_unfold_db.
+Hint Unfold PageTable.doneInvalid : processor_core_unfold_db.
+Hint Unfold PhysicalMem.mem_region_read : processor_core_unfold_db.
+
+Theorem in_tag: forall A (x:nat*A) (l:list A), In x (tag l) -> In (snd x) l.
+Admitted.
+(*Proof.
+  intros.
+  induction l.
+  + inversion H.
+  + simpl in H.
+    inversion H;subst;clear H.
+    - simpl.
+      left.
+      reflexivity.
+    - simpl.
+      right.
+      apply IHl.
+      apply H0.*)
+
+
 Theorem WFConcat2:
   forall rule : RuleT,
   In rule
@@ -1094,6 +1173,8 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
+Admitted
+
 (*Proof.
     intros.
     autorewrite with kami_rewrite_db in H.
@@ -1118,21 +1199,504 @@ Theorem WFConcat2:
       - subst;discharge_wf.
       - subst.
         simpl.
-        apply WfConcatLetAction;[discharge_wf|idtac].
-        intros.
-        apply WfConcatLetAction;[discharge_wf|idtac].
-        intros.
-        apply WfConcatIfElse;[discharge_wf|idtac|discharge_wf].
-        apply WfConcatLetAction;[discharge_wf|idtac].
-        intros.
-        apply WfConcatReadReg.
-        intros.
-        apply WfConcatSys.
-        apply WfConcatLetAction.*)
+        Solve_WfConcatActionT processor_core_unfold_db.
+        * simpl.
+          Solve_WfConcatActionT processor_core_unfold_db.
+        * simpl.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_GatherActions1.
+          ++ intros.
+             eapply forall_implies_in in H.
+             -- apply H.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ intros.
+              Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                apply forall_implies_in2 in H.
+                inversion H;subst;clear H.
+                inversion H0;subst;clear H0.
+                Solve_WfConcatActionT processor_core_unfold_db.
+                remember (mem_device_read_nth type (snd x) (3*2+0)).
+                destruct o.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                   eapply mem_device_read_wellformed.
+                   apply in_tag.
+                   apply H1.
+                   apply Heqo.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                apply forall_implies_in2 in H.
+                inversion H;subst;clear H.
+                inversion H0;subst;clear H0.
+                Solve_WfConcatActionT processor_core_unfold_db.
+                remember (mem_device_read_nth type (snd x) (3*2+1)).
+                destruct o.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                   eapply mem_device_read_wellformed.
+                   apply in_tag.
+                   apply H1.
+                   apply Heqo.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+         ++
 
+                induction mem_devices.
+                ** simpl in H.
+                   inversion H.
+                ** simpl in H.
+                   destruct H.
+                   +++ subst.
+                       Solve_WfConcatActionT processor_core_unfold_db.
+                       remember (mem_device_read_nth type a0 (3 * 2 + 0)).
+                       destruct o.
+                       --- Solve_WfConcatActionT processor_core_unfold_db.
+                           eapply mem_device_read_wellformed.
+                           *** simpl.
+                               left.
+                               reflexivity.
+                           *** apply Heqo.
+                       --- Solve_WfConcatActionT processor_core_unfold_db.
+                   +++ eapply IHl.
+                       --- apply nil.
+                       --- simpl in mem_separate_name_space_registers.
+      
+                           :C\cestruct fx.
+                           simpl in Heqo.
+
+
+                apply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+                   (*destruct fx.
+                   simpl.
+                   unfold mem_device_read_nth.
+                   unfold mem_device_read.*)
+
+                   remember (mem_device_read_nth type (snd fx) (3 * 2 + 0)).
+                   destruct o.
+                   +++ Solve_WfConcatActionT processor_core_unfold_db.
+                       :C\cestruct fx.
+                       simpl in Heqo.
+
+                       destruct a0.
+                       --- Solve_WfConcatActionT processor_core_unfold_db.
+                           *** destruct a1.
+
+
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_fold_left_stuff1.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+          ++ intros.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply H.
+             -- unfold Pmp.pmp_entry_read.
+                Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply WfConcatActionT_GatherActions1.
+                ** intros.
+                   eapply forall_implies_in in H0.
+                   +++ apply H0.
+                   +++ intros.
+                       Solve_WfConcatActionT processor_core_unfold_db.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+          ++ unfold PhysicalMem.getDTag.
+             unfold PhysicalMem.mem_region_apply.
+             unfold utila_acts_find_pkt.
+             apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ unfold PhysicalMem.checkPMAs.
+             unfold PhysicalMem.mem_device_apply.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold utila_acts_find_pkt.
+             apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+          ++ unfold PageTable.doneInvalid.
+             Solve_WfConcatActionT processor_core_unfold_db.
+          ++ unfold PhysicalMem.mem_region_read.
+             unfold PhysicalMem.mem_device_apply.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold utila_acts_find_pkt.
+             apply WfConcatActionT_GatherActions1.
+             -- intros.
+                eapply forall_implies_in in H.
+                ** apply H.
+                ** intros.
+                   Solve_WfConcatActionT processor_core_unfold_db.
+                   remember (mem_device_read_nth type (snd fx) (3 * 2 + 0)).
+                   destruct o.
+                   +++ Solve_WfConcatActionT processor_core_unfold_db.
+                       destruct a0.
+                       ---
+
+
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+
+        * unfold debug_hart_state_command.
+          Solve_WfConcatActionT kami_rewrite_db.
+          unfold debug_hart_state_read.
+          Solve_WfConcatActionT kami_rewrite_db.
+        * unfold readConfig.
+          Solve_WfConcatActionT kami_rewrite_db.
+          unfold debug_hart_state_read.
+          Solve_WfConcatActionT kami_rewrite_db.
+          unfold readXlen.
+          Solve_WfConcatActionT kami_rewrite_db.
+        * unfold fetch.
+          Solve_WfConcatActionT kami_rewrite_db.
+          ++ unfold memFetch.
+             Solve_WfConcatActionT kami_rewrite_db.
+             -- unfold memTranslate.
+                Solve_WfConcatActionT kami_rewrite_db.
+                unfold PageTable.pt_walker.
+                Solve_WfConcatActionT kami_rewrite_db.
+                ** simpl.
+                   Solve_WfConcatActionT kami_rewrite_db.
+                ** unfold PageTable.action_loop.
+                   simpl.
+                   Solve_WfConcatActionT kami_rewrite_db.
+                   +++ unfold PageTable.translatePteLoop.
+                       Solve_WfConcatActionT kami_rewrite_db.
+                       --- unfold PageTable.translatePteLoop.
+                           Solve_WfConcatActionT kami_rewrite_db.
+                           unfold PhysicalMem.checkForFault.
+                           Solve_WfConcatActionT kami_rewrite_db.
 
 Admitted.
-
+*)
 Hint Resolve WFConcat2 : wfModProcessor_db.
 
 Theorem WFConcat3:
