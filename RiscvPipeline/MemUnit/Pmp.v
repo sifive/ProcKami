@@ -70,14 +70,20 @@ Section pmp.
     (addr : PAddr @# ty)
     (addr_len : MemRqLgSize @# ty)
     :  ActionT ty Bool
-    := (* System [
+    := System [
+         DispString _ "[pmp_check] access type: ";
+         DispHex check;
+         DispString _ "\n";
+         DispString _ "[pmp_check] mode: ";
+         DispHex mode;
+         DispString _ "\n";
          DispString _ "[pmp_check] addr: ";
          DispHex addr;
          DispString _ "\n";
          DispString _ "[pmp_check] addr len: ";
          DispHex addr_len;
          DispString _ "\n"
-       ]; *)
+       ];
        LETA result
          :  pmp_entry_acc_kind
          <- fold_left
