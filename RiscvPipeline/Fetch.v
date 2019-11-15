@@ -204,326 +204,242 @@ Section fetch.
          ];
          Ret #result.
 
+    (*
+      Returns [Invalid] if the mem translation request resulted in a cache miss.
+      Returns [Valid Invalid] if an error occured.
+    *)
+    Definition fetchGetInstData
+      :  ActionT ty (Maybe CompInst)
+      := Read context : FetchState <- fetchStateName;
+         System [
+           DispString _ "[fetchGetInstData] context: ";
+           DispHex #context;
+           DispString _ "\n"
+         ];
+         (* I. try to translate vaddr - send request to the TLB. *)
+         Read state
+           :  FetchSendUpperTlbRequestState
+           <- fetchSendUpperTlbRequestName;
+         LETA paddr
+           :  Maybe (PktWithException PAddr)
+           <- fetchMemTranslate
+                (#state @% "satp_mode")
+                (#state @% "mxr")
+                (#state @% "sum")
+                (#state @% "mode")
+                (#state @% "mpp")
+                (#state @% "satp_ppn")
+                (#state @% "mprv")
+                $VmAccessInst
+                (#state @% "vaddr");
+         If #paddr @% "valid"
+           then
+             System [
+               DispString _ "[fetchGetInstData] paddr: ";
+               DispHex (#paddr @% "data");
+               DispString _ "\n"
+             ];
+             If #paddr @% "data" @% "snd" @% "valid"
+               then
+                 (* II.A. return exception. *)
+                 Write fetchResultName
+                   :  PktWithException FetchPkt
+                   <- STRUCT {
+                        "fst" ::= $$(getDefaultConst FetchPkt);
+                        "snd" ::= #paddr @% "data" @% "snd"
+                      } : PktWithException FetchPkt @# ty;
+                 Write fetchStateName
+                   :  FetchState
+                   <- $FetchDone;
+                 Ret (Invalid : Maybe CompInst @# ty)
+               else
+                 (* II.B. check permissions for address. *)
+                 LETA pmp_result
+                   :  Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt
+                   <- checkForFault mem_table $VmAccessInst
+                        (#state @% "satp_mode")
+                        (#state @% "mode")
+                        (#paddr @% "data" @% "fst")
+                        $1 $$false;
+                 If mem_error (#pmp_result @% "snd")
+                   then
+                     LET exception
+                       :  Maybe Exception
+                       <- Valid
+                            ((IF !($$misaligned_access) &&
+                                 #pmp_result @% "snd" @% "misaligned"
+                                then $InstAddrMisaligned
+                                else $InstAccessFault)
+                                : Exception @# ty);
+                     Write fetchResultName
+                       :  PktWithException FetchPkt
+                       <- STRUCT {
+                            "fst" ::= $$(getDefaultConst FetchPkt);
+                            "snd" ::= #exception
+                          } : PktWithException FetchPkt @# ty;
+                     Write fetchStateName
+                       :  FetchState
+                       <- $FetchDone;
+                     Ret (Invalid : Maybe CompInst @# ty)
+                   else
+                     (* III.B.1. fetch upper 16 bits. *)
+                     LETA inst
+                       :  Maybe Data
+                       <- mem_region_read
+                            1 (* fetch upper request index *)
+                            (#pmp_result @% "fst" @% "fst") 
+                            (#pmp_result @% "fst" @% "snd")
+                            $1;
+                     System [
+                       DispString _ "[fetchGetInstData] fetched: ";
+                       DispHex #inst;
+                       DispString _ "\n"
+                     ];
+                     If #inst @% "valid"
+                       then Ret (Valid (unsafeTruncLsb 16 (#inst @% "data")) : Maybe CompInst @# ty)
+                       else
+                         System [
+                           DispString _ "[fetchGetInstData] error reading upper or lower 16 bits of an instruction.\n"
+                         ];
+                         Write fetchResultName
+                           :  PktWithException FetchPkt
+                           <- STRUCT {
+                                "fst" ::= $$(getDefaultConst FetchPkt);
+                                "snd" ::= Valid ($InstAccessFault : Exception @# ty)
+                              } : PktWithException FetchPkt @# ty;
+                         Write fetchStateName
+                           :  FetchState
+                           <- $FetchDone;
+                         Ret (Invalid : Maybe CompInst @# ty)
+                       as result;
+                     Ret #result
+                   as result;
+                 Ret #result
+               as result;
+             Ret #result
+           else Ret Invalid
+           as result;
+         Ret #result.
+
     (* Wrap in rule. *)
-    Definition fetchSendTlbRequestUpper
+    Definition fetchUpper
       :  ActionT ty Void
       := Read context : FetchState <- fetchStateName;
          If #context == $FetchSendUpperTlbRequest
            then 
              System [
-               DispString _ "[fetchSendTlbRequestUpper] context: ";
-               DispHex #context;
-               DispString _ "\n"
+               DispString _ "[fetchUpper]\n"
              ];
-             (* I. try to translate vaddr - send request to the TLB. *)
-             Read state
-               :  FetchSendUpperTlbRequestState
-               <- fetchSendUpperTlbRequestName;
-             LETA paddrUpper
-               :  Maybe (PktWithException PAddr)
-               <- fetchMemTranslate
-                    (#state @% "satp_mode")
-                    (#state @% "mxr")
-                    (#state @% "sum")
-                    (#state @% "mode")
-                    (#state @% "mpp")
-                    (#state @% "satp_ppn")
-                    (#state @% "mprv")
-                    $VmAccessInst
-                    (#state @% "vaddr");
-             If #paddrUpper @% "valid"
+             LETA instUpper
+               :  Maybe CompInst
+               <- fetchGetInstData;
+             If #instUpper @% "valid"
                then
+                 Read state
+                   :  FetchSendUpperTlbRequestState
+                   <- fetchSendUpperTlbRequestName;
+                 LET result
+                   :  FetchPkt
+                   <- STRUCT {
+                        "pc"   ::= xlen_sign_extend Xlen (#state @% "xlen") (#state @% "pc");
+                        "inst"
+                          ::= {<
+                                #instUpper @% "data",
+                                (#state @% "instLower" : CompInst @# ty)
+                              >} : Inst @# ty;
+                        "compressed?" ::= $$false;
+                        "exceptionUpper" ::= $$false
+                      } : FetchPkt @# ty;
                  System [
-                   DispString _ "[memFetch] paddr: ";
-                   DispHex (#paddrUpper @% "data");
+                   DispString _ "[fetchUpper] result: ";
+                   DispHex #result;
                    DispString _ "\n"
                  ];
-                 If #paddrUpper @% "data" @% "snd" @% "valid"
-                   then
-                     (* II.A. return exception. *)
-                     Write fetchResultName
-                       :  PktWithException FetchPkt
-                       <- STRUCT {
-                            "fst" ::= $$(getDefaultConst FetchPkt);
-                            "snd" ::= #paddrUpper @% "data" @% "snd"
-                          } : PktWithException FetchPkt @# ty;
-                     Write fetchStateName
-                       :  FetchState
-                       <- $FetchDone;
-                     Retv
-                   else
-                     (* II.B. check permissions for address. *)
-                     LETA pmp_result
-                       :  Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt
-                       <- checkForFault mem_table $VmAccessInst
-                            (#state @% "satp_mode")
-                            (#state @% "mode")
-                            (#paddrUpper @% "data" @% "fst")
-                            $1 $$false;
-                     If mem_error (#pmp_result @% "snd")
-                       then
-                         LET exception
-                           :  Maybe Exception
-                           <- Valid
-                                ((IF !($$misaligned_access) &&
-                                     #pmp_result @% "snd" @% "misaligned"
-                                    then $InstAddrMisaligned
-                                    else $InstAccessFault)
-                                    : Exception @# ty);
-                         Write fetchResultName
-                           :  PktWithException FetchPkt
-                           <- STRUCT {
-                                "fst" ::= $$(getDefaultConst FetchPkt);
-                                "snd" ::= #exception
-                              } : PktWithException FetchPkt @# ty;
-                         Write fetchStateName
-                           :  FetchState
-                           <- $FetchDone;
-                         Retv
-                       else
-                         (* III.B.1. fetch upper 16 bits. *)
-                         LETA instUpper
-                           :  Maybe Data
-                           <- mem_region_read
-                                1 (* fetch upper request index *)
-                                (#pmp_result @% "fst" @% "fst") 
-                                (#pmp_result @% "fst" @% "snd")
-                                $1;
-                         System [
-                           DispString _ "[memFetch] fetched: ";
-                           DispHex #instUpper;
-                           DispString _ "\n"
-                         ];
-                         If #instUpper @% "valid"
-                           then
-                             LET result
-                               :  FetchPkt
-                               <- STRUCT {
-                                    "pc"   ::= xlen_sign_extend Xlen (#state @% "xlen") (#state @% "pc");
-                                    "inst"
-                                      ::= {<
-                                            unsafeTruncLsb 16 (#instUpper @% "data"),
-                                            (#state @% "instLower" : CompInst @# ty)
-                                          >} : Inst @# ty;
-                                    "compressed?" ::= $$false;
-                                    "exceptionUpper" ::= $$false
-                                  } : FetchPkt @# ty;
-                             System [
-                               DispString _ "[fetch] result: ";
-                               DispHex #result;
-                               DispString _ "\n"
-                             ];
-                             Write fetchResultName
-                               :  PktWithException FetchPkt
-                               <- STRUCT {
-                                    "fst" ::= #result;
-                                    "snd" ::= Invalid
-                                  } : PktWithException FetchPkt @# ty;
-                             Write fetchStateName
-                               :  FetchState
-                               <- $FetchDone;
-                             Retv
-                           else
-                             System [
-                               DispString _ "[fetch] error reading upper 16 bits\n"
-                             ];
-                             Write fetchResultName
-                               :  PktWithException FetchPkt
-                               <- STRUCT {
-                                    "fst" ::= $$(getDefaultConst FetchPkt);
-                                    "snd" ::= Valid ($InstAccessFault : Exception @# ty)
-                                  } : PktWithException FetchPkt @# ty;
-                             Write fetchStateName
-                               :  FetchState
-                               <- $FetchDone;
-                             Retv
-                           as _;
-                         Retv
-                       as _;
-                     Retv
-                   as _;
+                 Write fetchResultName
+                   :  PktWithException FetchPkt
+                   <- STRUCT {
+                        "fst" ::= #result;
+                        "snd" ::= Invalid
+                      } : PktWithException FetchPkt @# ty;
+                 Write fetchStateName
+                   :  FetchState
+                   <- $FetchDone;
                  Retv;
                (* else: send request again. *)
              Retv;
          Retv.
 
     (* Wrap in rule. *)
-    Definition fetchSendTlbRequestLower
+    Definition fetchLower
       :  ActionT ty Void
       := Read context : FetchState <- fetchStateName;
          If #context == $FetchSendLowerTlbRequest
            then
              System [
-               DispString _ "[fetchSendTlbRequestLower] context: ";
-               DispHex #context;
-               DispString _ "\n"
+               DispString _ "[fetchLower]\n"
              ];
-             (* I. try to translate vaddr - send request to the TLB. *)
-             Read state
-               :  FetchSendLowerTlbRequestState
-               <- fetchSendLowerTlbRequestName;
-             LETA paddrLower
-               :  Maybe (PktWithException PAddr)
-               <- fetchMemTranslate
-                    (#state @% "satp_mode")
-                    (#state @% "mxr")
-                    (#state @% "sum")
-                    (#state @% "mode")
-                    (#state @% "mpp")
-                    (#state @% "satp_ppn")
-                    (#state @% "mprv")
-                    $VmAccessInst
-                    (#state @% "vaddr");
-             System [
-               DispString _ "[fetchSendTlbRequestLower] state: ";
-               DispHex #state;
-               DispString _ "\n";
-               DispString _ "[fetchSendTlbRequestLower] paddrLower: ";
-               DispHex #paddrLower;
-               DispString _ "\n"
-             ];
-             If #paddrLower @% "valid"
+             LETA instLower
+               :  Maybe CompInst
+               <- fetchGetInstData;
+             If #instLower @% "valid"
                then
-                 System [
-                   DispString _ "[memFetch] paddr: ";
-                   DispHex (#paddrLower @% "data");
-                   DispString _ "\n"
-                 ];
-                 If #paddrLower @% "data" @% "snd" @% "valid"
+                 Read state
+                   :  FetchSendUpperTlbRequestState
+                   <- fetchSendUpperTlbRequestName;
+                 LET uncompressed
+                   :  Bool
+                   <- isInstUncompressed (unsafeTruncLsb InstSz (#instLower @% "data"));
+                 If #uncompressed
                    then
-                     (* II.A. return exception. *)
+                     (* IV.A. translate upper 16 bit address *)
+                     Write fetchSendUpperTlbRequestName
+                       :  FetchSendUpperTlbRequestState
+                       <- STRUCT {
+                            "exts" ::= #state @% "exts";
+                            "xlen" ::= #state @% "xlen";
+                            "satp_mode" ::= #state @% "satp_mode";
+                            "satp_ppn"  ::= #state @% "satp_ppn";
+                            "mxr"   ::= #state @% "mxr";
+                            "sum"   ::= #state @% "sum";
+                            "mprv"  ::= #state @% "mprv";
+                            "mode"  ::= #state @% "mode";
+                            "mpp"   ::= #state @% "mpp";
+                            "pc"    ::= #state @% "pc";
+                            "vaddr" ::= (#state @% "pc" + $2);
+                            "instLower" ::= unsafeTruncLsb 16 (#instLower @% "data")
+                          } : FetchSendUpperTlbRequestState @# ty;
+                     Write fetchStateName
+                       :  FetchState
+                       <- $FetchSendUpperTlbRequest;
+                     Retv
+                   else
+                     (* IV.B. return 16 bit instruction. *)
+                     LET result
+                       :  FetchPkt
+                       <- STRUCT {
+                            "pc"   ::= xlen_sign_extend Xlen (#state @% "xlen") (#state @% "pc");
+                            "inst"
+                              ::= {<
+                                    ($0 : Bit 16 @# ty),
+                                    #instLower @% "data"
+                                  >} : Inst @# ty;
+                            "compressed?" ::= !#uncompressed;
+                            "exceptionUpper" ::= $$false
+                          } : FetchPkt @# ty;
+                     System [
+                       DispString _ "[fetchLower] result: ";
+                       DispHex #result;
+                       DispString _ "\n"
+                     ];
                      Write fetchResultName
                        :  PktWithException FetchPkt
                        <- STRUCT {
-                            "fst" ::= $$(getDefaultConst FetchPkt);
-                            "snd" ::= #paddrLower @% "data" @% "snd"
+                            "fst" ::= #result;
+                            "snd" ::= Invalid
                           } : PktWithException FetchPkt @# ty;
                      Write fetchStateName
                        :  FetchState
                        <- $FetchDone;
-                     System [
-                       DispString _ "[fetchSendTlbRequestLower] returning exception.\n"
-                     ];
-                     Retv
-                   else
-                     (* II.B. check permissions for address. *)
-                     LETA pmp_result
-                       :  Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt
-                       <- checkForFault mem_table $VmAccessInst
-                            (#state @% "satp_mode")
-                            (#state @% "mode")
-                            (#paddrLower @% "data" @% "fst")
-                            $1 $$false;
-                     If mem_error (#pmp_result @% "snd")
-                       then
-                         LET exception
-                           :  Maybe Exception
-                           <- Valid
-                                ((IF !($$misaligned_access) &&
-                                     #pmp_result @% "snd" @% "misaligned"
-                                    then $InstAddrMisaligned
-                                    else $InstAccessFault)
-                                    : Exception @# ty);
-                         Write fetchResultName
-                           :  PktWithException FetchPkt
-                           <- STRUCT {
-                                "fst" ::= $$(getDefaultConst FetchPkt);
-                                "snd" ::= #exception
-                              } : PktWithException FetchPkt @# ty;
-                         Write fetchStateName
-                           :  FetchState
-                           <- $FetchDone;
-                         Retv
-                       else
-                         (* III.B.1. fetch lower 16 bits. *)
-                         LETA instLower
-                           :  Maybe Data
-                           <- mem_region_read
-                                1 (* fetch lower request index *)
-                                (#pmp_result @% "fst" @% "fst") 
-                                (#pmp_result @% "fst" @% "snd")
-                                $1;
-                         System [
-                           DispString _ "[memFetch] fetched: ";
-                           DispHex #instLower;
-                           DispString _ "\n"
-                         ];
-                         If #instLower @% "valid"
-                           then
-                             LET uncompressed
-                               :  Bool
-                               <- isInstUncompressed (unsafeTruncLsb InstSz (#instLower @% "data"));
-                             If #uncompressed
-                               then
-                                 (* IV.A. translate upper 16 bit address *)
-                                 Write fetchSendUpperTlbRequestName
-                                   :  FetchSendUpperTlbRequestState
-                                   <- STRUCT {
-                                        "exts" ::= #state @% "exts";
-                                        "xlen" ::= #state @% "xlen";
-                                        "satp_mode" ::= #state @% "satp_mode";
-                                        "satp_ppn"  ::= #state @% "satp_ppn";
-                                        "mxr"   ::= #state @% "mxr";
-                                        "sum"   ::= #state @% "sum";
-                                        "mprv"  ::= #state @% "mprv";
-                                        "mode"  ::= #state @% "mode";
-                                        "mpp"   ::= #state @% "mpp";
-                                        "pc"    ::= #state @% "pc";
-                                        "vaddr" ::= (#state @% "pc" + $2);
-                                        "instLower" ::= unsafeTruncLsb 16 (#instLower @% "data")
-                                      } : FetchSendUpperTlbRequestState @# ty;
-                                 Write fetchStateName
-                                   :  FetchState
-                                   <- $FetchSendUpperTlbRequest;
-                                 Retv
-                               else
-                                 (* IV.B. return 16 bit instruction. *)
-                                 LET result
-                                   :  FetchPkt
-                                   <- STRUCT {
-                                        "pc"   ::= xlen_sign_extend Xlen (#state @% "xlen") (#state @% "pc");
-                                        "inst"
-                                          ::= {<
-                                                ($0 : Bit 16 @# ty),
-                                                unsafeTruncLsb 16 (#instLower @% "data")
-                                              >} : Inst @# ty;
-                                        "compressed?" ::= !#uncompressed;
-                                        "exceptionUpper" ::= $$false
-                                      } : FetchPkt @# ty;
-                                 System [
-                                   DispString _ "[fetch] result: ";
-                                   DispHex #result;
-                                   DispString _ "\n"
-                                 ];
-                                 Write fetchResultName
-                                   :  PktWithException FetchPkt
-                                   <- STRUCT {
-                                        "fst" ::= #result;
-                                        "snd" ::= Invalid
-                                      } : PktWithException FetchPkt @# ty;
-                                 Write fetchStateName
-                                   :  FetchState
-                                   <- $FetchDone;
-                                 Retv
-                               as _;
-                             Retv
-                           else
-                             System [
-                               DispString _ "[fetch] error reading lower 16 bits\n"
-                             ];
-                             Write fetchResultName
-                               :  PktWithException FetchPkt
-                               <- STRUCT {
-                                    "fst" ::= $$(getDefaultConst FetchPkt);
-                                    "snd" ::= Valid ($InstAccessFault : Exception @# ty)
-                                  } : PktWithException FetchPkt @# ty;
-                             Write fetchStateName
-                               :  FetchState
-                               <- $FetchDone;
-                             Retv
-                           as _;
-                         Retv
-                       as _;
                      Retv
                    as _;
                  Retv;

@@ -125,16 +125,16 @@ Section Params.
                      DispString _ "[fetch_tlb_mem_send_req_cont]--------------------------------------------------\n"
                    ];
                    fetchTlbMemSendReqCont mem_table _ with
-              Rule @^"fetch_send_tlb_req_upper"
+              Rule @^"fetch_upper"
                 := System [
-                     DispString _ "[fetch_send_tlb_req_upper]--------------------------------------------------\n"
+                     DispString _ "[fetch_upper]--------------------------------------------------\n"
                    ];
-                   fetchSendTlbRequestUpper mem_table _ with
-              Rule @^"fetch_send_tlb_req_lower"
+                   fetchUpper mem_table _ with
+              Rule @^"fetch_lower"
                 := System [
-                     DispString _ "[fetch_send_tlb_req_lower]--------------------------------------------------\n"
+                     DispString _ "[fetch_lower]--------------------------------------------------\n"
                    ];
-                   fetchSendTlbRequestLower mem_table _ with
+                   fetchLower mem_table _ with
               Rule @^"fetch"
                 := System [
                      DispString _ "[fetch]--------------------------------------------------\n"
