@@ -43,6 +43,7 @@ Definition model64 := model [Xlen32; Xlen64].
 Separate Extraction
          predPack
          orKind
+         predPackOr
          createWriteRq
          createWriteRqMask
          pointwiseIntersectionNoMask
