@@ -1173,7 +1173,7 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
-Admitted
+Admitted.
 
 (*Proof.
     intros.
