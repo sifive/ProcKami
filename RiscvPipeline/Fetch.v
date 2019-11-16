@@ -209,29 +209,39 @@ Section fetch.
       Returns [Valid Invalid] if an error occured.
     *)
     Definition fetchGetInstData
+      (isUpper : Bool @# ty)
+      (satp_mode: Bit SatpModeWidth @# ty)
+      (satp_ppn : Bit 44 @# ty)
+      (mxr : Bool @# ty)
+      (sum : Bool @# ty)
+      (mprv : Bool @# ty)
+      (mode : PrivMode @# ty)
+      (mpp : PrivMode @# ty)
+      (vaddr : VAddr @# ty)
       :  ActionT ty (Maybe CompInst)
-      := Read context : FetchState <- fetchStateName;
-         System [
-           DispString _ "[fetchGetInstData] context: ";
-           DispHex #context;
-           DispString _ "\n"
+      := System [
+           DispString _ "[fetchGetInstData]\n"
          ];
          (* I. try to translate vaddr - send request to the TLB. *)
          Read state
            :  FetchSendUpperTlbRequestState
            <- fetchSendUpperTlbRequestName;
+         LET errorFetchPkt
+           :  FetchPkt
+           <- $$(getDefaultConst FetchPkt)
+                @%["exceptionUpper" <- isUpper];
          LETA paddr
            :  Maybe (PktWithException PAddr)
            <- fetchMemTranslate
-                (#state @% "satp_mode")
-                (#state @% "mxr")
-                (#state @% "sum")
-                (#state @% "mode")
-                (#state @% "mpp")
-                (#state @% "satp_ppn")
-                (#state @% "mprv")
+                satp_mode
+                mxr
+                sum
+                mode
+                mpp
+                satp_ppn
+                mprv
                 $VmAccessInst
-                (#state @% "vaddr");
+                vaddr;
          If #paddr @% "valid"
            then
              System [
@@ -245,7 +255,7 @@ Section fetch.
                  Write fetchResultName
                    :  PktWithException FetchPkt
                    <- STRUCT {
-                        "fst" ::= $$(getDefaultConst FetchPkt);
+                        "fst" ::= #errorFetchPkt;
                         "snd" ::= #paddr @% "data" @% "snd"
                       } : PktWithException FetchPkt @# ty;
                  Write fetchStateName
@@ -257,8 +267,8 @@ Section fetch.
                  LETA pmp_result
                    :  Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt
                    <- checkForFault mem_table $VmAccessInst
-                        (#state @% "satp_mode")
-                        (#state @% "mode")
+                        satp_mode
+                        mode
                         (#paddr @% "data" @% "fst")
                         $1 $$false;
                  If mem_error (#pmp_result @% "snd")
@@ -274,7 +284,7 @@ Section fetch.
                      Write fetchResultName
                        :  PktWithException FetchPkt
                        <- STRUCT {
-                            "fst" ::= $$(getDefaultConst FetchPkt);
+                            "fst" ::= #errorFetchPkt;
                             "snd" ::= #exception
                           } : PktWithException FetchPkt @# ty;
                      Write fetchStateName
@@ -304,7 +314,7 @@ Section fetch.
                          Write fetchResultName
                            :  PktWithException FetchPkt
                            <- STRUCT {
-                                "fst" ::= $$(getDefaultConst FetchPkt);
+                                "fst" ::= #errorFetchPkt;
                                 "snd" ::= Valid ($InstAccessFault : Exception @# ty)
                               } : PktWithException FetchPkt @# ty;
                          Write fetchStateName
@@ -330,14 +340,22 @@ Section fetch.
              System [
                DispString _ "[fetchUpper]\n"
              ];
+             Read state
+               :  FetchSendUpperTlbRequestState
+               <- fetchSendUpperTlbRequestName;
              LETA instUpper
                :  Maybe CompInst
-               <- fetchGetInstData;
+               <- fetchGetInstData $$true
+                    (#state @% "satp_mode")
+                    (#state @% "satp_ppn")
+                    (#state @% "mxr")
+                    (#state @% "sum")
+                    (#state @% "mprv")
+                    (#state @% "mode")
+                    (#state @% "mpp")
+                    (#state @% "vaddr");
              If #instUpper @% "valid"
                then
-                 Read state
-                   :  FetchSendUpperTlbRequestState
-                   <- fetchSendUpperTlbRequestName;
                  LET result
                    :  FetchPkt
                    <- STRUCT {
@@ -378,14 +396,22 @@ Section fetch.
              System [
                DispString _ "[fetchLower]\n"
              ];
+             Read state
+               :  FetchSendLowerTlbRequestState
+               <- fetchSendLowerTlbRequestName;
              LETA instLower
                :  Maybe CompInst
-               <- fetchGetInstData;
+               <- fetchGetInstData $$false
+                    (#state @% "satp_mode")
+                    (#state @% "satp_ppn")
+                    (#state @% "mxr")
+                    (#state @% "sum")
+                    (#state @% "mprv")
+                    (#state @% "mode")
+                    (#state @% "mpp")
+                    (#state @% "pc");
              If #instLower @% "valid"
                then
-                 Read state
-                   :  FetchSendUpperTlbRequestState
-                   <- fetchSendUpperTlbRequestName;
                  LET uncompressed
                    :  Bool
                    <- isInstUncompressed (unsafeTruncLsb InstSz (#instLower @% "data"));
