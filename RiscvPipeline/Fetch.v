@@ -6,7 +6,7 @@ Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
-Require Import Tlb.Tlb.
+Require Import StdLibKami.Tlb.Tlb.
 Require Import List.
 Import ListNotations.
 
