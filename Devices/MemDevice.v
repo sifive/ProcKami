@@ -157,6 +157,7 @@ Section deviceIfc.
              (fun memOp
                => Ret
                     $$(match memOpWriteValue memOp with
+                       | memRegValueSc => true
                        | memWriteValueSc => true
                        | _ => false
                        end)).
