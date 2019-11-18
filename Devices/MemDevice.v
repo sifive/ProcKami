@@ -156,11 +156,15 @@ Section deviceIfc.
         := applyMemOp
              (fun memOp
                => Ret
-                    $$(match memOpWriteValue memOp with
-                       | memRegValueSc => true
-                       | memWriteValueSc => true
-                       | _ => false
-                       end)).
+                    $$(orb
+                       (match memOpRegValue memOp with
+                        | memRegValueSc => true
+                        | _ => false
+                        end)
+                       (match memOpWriteValue memOp with
+                        | memWriteValueSc => true
+                        | _ => false
+                        end))).
 
       Local Definition memDeviceReadReservation
         (code : MemOpCode @# ty)
