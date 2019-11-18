@@ -10,7 +10,7 @@ Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
-Require Import Tlb.Tlb.
+Require Import StdLibKami.Tlb.Tlb.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
