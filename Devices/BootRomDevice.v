@@ -1,5 +1,6 @@
 Require Import Kami.All.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 
 Section device.
   Context `{procParams: ProcParams}.
@@ -11,12 +12,39 @@ Section device.
   Open Scope kami_expr.
   Open Scope kami_action.
 
+  Local Definition bootRomDeviceParams := {|
+    memDeviceParamsRead
+      := fun ty tag addr size
+           => utila_acts_find_pkt
+                (map 
+                  (fun index
+                    => If tag == $index
+                         then
+                           Call result
+                             :  Array Rlen_over_8 (Bit 8)
+                             <- (read_name index) (SignExtendTruncLsb _ addr : Bit lgMemSz);
+                           Ret (Valid (pack #result): Maybe Data @# ty)
+                         else Ret (Invalid : Maybe Data @# ty)
+                         as result;
+                       Ret #result)
+                  (seq 0 numClientRqs));
+
+    memDeviceParamsWrite
+      := fun _ _ _ => Ret $$false;
+
+    memDeviceParamsReadReservation
+      := fun ty _ _ => Ret $$(getDefaultConst Reservation);
+
+    memDeviceParamsWriteReservation
+      := fun ty _ _ _ _ => Retv
+  |}.
+
   Definition bootRomDevice
     :  MemDevice
     := {|
-         mem_device_name := "boot rom";
-         mem_device_type := io_device;
-         mem_device_pmas
+         memDeviceName := "boot rom";
+         memDeviceIO := true;
+         memDevicePmas
            := map
                 (fun width
                   => {|
@@ -29,21 +57,9 @@ Section device.
                        pma_amo        := AMONone
                      |})
                 (seq 0 4);
-         mem_device_read
-           := fun ty
-                => map
-                     (fun index paddr _ 
-                       => Call result
-                            :  Array Rlen_over_8 (Bit 8)
-                            <- (read_name index) (SignExtendTruncLsb _ paddr : Bit lgMemSz);
-                          Ret (Valid (pack #result): Maybe (Bit Rlen) @# _))
-                     (seq 0 12);
-         mem_device_write := fun ty => [];
-         mem_device_read_resv
-           := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
-         mem_device_write_resv
-           := fun ty addr _ _ _ => Retv;
-         mem_device_file
+         memDeviceRequestHandler
+           := fun _ req => memDeviceHandleRequest bootRomDeviceParams (req @% "tag") (req @% "req");
+         memDeviceFile
            := Some
                 (inl [
                   @Build_RegFileBase

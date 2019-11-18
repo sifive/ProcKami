@@ -5,9 +5,10 @@
 *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
-Require Import Vector.
 Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
+Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
