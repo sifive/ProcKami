@@ -344,41 +344,6 @@ Section pmem.
                      then Valid (#result @% "data" @% "data") : Maybe Data @# ty
                      else Invalid : Maybe Data @# ty)).
 
-    Definition mem_region_write
-      (index : nat)
-      (dtag : DeviceTag mem_devices @# ty)
-      (daddr : PAddr @# ty)
-      (data : Data @# ty)
-      (size : MemRqLgSize @# ty)
-      :  ActionT ty Bool
-      := mem_device_apply dtag 
-           (fun device
-             => LET req
-                  :  MemDeviceRq
-                  <- STRUCT {
-                       "memOp"
-                         ::= Switch size Retn MemOpCode With {
-                               ($0 : MemRqLgSize @# ty)
-                                 ::= getMemOpCode ty Sb;
-                               ($1 : MemRqLgSize @# ty)
-                                 ::= getMemOpCode ty Sh;
-                               ($2 : MemRqLgSize @# ty)
-                                 ::= getMemOpCode ty Sw;
-                               ($3 : MemRqLgSize @# ty)
-                                 ::= getMemOpCode ty Sd
-                             };
-                       "addr" ::= daddr;
-                       "data" ::= data
-                     } : MemDeviceRq @# ty;
-                LETA result
-                  :  Maybe (Maybe Data)
-                  <- memDeviceRequestHandler
-                       (STRUCT {
-                          "tag" ::= $index;
-                          "req" ::= #req
-                        } : ClientMemDeviceRq @# ty);
-                Ret (#result @% "valid")).
-
   End ty.
 
   Close Scope kami_action.
