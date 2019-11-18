@@ -163,6 +163,20 @@ Section pmem.
                            } : Pair (DeviceTag mem_devices) PAddr @# ty)
                     end)).
 
+    Definition mem_device_at ty
+      (mem_devices : list MemDevice)
+      (deviceTag : DeviceTag mem_devices @# ty)
+      (f : MemDevice -> ActionT ty Void)
+      :  ActionT ty Void
+      := GatherActions 
+           (map 
+             (fun device : nat * MemDevice
+               => If deviceTag == $(fst device)
+                    then f (snd device);
+                  Retv)
+             (tag mem_devices)) as _;
+         Retv.
+        
     (*
       Note: we assume that device tags will always be valid given
       the constraints we apply in generating them.
@@ -232,7 +246,27 @@ Section pmem.
       (paddr_len : MemRqLgSize @# ty)
       (lrsc : Bool @# ty)
       :  ActionT ty (Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt)
-      := LETA pmp_result
+      := System [
+           DispString _ "[checkForFault] access type: ";
+           DispHex access_type;
+           DispString _ "\n";
+           DispString _ "[checkForFault] satp_mode: ";
+           DispHex satp_mode;
+           DispString _ "\n";
+           DispString _ "[checkForFault] mode: ";
+           DispHex mode;
+           DispString _ "\n";
+           DispString _ "[checkForFault] paddr: ";
+           DispHex paddr;
+           DispString _ "\n";
+           DispString _ "[checkForFault] paddr_len: ";
+           DispHex paddr_len;
+           DispString _ "\n";
+           DispString _ "[checkForFault] lrsc: ";
+           DispHex lrsc;
+           DispString _ "\n"
+         ];
+         LETA pmp_result
            :  Bool
            <- pmp_check_access access_type mode paddr paddr_len; 
          LET bound_result

@@ -199,6 +199,26 @@ Section pt_walker.
                       "fst" ::= ((!#validEntry) || #leaf) ;
                       "snd" ::= #retVal
                     };
+               SystemE [
+                 DispString _ "[translatePte] satp_mode: ";
+                 DispHex satp_mode;
+                 DispString _ "\n";
+                 DispString _ "[translatePte] access_type: ";
+                 DispHex access_type;
+                 DispString _ "\n";
+                 DispString _ "[translatePte] currentLevel: ";
+                 DispHex currentLevel;
+                 DispString _ "\n";
+                 DispString _ "[translatePte] pte: ";
+                 DispHex pte;
+                 DispString _ "\n";
+                 DispString _ "[translatePte] vaddr: ";
+                 DispHex vAddr;
+                 DispString _ "\n";
+                 DispString _ "[translatePte] validEntry: ";
+                 DispHex #validEntry;
+                 DispString _ "\n"
+               ];
                RetE #finalVal.
         End pte.
       End vaddr.

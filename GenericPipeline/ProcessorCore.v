@@ -10,12 +10,14 @@ Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
+Require Import Tlb.Tlb.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.RiscvPipeline.ConfigReader.
-Require Import ProcKami.GenericPipeline.Fetch.
+(* Require Import ProcKami.GenericPipeline.Fetch. *)
+Require Import ProcKami.RiscvPipeline.Fetch.
 Require Import ProcKami.GenericPipeline.Decompressor.
 Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.GenericPipeline.InputXform.
@@ -54,6 +56,8 @@ Section Params.
               Registers (mem_device_regs mem_devices) with
               Registers debug_internal_regs with
               Registers (csr_regs debug_csrs) with
+              Registers (tlbRegs mem_devices fetchTlbNumEntries) with
+              Registers fetchRegs with
               Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
               Rule @^"debug_hart_send_resume_req" := debug_harts_send_resume_req _ with
               Rule @^"debug_hart_halt" := debug_hart_halt _ with
@@ -110,11 +114,68 @@ Section Params.
                        Retv;
                    System [DispString _ "[set_ext_interrupt]\n"];
                    Retv with
+              Rule @^"fetch_tlb_mem_send_req_async_cont"
+                := System [
+                     DispString _ "[fetch_tlb_mem_send_req_async_cont]--------------------------------------------------\n"
+                   ];
+                   memSendReqAsyncCont
+                     (fetchTlbMemSendReq (mem_devices := mem_devices)) _ with
+              Rule @^"fetch_tlb_mem_send_req_cont"
+                := System [
+                     DispString _ "[fetch_tlb_mem_send_req_cont]--------------------------------------------------\n"
+                   ];
+                   fetchTlbMemSendReqCont mem_table _ with
+              Rule @^"fetch_upper"
+                := System [
+                     DispString _ "[fetch_upper]--------------------------------------------------\n"
+                   ];
+                   fetchUpper mem_table _ with
+              Rule @^"fetch_lower"
+                := System [
+                     DispString _ "[fetch_lower]--------------------------------------------------\n"
+                   ];
+                   fetchLower mem_table _ with
+              Rule @^"fetch"
+                := System [
+                     DispString _ "[fetch]--------------------------------------------------\n"
+                   ];
+                   LETA cfg_pkt <- readConfig _;
+                   Read pc : VAddr <- @^"pc";
+                   Read mpp : PrivMode <- @^"mpp";
+                   Read mxr : Bool <- @^"mxr";
+                   Read sum : Bool <- @^"sum";
+                   Read mprv : Bool <- @^"mprv";
+                   Read satp_ppn : Bit 44 <- @^"satp_ppn";
+                   System [
+                     DispString _ "[fetch] pc: ";
+                     DispHex #pc;
+                     DispString _ "\n"
+                   ];
+                   LETA fetch_pkt
+                     :  Void
+                     <- fetch
+                          (procParams := procParams)
+                          (#cfg_pkt @% "extensions")
+                          (#cfg_pkt @% "xlen")
+                          (#cfg_pkt @% "satp_mode")
+                          #satp_ppn #mxr #sum #mprv
+                          (#cfg_pkt @% "mode")
+                          #mpp #pc;
+                   Retv with
               Rule @^"pipeline"
+(* TODO: restore debug control *)
+(*
                 := LETA halted  <- debug_hart_state_halted _;
                    LETA command <- debug_hart_state_command _;
                    If !#halted || #command
+*)
+                := System [
+                     DispString _ "[pipeline]==================================================\n"
+                   ];
+                   Read fetchState : FetchState <- fetchStateName;
+                   If #fetchState == $FetchDone
                      then
+                       Write fetchStateName : FetchState <- $FetchReady;
                        LETA cfg_pkt <- readConfig _;
                        Read pc : VAddr <- @^"pc";
                        System
@@ -126,16 +187,20 @@ Section Params.
                            DispHex #pc;
                            DispString _ "\n"
                          ];
+(*
                        LETA fetch_pkt
                          :  PktWithException FetchPkt
                          <- fetch mem_table (#cfg_pkt @% "extensions") (#cfg_pkt @% "xlen") (#cfg_pkt @% "satp_mode") (#cfg_pkt @% "mode") #pc;
+ *)                      
+                       Read fetch_pkt
+                         :  PktWithException FetchPkt
+                         <- fetchResultName;
                        System
                          [
-                           DispString _ "Fetch:\n";
-                           DispBinary #fetch_pkt;
+                           DispString _ "Fetch:";
+                           DispHex #fetch_pkt;
                            DispString _ "\n"
                          ];
-                       
                        LET comp_inst: CompInst <- UniBit (TruncLsb CompInstSz CompInstSz) (#fetch_pkt @% "fst" @%  "inst");
                        LET isCompressed: Bool <- !isInstUncompressed #comp_inst;
                        LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) #cfg_pkt #comp_inst);
