@@ -3,7 +3,7 @@
   RISC-V processor core model into Haskell, which is the first step
   in generating the model's Verilog.
 *)
-Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl.
+Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.UnverifiedIncompleteCompiler.
 Require Import ProcKami.FU.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import List.
@@ -43,6 +43,7 @@ Definition model64 := model [Xlen32; Xlen64].
 Separate Extraction
          predPack
          orKind
+         predPackOr
          createWriteRq
          createWriteRqMask
          pointwiseIntersectionNoMask
@@ -54,6 +55,7 @@ Separate Extraction
 
          getCallsWithSignPerMod
          RtlExpr'
+         getRtl
 
          CompActionSimple
          RmeSimple
@@ -64,7 +66,8 @@ Separate Extraction
          model32
          model64
 
-         testRegMod
-         testAsyncMod
-         testSyncIsAddrMod
-         testSyncNotIsAddrMod.
+         testReg
+         testAsync
+         testSyncIsAddr
+         testSyncNotIsAddr
+.

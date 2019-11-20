@@ -5,6 +5,7 @@
 *)
 Require Import Kami.All.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
 Require Import Vector.
 Import VectorNotations.

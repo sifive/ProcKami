@@ -1,5 +1,6 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 
 Section mem_devices.
   Context `{procParams: ProcParams}.
@@ -51,29 +52,50 @@ Section mem_devices.
 
   End ty.
 
+  Local Definition pMemDeviceParams := {|
+    memDeviceParamsRead
+      := fun ty tag addr size
+           => utila_acts_find_pkt
+                (map
+                  (fun index
+                    => If tag == $index
+                         then pMemRead index addr size
+                         else Ret (Invalid : Maybe Data @# ty)
+                         as result;
+                       Ret #result)
+                  (seq 0 numClientRqs));
+
+    memDeviceParamsWrite
+      := fun _ _ req => pMemWrite 0 req;
+
+    memDeviceParamsReadReservation
+      := fun ty addr _
+           => Call reservation : Reservation
+                <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
+              Ret #reservation;
+
+    memDeviceParamsWriteReservation
+      := fun ty addr mask reservation _
+           => LET writeRq
+                :  WriteRqMask lgMemSz Rlen_over_8 Bool
+                <- STRUCT {
+                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
+                     "data" ::= reservation;
+                     "mask" ::= mask
+                   };
+              Call @^"writeMemReservation" (#writeRq: _);
+              Retv
+  |}.
+
   Definition pMemDevice
     :  MemDevice
     := {|
-         mem_device_name := "main memory";
-         mem_device_type := main_memory;
-         mem_device_pmas := pmas_default;
-         mem_device_read
-           := fun ty => map (fun index => @pMemRead ty index) (seq 0 12);
-         mem_device_write
-           := fun ty
-                => [ pMemWrite 0 ];
-         mem_device_read_resv
-           := (fun ty addr _ => Call result: Array Rlen_over_8 Bool
-                                                     <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-                                    Ret #result);
-         mem_device_write_resv
-           := (fun ty addr mask resv _ =>
-                 LET writeRq: WriteRqMask lgMemSz Rlen_over_8 Bool <- STRUCT { "addr" ::= SignExtendTruncLsb lgMemSz addr ;
-                                                                               "data" ::= resv ;
-                                                                               "mask" ::= mask } ;
-                   Call @^"writeMemReservation" (#writeRq: _);
-                   Retv);
-         mem_device_file
+         memDeviceName := "main memory";
+         memDeviceIO := false;
+         memDevicePmas := pmas_default;
+         memDeviceRequestHandler
+           := fun _ req => memDeviceHandleRequest pMemDeviceParams (req @% "tag") (req @% "req");
+         memDeviceFile
            := Some
                 (inl [@Build_RegFileBase
                   true

@@ -1,5 +1,6 @@
 Require Import Kami.All.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 
 Section device.
   Context `{procParams: ProcParams}.
@@ -22,12 +23,53 @@ Section device.
          "size" :: MemRqLgSize
        }.
 
+  Local Definition uartDeviceParams := {|
+    memDeviceParamsRead
+      := fun ty _ addr size
+           => LET readRq
+                :  UARTRead
+                <- (STRUCT {
+                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
+                     "size" ::= size
+                   } : UARTRead @# ty);
+              Call result
+                :  Bit 64
+                <- @^"readUART" (#readRq : UARTRead);
+              Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe Data @# ty);
+
+    memDeviceParamsWrite
+      := fun ty _ req
+           => LET writeRq
+                :  UARTWrite
+                <- (STRUCT {
+                     "addr" ::= SignExtendTruncLsb lgMemSz (req @% "addr");
+                     "data" ::= req @% "data";
+                     "size" ::= req @% "size"
+                   } : UARTWrite @# ty);
+              Call @^"writeUART" (#writeRq : _);
+              System [
+                DispString _ "[uartDevice] req: ";
+                DispHex req;
+                DispString _ "\n";
+                DispString _ "[pMemWrite] writeRq: ";
+                DispHex #writeRq;
+                DispString _ "\n"
+              ];
+              Ret $$true;
+
+    memDeviceParamsReadReservation
+      := fun ty _ _ => Ret $$(getDefaultConst Reservation);
+
+    memDeviceParamsWriteReservation
+      := fun ty _ _ _ _ => Retv
+  |}.
+
   Definition uartDevice
     :  MemDevice
     := {|
-         mem_device_name := "uart device";
-         mem_device_type := io_device;
-         mem_device_pmas
+         memDeviceName := "uart device";
+         memDeviceIO := true;
+         memDevicePmas
            := (map
                 (fun width
                   => {|
@@ -36,48 +78,13 @@ Section device.
                        pma_writeable  := true;
                        pma_executable := false;
                        pma_misaligned := true;
-                       pma_lrsc       := true;
-                       pma_amo        := AMOArith
+                       pma_lrsc       := false;
+                       pma_amo        := AMONone
                      |})
                 (seq 0 4));
-         mem_device_read
-           := fun ty
-                => [fun paddr size
-                     => LET readRq
-                          :  UARTRead
-                          <- (STRUCT {
-                               "addr" ::= SignExtendTruncLsb lgMemSz paddr;
-                               "size" ::= size
-                             } : UARTRead @# ty);
-                        Call result
-                          :  Bit 64
-                          <- @^"readUART" (#readRq : UARTRead);
-                        Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe (Bit Rlen) @# _)];
-         mem_device_read_resv
-           := fun ty addr _ => Ret $$ (getDefaultConst (Array Rlen_over_8 Bool));
-         mem_device_write_resv
-           := fun ty addr _ _ _ => Retv;
-         mem_device_write
-           := fun ty
-                => [fun (pkt : MemWrite @# ty)
-                     => LET writeRq
-                          :  UARTWrite
-                          <- (STRUCT {
-                               "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
-                               "data" ::= pkt @% "data";
-                               "size" ::= pkt @% "size"
-                             } : UARTWrite @# ty);
-                        Call @^"writeUART" (#writeRq : _);
-                        System [
-                          DispString _ "[uartDevice] pkt: ";
-                          DispHex pkt;
-                          DispString _ "\n";
-                          DispString _ "[pMemWrite] writeRq: ";
-                          DispHex #writeRq;
-                          DispString _ "\n"
-                        ];
-                        Ret $$true];
-         mem_device_file := None
+         memDeviceRequestHandler
+           := fun _ req => memDeviceHandleRequest uartDeviceParams (req @% "tag") (req @% "req");
+         memDeviceFile := None
        |}.
 
   Close Scope kami_action.

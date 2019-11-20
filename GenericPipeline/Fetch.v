@@ -1,5 +1,6 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 
 Section fetch.

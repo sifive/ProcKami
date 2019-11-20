@@ -15,6 +15,7 @@ Require Import Kami.WfMod_Helper.
 Require Import Kami.Properties.
 Require Import Kami.PProperties.
 Require Import ProcKami.FU.
+Require Import ProcKami.Devices.MemDevice.
 Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
