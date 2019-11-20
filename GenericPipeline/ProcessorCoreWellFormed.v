@@ -1270,22 +1270,26 @@ Hint Unfold retAction : processor_core_unfold_db.
 Hint Unfold Commit.exitDebugMode : processor_core_unfold_db.
 Hint Unfold debug_hart_state_set : processor_core_unfold_db.
 
-Set Printing Implicit.
+(*Set Printing Implicit.*)
 
 Theorem WfConcatActionT_BuildStructAction_Helper:
-  forall n kinds names acts cont exps,
+  forall cont n kinds names acts exps,
        (forall (i:Fin.t n), WfConcatActionT (acts i) cont) ->
        (forall x, WfConcatActionT (exps x) cont) ->
        @WfConcatActionT (@Struct n kinds names) (@BuildStructActionCont type (@Struct n kinds names) n kinds names acts exps) cont.
-       Admitted.
+Admitted.
 (*Proof.
-    intro n.
+    clear.
     induction n.
     + intros.
       discharge_wf.
     + intros.
       simpl.
       discharge_wf.
+      specialize (IHn (fun i => kinds (Fin.FS i))
+                      (fun i => names (Fin.FS i))
+                      (fun i => acts (Fin.FS i))
+                      ).
       eapply IHn.
 
        (forall (i:Fin.t n), WfConcatActionT (acts i) cont) ->*)
@@ -1317,7 +1321,8 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
-Proof.
+Admitted.
+(*SLOW Proof.
     intros.
     autorewrite with kami_rewrite_db in H.
     inversion H; subst; clear H.
@@ -1640,15 +1645,118 @@ Proof.
           -- discharge_wf.
         * trivialSolve.
         * trivialSolve.
-Qed.
-
-
-
-
+Qed.*)
 
 Hint Resolve WFConcat2 : wfModProcessor_db.
 
-Theorem WFConcat3:
+Theorem WfConcatActionT_getRegFileMethods:
+  forall c meth m, In meth (getRegFileMethods m) ->
+      forall v : type (fst (projT1 (snd meth))),
+          WfConcatActionT (projT2 (snd meth) type v) c.
+Proof. 
+    intros.
+    unfold getRegFileMethods in H.
+    destruct m.
+    simpl in H.
+    inversion H;subst;clear H.
+    + simpl.
+      destruct rfIsWrMask.
+      - simpl.
+        unfold updateNumDataArrayMask.
+        discharge_wf.
+      - unfold updateNumDataArray.
+        discharge_wf.
+    + destruct rfRead.
+      - unfold readRegFile in H0.
+        simpl in H0.
+        induction reads.
+        * simpl in H0.
+          inversion H0.
+        * simpl in H0.
+          destruct H0.
+          ++ destruct meth.
+             inversion H;subst;clear H.
+             simpl.
+             unfold buildNumDataArray.
+             discharge_wf.
+          ++ apply IHreads.
+             apply H.
+      - unfold readSyncRegFile in H0.
+        * destruct isAddr in H0.
+          ++ rewrite in_app in H0.
+             destruct H0.
+             -- induction reads.
+                ** simpl in H.
+                   inversion H.
+                ** simpl in H.
+                   destruct H.
+                   --- simpl in H.
+                       destruct meth.
+                       inversion H;subst;clear H.
+                       simpl.
+                       discharge_wf.
+                   --- apply IHreads.
+                       apply H.
+             -- induction reads.
+                ** simpl in H.
+                   inversion H.
+                ** simpl in H.
+                   destruct H.
+                   --- simpl in H.
+                       destruct meth.
+                       inversion H;subst;clear H.
+                       simpl.
+                       discharge_wf.
+                   --- apply IHreads.
+                       apply H.
+          ++ rewrite in_app in H0.
+             destruct H0.
+             -- induction reads.
+                ** simpl in H.
+                   inversion H.
+                ** simpl in H.
+                   destruct H.
+                   --- simpl in H.
+                       destruct meth.
+                       inversion H;subst;clear H.
+                       simpl.
+                       discharge_wf.
+                   --- apply IHreads.
+                       apply H.
+             -- induction reads.
+                ** simpl in H.
+                   inversion H.
+                ** simpl in H.
+                   destruct H.
+                   --- simpl in H.
+                       destruct meth.
+                       inversion H;subst;clear H.
+                       simpl.
+                       discharge_wf.
+                   --- apply IHreads.
+                       apply H.
+Qed.
+
+Theorem WfConcatActionT_In_concat_map_getRegFileMethods:
+  forall meth (v:type (fst (projT1 (snd meth)))) l c,
+      In meth
+       (concat
+         (map (fun mm : RegFileBase => getRegFileMethods mm)
+            l)) -> WfConcatActionT (projT2 (snd meth) type v) c.
+Proof.
+    intros.
+    induction l.
+    + inversion H.
+    + simpl in H.
+      rewrite in_app in H.
+      destruct H.
+      - eapply WfConcatActionT_getRegFileMethods.
+        apply H.
+      - apply IHl.
+        apply H.
+Qed.
+  
+  Theorem WFConcat3:
   forall meth : string * {x : Signature & MethodT x},
   In meth
     (getAllMethods
@@ -1659,6 +1767,56 @@ Theorem WFConcat3:
                    (mem_device_files mem_devices)))))) ->
   forall v : type (fst (projT1 (snd meth))),
   WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile intRegFile).
+(*SLOW Proof.
+    intros.
+    autorewrite with kami_rewrite_db in H.
+    inversion H; subst; clear H.
+    + simpl in H0.
+      autorewrite with kami_rewrite_db in H0.
+      repeat (match goal with
+              | H: _ \/ _ |- _ => destruct H
+              end).
+      - subst.
+        simpl.
+        unfold updateNumDataArray.
+        discharge_wf.
+      - subst.
+        simpl.
+        unfold buildNumDataArray.
+        discharge_wf.
+      - subst.
+        simpl.
+        unfold buildNumDataArray.
+        discharge_wf.
+      - subst.
+        simpl.
+        unfold buildNumDataArray.
+        discharge_wf.
+      - destruct H.
+    + repeat (match goal with
+              | H: _ \/ _ |- _ => destruct H
+              end).
+      - unfold memReservationRegFile in H.
+        simpl in H.
+        repeat (match goal with
+                | H: _ \/ _ |- _ => destruct H
+                end).
+        * subst.
+          simpl.
+          unfold updateNumDataArrayMask.
+          discharge_wf.
+        * subst.
+          simpl.
+          unfold buildNumDataArray.
+          discharge_wf.
+        * inversion H.
+      - eapply WfConcatActionT_In_concat_map_getRegFileMethods.
+        apply H.
+      - unfold processorCore in H.
+        autorewrite with kami_rewrite_db in H.
+        simpl in H.
+        trivialSolve.
+Qed.*)
 Admitted.
 
 Hint Resolve WFConcat3 : wfModProcessor_db.
