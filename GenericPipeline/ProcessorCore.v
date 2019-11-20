@@ -2,7 +2,6 @@
   This module integrates the processor components defined in FU.v
   into a single pipeline processor model.
 *)
-
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.Devices.MemDevice.
@@ -10,13 +9,11 @@ Require Import ProcKami.RiscvIsaSpec.CompressedInsts.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.Classify.
 Require Import FpuKami.Compare.
-Require Import StdLibKami.Tlb.Tlb.
 Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.RiscvPipeline.ConfigReader.
-(* Require Import ProcKami.GenericPipeline.Fetch. *)
 Require Import ProcKami.RiscvPipeline.Fetch.
 Require Import ProcKami.GenericPipeline.Decompressor.
 Require Import ProcKami.GenericPipeline.Decoder.
@@ -24,6 +21,8 @@ Require Import ProcKami.GenericPipeline.InputXform.
 Require Import ProcKami.GenericPipeline.RegReader.
 Require Import ProcKami.GenericPipeline.Executer.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
+Require Import ProcKami.RiscvPipeline.Tlb.Ifc.
+Require Import ProcKami.RiscvPipeline.Tlb.Tlb.
 Require Import ProcKami.GenericPipeline.RegWriter.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
@@ -56,7 +55,7 @@ Section Params.
               Registers (mem_device_regs mem_devices) with
               Registers debug_internal_regs with
               Registers (csr_regs debug_csrs) with
-              Registers (tlbRegs mem_devices fetchTlbNumEntries) with
+              Registers (@tlbRegs procParams (fetchTlbParams mem_table)) with
               Registers fetchRegs with
               Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
               Rule @^"debug_hart_send_resume_req" := debug_harts_send_resume_req _ with
@@ -118,8 +117,7 @@ Section Params.
                 := System [
                      DispString _ "[fetch_tlb_mem_send_req_async_cont]--------------------------------------------------\n"
                    ];
-                   memSendReqAsyncCont
-                     (fetchTlbMemSendReq (mem_devices := mem_devices)) _ with
+                   @memSendReqAsyncCont procParams (fetchTlbParams mem_table) _ with
               Rule @^"fetch_tlb_mem_send_req_cont"
                 := System [
                      DispString _ "[fetch_tlb_mem_send_req_cont]--------------------------------------------------\n"
@@ -315,7 +313,6 @@ Section Params.
                        System [DispString _ "Inc PC\n"];
                        Retv;
                    Retv
-
          }.
 
     Definition intRegFile

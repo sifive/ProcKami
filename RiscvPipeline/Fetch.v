@@ -6,7 +6,8 @@ Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
 Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
 Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 Require Import ProcKami.RiscvPipeline.MemUnit.PageTable.
-Require Import StdLibKami.Tlb.Tlb.
+Require Import ProcKami.RiscvPipeline.Tlb.Ifc.
+Require Import ProcKami.RiscvPipeline.Tlb.Tlb.
 Require Import List.
 Import ListNotations.
 
@@ -138,6 +139,22 @@ Section fetch.
            :  Maybe (Maybe Data)
            <- Valid #result;
          Ret $$true.
+  End ty.
+
+  Definition fetchTlbParams
+    :  TlbParams
+    := {|
+         NumReqs := 1;
+         EntriesNum := 1;
+         MemDevices := mem_devices;
+         MemTable   := mem_table;
+         MemSendReq := fetchTlbMemSendReq
+       |}.
+
+  Definition fetchTlb : Tlb := @stdTlb procParams fetchTlbParams.
+
+  Section ty.
+    Variable ty : Kind -> Type.
 
     (* wrap in rule. *)
     Definition fetchTlbMemSendReqCont
@@ -156,13 +173,10 @@ Section fetch.
                DispString _ "\n"
              ];
              Write fetchTlbResultName : Maybe (Maybe Data) <- Invalid;
-             (* call tlb callback with result. *) 
-             tlbHandleMemRes mem_table fetchTlbNumEntries $VmAccessInst
-               (unpack PteEntry
-                 (ZeroExtendTruncLsb (size PteEntry)
-                   (#result @% "data" @% "data")));
+             HandleMemRes fetchTlb (#result @% "data" @% "data");
          Retv.
 
+    (* TODO: move to FU *)
     Definition isInstUncompressed
       (sz : nat)
       (bit_string : Bit sz @# ty)
@@ -189,8 +203,9 @@ Section fetch.
                 then mpp else mode;
          If #effectiveMode != $MachineMode && satp_mode != $SatpModeBare
            then
-             tlbFetchPAddr mem_table fetchTlbNumEntries
-               satp_mode mxr sum mode satp_ppn vaddr
+
+             HandleReq fetchTlb (*  mem_table fetchTlbNumEntries *)
+               satp_mode mxr sum mode satp_ppn $1 $VmAccessInst vaddr
            else
              Ret (Valid (STRUCT {
                  "fst" ::= SignExtendTruncLsb PAddrSz vaddr;
@@ -208,7 +223,7 @@ Section fetch.
       Returns [Invalid] if the mem translation request resulted in a cache miss.
       Returns [Valid Invalid] if an error occured.
     *)
-    Definition fetchGetInstData
+    Local Definition fetchGetInstData
       (isUpper : Bool @# ty)
       (satp_mode: Bit SatpModeWidth @# ty)
       (satp_ppn : Bit 44 @# ty)

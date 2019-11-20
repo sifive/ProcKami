@@ -119,7 +119,7 @@ Section pt_walker.
             LETC cond3 <- flags @% "W" && ! (flags @% "R");
             RetE !(#cond1 || #cond2 || #cond3).
           
-          Local Definition checkAlign: Bool ## ty :=
+          Definition checkAlign: Bool ## ty :=
             LETC vpn_field_size
               :  Bit _
               <- satp_select satp_mode (fun mode => $(vm_mode_vpn_size mode));

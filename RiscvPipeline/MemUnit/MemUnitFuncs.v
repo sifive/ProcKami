@@ -29,6 +29,57 @@ Section mem_unit.
   Open Scope kami_expr.
   Open Scope kami_action.
 
+  (*
+    The method called by the fetch unit to translate virtual
+    addresses.
+  *)
+(*
+  Definition tlbFetchPAddr
+    (satp_mode : Bit SatpModeWidth @# ty)
+    (mxr: Bool @# ty)
+    (sum: Bool @# ty)
+    (mode: PrivMode @# ty)
+    (satp_ppn: Bit 44 @# ty)
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (Maybe (PktWithException PAddr))
+    := System [
+         DispString _ "[tlbFetchPAddr] satp_mode: ";
+         DispHex satp_mode;
+         DispString _ "\n";
+         DispString _ "[tlbFetchPAddr] mxr: ";
+         DispHex mxr;
+         DispString _ "\n";
+         DispString _ "[tlbFetchPAddr] sum: ";
+         DispHex sum;
+         DispString _ "\n";
+         DispString _ "[tlbFetchPAddr] mode: ";
+         DispHex mode;
+         DispString _ "\n";
+         DispString _ "[tlbFetchPAddr] satp_ppn: ";
+         DispHex satp_ppn;
+         DispString _ "\n";
+         DispString _ "[tlbFetchPAddr] vaddr: ";
+         DispHex vaddr;
+         DispString _ "\n"
+       ];
+       tlbHandleReq satp_mode mxr sum mode satp_ppn $TlbReqIdFetch $VmAccessInst vaddr.
+*)
+  (*
+    The method called by the memory unit to translate virtual
+    addresses.
+  *)
+(*
+  Definition tlbMemPAddr
+    (satp_mode : Bit SatpModeWidth @# ty)
+    (mxr: Bool @# ty)
+    (sum: Bool @# ty)
+    (mode: PrivMode @# ty)
+    (satp_ppn: Bit 44 @# ty)
+    (access_type: VmAccessType @# ty)
+    (vaddr : VAddr @# ty)
+    :  ActionT ty (Maybe (PktWithException PAddr))
+    := tlbHandleReq satp_mode mxr sum mode satp_ppn $TlbReqIdMem access_type vaddr.
+*)
   Definition memTranslate
     (index : nat) (* 0 based index specifying which call to the page table walker this is. *)
     (satp_mode : Bit SatpModeWidth @# ty)
@@ -64,84 +115,6 @@ Section mem_unit.
                     "snd" ::= Invalid
                   } : PktWithException PAddr @# ty)
          as result;
-       Ret #result.
-
-  Definition memFetch
-    (index : nat)
-    (satp_mode: Bit SatpModeWidth @# ty)
-    (mode : PrivMode @# ty) 
-    (vaddr : VAddr @# ty)
-    :  ActionT ty (PktWithException CompInst)
-    := System [
-         DispString _ "[memFetch] fetching vaddr: ";
-         DispHex vaddr;
-         DispString _ "\n"
-       ];
-       Read mprv : Bool <- @^"mprv";
-       LETA paddr
-         :  PktWithException PAddr
-         <- memTranslate (3 * (S index)) satp_mode mode #mprv $VmAccessInst vaddr;
-       System [
-         DispString _ "[memFetch] paddr: ";
-         DispHex #paddr;
-         DispString _ "\n"
-       ];
-       If #paddr @% "snd" @% "valid"
-         then
-           Ret
-             (STRUCT {
-                "fst" ::= $0;
-                "snd" ::= #paddr @% "snd"
-              } : PktWithException CompInst @# ty)
-         else
-           LETA pmp_result
-             :  Pair (Pair DeviceTag PAddr) MemErrorPkt
-             <- checkForFault mem_table $VmAccessInst satp_mode mode (#paddr @% "fst") $1 $$false;
-           If mem_error (#pmp_result @% "snd")
-             then
-               LET exception
-                 :  Maybe Exception
-                 <- Valid ((IF !($$misaligned_access) && #pmp_result @% "snd" @% "misaligned"
-                            then $InstAddrMisaligned
-                            else $InstAccessFault):
-                             Exception @# ty);
-               Ret (STRUCT {
-                   "fst" ::= $0;
-                   "snd" ::= #exception
-                 } : PktWithException CompInst @# ty)
-             else
-               LETA inst
-                 :  Maybe Data
-                 <- mem_region_read index
-                      (#pmp_result @% "fst" @% "fst") 
-                      (#pmp_result @% "fst" @% "snd")
-                      $1;
-               System [
-                 DispString _ "[memFetch] fetched upper bits: ";
-                 DispHex #inst;
-                 DispString _ "\n"
-               ];
-               (* LET exception *)
-               (*   :  FullException *)
-               (*   <- STRUCT { *)
-               (*        "exception" ::= $InstAccessFault; *)
-               (*        "value"     ::= vaddr *)
-               (*      } : FullException @# ty; *)
-               Ret (STRUCT {
-                   "fst" ::= ZeroExtendTruncLsb 16 (#inst @% "data");
-                   "snd" ::= Invalid
-                     (* ::= IF #inst @% "valid" *)
-                     (*       then Invalid *)
-                     (*       else Valid #exception *)
-                 } : PktWithException CompInst @# ty)
-             as result;
-           Ret #result
-         as result;
-       System [
-         DispString _ "[memFetch] fetch results: ";
-         DispHex #result;
-         DispString _ "\n"
-       ];
        Ret #result.
 
   Local Definition mem_unit_exec_pkt

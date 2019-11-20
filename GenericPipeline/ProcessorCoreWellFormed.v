@@ -23,7 +23,7 @@ Import VectorNotations.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.RiscvPipeline.ConfigReader.
-Require Import ProcKami.GenericPipeline.Fetch.
+(* Require Import ProcKami.GenericPipeline.Fetch. *)
 Require Import ProcKami.GenericPipeline.Decompressor.
 Require Import ProcKami.GenericPipeline.Decoder.
 Require Import ProcKami.GenericPipeline.InputXform.
