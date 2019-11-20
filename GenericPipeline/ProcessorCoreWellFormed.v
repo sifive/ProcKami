@@ -1273,26 +1273,16 @@ Hint Unfold debug_hart_state_set : processor_core_unfold_db.
 (*Set Printing Implicit.*)
 
 Theorem WfConcatActionT_BuildStructAction_Helper:
-  forall cont n kinds names acts exps,
-       (forall (i:Fin.t n), WfConcatActionT (acts i) cont) ->
-       (forall x, WfConcatActionT (exps x) cont) ->
-       @WfConcatActionT (@Struct n kinds names) (@BuildStructActionCont type (@Struct n kinds names) n kinds names acts exps) cont.
-Admitted.
-(*Proof.
-    clear.
-    induction n.
-    + intros.
-      discharge_wf.
-    + intros.
-      simpl.
-      discharge_wf.
-      specialize (IHn (fun i => kinds (Fin.FS i))
-                      (fun i => names (Fin.FS i))
-                      (fun i => acts (Fin.FS i))
-                      ).
-      eapply IHn.
-
-       (forall (i:Fin.t n), WfConcatActionT (acts i) cont) ->*)
+ forall m k n kinds names acts cont,
+   (forall (i:Fin.t n), WfConcatActionT (acts i) m) ->
+   (forall x, WfConcatActionT (cont x) m) ->
+   @WfConcatActionT k (@BuildStructActionCont type k
+                                              n kinds names acts cont) m.
+Proof.
+  induction n; simpl; intros; auto.
+  econstructor; [eauto|intros].
+  eapply IHn; eauto.
+Qed.
 
 Ltac Solve_BuildStruct_cases :=
     repeat match goal with
@@ -1321,7 +1311,6 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
-Admitted.
 (*SLOW Proof.
     intros.
     autorewrite with kami_rewrite_db in H.
@@ -1646,96 +1635,9 @@ Admitted.
         * trivialSolve.
         * trivialSolve.
 Qed.*)
+Admitted.
 
 Hint Resolve WFConcat2 : wfModProcessor_db.
-
-Theorem WfConcatActionT_getRegFileMethods:
-  forall c meth m, In meth (getRegFileMethods m) ->
-      forall v : type (fst (projT1 (snd meth))),
-          WfConcatActionT (projT2 (snd meth) type v) c.
-Proof. 
-    intros.
-    unfold getRegFileMethods in H.
-    destruct m.
-    simpl in H.
-    inversion H;subst;clear H.
-    + simpl.
-      destruct rfIsWrMask.
-      - simpl.
-        unfold updateNumDataArrayMask.
-        discharge_wf.
-      - unfold updateNumDataArray.
-        discharge_wf.
-    + destruct rfRead.
-      - unfold readRegFile in H0.
-        simpl in H0.
-        induction reads.
-        * simpl in H0.
-          inversion H0.
-        * simpl in H0.
-          destruct H0.
-          ++ destruct meth.
-             inversion H;subst;clear H.
-             simpl.
-             unfold buildNumDataArray.
-             discharge_wf.
-          ++ apply IHreads.
-             apply H.
-      - unfold readSyncRegFile in H0.
-        * destruct isAddr in H0.
-          ++ rewrite in_app in H0.
-             destruct H0.
-             -- induction reads.
-                ** simpl in H.
-                   inversion H.
-                ** simpl in H.
-                   destruct H.
-                   --- simpl in H.
-                       destruct meth.
-                       inversion H;subst;clear H.
-                       simpl.
-                       discharge_wf.
-                   --- apply IHreads.
-                       apply H.
-             -- induction reads.
-                ** simpl in H.
-                   inversion H.
-                ** simpl in H.
-                   destruct H.
-                   --- simpl in H.
-                       destruct meth.
-                       inversion H;subst;clear H.
-                       simpl.
-                       discharge_wf.
-                   --- apply IHreads.
-                       apply H.
-          ++ rewrite in_app in H0.
-             destruct H0.
-             -- induction reads.
-                ** simpl in H.
-                   inversion H.
-                ** simpl in H.
-                   destruct H.
-                   --- simpl in H.
-                       destruct meth.
-                       inversion H;subst;clear H.
-                       simpl.
-                       discharge_wf.
-                   --- apply IHreads.
-                       apply H.
-             -- induction reads.
-                ** simpl in H.
-                   inversion H.
-                ** simpl in H.
-                   destruct H.
-                   --- simpl in H.
-                       destruct meth.
-                       inversion H;subst;clear H.
-                       simpl.
-                       discharge_wf.
-                   --- apply IHreads.
-                       apply H.
-Qed.
 
 Theorem WfConcatActionT_In_concat_map_getRegFileMethods:
   forall meth (v:type (fst (projT1 (snd meth)))) l c,
@@ -1847,6 +1749,7 @@ Proof.
   + apply mem_separate_name_space_registers in H0.
     inversion H0.
   + inversion H1.
+
 Qed.
 
 Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfModProcessor_db.
@@ -1854,6 +1757,19 @@ Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfModProces
 Theorem DisjKey_getAllRegisters_floatRegFile_processorCore:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
+(*Proof.
+  unfold processorCore.
+  autorewrite with kami_rewrite_db.
+  simpl.
+  split.
+  + intros.
+    intro X.
+    inversion X.
+    discharge_append.
+    inversion H.*)
+
+
+
 Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_floatRegFile_processorCore : wfModProcessor_db.
@@ -1900,6 +1816,12 @@ Hint Resolve DisjKey_getAllMethods_floatRegFile_mem_device_files_mem_devices : w
 Theorem DisjKey_getAllMethods_floatRegFile_processorCore:
   DisjKey (getAllMethods (BaseRegFile floatRegFile))
     (getAllMethods (processorCore func_units mem_table)).
+(*SLOW Proof.
+  unfold processorCore.
+  autorewrite with kami_rewrite_db;try(apply string_dec).
+  simpl.
+  discharge_DisjKey;try(apply DisjKey_nil2).
+Qed.*)
 Admitted.
 
 Hint Resolve DisjKey_getAllMethods_floatRegFile_processorCore : wfModProcessor_db.
@@ -2117,6 +2039,12 @@ Hint Resolve DisjKey_getAllMethods_memReservationRegFile : wfModProcessor_db.
 Theorem DisjKey_getAllMethods_memReservationFile_processorCore:
   DisjKey (getAllMethods (BaseRegFile memReservationRegFile))
     (getAllMethods (processorCore func_units mem_table)).
+(*SLOW Proof.
+    unfold processorCore.
+    autorewrite with kami_rewrite_db;try(apply string_dec).
+    repeat split;try(apply DisjKey_nil2).
+Qed.*)
+
 Admitted.
 
 Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfModProcessor_db.
@@ -2129,11 +2057,27 @@ Qed.
 
 Hint Resolve WfMod_memReservationFile : wfModProcessor_db.
 
+(*Theorem WfMod_processorCore: forall func_units mem_table, WfMod (processorCore func_units mem_table).
+Admitted.*)
+
 Theorem WfMod_processorCore_mem_devices:  
   WfMod
     (fold_right ConcatMod (processorCore func_units mem_table)
        (map (fun m : RegFileBase => Base (BaseRegFile m))
           (mem_device_files mem_devices))).
+(*Proof.
+    simpl.
+    induction mem_devices.
+    + simpl.
+      unfold processorCore.
+      unfold makeModule.
+      apply BaseWf.
+      unfold WfBaseModule.
+      unfold getRules.
+      split.
+      -- intros.
+         autorewrite with kami_rewrite_db in H.*)
+
 Admitted.
 
 Hint Resolve WfMod_processorCore_mem_devices :wfModProcessor_db.
