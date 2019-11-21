@@ -13,6 +13,7 @@ Require Import PeanoNat.
 Import Nat.
 Require Import StdLibKami.RegStruct.
 Require Import Kami.Compiler.Test.
+Require Import Kami.Simulator.NativeTest.
 
 Definition supportedExts
   :  list SupportedExt
@@ -69,4 +70,6 @@ Separate Extraction
          testReg
          testAsync
          testSyncIsAddr
-         testSyncNotIsAddr.
+         testSyncNotIsAddr
+         testNative
+         .
