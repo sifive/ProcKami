@@ -631,6 +631,12 @@ Section Params.
     Definition vm_mode_max_width
       := fold_right Nat.max 0 (map vm_mode_width vmModes).
 
+    Definition vm_mode_max_field_size
+      := fold_right Nat.max 0 (map vm_mode_vpn_size vmModes).
+
+    Definition vm_mode_max_num_vpn_fields
+      := fold_right Nat.max 0 (map (fun mode => length (vm_mode_sizes mode)) vmModes).
+
     Definition VmAccessType := Bit 2.
     Definition VmAccessInst := 0.
     Definition VmAccessLoad := 1.

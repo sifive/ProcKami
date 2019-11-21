@@ -66,7 +66,7 @@ Separate Extraction
          model32
          model64
 
-         testRegMod
-         testAsyncMod
-         testSyncIsAddrMod
-         testSyncNotIsAddrMod.
+         testReg
+         testAsync
+         testSyncIsAddr
+         testSyncNotIsAddr.

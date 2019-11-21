@@ -304,11 +304,7 @@ Section mem_unit.
                                           "addr" ::= #pmp_result @% "fst" @% "snd";
                                           "data" ::= input_pkt @% "reg_data"
                                         } : MemDeviceRq @# ty;
-                                   memDeviceRequestHandler
-                                     (STRUCT {
-                                        "tag" ::= $0;
-                                        "req" ::= #req
-                                      } : ClientMemDeviceRq @# ty));
+                                   memDeviceRequestHandler 0 #req);
                        LET exception
                          :  Maybe Exception
                          <- IF #regData @% "valid"

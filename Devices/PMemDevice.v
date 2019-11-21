@@ -10,63 +10,30 @@ Section mem_devices.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Section ty.
-
-    Variable ty: Kind -> Type.
-
-    Local Definition pMemRead (index: nat) (addr: PAddr @# ty) (_ : MemRqLgSize @# ty)
-      : ActionT ty (Maybe Data)
-      := Call result
-           : Array Rlen_over_8 (Bit 8)
-           <- (@^"readMem" ++ (natToHexStr index)) (SignExtendTruncLsb _ addr: Bit lgMemSz);
-         System [
-           DispString _ ("[pMemRead] index: " ++ natToHexStr index ++ "\n");
-           DispString _ "[pMemRead] addr: ";
-           DispHex addr;
-           DispString _ "\n";
-           DispString _ "[pMemRead] result: ";
-           DispHex #result;
-           DispString _ "\n"
-         ];
-         Ret (Valid (pack #result): Maybe Data @# _).
-
-    Local Definition pMemWrite (index : nat) (pkt : MemWrite @# ty)
-      : ActionT ty Bool
-      := LET writeRq
-           :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
-           <- (STRUCT {
-                 "addr" ::= SignExtendTruncLsb lgMemSz (pkt @% "addr");
-                 "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (pkt @% "data");
-                 "mask" ::= pkt @% "mask"
-               } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
-         Call @^("writeMem" ++ (natToHexStr index)) (#writeRq: _);
-         System [
-           DispString _ "[pMemWrite] pkt: ";
-           DispHex pkt;
-           DispString _ "\n";
-           DispString _ "[pMemWrite] writeRq: ";
-           DispHex #writeRq;
-           DispString _ "\n"
-         ];
-         Ret ($$true).
-
-  End ty.
-
   Local Definition pMemDeviceParams := {|
     memDeviceParamsRead
-      := fun ty tag addr size
-           => utila_acts_find_pkt
-                (map
-                  (fun index
-                    => If tag == $index
-                         then pMemRead index addr size
-                         else Ret (Invalid : Maybe Data @# ty)
-                         as result;
-                       Ret #result)
-                  (seq 0 numClientRqs));
+      := fun ty
+           => (map
+                (fun index
+                  => fun addr _
+                       => Call result
+                            :  Array Rlen_over_8 (Bit 8)
+                            <- (@^"readMem" ++ (natToHexStr index))
+                                 (SignExtendTruncLsb _ addr : Bit lgMemSz);
+                          Ret (Valid (pack #result) : Maybe Data @# ty))
+                (seq 0 numClientRqs));
 
     memDeviceParamsWrite
-      := fun _ _ req => pMemWrite 0 req;
+      := fun ty req
+           => LET writeRq
+                :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
+                <- (STRUCT {
+                      "addr" ::= SignExtendTruncLsb lgMemSz (req @% "addr");
+                      "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (req @% "data");
+                      "mask" ::= req @% "mask"
+                    } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
+              Call @^"writeMem0" (#writeRq: _);
+              Ret $$true;
 
     memDeviceParamsReadReservation
       := fun ty addr _
@@ -94,7 +61,7 @@ Section mem_devices.
          memDeviceIO := false;
          memDevicePmas := pmas_default;
          memDeviceRequestHandler
-           := fun _ req => memDeviceHandleRequest pMemDeviceParams (req @% "tag") (req @% "req");
+           := fun _ index req => memDeviceHandleRequest pMemDeviceParams index req;
          memDeviceFile
            := Some
                 (inl [@Build_RegFileBase
