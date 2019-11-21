@@ -63,14 +63,20 @@ Section WfModProcessorProof.
       ~In @^r (map fst (concat
         (map (fun mm : RegFileBase => getRegFileMethods mm)
           (mem_device_files mem_devices)))).
-    Variable mem_device_read_wellformed:
-      forall m a x y r n, In m mem_devices -> Some a=mem_device_read_nth type m n -> WfConcatActionT (a x y) r.
-    Variable mem_device_write_wellformed:
-      forall m a x r n, In m mem_devices -> Some a=mem_device_write_nth type m n -> WfConcatActionT (a x) r.
-    Variable mem_device_read_resv_wellformed:
-      forall m r s v, In m mem_devices -> WfConcatActionT (mem_device_read_resv m s v) r.
-    Variable mem_device_write_resv_wellformed:
-      forall m r s v s' s'', In m mem_devices -> WfConcatActionT (mem_device_write_resv m s v s' s'') r.
+    Variable mem_device_handler_wellformed:
+       forall m c s, In m mem_devices ->
+           WfConcatActionT
+             ((let (_, _, _, memDeviceRequestHandler, _) := m in memDeviceRequestHandler)
+                type s) c.
+
+    (*Variable mem_device_read_wellformed:
+      forall m a x y r n, In m mem_devices -> Some a=mem_device_read_nth type m n -> WfConcatActionT (a x y) r.*)
+    (*Variable mem_device_write_wellformed:
+      forall m a x r n, In m mem_devices -> Some a=mem_device_write_nth type m n -> WfConcatActionT (a x) r.*)
+    (*Variable mem_device_read_resv_wellformed:
+      forall m r s v, In m mem_devices -> WfConcatActionT (mem_device_read_resv m s v) r.*)
+    (*Variable mem_device_write_resv_wellformed:
+      forall m r s v s' s'', In m mem_devices -> WfConcatActionT (mem_device_write_resv m s v s' s'') r.*)
 
 Ltac solve_mem_separate_names:=
      repeat match goal with
@@ -639,17 +645,17 @@ Proof.
          apply H0.
 Qed.
 
-Theorem debug_csrs_prog_buf_disjoint: forall x n m,
+Theorem debug_csrs_prog_buf_disjoint: forall x l,
   In x
     (map fst
        (concat
           (map csr_reg_csr_field
              (concat
                 (map csrViewFields
-                   (concat (map csrViews (map Debug.debug_csr_progbuf (seq m n))))))))) ->
+                   (concat (map csrViews (map Debug.debug_csr_progbuf l)))))))) ->
   exists (q:string), x%string=@^("progbuf" ++q).
 Proof.
-     induction n.
+     induction l.
      + intros.
        simpl in H.
        inversion H.
@@ -658,7 +664,7 @@ Proof.
        inversion H; subst; clear H.
        - eapply ex_intro.
          discharge_append.
-       - eapply IHn.
+       - eapply IHl.
          apply H0.
 Qed.
 
@@ -1160,7 +1166,7 @@ Ltac Solve_WfConcatActionT db :=
                        (try Solve_WfConcatActionT db)] |
                (try Solve_WfConcatActionT db)].*)
 
-Ltac Solve_WfConcatActionT_GatherActions2 db :=
+(*Ltac Solve_WfConcatActionT_GatherActions2 db :=
     apply WfConcatActionT_GatherActions1;
     [
      let Q := fresh in let R := fresh in let a := fresh in let c := fresh in let H := fresh in let s := fresh in let o :=fresh in
@@ -1182,7 +1188,7 @@ Ltac Solve_WfConcatActionT_GatherActions2 db :=
            |
           Solve_WfConcatActionT db] |
      intros;Solve_WfConcatActionT db];
-     match goal with | HH: In _ (tag mem_devices) |- _ => apply HH end.
+     match goal with | HH: In _ (tag mem_devices) |- _ => apply HH end.*)
 
 Ltac Solve_WfConcatActionT_GatherActions3 db :=
      apply WfConcatActionT_GatherActions1;[
@@ -1244,14 +1250,14 @@ Hint Unfold MemUnit : processor_core_unfold_db.
 Hint Unfold mem_unit_exec : processor_core_unfold_db.
 Hint Unfold MemUnitFuncs.mem_unit_exec_pkt_def : processor_core_unfold_db.
 Hint Unfold MemUnitFuncs.mem_unit_exec_pkt : processor_core_unfold_db.
-Hint Unfold PhysicalMem.mem_region_read_resv : processor_core_unfold_db.
+(*Hint Unfold PhysicalMem.mem_region_read_resv : processor_core_unfold_db.*)
 Hint Unfold PhysicalMem.mem_device_apply : processor_core_unfold_db.
 Hint Unfold MemUnitFuncs.mem_unit_exec_pkt : processor_core_unfold_db.
-Hint Unfold PhysicalMem.mem_region_write_resv : processor_core_unfold_db.
+(*Hint Unfold PhysicalMem.mem_region_write_resv : processor_core_unfold_db.*)
 Hint Unfold PhysicalMem.mem_device_apply : processor_core_unfold_db.
-Hint Unfold PhysicalMem.mem_region_write : processor_core_unfold_db.
+(*Hint Unfold PhysicalMem.mem_region_write : processor_core_unfold_db.*)
 Hint Unfold PhysicalMem.mem_device_apply : processor_core_unfold_db.
-Hint Unfold PhysicalMem.mem_region_write_resv : processor_core_unfold_db.
+(*Hint Unfold PhysicalMem.mem_region_write_resv : processor_core_unfold_db.*)
 Hint Unfold PhysicalMem.mem_device_apply : processor_core_unfold_db.
 Hint Unfold MemUnitFuncs.mem_unit_exec_pkt : processor_core_unfold_db.
 Hint Unfold commit : processor_core_unfold_db.
@@ -1270,6 +1276,37 @@ Hint Unfold commitRet : processor_core_unfold_db.
 Hint Unfold retAction : processor_core_unfold_db.
 Hint Unfold Commit.exitDebugMode : processor_core_unfold_db.
 Hint Unfold debug_hart_state_set : processor_core_unfold_db.
+Hint Unfold Tlb.memSendReqAsyncCont : processor_core_unfold_db.
+Hint Unfold Fetch.fetchTlbMemSendReq : processor_core_unfold_db.
+Hint Unfold memDeviceRequestHandler : processor_core_unfold_db.
+Hint Unfold Fetch.fetchTlbMemSendReqCont : processor_core_unfold_db.
+Hint Unfold Tlb.tlbHandleMemRes : processor_core_unfold_db.
+Hint Unfold Tlb.tlbRet : processor_core_unfold_db.
+Hint Unfold Ifc.write : processor_core_unfold_db.
+Hint Unfold Tlb.cam : processor_core_unfold_db.
+Hint Unfold SimpleCam.SimpleCam : processor_core_unfold_db.
+Hint Unfold Ifc.getVictim : processor_core_unfold_db.
+Hint Unfold SimpleCam.policy : processor_core_unfold_db.
+Hint Unfold Tlb.simpleCamParams : processor_core_unfold_db.
+Hint Unfold PseudoLru.PseudoLru : processor_core_unfold_db.
+Hint Unfold Tlb.tlbRetException : processor_core_unfold_db.
+Hint Unfold Tlb.simpleCamParams : processor_core_unfold_db.
+Hint Unfold PseudoLru.PseudoLru : processor_core_unfold_db.
+Hint Unfold Tlb.memSendReqAsync : processor_core_unfold_db.
+Hint Unfold Fetch.fetchUpper : processor_core_unfold_db.
+Hint Unfold Fetch.fetchGetInstData : processor_core_unfold_db.
+Hint Unfold Fetch.fetchMemTranslate : processor_core_unfold_db.
+Hint Unfold Tlb.tlbFetchPAddr : processor_core_unfold_db.
+Hint Unfold Tlb.tlbHandleReq : processor_core_unfold_db.
+Hint Unfold Tlb.tlb : processor_core_unfold_db.
+Hint Unfold Ifc.read : processor_core_unfold_db.
+Hint Unfold Tlb.memSendReqAsyncCont : processor_core_unfold_db.
+Hint Unfold Fetch.fetchTlbMemSendReq : processor_core_unfold_db.
+Hint Unfold memDeviceRequestHandler : processor_core_unfold_db.
+Hint Unfold Tlb.tlbGetException : processor_core_unfold_db.
+Hint Unfold memDeviceRequestHandler : processor_core_unfold_db.
+Hint Unfold Fetch.fetchLower : processor_core_unfold_db.
+
 
 (*Set Printing Implicit.*)
 
@@ -1312,7 +1349,7 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
-(*SLOW Proof.
+(*Proof.
     intros.
     autorewrite with kami_rewrite_db in H.
     inversion H; subst; clear H.
@@ -1340,12 +1377,286 @@ Theorem WFConcat2:
         * simpl.
           Solve_WfConcatActionT processor_core_unfold_db.
           ++ unfold Pmp.pmp_check.
+             unfold Tlb.memSendReqAsyncCont.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold Fetch.fetchTlbMemSendReq.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             Solve_WfConcatActionT_GatherActions3 db.
+             inversion H1;subst;clear H1.
+             inversion H2;subst;clear H2.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold memDeviceRequestHandler.
+             destruct x.
+             simpl.
+             apply in_tag in H3.
+             simpl in H3.
+             apply mem_device_handler_wellformed.
+             apply H3.
+      - subst.
+        simpl.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        unfold Pmp.pmp_check.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        apply WfConcatActionT_fold_left_stuff1.
+        * Solve_WfConcatActionT processor_core_unfold_db.
+        * Solve_WfConcatActionT processor_core_unfold_db.
+           ++ apply H.
+      - subst.
+        simpl.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        * unfold Pmp.pmp_check.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_fold_left_stuff1.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply H.
+        * unfold Pmp.pmp_check.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_fold_left_stuff1.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply H.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          unfold memDeviceRequestHandler.
+          destruct x.
+          simpl.
+          apply in_tag in H3.
+          simpl in H3.
+          apply mem_device_handler_wellformed.
+          apply H3.
+      - subst.
+        simpl.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        * unfold Pmp.pmp_check.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_fold_left_stuff1.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply H.
+        * unfold Pmp.pmp_check.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          apply WfConcatActionT_fold_left_stuff1.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT processor_core_unfold_db.
+             -- apply H.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          unfold memDeviceRequestHandler.
+          destruct x.
+          simpl.
+          apply in_tag in H3.
+          simpl in H3.
+          apply mem_device_handler_wellformed.
+          apply H3.
+      - subst.
+        simpl.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        unfold Fetch.fetch.
+        Solve_WfConcatActionT processor_core_unfold_db.
+      - subst.
+        simpl.
+        Solve_WfConcatActionT processor_core_unfold_db.
+        * trivialSolve.
+        * trivialSolve.
+        * trivialSolve.
+        * trivialSolve.
+        * trivialSolve.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT_GatherActions3 db.
+             inversion H2;subst;clear H2.
+             inversion H4;subst;clear H4.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold BuildStructAction.
+             apply WfConcatActionT_BuildStructAction_Helper.
+             -- intros.
+                unfold Csrs in H3.
+                destruct H3;subst.
+                Solve_BuildStruct_cases.
+                Solve_BuildStruct_cases.
+                +++ remember (
+                     existsb
+                       (fun '{| ext_name := x; ext_edit := z |} =>
+                        (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                    destruct b.
+                    ** simpl.
+                       discharge_wf.
+                    ** simpl.
+                       discharge_wf.
+                +++ remember (
+                      existsb
+                        (fun '{| ext_name := x; ext_edit := z |} =>
+                         (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                    destruct b.
+                    ** simpl.
+                       discharge_wf.
+                    ** simpl.
+                       discharge_wf.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+             -- Solve_WfConcatActionT_GatherActions3 db.
+                inversion H4;subst;clear H4.
+                inversion H6;subst;clear H6.
+                remember (csrFieldValue (nth_Fin (csrViewFields x0) x1)).
+                destruct c.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT_GatherActions3 db.
+             inversion H2;subst;clear H2.
+             inversion H4;subst;clear H4.
+             Solve_WfConcatActionT processor_core_unfold_db.
+             unfold BuildStructAction.
+             apply WfConcatActionT_BuildStructAction_Helper.
+             -- intros.
+                unfold Csrs in H3.
+                destruct H3;subst.
+                Solve_BuildStruct_cases.
+                Solve_BuildStruct_cases.
+                +++ remember (
+                     existsb
+                       (fun '{| ext_name := x; ext_edit := z |} =>
+                        (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                    destruct b.
+                    ** simpl.
+                       discharge_wf.
+                    ** simpl.
+                       discharge_wf.
+                +++ remember (
+                      existsb
+                        (fun '{| ext_name := x; ext_edit := z |} =>
+                         (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                    destruct b.
+                    ** simpl.
+                       discharge_wf.
+                    ** simpl.
+                       discharge_wf.
+             -- intros.
+                Solve_WfConcatActionT processor_core_unfold_db.
+             -- Solve_WfConcatActionT_GatherActions3 db.
+                inversion H4;subst;clear H4.
+                inversion H6;subst;clear H6.
+                remember (csrFieldValue (nth_Fin (csrViewFields x0) x1)).
+                destruct c.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+                ** Solve_WfConcatActionT processor_core_unfold_db.
+        * trivialSolve.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          Solve_WfConcatActionT_GatherActions3 db.
+          inversion H2;subst;clear H2.
+          inversion H4;subst;clear H4.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          unfold BuildStructAction.
+          apply WfConcatActionT_BuildStructAction_Helper.
+          ++ intros.
+             unfold Csrs in H3.
+             destruct H3;subst.
+             Solve_BuildStruct_cases.
+             Solve_BuildStruct_cases.
+             -- remember (
+                  existsb
+                    (fun '{| ext_name := x; ext_edit := z |} =>
+                     (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                 destruct b.
+                 ** simpl.
+                    discharge_wf.
+                 ** simpl.
+                    discharge_wf.
+             -- remember (
+                   existsb
+                     (fun '{| ext_name := x; ext_edit := z |} =>
+                      (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                 destruct b.
+                 ** simpl.
+                    discharge_wf.
+                 ** simpl.
+                    discharge_wf.
+          ++ intros.
+             Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT_GatherActions3 db.
+             inversion H4;subst;clear H4.
+             inversion H6;subst;clear H6.
+             remember (csrFieldValue (nth_Fin (csrViewFields x0) x1)).
+             destruct c.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+        * Solve_WfConcatActionT_GatherActions3 db.
+          inversion H1;subst;clear H1.
+          inversion H2;subst;clear H2.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          Solve_WfConcatActionT_GatherActions3 db.
+          inversion H2;subst;clear H2.
+          inversion H4;subst;clear H4.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          unfold BuildStructAction.
+          apply WfConcatActionT_BuildStructAction_Helper.
+          ++ intros.
+             unfold Csrs in H3.
+             destruct H3;subst.
+             Solve_BuildStruct_cases.
+             Solve_BuildStruct_cases.
+             -- remember (
+                  existsb
+                    (fun '{| ext_name := x; ext_edit := z |} =>
+                     (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                 destruct b.
+                 ** simpl.
+                    discharge_wf.
+                 ** simpl.
+                    discharge_wf.
+             -- remember (
+                   existsb
+                     (fun '{| ext_name := x; ext_edit := z |} =>
+                      (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+                 destruct b.
+                 ** simpl.
+                    discharge_wf.
+                 ** simpl.
+                    discharge_wf.
+          ++ intros.
+             Solve_WfConcatActionT processor_core_unfold_db.
+          ++ Solve_WfConcatActionT_GatherActions3 db.
+             inversion H4;subst;clear H4.
+             inversion H6;subst;clear H6.
+             remember (csrFieldValue (nth_Fin (csrViewFields x0) x1)).
+             destruct c.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+             ** Solve_WfConcatActionT processor_core_unfold_db.
+        * trivialSolve.
+        * simpl.
+          Solve_WfConcatActionT processor_core_unfold_db.
+          ++ unfold Pmp.pmp_check.
              Solve_WfConcatActionT processor_core_unfold_db.
              apply WfConcatActionT_fold_left_stuff1.
              -- Solve_WfConcatActionT processor_core_unfold_db.
              -- Solve_WfConcatActionT processor_core_unfold_db.
                 ** apply H.
-          ++ Solve_WfConcatActionT_GatherActions2 db.
+          ++ Solve_WfConcatActionT_GatherActions3 db.
+             inversion H1;subst;clear H1.
+             inversion H2;subst;clear H2.
+             Solve_WfConcatActionT processor_core_unfold_db.
+          trivialSolve.
+        * trivialSolve.
+        * trivialSolve.
+
+
           ++ unfold Pmp.pmp_check.
              Solve_WfConcatActionT processor_core_unfold_db.
              apply WfConcatActionT_fold_left_stuff1.
@@ -2006,10 +2317,139 @@ Qed.
 
 Hint Resolve DisjKey_getAllRegisters_memReservationRegFile : wfModProcessor_db.
 
+Theorem DisjKey_concat_map2:
+  forall a b c,
+      DisjKey a
+              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews (b::c))))))) <->
+      DisjKey a (concat (map csr_reg_csr_field (concat (map csrViewFields (csrViews b))))) /\
+      DisjKey a
+              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews c)))))).
+Proof.
+    intros.
+    simpl.
+    autorewrite with simp_csrs.
+    rewrite DisjKey_app2.
+    reflexivity.
+Qed.
+
+Theorem In_map_concat_debug_csr_data_list: forall x l,
+  In x
+      (map fst
+         (concat
+            (map csr_reg_csr_field
+               (concat
+                  (map csrViewFields
+                     (concat
+                        (map csrViews
+                           (map Debug.debug_csr_data l)))))))) ->
+exists q : string,
+  x = @^ ("data" ++ q).
+Proof.
+  intros.
+  induction l.
+  + simpl in H.
+    inversion H.
+  + simpl in H.
+    destruct H.
+    - eapply debug_csr_data_disjoint.
+      simpl.
+      left.
+      apply H.
+    - apply IHl.
+      apply H.
+Qed.
+
+(*Theorem In_map_concat_debug_csr_progbuf_list: forall x l,
+  In x
+      (map fst
+         (concat
+            (map csr_reg_csr_field
+               (concat
+                  (map csrViewFields
+                     (concat
+                        (map csrViews
+                           (map Debug.debug_csr_progbuf l)))))))) ->
+exists q : string,
+  x = @^ ("progbuf" ++ q).
+Proof.
+  intros.
+  induction l.
+  + simpl in H.
+    inversion H.
+  + simpl in H.
+    destruct H.
+    - eapply debug_csrs_prog_buf_disjoint.
+      simpl.
+      apply H.
+      apply IHl.
+      apply H.
+Qed.*)
+
 Theorem DisjKey_getAllRegisters_memReservationFile_processorCore:
   DisjKey (getAllRegisters (BaseRegFile memReservationRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
+(*SLOW Proof.
+    unfold processorCore.
+    autorewrite with kami_rewrite_db;try (apply string_dec).
+    simpl.
+    trivialSolve.
+    + unfold Csrs.
+      unfold csr_regs.
+      apply DisjKey_NubBy2.
+      repeat (rewrite DisjKey_concat_map2;split);
+          autorewrite with simp_csrs;
+          discharge_DisjKey.
+      remember (existsb
+                    (fun '{| ext_name := x; ext_edit := z |} =>
+                    (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+      destruct b.
+      - simpl in H1.
+        discharge_DisjKey.
+      - simpl in H1.
+        discharge_DisjKey.
+    + discharge_DisjKey.
+      apply mem_separate_name_space_regs in H1.
+      destruct H1.
+    + unfold debug_internal_regs.
+      discharge_DisjKey.
+    + unfold debug_csrs.
+      unfold csr_regs.
+      apply DisjKey_NubBy2.
+      repeat (rewrite DisjKey_concat_map2;split);
+          autorewrite with simp_csrs;
+          discharge_DisjKey.
+      autorewrite with simp_csrs in H1.
+      rewrite in_app in H1.
+      destruct H1.
+      - unfold Debug.debug_csrs_data in H.
+        assert (exists (q:string), 
+                ((proc_name++"_memReservation_reg_file")%string=@^("data"++q))).
+        * eapply In_map_concat_debug_csr_data_list.
+          apply H.
+        * inversion H0;subst;clear H0.
+          discharge_append.
+      - discharge_DisjKey.
+        unfold Debug.debug_csrs_progbuf in H0.
+        eapply debug_csrs_prog_buf_disjoint in H0.
+        inversion H0.
+        discharge_append.
+    + unfold Tlb.tlbRegs.
+      simpl.
+      unfold Tlb.tlbMemReqActiveName.
+      discharge_DisjKey.
+    + unfold Fetch.fetchRegs.
+      simpl.
+      unfold Fetch.fetchStateName.
+      unfold Fetch.fetchResultName.
+      unfold Fetch.fetchSendLowerTlbRequestName.
+      unfold Fetch.fetchSendUpperTlbRequestName.
+      unfold Fetch.fetchTlbResultName.
+      discharge_DisjKey.
+    + apply DisjKey_nil2.
+Qed.*)
+
 Admitted.
+
 
 Hint Resolve DisjKey_getAllRegisters_memReservationFile_processorCore : wfModProcessor_db.
 
