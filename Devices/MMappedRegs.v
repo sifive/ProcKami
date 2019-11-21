@@ -91,18 +91,21 @@ Section mmapped.
 
     Local Definition regDeviceParams := {|
       memDeviceParamsRead
-        := fun ty _ addr _
-             => System [
-                  DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
-                ];
-                LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                Ret (STRUCT {
-                  "valid" ::= $$true;
-                  "data" ::= ZeroExtendTruncLsb Rlen #result
-                } : Maybe (Bit Rlen) @# _);
+        := fun ty 
+             => List.repeat
+                  (fun addr _
+                    => System [
+                         DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
+                       ];
+                       LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                       Ret (STRUCT {
+                         "valid" ::= $$true;
+                         "data" ::= ZeroExtendTruncLsb Rlen #result
+                       } : Maybe (Bit Rlen) @# _))
+                  numClientRqs;
 
       memDeviceParamsWrite
-        := fun ty _ req
+        := fun ty req
              => LET addr
                   :  Bit mmregs_realAddrSz
                   <- unsafeTruncLsb mmregs_realAddrSz (req @% "addr");
@@ -139,7 +142,7 @@ Section mmapped.
                        |})
                   (seq 0 4);
            memDeviceRequestHandler
-             := fun _ req => memDeviceHandleRequest regDeviceParams (req @% "tag") (req @% "req");
+             := fun _ index req => memDeviceHandleRequest regDeviceParams index req;
            memDeviceFile
              := if gen_regs
                   then

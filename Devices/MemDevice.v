@@ -54,17 +54,11 @@ Section deviceIfc.
          "data"  :: Data
        }.
 
-  Definition ClientMemDeviceRq
-    := STRUCT_TYPE {
-         "tag" :: ClientRqTag;
-         "req" :: MemDeviceRq
-       }.
-
   Class MemDevice := {
     memDeviceName : string;
     memDeviceIO   : bool;
     memDevicePmas : list PMA;
-    memDeviceRequestHandler : forall ty, ClientMemDeviceRq @# ty -> ActionT ty (Maybe (Maybe Data));
+    memDeviceRequestHandler : forall ty, nat -> MemDeviceRq @# ty -> ActionT ty (Maybe (Maybe Data));
     memDeviceFile : option ((list RegFileBase) + MMRegs)%type
   }.
 
@@ -98,8 +92,8 @@ Section deviceIfc.
       }.
 
   Class MemDeviceParams := {
-    memDeviceParamsRead  : forall ty, ClientRqTag @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data);
-    memDeviceParamsWrite : forall ty, ClientRqTag @# ty -> MemWrite @# ty -> ActionT ty Bool;
+    memDeviceParamsRead  : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
+    memDeviceParamsWrite : forall ty, MemWrite @# ty -> ActionT ty Bool;
 
     memDeviceParamsReadReservation
       : forall ty,
@@ -139,14 +133,18 @@ Section deviceIfc.
                       (isMemWriteValueFn (memOpWriteValue memOp)))).
 
       Local Definition memDeviceRead
-        (tag : ClientRqTag @# ty)
+        (index : nat)
         (code : MemOpCode @# ty)
         (addr : PAddr @# ty)
         (size : MemRqLgSize @# ty)
         :  ActionT ty (Maybe Data)
         := LETA isRead : Bool <- memDeviceIsRead code;
            If #isRead
-             then memDeviceParamsRead tag addr size
+             then
+               match List.nth_error (memDeviceParamsRead ty) index with
+               | Some f => f addr size
+               | _ => Ret Invalid
+               end
              else Ret Invalid
              as result;
            Ret #result.
@@ -156,11 +154,15 @@ Section deviceIfc.
         := applyMemOp
              (fun memOp
                => Ret
-                    $$(match memOpWriteValue memOp with
-                       | memRegValueSc => true
-                       | memWriteValueSc => true
-                       | _ => false
-                       end)).
+                    $$(orb
+                        (match memOpRegValue memOp with
+                         | memRegValueSc => true
+                         | _ => false
+                        end)
+                       (match memOpWriteValue memOp with
+                        | memWriteValueSc => true
+                        | _ => false
+                        end))).
 
       Local Definition memDeviceReadReservation
         (code : MemOpCode @# ty)
@@ -217,7 +219,6 @@ Section deviceIfc.
                       ($(pow2 (pow2 (memOpSize memOp)) - 1)))).
 
       Local Definition memDeviceWrite
-        (tag : ClientRqTag @# ty)
         (addr : PAddr @# ty)
         (writeMask : DataMask @# ty)
         (writeData : Maybe Data @# ty)
@@ -233,7 +234,7 @@ Section deviceIfc.
                       "mask" ::= writeMask;
                       "size" ::= size
                     } : MemWrite @# ty;
-               memDeviceParamsWrite tag #writeReq
+               memDeviceParamsWrite #writeReq
              else Ret $$true
              as result;
            Ret #result.
@@ -285,7 +286,7 @@ Section deviceIfc.
              code.
 
       Definition memDeviceHandleRequest
-        (tag : ClientRqTag @# ty)
+        (index : nat)
         (req : MemDeviceRq @# ty)
         :  ActionT ty (Maybe (Maybe Data))
         := LETA size
@@ -293,7 +294,7 @@ Section deviceIfc.
              <- memDeviceSize (req @% "memOp");
            LETA memData
              :  Maybe Data
-             <- memDeviceRead tag (req @% "memOp") (req @% "addr") #size;
+             <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
            LETA reservation
              :  Reservation
              <- memDeviceReadReservation (req @% "memOp") (req @% "addr") #size;
@@ -308,12 +309,13 @@ Section deviceIfc.
              <- memDeviceWriteMask (req @% "memOp");
            LETA writeSucceeded
              :  Bool
-             <- memDeviceWrite tag (req @% "addr") #writeMask #writeData #size;
+             <- memDeviceWrite (req @% "addr") #writeMask #writeData #size;
            LETA _ <- memDeviceWriteReservation (req @% "memOp") (req @% "addr") #writeMask #size;
            LETA regData
              :  Maybe Data
              <- memDeviceRegValue (req @% "memOp") (#memData @% "data") #isReservationValid;
            System [
+             DispString _ ("[memDeviceHandleRequest] index: " ++ natToHexStr index ++ "\n");
              DispString _ "[memDeviceHandleRequest] request: ";
              DispHex req;
              DispString _ "\n";

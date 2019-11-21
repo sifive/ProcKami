@@ -14,23 +14,17 @@ Section device.
 
   Local Definition bootRomDeviceParams := {|
     memDeviceParamsRead
-      := fun ty tag addr size
-           => utila_acts_find_pkt
-                (map 
-                  (fun index
-                    => If tag == $index
-                         then
-                           Call result
-                             :  Array Rlen_over_8 (Bit 8)
-                             <- (read_name index) (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                           Ret (Valid (pack #result): Maybe Data @# ty)
-                         else Ret (Invalid : Maybe Data @# ty)
-                         as result;
-                       Ret #result)
-                  (seq 0 numClientRqs));
+      := fun ty
+           => map
+                (fun index addr size
+                  => Call result
+                       :  Array Rlen_over_8 (Bit 8)
+                       <- (read_name index) (SignExtendTruncLsb _ addr : Bit lgMemSz);
+                     Ret (Valid (pack #result): Maybe Data @# ty))
+                (seq 0 numClientRqs);
 
     memDeviceParamsWrite
-      := fun _ _ _ => Ret $$false;
+      := fun _ _ => Ret $$false;
 
     memDeviceParamsReadReservation
       := fun ty _ _ => Ret $$(getDefaultConst Reservation);
@@ -58,7 +52,7 @@ Section device.
                      |})
                 (seq 0 4);
          memDeviceRequestHandler
-           := fun _ req => memDeviceHandleRequest bootRomDeviceParams (req @% "tag") (req @% "req");
+           := fun _ index req => memDeviceHandleRequest bootRomDeviceParams index req;
          memDeviceFile
            := Some
                 (inl [

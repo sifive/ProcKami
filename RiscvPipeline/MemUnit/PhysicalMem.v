@@ -300,11 +300,7 @@ Section pmem.
                      } : MemDeviceRq @# ty;
                 LETA result
                   :  Maybe (Maybe Data)
-                  <- memDeviceRequestHandler
-                       (STRUCT {
-                          "tag" ::= $index;
-                          "req" ::= #req
-                        } : ClientMemDeviceRq @# ty);
+                  <- memDeviceRequestHandler index #req;
                 Ret
                   (IF #result @% "valid"
                      then Valid (#result @% "data" @% "data") : Maybe Data @# ty

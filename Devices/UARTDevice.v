@@ -25,20 +25,23 @@ Section device.
 
   Local Definition uartDeviceParams := {|
     memDeviceParamsRead
-      := fun ty _ addr size
-           => LET readRq
-                :  UARTRead
-                <- (STRUCT {
-                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
-                     "size" ::= size
-                   } : UARTRead @# ty);
-              Call result
-                :  Bit 64
-                <- @^"readUART" (#readRq : UARTRead);
-              Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe Data @# ty);
+      := fun ty
+           => List.repeat
+                (fun addr size
+                  => LET readRq
+                       :  UARTRead
+                       <- (STRUCT {
+                            "addr" ::= SignExtendTruncLsb lgMemSz addr;
+                            "size" ::= size
+                          } : UARTRead @# ty);
+                     Call result
+                       :  Bit 64
+                       <- @^"readUART" (#readRq : UARTRead);
+                     Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe Data @# ty))
+                numClientRqs;
 
     memDeviceParamsWrite
-      := fun ty _ req
+      := fun ty req
            => LET writeRq
                 :  UARTWrite
                 <- (STRUCT {
@@ -83,7 +86,7 @@ Section device.
                      |})
                 (seq 0 4));
          memDeviceRequestHandler
-           := fun _ req => memDeviceHandleRequest uartDeviceParams (req @% "tag") (req @% "req");
+           := fun _ index req => memDeviceHandleRequest uartDeviceParams index req;
          memDeviceFile := None
        |}.
 
