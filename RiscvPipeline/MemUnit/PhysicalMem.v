@@ -149,19 +149,26 @@ Section pmem.
 
     Local Definition getDTag
       (paddr : PAddr @# ty)
-      :  ActionT ty (Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr)))
-      := mem_region_apply
-           paddr
-           (fun region device_offset
-             => Ret
-                  (match mem_region_device region return Maybe (Pair (DeviceTag mem_devices) PAddr) @# ty with
-                    | None => Invalid
-                    | Some dtag
-                      => Valid (STRUCT {
-                             "fst" ::=  $(proj1_sig (to_nat dtag));
-                             "snd" ::= device_offset
-                           } : Pair (DeviceTag mem_devices) PAddr @# ty)
-                    end)).
+      :  ActionT ty (Maybe (Pair (DeviceTag mem_devices) PAddr))
+      := LETA result
+           :  Maybe ((Maybe (Pair (DeviceTag mem_devices) PAddr)))
+           <- mem_region_apply
+                paddr
+                (fun region device_offset
+                  => Ret
+                       (match mem_region_device region return Maybe (Pair (DeviceTag mem_devices) PAddr) @# ty with
+                         | None => Invalid
+                         | Some dtag
+                           => Valid (STRUCT {
+                                  "fst" ::=  $(proj1_sig (to_nat dtag));
+                                  "snd" ::= device_offset
+                                } : Pair (DeviceTag mem_devices) PAddr @# ty)
+                         end));
+         If #result @% "valid"
+           then Ret (#result @% "data")
+           else Ret (Invalid : Maybe (Pair (DeviceTag mem_devices) PAddr) @# ty)
+           as result;
+         Ret #result.
 
     (*
       Note: we assume that device tags will always be valid given
@@ -187,17 +194,17 @@ Section pmem.
                   (tag mem_devices));
          Ret (#result @% "data").
         
-    Local Definition checkPMAs
-      (access_type : VmAccessType @# ty)
-      (paddr : PAddr @# ty)
-      (paddr_len : MemRqLgSize @# ty)
+    Local Definition checkPMA
       (dtag : DeviceTag mem_devices @# ty)
+      (offset : PAddr @# ty)
+      (req_len : MemRqLgSize @# ty)
+      (access_type : VmAccessType @# ty)
       (lrsc : Bool @# ty)
       :  ActionT ty PmaSuccessPkt 
       := mem_device_apply dtag
            (fun device
              => let acc_pmas f := CABool Or (map f memDevicePmas) in
-                let width_match pma := paddr_len == $(pma_width pma) in
+                let width_match pma := req_len == $(pma_width pma) in
                 Ret (STRUCT {
                     "width" ::= acc_pmas width_match;
                     "pma"
@@ -216,7 +223,7 @@ Section pmem.
                       ::= acc_pmas
                            (fun pma
                              => width_match pma &&
-                                (isAligned paddr paddr_len || 
+                                (isAligned offset req_len || 
                                  $$(pma_misaligned pma)));
                     "lrsc"
                       ::= acc_pmas
@@ -234,7 +241,7 @@ Section pmem.
       :  ActionT ty (Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt)
       := LETA pmp_result
            :  Bool
-           <- pmp_check_access access_type mode paddr paddr_len; 
+           <- checkPMP access_type mode paddr paddr_len; 
          LET bound_result
            :  Bool
            <- mode == $MachineMode ||
@@ -245,16 +252,16 @@ Section pmem.
                   => $0 == ZeroExtendTruncMsb (Xlen - vm_mode_width vm_mode) paddr
                 );
          LETA mresult
-           :  Maybe (Maybe (Pair (DeviceTag mem_devices) PAddr))
+           :  Maybe (Pair (DeviceTag mem_devices) PAddr)
            <- getDTag paddr;
          LETA pma_result
            :  PmaSuccessPkt
-           <- checkPMAs access_type paddr paddr_len (#mresult @% "data" @% "data" @% "fst") lrsc;
+           <- checkPMA (#mresult @% "data" @% "fst") paddr paddr_len access_type lrsc;
          LET err_pkt : MemErrorPkt
            <- STRUCT {
                 "pmp"        ::= !#pmp_result;
                 "paddr"      ::= !#bound_result;
-                "range"      ::= !((#mresult @% "valid") || #mresult @% "data" @% "valid") ;
+                "range"      ::= !(#mresult @% "valid") ;
                 "width"      ::= !(#pma_result @% "width");
                 "pma"        ::= !(#pma_result @% "pma");
                 "misaligned" ::= !(#pma_result @% "misaligned");
@@ -262,14 +269,14 @@ Section pmem.
               } : MemErrorPkt @# ty;
          System [
            DispString _ "[checkForFault] device tag and offset: ";
-           DispHex (#mresult @% "data" @% "data");
+           DispHex (#mresult @% "data");
            DispString _ "\n";
            DispString _ "[checkForFault] err pkt: ";
            DispHex #err_pkt;
            DispString _ "\n"
          ];
          Ret (STRUCT {
-           "fst" ::= #mresult @% "data" @% "data";
+           "fst" ::= #mresult @% "data";
            "snd" ::= #err_pkt
          } : Pair (Pair (DeviceTag mem_devices) PAddr) MemErrorPkt @# ty).
 
