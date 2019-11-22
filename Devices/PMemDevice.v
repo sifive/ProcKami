@@ -10,17 +10,52 @@ Section mem_devices.
   Open Scope kami_expr.
   Open Scope kami_action.
 
+  Local Definition pMemDeviceStateRegName   := @^"pmem_device_state".
+  Local Definition pMemDeviceReqRegName     := @^"pmem_device_req".
+  Local Definition pMemDeviceReadResRegName := @^"pmem_device_read_res".
+
+  Definition pMemDeviceRegSpecs := [
+    {|
+      regSpecName := pMemDeviceStateRegName;
+      regSpecKind := MemDeviceState;
+      regSpecInit := Some (ConstBit $MemDeviceStateReady)
+    |};
+    {|
+      regSpecName := pMemDeviceReqRegName;
+      regSpecKind := MemDeviceRq;
+      regSpecInit := None
+    |};
+    {|
+      regSpecName := pMemDeviceReadResRegName;
+      regSpecKind := Maybe Data;
+      regSpecInit := None
+    |}
+  ].
+
+  Local Definition pMemDeviceRegs := {|
+    memDeviceParamsStateRegName   := pMemDeviceStateRegName;
+    memDeviceParamsReqRegName     := pMemDeviceReqRegName;
+    memDeviceParamsReadResRegName := pMemDeviceReadResRegName
+  |}.
+
   Local Definition pMemDeviceParams := {|
+    memDeviceRegs := pMemDeviceRegs;
+
     memDeviceParamsRead
       := fun ty
            => (map
                 (fun index
                   => fun addr _
-                       => Call result
+                       => Call readData
                             :  Array Rlen_over_8 (Bit 8)
                             <- (@^"readMem" ++ (natToHexStr index))
                                  (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                          Ret (Valid (pack #result) : Maybe Data @# ty))
+                          (* TODO: remove temporary *)
+                          LET result
+                            :  Maybe Data
+                            <- Valid (pack #readData) : Maybe Data @# ty;
+                          LETA _ <- memDeviceStoreReadResFn pMemDeviceRegs #result;
+                          Ret #result)
                 (seq 0 numClientRqs));
 
     memDeviceParamsWrite
@@ -60,8 +95,13 @@ Section mem_devices.
          memDeviceName := "main memory";
          memDeviceIO := false;
          memDevicePmas := pmas_default;
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest pMemDeviceParams index req;
+
+         memDeviceSendReq
+           := fun _ index req => memDeviceSendReqFn pMemDeviceParams index req;
+
+         memDeviceGetRes
+           := fun ty => memDeviceGetResFn ty pMemDeviceParams;
+         
          memDeviceFile
            := Some
                 (inl [@Build_RegFileBase

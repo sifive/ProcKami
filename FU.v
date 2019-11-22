@@ -1001,3 +1001,22 @@ Section Params.
   Definition DebugCauseHalt   := 3.
   Definition DebugCauseStep   := 4.
 End Params.
+
+Record RegSpec
+  := {
+    regSpecName : string;
+    regSpecKind : Kind;
+    regSpecInit : option (ConstT regSpecKind)
+  }.
+
+Definition regSpecRegs
+  := map
+       (fun spec : RegSpec
+         => (regSpecName spec,
+             existT RegInitValT
+               (SyntaxKind (regSpecKind spec))
+               (match regSpecInit spec with
+                | None => None
+                | Some init
+                  => Some (SyntaxConst init)
+                end))).

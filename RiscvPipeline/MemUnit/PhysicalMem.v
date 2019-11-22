@@ -298,9 +298,11 @@ Section pmem.
                        "addr" ::= daddr;
                        "data" ::= $0
                      } : MemDeviceRq @# ty;
-                LETA result
+                LET result
                   :  Maybe (Maybe Data)
-                  <- memDeviceRequestHandler index #req;
+                  (* TODO: split into rule that sends the memory request and a rule that polls for a response and then performs the continuation. *)
+                  (* <- memDeviceRequestHandler index #req; *)
+                  <- $$(getDefaultConst (Maybe (Maybe Data)));
                 Ret
                   (IF #result @% "valid"
                      then Valid (#result @% "data" @% "data") : Maybe Data @# ty

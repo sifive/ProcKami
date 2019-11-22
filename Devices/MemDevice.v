@@ -63,12 +63,12 @@ Section deviceIfc.
       a memory device request packet; and returns true iff the
       device accepted the request.
     *)
-    memDeviceSendReq : forall ty, nat -> MemDeviceRq @# ty -> bool;
+    memDeviceSendReq : forall ty, nat -> MemDeviceRq @# ty -> ActionT ty Bool;
     (*
       Returns the register value resulting from the requested
       memory operations.
     *)
-    memDeviceGetRes : forall ty, Maybe Data;
+    memDeviceGetRes : forall ty, ActionT ty (Maybe Data);
     memDeviceFile : option ((list RegFileBase) + MMRegs)%type
   }.
 
@@ -109,9 +109,14 @@ Section deviceIfc.
   Definition memDeviceStateWidth := Nat.log2_up numMemDeviceStates.
   Definition MemDeviceState := Bit memDeviceStateWidth.
 
-  Class MemDeviceParams := {
+  Class MemDeviceRegs := {
     memDeviceParamsStateRegName : string;
+    memDeviceParamsReqRegName : string;
     memDeviceParamsReadResRegName : string;
+  }. 
+
+  Class MemDeviceParams := {
+    memDeviceRegs : MemDeviceRegs;
 
     memDeviceParamsRead  : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
     memDeviceParamsWrite : forall ty, MemWrite @# ty -> ActionT ty Bool;
@@ -136,6 +141,21 @@ Section deviceIfc.
 
     Local Open Scope kami_expr.
     Local Open Scope kami_action.
+
+    Section regs.
+      Variable regs : MemDeviceRegs.
+
+      (*
+        Note: called by those memory read actions that return an
+        immediate result, such as memory mapped register reads.
+      *)
+      Definition memDeviceStoreReadResFn
+        (memData : Maybe Data @# ty)
+        :  ActionT ty Void
+        := Write memDeviceParamsReadResRegName : Maybe Data <- memData;
+           Write memDeviceParamsStateRegName : MemDeviceState <- $MemDeviceStateDone;
+           Retv.
+    End regs.
 
     Section device.
       Variable params : MemDeviceParams.
@@ -308,9 +328,9 @@ Section deviceIfc.
 
       Definition memDeviceSendReqFn
         (index : nat)
-        (req : MemDeviceRq @% ty)
+        (req : MemDeviceRq @# ty)
         :  ActionT ty Bool
-        := Read state : MemDeviceState <- memDeviceParamsStateRegName;
+        := Read state : MemDeviceState <- @memDeviceParamsStateRegName memDeviceRegs;
            If #state == $MemDeviceStateReady
              then
                LETA size
@@ -319,76 +339,91 @@ Section deviceIfc.
                LETA memData
                  :  Maybe Data
                  <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
-                   
+               Write (@memDeviceParamsStateRegName memDeviceRegs) : MemDeviceState <- $MemDeviceStateBusy;
+               System [
+                 DispString _ ("[memDeviceSendReqFn] index: " ++ natToHexStr index ++ "\n");
+                 DispString _ "[memDeviceSendReqFn] size: ";
+                 DispHex #size;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceSendReqFn] request: ";
+                 DispHex req;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceSendReqFn] mem data: ";
+                 DispHex #memData;
+                 DispString _ "\n"
+               ];
                Retv;
            Ret (#state == $MemDeviceStateReady).
 
-      Definition memDeviceHandleRequest
-        (index : nat)
-        (req : MemDeviceRq @# ty)
+      Definition memDeviceGetResFn
         :  ActionT ty (Maybe (Maybe Data))
-        := LETA size
-             :  MemRqLgSize
-             <- memDeviceSize (req @% "memOp");
-           LETA memData
-             :  Maybe Data
-             <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
-           LETA reservation
-             :  Reservation
-             <- memDeviceReadReservation (req @% "memOp") (req @% "addr") #size;
-           LETA isReservationValid
-             :  Bool
-             <- memDeviceIsReservationValid (req @% "memOp") #reservation;
-           LETA writeData
-             :  Maybe Data
-             <- memDeviceWriteValue (req @% "memOp") (#memData @% "data") (req @% "data") #isReservationValid;
-           LETA writeMask
-             :  DataMask
-             <- memDeviceWriteMask (req @% "memOp");
-           LETA writeSucceeded
-             :  Bool
-             <- memDeviceWrite (req @% "addr") #writeMask #writeData #size;
-           LETA _ <- memDeviceWriteReservation (req @% "memOp") (req @% "addr") #writeMask #size;
-           LETA regData
-             :  Maybe Data
-             <- memDeviceRegValue (req @% "memOp") (#memData @% "data") #isReservationValid;
-           System [
-             DispString _ ("[memDeviceHandleRequest] index: " ++ natToHexStr index ++ "\n");
-             DispString _ "[memDeviceHandleRequest] request: ";
-             DispHex req;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] size: ";
-             DispHex #size;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] mem data: ";
-             DispHex #memData;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] reservation: ";
-             DispHex #reservation;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] reservation valid: ";
-             DispHex #isReservationValid;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] write data: ";
-             DispHex #writeData;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] write mask: ";
-             DispHex #writeMask;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] write succeeded: ";
-             DispHex #writeSucceeded;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] write succeeded: ";
-             DispHex #writeSucceeded;
-             DispString _ "\n";
-             DispString _ "[memDeviceHandleRequest] reg data: ";
-             DispHex #regData;
-             DispString _ "\n"
-           ];
-           Ret
-             (IF #writeSucceeded
-               then Valid #regData : Maybe (Maybe Data) @# ty
-               else Invalid : Maybe (Maybe Data) @# ty).
+        := Read state : MemDeviceState <- @memDeviceParamsStateRegName memDeviceRegs;
+           If #state == $MemDeviceStateDone
+             then
+               Read req : MemDeviceRq <- @memDeviceParamsReqRegName memDeviceRegs;
+               Read memData : Maybe Data <- @memDeviceParamsReadResRegName memDeviceRegs;
+               LETA size
+                 :  MemRqLgSize
+                 <- memDeviceSize (#req @% "memOp");
+               LETA reservation
+                 :  Reservation
+                 <- memDeviceReadReservation (#req @% "memOp") (#req @% "addr") #size;
+               LETA isReservationValid
+                 :  Bool
+                 <- memDeviceIsReservationValid (#req @% "memOp") #reservation;
+               LETA writeData
+                 :  Maybe Data
+                 <- memDeviceWriteValue (#req @% "memOp") (#memData @% "data") (#req @% "data") #isReservationValid;
+               LETA writeMask
+                 :  DataMask
+                 <- memDeviceWriteMask (#req @% "memOp");
+               LETA writeSucceeded
+                 :  Bool
+                 <- memDeviceWrite (#req @% "addr") #writeMask #writeData #size;
+               LETA _ <- memDeviceWriteReservation (#req @% "memOp") (#req @% "addr") #writeMask #size;
+               LETA regData
+                 :  Maybe Data
+                 <- memDeviceRegValue (#req @% "memOp") (#memData @% "data") #isReservationValid;
+               System [
+                 DispString _ "[memDeviceGetResFn] request: ";
+                 DispHex #req;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] size: ";
+                 DispHex #size;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] mem data: ";
+                 DispHex #memData;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] reservation: ";
+                 DispHex #reservation;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] reservation valid: ";
+                 DispHex #isReservationValid;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] write data: ";
+                 DispHex #writeData;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] write mask: ";
+                 DispHex #writeMask;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] write succeeded: ";
+                 DispHex #writeSucceeded;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] write succeeded: ";
+                 DispHex #writeSucceeded;
+                 DispString _ "\n";
+                 DispString _ "[memDeviceGetResFn] reg data: ";
+                 DispHex #regData;
+                 DispString _ "\n"
+               ];
+               Ret
+                 (IF #writeSucceeded
+                   then Valid #regData : Maybe (Maybe Data) @# ty
+                   else Invalid : Maybe (Maybe Data) @# ty)
+             else
+               Ret Invalid
+             as result;
+           Ret #result.
 
     End device.
 
