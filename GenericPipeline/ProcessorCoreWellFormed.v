@@ -2531,7 +2531,21 @@ Theorem WFConcat7:
     (fold_right ConcatMod (processorCore func_units mem_table)
        (map (fun m : RegFileBase => Base (BaseRegFile m))
           (mem_device_files mem_devices))).
-Admitted.
+Proof.
+    intros.
+    simpl in H.
+    destruct H.
+    + subst.
+      simpl.
+      unfold updateNumDataArrayMask.
+      discharge_wf.
+    + destruct H.
+      - subst.
+        simpl.
+        unfold buildNumDataArray.
+        discharge_wf.
+      - inversion H.
+Qed.
 
 Hint Resolve WFConcat7 : wfModProcessor_db.
 
@@ -2547,6 +2561,108 @@ Admitted.
 
 Hint Resolve WFConcat8 : wfModProcessor_db.
 
+Theorem getRegFileMethods_BaseRegFile_WfConcatActionT:
+  forall c q (meth : string * {x : Signature & MethodT x}),
+  In meth (getRegFileMethods q) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v) c.
+Proof.
+    intros.
+    simpl in H.
+    destruct q.
+    simpl in H.
+    destruct H.
+    + subst.
+      simpl.
+      discharge_wf.
+      destruct rfIsWrMask.
+      - unfold updateNumDataArrayMask.
+        discharge_wf.
+      - unfold updateNumDataArray.
+        discharge_wf.
+    + subst.
+      simpl.
+      destruct rfRead.
+      unfold readRegFile in H.
+      induction reads.
+      - simpl in H.
+        inversion H.
+      - simpl in H.
+        destruct H.
+        * destruct meth.
+          inversion H;subst;clear H.
+          simpl.
+          unfold buildNumDataArray.
+          discharge_wf.
+        * apply IHreads.
+          apply H.
+      - unfold readSyncRegFile in H.
+        destruct isAddr in H.
+        * simpl in H.
+          apply in_app in H.
+          destruct H.
+          ++ induction reads.
+             -- inversion H;subst;clear H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+          ++ induction reads.
+             -- inversion H;subst;clear H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+        * simpl in H.
+          apply in_app in H.
+          destruct H.
+          ++ induction reads.
+             -- inversion H;subst;clear H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+          ++ induction reads.
+             -- inversion H;subst;clear H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+Qed.
+
+Theorem getRegFileMethods_WfConcatActionT:
+  forall l (meth : string * {x : Signature & MethodT x}),
+  In meth
+       (concat
+          (map (fun mm : RegFileBase => getRegFileMethods mm) l)) ->
+  forall v : type (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) type v)
+    (BaseRegFile memReservationRegFile).
+Proof.
+    intros.
+    induction l.
+    + inversion H.
+    + simpl in H.
+      rewrite in_app in H.
+      destruct H.
+      - eapply getRegFileMethods_BaseRegFile_WfConcatActionT.
+        apply H.
+      - apply IHl.
+        apply H.
+Qed.
+
 Theorem WFConcat9:
   forall meth : string * {x : Signature & MethodT x},
   In meth
@@ -2557,6 +2673,19 @@ Theorem WFConcat9:
   forall v : type (fst (projT1 (snd meth))),
   WfConcatActionT (projT2 (snd meth) type v)
     (BaseRegFile memReservationRegFile).
+(*SLOW Proof.
+    discharge_wf.
+
+    intros.
+    autorewrite with kami_rewrite_db in H.
+    inversion H; subst; clear H.
+    + eapply getRegFileMethods_WfConcatActionT.
+      apply H0.
+    + unfold processorCore in H0.
+      autorewrite with kami_rewrite_db in H0.
+      simpl in H0.
+      trivialSolve.
+Qed.*)
 Admitted.
 
 Hint Resolve WFConcat9 : wfModProcessor_db.
