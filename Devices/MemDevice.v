@@ -58,7 +58,17 @@ Section deviceIfc.
     memDeviceName : string;
     memDeviceIO   : bool;
     memDevicePmas : list PMA;
-    memDeviceRequestHandler : forall ty, nat -> MemDeviceRq @# ty -> ActionT ty (Maybe (Maybe Data));
+    (*
+      Accepts two arguments: index: device interface ID; and req,
+      a memory device request packet; and returns true iff the
+      device accepted the request.
+    *)
+    memDeviceSendReq : forall ty, nat -> MemDeviceRq @# ty -> bool;
+    (*
+      Returns the register value resulting from the requested
+      memory operations.
+    *)
+    memDeviceGetRes : forall ty, Maybe Data;
     memDeviceFile : option ((list RegFileBase) + MMRegs)%type
   }.
 
@@ -91,7 +101,18 @@ Section deviceIfc.
         mtbl_entry_device : Fin.t (length mem_devices)
       }.
 
+  Definition MemDeviceStateReady := 0.
+  Definition MemDeviceStateBusy := 1.
+  Definition MemDeviceStateDone := 2.
+
+  Definition numMemDeviceStates := 3.
+  Definition memDeviceStateWidth := Nat.log2_up numMemDeviceStates.
+  Definition MemDeviceState := Bit memDeviceStateWidth.
+
   Class MemDeviceParams := {
+    memDeviceParamsStateRegName : string;
+    memDeviceParamsReadResRegName : string;
+
     memDeviceParamsRead  : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
     memDeviceParamsWrite : forall ty, MemWrite @# ty -> ActionT ty Bool;
 
@@ -284,6 +305,23 @@ Section deviceIfc.
                       => Ret (Invalid : Maybe Data @# ty)
                     end)
              code.
+
+      Definition memDeviceSendReqFn
+        (index : nat)
+        (req : MemDeviceRq @% ty)
+        :  ActionT ty Bool
+        := Read state : MemDeviceState <- memDeviceParamsStateRegName;
+           If #state == $MemDeviceStateReady
+             then
+               LETA size
+                 :  MemRqLgSize
+                 <- memDeviceSize (req @% "memOp");
+               LETA memData
+                 :  Maybe Data
+                 <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
+                   
+               Retv;
+           Ret (#state == $MemDeviceStateReady).
 
       Definition memDeviceHandleRequest
         (index : nat)
