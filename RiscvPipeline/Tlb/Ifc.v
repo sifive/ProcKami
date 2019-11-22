@@ -17,15 +17,16 @@ Section tlb.
     := {
          NumReqs : nat;
          EntriesNum : nat;
-         MemDevices : list MemDevice;
-         MemTable : list (MemTableEntry MemDevices);
          (*
            Accepts a device tag and a device offset; sends a read
            request to the device; and returns true if the request
            was accepted. This function is called by the TLB to read
            page table entries.
+ 
+           * Invalid - device busy, retry
+           * Valid - request accepted, possible error
          *)
-         MemSendReq : forall ty, DeviceTag MemDevices @# ty -> PAddr @# ty -> ActionT ty Bool
+         MemSendReq : forall ty, PAddr @# ty -> ActionT ty (Maybe MemErrorPkt)
        }.
 
   Section interface.
@@ -34,6 +35,18 @@ Section tlb.
     Definition ReqId := Bit (Nat.log2_up NumReqs).
     Definition PAddr := Bit PAddrSz.
 
+    Definition HandleReqInput
+      := STRUCT_TYPE {
+           "satp_mode"   :: Bit SatpModeWidth;
+           "mxr"         :: Bool;
+           "sum"         :: Bool;
+           "mode"        :: PrivMode;
+           "satp_ppn"    :: Bit 44;
+           "req_id"      :: ReqId;
+           "access_type" :: VmAccessType;
+           "vaddr"       :: VAddr
+         }.
+
     Record Tlb
       := {
            (*
@@ -41,20 +54,11 @@ Section tlb.
              equivalent physical address or returns an exception.
            *)
            HandleReq
-             :  forall ty,
-                  Bit SatpModeWidth @# ty ->
-                  Bool @# ty ->
-                  Bool @# ty ->
-                  PrivMode @# ty ->
-                  Bit 44 @# ty ->
-                  ReqId @# ty ->
-                  VmAccessType @# ty ->
-                  VAddr @# ty ->
-                  ActionT ty (Maybe (PktWithException PAddr));
+             : forall ty, ty HandleReqInput -> ActionT ty (Maybe (PktWithException PAddr));
 
            (* mem response callback *)
            HandleMemRes 
-             :  forall ty, Data @# ty -> ActionT ty Void
+             : forall ty, Data @# ty -> ActionT ty Void
          }.
   End interface.
 
