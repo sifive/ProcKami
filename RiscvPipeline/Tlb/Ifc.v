@@ -15,7 +15,7 @@ Section tlb.
 
   Class TlbParams
     := {
-         NumReqs : nat;
+         NumClients : nat;
          EntriesNum : nat;
          (*
            Accepts a device tag and a device offset; sends a read
@@ -26,13 +26,13 @@ Section tlb.
            * Invalid - device busy, retry
            * Valid - request accepted, possible error
          *)
-         MemSendReq : forall ty, PAddr @# ty -> ActionT ty (Maybe MemErrorPkt)
+         MemSendReq : forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt)
        }.
 
   Section interface.
     Context `{tlbParams : TlbParams}.
 
-    Definition ReqId := Bit (Nat.log2_up NumReqs).
+    Definition ClientId := Bit (Nat.log2_up NumClients).
     Definition PAddr := Bit PAddrSz.
 
     Definition HandleReqInput
@@ -42,7 +42,7 @@ Section tlb.
            "sum"         :: Bool;
            "mode"        :: PrivMode;
            "satp_ppn"    :: Bit 44;
-           "req_id"      :: ReqId;
+           "client_id"   :: ClientId;
            "access_type" :: VmAccessType;
            "vaddr"       :: VAddr
          }.
@@ -58,7 +58,7 @@ Section tlb.
 
            (* mem response callback *)
            HandleMemRes 
-             : forall ty, Data @# ty -> ActionT ty Void
+             : forall ty, ty Data -> ActionT ty Void
          }.
   End interface.
 
