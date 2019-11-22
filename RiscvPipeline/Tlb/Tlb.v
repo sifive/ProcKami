@@ -138,7 +138,7 @@ Section tlb.
 
   Local Definition TlbReq
     := STRUCT_TYPE {
-         "req_id" :: ReqId;
+         "client_id" :: ClientId;
          "vaddr"  :: VAddr
        }.
 
@@ -569,7 +569,7 @@ Section tlb.
                DispHex #req;
                DispString _ "\n"
              ];
-             LETA res : Maybe MemErrorPkt <- MemSendReq #req;
+             LETA res : Maybe MemErrorPkt <- MemSendReq ty req;
              System [
                DispString _ "[memSendReqAsyncCont] res: ";
                DispHex #res;
@@ -610,7 +610,7 @@ Section tlb.
            then 
              Read orig_req  : TlbReq          <- @^"tlbReq";
              Read exception : Maybe Exception <- @^"tlbReqException";
-             If #orig_req @% "req_id" == req @% "req_id"
+             If #orig_req @% "client_id" == req @% "client_id"
                then
                  Write @^"tlbState" : TlbState
                    <- #state
@@ -851,7 +851,7 @@ Section tlb.
          LET req
            :  TlbReq
            <- STRUCT {
-                "req_id" ::= (tlbReq @% "req_id");
+                "client_id" ::= (tlbReq @% "client_id");
                 "vaddr"  ::= (tlbReq @% "vaddr")
               } : TlbReq @# ty;
          LETA mentry
@@ -914,7 +914,7 @@ Section tlb.
   Definition stdTlb : Tlb
     := {|
          HandleReq := fun _ req => tlbHandleReq #req;
-         HandleMemRes := tlbHandleMemRes
+         HandleMemRes := fun _ data => tlbHandleMemRes #data
        |}.
 
   Local Close Scope kami_action.
