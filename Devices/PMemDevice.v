@@ -11,10 +11,13 @@ Section mem_devices.
   Open Scope kami_action.
 
   Local Definition pMemDeviceName := "main_memory".
+  Local Definition pMemDeviceSendReqName := @^(pMemDeviceName ++ "SendReadReq").
+  Local Definition pMemDeviceGetResName := @^(pMemDeviceName ++ "getReadRes").
 
   Definition pMemDeviceRegSpecs := createMemDeviceRegSpecs pMemDeviceName.
 
-  Local Definition pMemDeviceRegNames := createMemDeviceRegNames pMemDeviceName;
+  Local Definition pMemDeviceRegNames := createMemDeviceRegNames pMemDeviceName.
+
 
   Local Definition pMemDeviceParams := {|
     memDeviceParamsRegNames := pMemDeviceRegNames;
@@ -89,8 +92,8 @@ Section mem_devices.
                   (Sync
                     true (* TODO: what does this arg represent? *) 
                     {|
-                      readReqName := @^(pMemDeviceName ++ "SendReadReq");
-                      readResName := @^(pMemDeviceName ++ "getReadRes");
+                      readReqName := pMemDeviceSendReqName; (* must be called to send the request *)
+                      readResName := pMemDeviceGetResName; (* must be called to get the response *)
                       readRegName := memDeviceParamsReadResRegName pMemDeviceRegNames
                     |}
 (* [
