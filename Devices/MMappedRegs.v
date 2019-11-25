@@ -89,73 +89,82 @@ Section mmapped.
 
     End ty.
 
-    Local Definition regDeviceParams := {|
-      memDeviceParamsRead
-        := fun ty 
-             => List.repeat
-                  (fun addr _
-                    => System [
-                         DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
-                       ];
-                       LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                       Ret (STRUCT {
-                         "valid" ::= $$true;
-                         "data" ::= ZeroExtendTruncLsb Rlen #result
-                       } : Maybe (Bit Rlen) @# _))
-                  numClientRqs;
+    Section deviceName.
+      Variable deviceName : string.
 
-      memDeviceParamsWrite
-        := fun ty req
-             => LET addr
-                  :  Bit mmregs_realAddrSz
-                  <- unsafeTruncLsb mmregs_realAddrSz (req @% "addr");
-                LETA _
-                  <- mm_write #addr
-                       (ZeroExtendTruncLsb dataSz (req @% "data"));
-                Ret $$true;
+      Local Definition regDeviceParams := {|
+        memDeviceParamsRegNames := createMemDeviceRegNames deviceName;
 
-      memDeviceParamsReadReservation
-        := fun ty _ _ => Ret $$(getDefaultConst Reservation);
+        memDeviceParamsRead
+          := fun ty 
+               => List.repeat
+                    (fun addr _
+                      => System [
+                           DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
+                         ];
+                         LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                         Ret (STRUCT {
+                           "valid" ::= $$true;
+                           "data" ::= ZeroExtendTruncLsb Rlen #result
+                         } : Maybe (Bit Rlen) @# _))
+                    numClientRqs;
 
-      memDeviceParamsWriteReservation
-        := fun ty _ _ _ _ => Retv
-    |}.
+        memDeviceParamsWrite
+          := fun ty req
+               => LET addr
+                    :  Bit mmregs_realAddrSz
+                    <- unsafeTruncLsb mmregs_realAddrSz (req @% "addr");
+                  LETA _
+                    <- mm_write #addr
+                         (ZeroExtendTruncLsb dataSz (req @% "data"));
+                  Ret $$true;
 
-    Definition gen_reg_device
-      (device_name : string)
-      (gen_regs : bool)
-      :  MemDevice
-      := {|
-           memDeviceName := device_name;
-           memDeviceIO := true;
-           memDevicePmas
-             := map
-                  (fun width
-                    => {|
-                         pma_width      := width;
-                         pma_readable   := true;
-                         pma_writeable  := true;
-                         pma_executable := true;
-                         pma_misaligned := true;
-                         pma_lrsc       := false;
-                         pma_amo        := AMONone
-                       |})
-                  (seq 0 4);
-           memDeviceRequestHandler
-             := fun _ index req => memDeviceHandleRequest regDeviceParams index req;
-           memDeviceFile
-             := if gen_regs
-                  then
-                    Some
-                      (inr
-                        {|
-                          mmregs_dev_lgNumRegs := mmregs_realAddrSz;
-                          mmregs_dev_regs      := mmregs
-                        |})
-                  else None
-         |}.
+        memDeviceParamsReadReservation
+          := fun ty _ _ => Ret $$(getDefaultConst Reservation);
 
+        memDeviceParamsWriteReservation
+          := fun ty _ _ _ _ => Retv
+      |}.
+
+      Definition gen_reg_device
+        (gen_regs : bool)
+        :  MemDevice
+        := {|
+             memDeviceName := deviceName;
+             memDeviceIO := true;
+             memDevicePmas
+               := map
+                    (fun width
+                      => {|
+                           pma_width      := width;
+                           pma_readable   := true;
+                           pma_writeable  := true;
+                           pma_executable := true;
+                           pma_misaligned := true;
+                           pma_lrsc       := false;
+                           pma_amo        := AMONone
+                         |})
+                    (seq 0 4);
+             memDeviceSendReq
+               := fun _ index req => memDeviceSendReqFn regDeviceParams index req;
+             memDeviceGetRes
+               := fun ty => memDeviceGetResFn ty regDeviceParams;
+             memDeviceFile
+               := if gen_regs
+                    then
+                      Some
+                        (inr
+                          {|
+                            mmregs_dev_lgNumRegs := mmregs_realAddrSz;
+                            mmregs_dev_regs      := mmregs
+                          |})
+                    else None
+           |}.
+
+    End deviceName.
   End params.
+
+  Local Definition msipDeviceName := "msip".
 
   Definition msipDevice
     := @gen_reg_device
@@ -166,7 +175,11 @@ Section mmapped.
              gr_kind := Bit 64;
              gr_name := @^"msip"
            |}
-         ] "msip" false.
+         ] msipDeviceName false.
+
+  Definition msipDeviceRegs := regSpecRegs (createMemDeviceRegSpecs msipDeviceName).
+
+  Local Definition mtimeDeviceName := "mtime".
 
   Definition mtimeDevice
     := @gen_reg_device
@@ -177,7 +190,11 @@ Section mmapped.
              gr_kind := Bit 64;
              gr_name := @^"mtime"
            |}
-         ] "mtime" false.
+         ] mtimeDeviceName false.
+
+  Definition mtimeDeviceRegs := regSpecRegs (createMemDeviceRegSpecs mtimeDeviceName).
+
+  Local Definition mtimecmpDeviceName := "mtimecmp".
 
   Definition mtimecmpDevice
     := @gen_reg_device
@@ -188,7 +205,9 @@ Section mmapped.
              gr_kind := Bit 64;
              gr_name := @^"mtimecmp"
            |}
-         ] "mtimecmp" false.
+         ] mtimecmpDeviceName false.
+
+  Definition mtimecmpDeviceRegs := regSpecRegs (createMemDeviceRegSpecs mtimecmpDeviceName).
 
   Close Scope kami_action.
   Close Scope kami_expr.

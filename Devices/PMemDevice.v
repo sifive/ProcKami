@@ -10,36 +10,12 @@ Section mem_devices.
   Open Scope kami_expr.
   Open Scope kami_action.
 
-  Local Definition pMemDeviceStateRegName   := @^"pmem_device_state".
-  Local Definition pMemDeviceReqRegName     := @^"pmem_device_req".
-  Local Definition pMemDeviceReadResRegName := @^"pmem_device_read_res".
+  Local Definition pMemDeviceName := "main_memory".
 
-  Definition pMemDeviceRegSpecs := [
-    {|
-      regSpecName := pMemDeviceStateRegName;
-      regSpecKind := MemDeviceState;
-      regSpecInit := Some (ConstBit $MemDeviceStateReady)
-    |};
-    {|
-      regSpecName := pMemDeviceReqRegName;
-      regSpecKind := MemDeviceRq;
-      regSpecInit := None
-    |};
-    {|
-      regSpecName := pMemDeviceReadResRegName;
-      regSpecKind := Maybe Data;
-      regSpecInit := None
-    |}
-  ].
-
-  Local Definition pMemDeviceRegs := {|
-    memDeviceParamsStateRegName   := pMemDeviceStateRegName;
-    memDeviceParamsReqRegName     := pMemDeviceReqRegName;
-    memDeviceParamsReadResRegName := pMemDeviceReadResRegName
-  |}.
+  Definition pMemDeviceRegSpecs := createMemDeviceRegSpecs pMemDeviceName.
 
   Local Definition pMemDeviceParams := {|
-    memDeviceRegs := pMemDeviceRegs;
+    memDeviceParamsRegNames := createMemDeviceRegNames pMemDeviceName;
 
     memDeviceParamsRead
       := fun ty

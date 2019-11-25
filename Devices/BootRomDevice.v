@@ -7,12 +7,15 @@ Section device.
 
   Local Definition lgMemSz := 12.
 
+  Local Definition bootRomDeviceName := "boot_rom".
   Local Definition read_name (index : nat) : string := @^"readROM" ++ natToHexStr index.
 
   Open Scope kami_expr.
   Open Scope kami_action.
 
   Local Definition bootRomDeviceParams := {|
+    memDeviceParamsRegNames := createMemDeviceRegNames bootRomDeviceName;
+
     memDeviceParamsRead
       := fun ty
            => map
@@ -36,7 +39,7 @@ Section device.
   Definition bootRomDevice
     :  MemDevice
     := {|
-         memDeviceName := "boot rom";
+         memDeviceName := bootRomDeviceName;
          memDeviceIO := true;
          memDevicePmas
            := map
@@ -51,8 +54,10 @@ Section device.
                        pma_amo        := AMONone
                      |})
                 (seq 0 4);
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest bootRomDeviceParams index req;
+         memDeviceSendReq
+           := fun _ index req => memDeviceSendReqFn bootRomDeviceParams index req;
+         memDeviceGetRes
+           := fun ty => memDeviceGetResFn ty bootRomDeviceParams;
          memDeviceFile
            := Some
                 (inl [

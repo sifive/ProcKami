@@ -6,6 +6,7 @@ Section device.
   Context `{procParams: ProcParams}.
 
   Local Definition lgMemSz := 8.
+  Local Definition uartDeviceName := "uart_device".
 
   Open Scope kami_expr.
   Open Scope kami_action.
@@ -24,6 +25,8 @@ Section device.
        }.
 
   Local Definition uartDeviceParams := {|
+    memDeviceParamsRegNames := createMemDeviceRegNames uartDeviceName;
+
     memDeviceParamsRead
       := fun ty
            => List.repeat
@@ -70,7 +73,7 @@ Section device.
   Definition uartDevice
     :  MemDevice
     := {|
-         memDeviceName := "uart device";
+         memDeviceName := uartDeviceName;
          memDeviceIO := true;
          memDevicePmas
            := (map
@@ -85,8 +88,10 @@ Section device.
                        pma_amo        := AMONone
                      |})
                 (seq 0 4));
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest uartDeviceParams index req;
+         memDeviceSendReq
+           := fun _ index req => memDeviceSendReqFn uartDeviceParams index req;
+         memDeviceGetRes
+           := fun ty => memDeviceGetResFn ty uartDeviceParams;
          memDeviceFile := None
        |}.
 

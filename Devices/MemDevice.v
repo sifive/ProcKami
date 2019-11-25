@@ -67,8 +67,12 @@ Section deviceIfc.
     (*
       Returns the register value resulting from the requested
       memory operations.
+
+      Note: Invalid if device busy or a write error occured,
+      Valid Invalid if no register update, Valid Valid DATA
+      is the resulting register update.
     *)
-    memDeviceGetRes : forall ty, ActionT ty (Maybe Data);
+    memDeviceGetRes : forall ty, ActionT ty (Maybe (Maybe Data));
     memDeviceFile : option ((list RegFileBase) + MMRegs)%type
   }.
 
@@ -109,14 +113,45 @@ Section deviceIfc.
   Definition memDeviceStateWidth := Nat.log2_up numMemDeviceStates.
   Definition MemDeviceState := Bit memDeviceStateWidth.
 
-  Class MemDeviceRegs := {
+  Record MemDeviceRegNames := {
     memDeviceParamsStateRegName : string;
     memDeviceParamsReqRegName : string;
     memDeviceParamsReadResRegName : string;
   }. 
 
+  Definition createMemDeviceRegNames
+    (deviceName : string)
+    :  MemDeviceRegNames
+    := {|
+         memDeviceParamsStateRegName   := @^(deviceName ++ "_state");
+         memDeviceParamsReqRegName     := @^(deviceName ++ "_req");
+         memDeviceParamsReadResRegName := @^(deviceName ++ "_read_res")
+       |}.
+
+  Definition createMemDeviceRegSpecs
+    (deviceName : string)
+    :  list RegSpec
+    := let names : MemDeviceRegNames := createMemDeviceRegNames deviceName in
+       [
+         {|
+           regSpecName := @memDeviceParamsStateRegName names;
+           regSpecKind := MemDeviceState;
+           regSpecInit := Some (ConstBit $MemDeviceStateReady)
+         |};
+         {|
+           regSpecName := @memDeviceParamsReqRegName names;
+           regSpecKind := MemDeviceRq;
+           regSpecInit := None
+         |};
+         {|
+           regSpecName := @memDeviceParamsReadResRegName names;
+           regSpecKind := Maybe Data;
+           regSpecInit := None
+         |}
+       ].
+
   Class MemDeviceParams := {
-    memDeviceRegs : MemDeviceRegs;
+    memDeviceParamsRegNames : MemDeviceRegNames;
 
     memDeviceParamsRead  : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
     memDeviceParamsWrite : forall ty, MemWrite @# ty -> ActionT ty Bool;
@@ -142,8 +177,8 @@ Section deviceIfc.
     Local Open Scope kami_expr.
     Local Open Scope kami_action.
 
-    Section regs.
-      Variable regs : MemDeviceRegs.
+    Section regNames.
+      Variable regNames : MemDeviceRegNames.
 
       (*
         Note: called by those memory read actions that return an
@@ -152,10 +187,10 @@ Section deviceIfc.
       Definition memDeviceStoreReadResFn
         (memData : Maybe Data @# ty)
         :  ActionT ty Void
-        := Write memDeviceParamsReadResRegName : Maybe Data <- memData;
-           Write memDeviceParamsStateRegName : MemDeviceState <- $MemDeviceStateDone;
+        := Write (memDeviceParamsReadResRegName regNames) : Maybe Data <- memData;
+           Write (memDeviceParamsStateRegName regNames) : MemDeviceState <- $MemDeviceStateDone;
            Retv.
-    End regs.
+    End regNames.
 
     Section device.
       Variable params : MemDeviceParams.
@@ -330,7 +365,7 @@ Section deviceIfc.
         (index : nat)
         (req : MemDeviceRq @# ty)
         :  ActionT ty Bool
-        := Read state : MemDeviceState <- @memDeviceParamsStateRegName memDeviceRegs;
+        := Read state : MemDeviceState <- memDeviceParamsStateRegName memDeviceParamsRegNames;
            If #state == $MemDeviceStateReady
              then
                LETA size
@@ -339,7 +374,7 @@ Section deviceIfc.
                LETA memData
                  :  Maybe Data
                  <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
-               Write (@memDeviceParamsStateRegName memDeviceRegs) : MemDeviceState <- $MemDeviceStateBusy;
+               Write (memDeviceParamsStateRegName memDeviceParamsRegNames) : MemDeviceState <- $MemDeviceStateBusy;
                System [
                  DispString _ ("[memDeviceSendReqFn] index: " ++ natToHexStr index ++ "\n");
                  DispString _ "[memDeviceSendReqFn] size: ";
@@ -357,11 +392,11 @@ Section deviceIfc.
 
       Definition memDeviceGetResFn
         :  ActionT ty (Maybe (Maybe Data))
-        := Read state : MemDeviceState <- @memDeviceParamsStateRegName memDeviceRegs;
+        := Read state : MemDeviceState <- memDeviceParamsStateRegName memDeviceParamsRegNames;
            If #state == $MemDeviceStateDone
              then
-               Read req : MemDeviceRq <- @memDeviceParamsReqRegName memDeviceRegs;
-               Read memData : Maybe Data <- @memDeviceParamsReadResRegName memDeviceRegs;
+               Read req : MemDeviceRq <- memDeviceParamsReqRegName memDeviceParamsRegNames;
+               Read memData : Maybe Data <- memDeviceParamsReadResRegName memDeviceParamsRegNames;
                LETA size
                  :  MemRqLgSize
                  <- memDeviceSize (#req @% "memOp");

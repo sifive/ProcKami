@@ -52,6 +52,9 @@ Section Params.
               Registers (csr_regs Csrs) with
               Register @^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
               Registers (mem_device_regs mem_devices) with
+              Registers msipDeviceRegs with
+              Registers mtimeDeviceRegs with
+              Registers mtimecmpDeviceRegs with
               Registers debug_internal_regs with
               Registers (csr_regs debug_csrs) with
               Rule @^"debug_hart_send_halt_req" := debug_harts_send_halt_req _ with
