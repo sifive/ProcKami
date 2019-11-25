@@ -63,23 +63,15 @@ Section tlb.
   Section ty.
     Variable ty : Kind -> Type.
 
-    Local Definition CamTag
-      := STRUCT_TYPE {
-           "level" :: PtLevel;
-           "vpn" :: Bit VpnWidth
-         }.
-
-    (* Definition CamCtxt := Pair (Bit SatpModeWidth) PtLevel. *)
-    Local Definition CamCtxt := Bit SatpModeWidth.
-
     (*
       Returns true iff the given virtual address's vpn matches the
       vpn associated with the given entry.
     *)
     Local Definition tlbVpnMatch
-      (ctxt : CamCtxt @# ty)
-      (entry : CamTag @# ty)
-      (vaddr : CamTag @# ty)
+      (vaddr : (Bit VpnWidth) @# ty)
+      (ctxt : (Bit SatpModeWidth) @# ty)
+      (entryTag : (Bit VpnWidth) @# ty)
+      (entryData : TlbEntry @# ty)
       :  Bool @# ty
       := let vpn_field_size
            :  Bit (Nat.log2_up 26) @# ty (* TODO *)
@@ -89,7 +81,7 @@ Section tlb.
            := satp_select ctxt (fun mode => $(length (vm_mode_sizes mode))) in
          let num_spanned_vpn_fields
            :  PtLevel @# ty
-           := $((tlbMaxPageLevels - 1)%nat) - (entry @% "level") in
+           := $((tlbMaxPageLevels - 1)%nat) - (entryData @% "level") in
          let vpn_fields_size
            :  Bit (Nat.log2_up VpnWidth) @# ty
            := (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) num_vpn_fields) *
@@ -102,24 +94,16 @@ Section tlb.
            :  Bit (Nat.log2_up VpnWidth) @# ty
            := (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) (num_vpn_fields - num_spanned_vpn_fields)) *
               (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) vpn_field_size) in
-         slice offset vpn_spanned_fields_size (vaddr @% "vpn") ==
-         slice offset vpn_spanned_fields_size (entry @% "vpn").
+         slice offset vpn_spanned_fields_size vaddr ==
+         slice offset vpn_spanned_fields_size entryTag.
 
   End ty.
 
   Instance camParams : Cam.Ifc.CamParams
     := {|
          Cam.Ifc.Data := TlbEntry;
-         MatchRead :=
-         (fun ty (tag : CamTag @# ty)
-           (ctxt : CamCtxt @# ty)
-           (entryTag : CamTag @# ty)
-           => tlbVpnMatch ctxt entryTag tag);
-         MatchClear :=
-         (fun ty (tag : CamTag @# ty)
-           (ctxt : CamCtxt @# ty)
-           (entryTag : CamTag @# ty)
-           => tlbVpnMatch ctxt entryTag tag)
+         MatchRead := tlbVpnMatch;
+         MatchClear := tlbVpnMatch
        |}.
 
   Local Definition pseudoLruParams : PseudoLruParams := {|
@@ -151,8 +135,8 @@ Section tlb.
 
   Local Definition TlbState
     := STRUCT_TYPE {
-         "ready"  :: Bool; (* waiting for caller to retrieve result *)
-         "active" :: Bool; (* performing page walks *)
+         "ready"  :: Bool; (* true iff waiting for caller to retrieve result *)
+         "active" :: Bool; (* true iff not starting new page table walks, either walking or waiting for someone to pick up result *)
          "level"  :: PtLevel
        }.
 
@@ -163,7 +147,7 @@ Section tlb.
          tlbRegInit : option (ConstT tlbRegKind)
        }.
 
-  Local Definition tlbMemReqActiveName := @^"tlbMemReqActive".
+  Local Definition tlbMemReqActiveName := @^"tlbMemReqActive". (* Redundant with TlbState ? *)
 
   Local Definition tlbRegSpecs
     := [
@@ -173,7 +157,7 @@ Section tlb.
            tlbRegInit := Some (ConstBool false)
          |};
          {|
-           tlbRegName := @^"tlbMemReq";
+           tlbRegName := @^"tlbMemReq"; (* Merge with Tlb State *)
            tlbRegKind := PAddr;
            tlbRegInit := Some (getDefaultConst PAddr)
          |};
@@ -183,7 +167,7 @@ Section tlb.
            tlbRegInit := None
          |};
          {|
-           tlbRegName := @^"tlbReqException";
+           tlbRegName := @^"tlbReqException"; (* What is Maybe ? *)
            tlbRegKind := Maybe Exception;
            tlbRegInit := None
          |};
@@ -204,8 +188,8 @@ Section tlb.
          |};
          {|
            tlbRegName := @^"tlbCache";
-           tlbRegKind := Array EntriesNum (Maybe (Pair CamTag TlbEntry));
-           tlbRegInit := Some (getDefaultConst (Array EntriesNum (Maybe (Pair CamTag TlbEntry))))
+           tlbRegKind := Array EntriesNum (Maybe (Pair (Bit VpnWidth) TlbEntry));
+           tlbRegInit := Some (getDefaultConst (Array EntriesNum (Maybe (Pair (Bit VpnWidth) TlbEntry))))
          |}
        ].
 
@@ -501,6 +485,21 @@ Section tlb.
          ];
          RetE #result.
 
+
+    
+    Local Definition tlbFinishException
+      (exception : Maybe Exception @# ty)
+      :  ActionT ty Void
+      := System [
+           DispString _ "[tlbFinishException]\n"
+         ];
+         Write @^"tlbFinishException" : Maybe Exception <- exception;
+         Write @^"tlbState" : TlbState
+           <- $$(getDefaultConst TlbState)
+                @%["ready" <- $$true]
+                @%["active" <- $$true];
+         Retv.
+
     Local Definition tlbRet
       (vpn : Bit VpnWidth @# ty)
       (result : PktWithException TlbEntry @# ty)
@@ -513,38 +512,13 @@ Section tlb.
            DispHex result;
            DispString _ "\n"
          ];
-         Write @^"tlbReqException" : Maybe Exception <- result @% "snd";
          If !(result @% "snd" @% "valid")
            then
-             LET tag 
-               :  CamTag
-               <- STRUCT {
-                    "level" ::= result @% "fst" @% "level";
-                    "vpn" ::= vpn
-                  } : CamTag @# ty;
              System [
                DispString _ "[tlbRet] cached result.\n"
              ];
-             Cam.Ifc.write cam #tag (result @% "fst");
-         Write @^"tlbState" : TlbState
-           <- $$(getDefaultConst TlbState)
-                @%["ready" <- $$true]
-                @%["active" <- $$true];
-        Retv.
-
-    Local Definition tlbRetException
-      (exception : Exception @# ty)
-      :  ActionT ty Void
-      := System [
-           DispString _ "[tlbRetException]\n"
-         ];
-         LET result
-           :  PktWithException TlbEntry
-           <- STRUCT {
-                "fst" ::= $$(getDefaultConst TlbEntry);
-                "snd" ::= Valid exception
-              } : PktWithException TlbEntry @# ty;
-         tlbRet $0 #result.
+             Cam.Ifc.write cam vpn (result @% "fst");
+         tlbFinishException (result @% "snd").
 
     Local Definition memSendReqAsync
       (req : PAddr @# ty)
@@ -581,14 +555,11 @@ Section tlb.
                  System [
                    DispString _ "[memSendReqAsyncCont] deactivated tlb req\n"
                  ];
-                 If mem_error (#res @% "data")
-                   then
-                     Read context : TlbContext <- @^"tlbContext";
-                     tlbRetException
-                       (IF #res @% "data" @% "misaligned"
-                         then misalignedException (#context @% "access_type")
-                         else accessException (#context @% "access_type"));
-                 Retv;
+                 Read context : TlbContext <- @^"tlbContext";
+                 tlbFinishException (STRUCT { "valid" ::= mem_error (#res @% "data") ;
+                                              "data" ::= (IF #res @% "data" @% "misaligned"
+                                                          then misalignedException (#context @% "access_type")
+                                                          else accessException (#context @% "access_type"))});
              Retv;
          Retv.
 
@@ -610,7 +581,7 @@ Section tlb.
            then 
              Read orig_req  : TlbReq          <- @^"tlbReq";
              Read exception : Maybe Exception <- @^"tlbReqException";
-             If #orig_req @% "client_id" == req @% "client_id"
+             If #orig_req @% "client_id" == req @% "client_id" && #orig_req @% "vaddr" == req @% "vaddr"
                then
                  Write @^"tlbState" : TlbState
                    <- #state
@@ -651,11 +622,8 @@ Section tlb.
            DispHex req;
            DispString _ "\n"
          ];
-         LET tag : CamTag
-           <- STRUCT {
-                "level" ::= $0; (* TODO: a bit wasteful. *)
-                "vpn" ::= ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) (req @% "vaddr"))
-              } : CamTag @# ty;
+         LET tag : (Bit VpnWidth)
+           <- ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) (req @% "vaddr"));
          LETA mentry : Maybe TlbEntry
            <- Cam.Ifc.read cam #tag satp_mode;
          Read state : TlbState <- @^"tlbState";
@@ -667,7 +635,7 @@ Section tlb.
            DispHex #state;
            DispString _ "\n"
          ];
-         If !((#mentry @% "valid") || (#state @% "active"))
+         If !(#mentry @% "valid") && !(#state @% "active")
            then 
              Write @^"tlbReq" : TlbReq <- req;
              LETA vpnOffset
@@ -854,6 +822,8 @@ Section tlb.
                 "client_id" ::= (tlbReq @% "client_id");
                 "vaddr"  ::= (tlbReq @% "vaddr")
               } : TlbReq @# ty;
+         (* Valid on cache hit, Invalid and cache miss.
+            If cache miss, initiate a page table walk to add to the cache, if the TLB is not busy doing another page walk *)
          LETA mentry
            :  Maybe TlbEntry
                 <- tlb
@@ -862,6 +832,9 @@ Section tlb.
                      (tlbReq @% "mode")
                      (tlbReq @% "satp_ppn")
                      #req;
+         (* Return the exception generated by last page table walk, and if the req's client ID matches taht which is stored internally, it will mark
+            TLB page table walker as non-busy.
+         *)
          LETA mexception
            :  Maybe Exception <- tlbGetException #req;
          If #mentry @% "valid"
