@@ -147,12 +147,10 @@ Section tlb.
          tlbRegInit : option (ConstT tlbRegKind)
        }.
 
-  Local Definition tlbMemReqActiveName := @^"tlbMemReqActive". (* Redundant with TlbState ? *)
-
   Local Definition tlbRegSpecs
     := [
          {|
-           tlbRegName := tlbMemReqActiveName;
+           tlbRegName := @^"tlbMemReqActive";
            tlbRegKind := Bool;
            tlbRegInit := Some (ConstBool false)
          |};
@@ -527,13 +525,13 @@ Section tlb.
            DispString _ "[memSendReqAsync]\n"
          ];
          Write @^"tlbMemReq" : PAddr <- req;
-         Write tlbMemReqActiveName : Bool <- $$true;
+         Write @^"tlbMemReqActive" : Bool <- $$true;
          Retv.
 
     (* wrap in a rule. *)
     Definition memSendReqAsyncCont
       :  ActionT ty Void
-      := Read active : Bool <- tlbMemReqActiveName;
+      := Read active : Bool <- @^"tlbMemReqActive";
          If #active
            then
              Read req : PAddr <- @^"tlbMemReq";
@@ -551,7 +549,7 @@ Section tlb.
              ];
              If #res @% "valid"
                then
-                 Write tlbMemReqActiveName : Bool <- $$false;
+                 Write @^"tlbMemReqActive" : Bool <- $$false;
                  System [
                    DispString _ "[memSendReqAsyncCont] deactivated tlb req\n"
                  ];
