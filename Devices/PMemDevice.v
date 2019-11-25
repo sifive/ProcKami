@@ -14,8 +14,10 @@ Section mem_devices.
 
   Definition pMemDeviceRegSpecs := createMemDeviceRegSpecs pMemDeviceName.
 
+  Local Definition pMemDeviceRegNames := createMemDeviceRegNames pMemDeviceName;
+
   Local Definition pMemDeviceParams := {|
-    memDeviceParamsRegNames := createMemDeviceRegNames pMemDeviceName;
+    memDeviceParamsRegNames := pMemDeviceRegNames;
 
     memDeviceParamsRead
       := fun ty
@@ -84,7 +86,14 @@ Section mem_devices.
                   true
                   Rlen_over_8
                   (@^"mem_reg_file")
-                  (Async [
+                  (Sync
+                    true (* TODO: what does this arg represent? *) 
+                    {|
+                      readReqName := @^(pMemDeviceName ++ "SendReadReq");
+                      readResName := @^(pMemDeviceName ++ "getReadRes");
+                      readRegName := memDeviceParamsReadResRegName pMemDeviceRegNames
+                    |}
+(* [
                       @^"readMem0"; (* mem unit loads *)
                       @^"readMem1"; (* fetch lower *)
                       @^"readMem2"; (* fetch upper *)
@@ -97,7 +106,7 @@ Section mem_devices.
                       @^"readMem9"; (* fetch upper page table walker read mem call *)
                       @^"readMemA"; (* fetch upper page table walker read mem call *)
                       @^"readMemB"  (* fetch upper page table walker read mem call *)
-                    ])
+                    ] *))
                   (@^"writeMem0")
                   (pow2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
