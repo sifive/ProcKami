@@ -63,6 +63,7 @@ Separate Extraction
          RtlModule
          getRules
          separateModRemove
+         separateModHidesNoInline
 
          model32
          model64
