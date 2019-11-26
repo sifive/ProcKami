@@ -92,22 +92,22 @@ Section mmapped.
     Section deviceName.
       Variable deviceName : string.
 
+      Definition regDeviceRegSpecs : list RegSpec
+        := (createMemDeviceResRegSpec deviceName) ::
+           (createMemDeviceRegSpecs deviceName).
+
+      Local Definition regDeviceRegNames : MemDeviceRegNames := createMemDeviceRegNames deviceName.
+
       Local Definition regDeviceParams := {|
         memDeviceParamsRegNames := createMemDeviceRegNames deviceName;
 
         memDeviceParamsRead
-          := fun ty 
-               => List.repeat
-                    (fun addr _
-                      => System [
-                           DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
-                         ];
-                         LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                         Ret (STRUCT {
-                           "valid" ::= $$true;
-                           "data" ::= ZeroExtendTruncLsb Rlen #result
-                         } : Maybe (Bit Rlen) @# _))
-                    numClientRqs;
+          := fun ty addr _
+               => LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
+                  Write (memDeviceParamsResRegName regDeviceRegNames)
+                    :  Maybe Data
+                    <- Valid (ZeroExtendTruncLsb Rlen #result);
+                  Retv;
 
         memDeviceParamsWrite
           := fun ty req
@@ -118,6 +118,13 @@ Section mmapped.
                     <- mm_write #addr
                          (ZeroExtendTruncLsb dataSz (req @% "data"));
                   Ret $$true;
+
+        memDeviceParamsGetReadRes
+          := fun ty
+               => Read memData
+                    :  Maybe Data
+                    <- memDeviceParamsResRegName regDeviceRegNames;
+                  Ret #memData;
 
         memDeviceParamsReadReservation
           := fun ty _ _ => Ret $$(getDefaultConst Reservation);
@@ -146,7 +153,7 @@ Section mmapped.
                          |})
                     (seq 0 4);
              memDeviceSendReq
-               := fun _ index req => memDeviceSendReqFn regDeviceParams index req;
+               := fun _ req => memDeviceSendReqFn regDeviceParams req;
              memDeviceGetRes
                := fun ty => memDeviceGetResFn ty regDeviceParams;
              memDeviceFile

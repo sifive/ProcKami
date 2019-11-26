@@ -37,12 +37,6 @@ Section deviceIfc.
             |})
          [0; 1; 2; 3].
 
-  Definition numClientRqs := 12.
-
-  Definition clientRqTagSz := Nat.log2_up numClientRqs.
-
-  Definition ClientRqTag := Bit clientRqTagSz.
-
   Definition numMemOp : nat := 37.
 
   Definition MemOp := Bit (Nat.log2_up numMemOp).
@@ -59,11 +53,10 @@ Section deviceIfc.
     memDeviceIO   : bool;
     memDevicePmas : list PMA;
     (*
-      Accepts two arguments: index: device interface ID; and req,
-      a memory device request packet; and returns true iff the
-      device accepted the request.
+      Accepts a memory device request packet, [req], and returns
+      true iff the device accepted the request.
     *)
-    memDeviceSendReq : forall ty, nat -> MemDeviceRq @# ty -> ActionT ty Bool;
+    memDeviceSendReq : forall ty, MemDeviceRq @# ty -> ActionT ty Bool;
     (*
       Returns the register value resulting from the requested
       memory operations.
@@ -105,27 +98,19 @@ Section deviceIfc.
         mtbl_entry_device : Fin.t (length mem_devices)
       }.
 
-  Definition MemDeviceStateReady := 0.
-  Definition MemDeviceStateBusy := 1.
-  Definition MemDeviceStateDone := 2.
-
-  Definition numMemDeviceStates := 3.
-  Definition memDeviceStateWidth := Nat.log2_up numMemDeviceStates.
-  Definition MemDeviceState := Bit memDeviceStateWidth.
-
   Record MemDeviceRegNames := {
-    memDeviceParamsStateRegName : string;
+    memDeviceParamsBusyRegName : string;
     memDeviceParamsReqRegName : string;
-    memDeviceParamsReadResRegName : string;
+    memDeviceParamsResRegName : string
   }. 
 
   Definition createMemDeviceRegNames
     (deviceName : string)
     :  MemDeviceRegNames
     := {|
-         memDeviceParamsStateRegName   := @^(deviceName ++ "_state");
-         memDeviceParamsReqRegName     := @^(deviceName ++ "_req");
-         memDeviceParamsReadResRegName := @^(deviceName ++ "_read_res")
+         memDeviceParamsBusyRegName := @^(deviceName ++ "_busy");
+         memDeviceParamsReqRegName := @^(deviceName ++ "_req");
+         memDeviceParamsResRegName := @^(deviceName ++ "_res")
        |}.
 
   Definition createMemDeviceRegSpecs
@@ -134,27 +119,35 @@ Section deviceIfc.
     := let names : MemDeviceRegNames := createMemDeviceRegNames deviceName in
        [
          {|
-           regSpecName := @memDeviceParamsStateRegName names;
-           regSpecKind := MemDeviceState;
-           regSpecInit := Some (ConstBit $MemDeviceStateReady)
+           regSpecName := @memDeviceParamsBusyRegName names;
+           regSpecKind := Bool;
+           regSpecInit := Some (ConstBool false)
          |};
          {|
            regSpecName := @memDeviceParamsReqRegName names;
            regSpecKind := MemDeviceRq;
            regSpecInit := None
-         |};
-         {|
-           regSpecName := @memDeviceParamsReadResRegName names;
-           regSpecKind := Maybe Data;
-           regSpecInit := None
          |}
        ].
+
+  Definition createMemDeviceResRegSpec
+    (deviceName : string)
+    :  RegSpec
+    := let names : MemDeviceRegNames := createMemDeviceRegNames deviceName in
+       {|
+         regSpecName := @memDeviceParamsResRegName names;
+         regSpecKind := Maybe Data;
+         regSpecInit := None
+       |}.
 
   Class MemDeviceParams := {
     memDeviceParamsRegNames : MemDeviceRegNames;
 
-    memDeviceParamsRead  : forall ty, list (PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty (Maybe Data));
+    memDeviceParamsRead  : forall ty, PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Void;
     memDeviceParamsWrite : forall ty, MemWrite @# ty -> ActionT ty Bool;
+
+    (* Returns the value retrieved by the last read request. *)
+    memDeviceParamsGetReadRes : forall ty, ActionT ty (Maybe Data);
 
     memDeviceParamsReadReservation
       : forall ty,
@@ -177,21 +170,6 @@ Section deviceIfc.
     Local Open Scope kami_expr.
     Local Open Scope kami_action.
 
-    Section regNames.
-      Variable regNames : MemDeviceRegNames.
-
-      (*
-        Note: called by those memory read actions that return an
-        immediate result, such as memory mapped register reads.
-      *)
-      Definition memDeviceStoreReadResFn
-        (memData : Maybe Data @# ty)
-        :  ActionT ty Void
-        := Write (memDeviceParamsReadResRegName regNames) : Maybe Data <- memData;
-           Write (memDeviceParamsStateRegName regNames) : MemDeviceState <- $MemDeviceStateDone;
-           Retv.
-    End regNames.
-
     Section device.
       Variable params : MemDeviceParams.
 
@@ -209,21 +187,14 @@ Section deviceIfc.
                       (isMemWriteValueFn (memOpWriteValue memOp)))).
 
       Local Definition memDeviceRead
-        (index : nat)
         (code : MemOpCode @# ty)
         (addr : PAddr @# ty)
         (size : MemRqLgSize @# ty)
-        :  ActionT ty (Maybe Data)
+        :  ActionT ty Void
         := LETA isRead : Bool <- memDeviceIsRead code;
            If #isRead
-             then
-               match List.nth_error (memDeviceParamsRead ty) index with
-               | Some f => f addr size
-               | _ => Ret Invalid
-               end
-             else Ret Invalid
-             as result;
-           Ret #result.
+             then memDeviceParamsRead addr size;
+           Retv.
 
       Local Definition memDeviceUsesReservation
         :  MemOpCode @# ty -> ActionT ty Bool
@@ -231,14 +202,8 @@ Section deviceIfc.
              (fun memOp
                => Ret
                     $$(orb
-                        (match memOpRegValue memOp with
-                         | memRegValueSc => true
-                         | _ => false
-                        end)
-                       (match memOpWriteValue memOp with
-                        | memWriteValueSc => true
-                        | _ => false
-                        end))).
+                      (isMemRegValueSc (memOpRegValue memOp))
+                      (isMemWriteValueSc (memOpWriteValue memOp)))).
 
       Local Definition memDeviceReadReservation
         (code : MemOpCode @# ty)
@@ -362,103 +327,71 @@ Section deviceIfc.
              code.
 
       Definition memDeviceSendReqFn
-        (index : nat)
         (req : MemDeviceRq @# ty)
         :  ActionT ty Bool
-        := Read state : MemDeviceState <- memDeviceParamsStateRegName memDeviceParamsRegNames;
-           If #state == $MemDeviceStateReady
-             then
-               LETA size
-                 :  MemRqLgSize
-                 <- memDeviceSize (req @% "memOp");
-               LETA memData
-                 :  Maybe Data
-                 <- memDeviceRead index (req @% "memOp") (req @% "addr") #size;
-               Write (memDeviceParamsStateRegName memDeviceParamsRegNames) : MemDeviceState <- $MemDeviceStateBusy;
-               System [
-                 DispString _ ("[memDeviceSendReqFn] index: " ++ natToHexStr index ++ "\n");
-                 DispString _ "[memDeviceSendReqFn] size: ";
-                 DispHex #size;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceSendReqFn] request: ";
-                 DispHex req;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceSendReqFn] mem data: ";
-                 DispHex #memData;
-                 DispString _ "\n"
-               ];
-               Retv;
-           Ret (#state == $MemDeviceStateReady).
+        := Read busy : Bool <- memDeviceParamsBusyRegName memDeviceParamsRegNames;
+           Write (memDeviceParamsBusyRegName memDeviceParamsRegNames) : Bool <- $$true;
+           LETA size
+             :  MemRqLgSize
+             <- memDeviceSize (req @% "memOp");
+           If !#busy
+             then memDeviceRead (req @% "memOp") (req @% "addr") #size;
+           Read currReq
+             :  MemDeviceRq
+             <- memDeviceParamsReqRegName memDeviceParamsRegNames;
+           Write (memDeviceParamsReqRegName memDeviceParamsRegNames)
+             :  MemDeviceRq
+             <- IF #busy
+                  then #currReq
+                  else req;
+           Ret !#busy.
 
+      (*
+        Reads the value returned by the last read request sent to the
+        device; computes a register result, reservation, and memory
+        write value, using the current device request and most recent
+        memory read result; attempts to write the memory write value
+        to memory; and returns the computed register result value.
+
+        * Invalid - retry
+        * Valid Invalid - the memory operation succeeded, no
+          register update
+        * Valid Valid DATA - the memory operation succeeded, data
+          contains the register update value.
+      *)
       Definition memDeviceGetResFn
         :  ActionT ty (Maybe (Maybe Data))
-        := Read state : MemDeviceState <- memDeviceParamsStateRegName memDeviceParamsRegNames;
-           If #state == $MemDeviceStateDone
-             then
-               Read req : MemDeviceRq <- memDeviceParamsReqRegName memDeviceParamsRegNames;
-               Read memData : Maybe Data <- memDeviceParamsReadResRegName memDeviceParamsRegNames;
-               LETA size
-                 :  MemRqLgSize
-                 <- memDeviceSize (#req @% "memOp");
-               LETA reservation
-                 :  Reservation
-                 <- memDeviceReadReservation (#req @% "memOp") (#req @% "addr") #size;
-               LETA isReservationValid
-                 :  Bool
-                 <- memDeviceIsReservationValid (#req @% "memOp") #reservation;
-               LETA writeData
-                 :  Maybe Data
-                 <- memDeviceWriteValue (#req @% "memOp") (#memData @% "data") (#req @% "data") #isReservationValid;
-               LETA writeMask
-                 :  DataMask
-                 <- memDeviceWriteMask (#req @% "memOp");
-               LETA writeSucceeded
-                 :  Bool
-                 <- memDeviceWrite (#req @% "addr") #writeMask #writeData #size;
-               LETA _ <- memDeviceWriteReservation (#req @% "memOp") (#req @% "addr") #writeMask #size;
-               LETA regData
-                 :  Maybe Data
-                 <- memDeviceRegValue (#req @% "memOp") (#memData @% "data") #isReservationValid;
-               System [
-                 DispString _ "[memDeviceGetResFn] request: ";
-                 DispHex #req;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] size: ";
-                 DispHex #size;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] mem data: ";
-                 DispHex #memData;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] reservation: ";
-                 DispHex #reservation;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] reservation valid: ";
-                 DispHex #isReservationValid;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] write data: ";
-                 DispHex #writeData;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] write mask: ";
-                 DispHex #writeMask;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] write succeeded: ";
-                 DispHex #writeSucceeded;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] write succeeded: ";
-                 DispHex #writeSucceeded;
-                 DispString _ "\n";
-                 DispString _ "[memDeviceGetResFn] reg data: ";
-                 DispHex #regData;
-                 DispString _ "\n"
-               ];
-               Ret
-                 (IF #writeSucceeded
-                   then Valid #regData : Maybe (Maybe Data) @# ty
-                   else Invalid : Maybe (Maybe Data) @# ty)
-             else
-               Ret Invalid
-             as result;
-           Ret #result.
+        := Read req : MemDeviceRq <- memDeviceParamsReqRegName memDeviceParamsRegNames;
+           LETA size
+             :  MemRqLgSize
+             <- memDeviceSize (#req @% "memOp");
+           LETA reservation
+             :  Reservation
+             <- memDeviceReadReservation (#req @% "memOp") (#req @% "addr") #size;
+           LETA isReservationValid
+             :  Bool
+             <- memDeviceIsReservationValid (#req @% "memOp") #reservation;
+           LETA memData : Maybe Data <- memDeviceParamsGetReadRes ty;
+           LETA writeData
+             :  Maybe Data
+             <- memDeviceWriteValue (#req @% "memOp") (#memData @% "data") (#req @% "data") #isReservationValid;
+           LETA writeMask
+             :  DataMask
+             <- memDeviceWriteMask (#req @% "memOp");
+           LETA writeSucceeded
+             :  Bool
+             <- memDeviceWrite (#req @% "addr") #writeMask #writeData #size;
+           LETA _ <- memDeviceWriteReservation (#req @% "memOp") (#req @% "addr") #writeMask #size;
+           LETA regData
+             :  Maybe Data
+             <- memDeviceRegValue (#req @% "memOp") (#memData @% "data") #isReservationValid;
+           Write memDeviceParamsBusyRegName memDeviceParamsRegNames
+             :  Bool
+             <- $$false;
+           Ret
+             (IF #writeSucceeded
+               then Valid #regData : Maybe (Maybe Data) @# ty
+               else Invalid : Maybe (Maybe Data) @# ty).
 
     End device.
 

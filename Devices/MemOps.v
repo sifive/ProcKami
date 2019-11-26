@@ -21,6 +21,12 @@ Section memops.
        | _ => false
        end.
 
+  Definition isMemRegValueSc (x : MemRegValue) : bool
+    := match x with
+        | memRegValueSc => true
+        | _ => false
+       end.
+
   (* specifies the value written to memory by a memory operation. *)
   Inductive MemWriteValue : Type
     := memWriteValueFn : (forall ty, Data @# ty -> Data @# ty -> Data ## ty) -> MemWriteValue
@@ -31,6 +37,12 @@ Section memops.
   Definition isMemWriteValueFn (x : MemWriteValue) : bool
     := match x with
        | memWriteValueFn _ => true
+       | _ => false
+       end.
+
+  Definition isMemWriteValueSc (x : MemWriteValue) : bool
+    := match x with
+       | memWriteValueSc => true
        | _ => false
        end.
 

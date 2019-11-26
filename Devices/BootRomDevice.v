@@ -8,26 +8,31 @@ Section device.
   Local Definition lgMemSz := 12.
 
   Local Definition bootRomDeviceName := "boot_rom".
-  Local Definition read_name (index : nat) : string := @^"readROM" ++ natToHexStr index.
+  Local Definition bootRomDeviceSendReqName := @^(bootRomDeviceName ++ "SendReadReq").
+  Local Definition bootRomDeviceGetResName := @^(bootRomDeviceName ++ "GetReadRes").
 
   Open Scope kami_expr.
   Open Scope kami_action.
+
+  Local Definition bootRomDeviceRegNames := createMemDeviceRegNames bootRomDeviceName.
 
   Local Definition bootRomDeviceParams := {|
     memDeviceParamsRegNames := createMemDeviceRegNames bootRomDeviceName;
 
     memDeviceParamsRead
-      := fun ty
-           => map
-                (fun index addr size
-                  => Call result
-                       :  Array Rlen_over_8 (Bit 8)
-                       <- (read_name index) (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                     Ret (Valid (pack #result): Maybe Data @# ty))
-                (seq 0 numClientRqs);
+      := fun ty addr size
+           => Call bootRomDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
+              Retv;
 
     memDeviceParamsWrite
       := fun _ _ => Ret $$false;
+
+    memDeviceParamsGetReadRes
+      := fun ty
+           => Call readData
+                :  Array Rlen_over_8 (Bit 8)
+                <- bootRomDeviceGetResName ();
+              Ret (Valid (pack #readData) : Maybe Data @# ty);
 
     memDeviceParamsReadReservation
       := fun ty _ _ => Ret $$(getDefaultConst Reservation);
@@ -55,7 +60,7 @@ Section device.
                      |})
                 (seq 0 4);
          memDeviceSendReq
-           := fun _ index req => memDeviceSendReqFn bootRomDeviceParams index req;
+           := fun _ req => memDeviceSendReqFn bootRomDeviceParams req;
          memDeviceGetRes
            := fun ty => memDeviceGetResFn ty bootRomDeviceParams;
          memDeviceFile
@@ -65,7 +70,14 @@ Section device.
                     true
                     Rlen_over_8
                     (@^"rom_rom_file")
-                    (Async (map read_name (seq 0 12)))
+                    (* (Async (map read_name (seq 0 12))) *)
+                    (Sync
+                      true
+                      [{|
+                        readReqName := bootRomDeviceSendReqName;
+                        readResName := bootRomDeviceGetResName;
+                        readRegName := memDeviceParamsResRegName bootRomDeviceRegNames
+                      |}])
                     (@^"writeROM0") (* never used *)
                     (pow2 lgMemSz)
                     (Bit 8)

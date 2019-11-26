@@ -24,24 +24,30 @@ Section device.
          "size" :: MemRqLgSize
        }.
 
+  Definition uartDeviceRegSpecs : list RegSpec
+    := (createMemDeviceResRegSpec uartDeviceName) ::
+       (createMemDeviceRegSpecs uartDeviceName).
+
+  Local Definition uartDeviceRegNames : MemDeviceRegNames := createMemDeviceRegNames uartDeviceName.
+
   Local Definition uartDeviceParams := {|
     memDeviceParamsRegNames := createMemDeviceRegNames uartDeviceName;
 
     memDeviceParamsRead
-      := fun ty
-           => List.repeat
-                (fun addr size
-                  => LET readRq
-                       :  UARTRead
-                       <- (STRUCT {
-                            "addr" ::= SignExtendTruncLsb lgMemSz addr;
-                            "size" ::= size
-                          } : UARTRead @# ty);
-                     Call result
-                       :  Bit 64
-                       <- @^"readUART" (#readRq : UARTRead);
-                     Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe Data @# ty))
-                numClientRqs;
+      := fun ty addr size
+           => LET readRq
+                :  UARTRead
+                <- (STRUCT {
+                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
+                     "size" ::= size
+                   } : UARTRead @# ty);
+              Call memData
+                :  Bit 64
+                <- @^"readUART" (#readRq : UARTRead);
+              Write (memDeviceParamsResRegName uartDeviceRegNames)
+                :  Maybe Data
+                <- Valid (ZeroExtendTruncLsb Rlen #memData): Maybe Data @# ty;
+              Retv;
 
     memDeviceParamsWrite
       := fun ty req
@@ -62,6 +68,13 @@ Section device.
                 DispString _ "\n"
               ];
               Ret $$true;
+
+    memDeviceParamsGetReadRes
+      := fun ty
+           => Read memData
+                :  Maybe Data
+                <- memDeviceParamsResRegName (uartDeviceRegNames);
+              Ret #memData;
 
     memDeviceParamsReadReservation
       := fun ty _ _ => Ret $$(getDefaultConst Reservation);
@@ -89,7 +102,7 @@ Section device.
                      |})
                 (seq 0 4));
          memDeviceSendReq
-           := fun _ index req => memDeviceSendReqFn uartDeviceParams index req;
+           := fun _ req => memDeviceSendReqFn uartDeviceParams req;
          memDeviceGetRes
            := fun ty => memDeviceGetResFn ty uartDeviceParams;
          memDeviceFile := None

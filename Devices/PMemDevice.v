@@ -12,32 +12,19 @@ Section mem_devices.
 
   Local Definition pMemDeviceName := "main_memory".
   Local Definition pMemDeviceSendReqName := @^(pMemDeviceName ++ "SendReadReq").
-  Local Definition pMemDeviceGetResName := @^(pMemDeviceName ++ "getReadRes").
+  Local Definition pMemDeviceGetResName := @^(pMemDeviceName ++ "GetReadRes").
 
   Definition pMemDeviceRegSpecs := createMemDeviceRegSpecs pMemDeviceName.
 
   Local Definition pMemDeviceRegNames := createMemDeviceRegNames pMemDeviceName.
 
-
   Local Definition pMemDeviceParams := {|
     memDeviceParamsRegNames := pMemDeviceRegNames;
 
     memDeviceParamsRead
-      := fun ty
-           => (map
-                (fun index
-                  => fun addr _
-                       => Call readData
-                            :  Array Rlen_over_8 (Bit 8)
-                            <- (@^"readMem" ++ (natToHexStr index))
-                                 (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                          (* TODO: remove temporary *)
-                          LET result
-                            :  Maybe Data
-                            <- Valid (pack #readData) : Maybe Data @# ty;
-                          LETA _ <- memDeviceStoreReadResFn pMemDeviceRegs #result;
-                          Ret #result)
-                (seq 0 numClientRqs));
+      := fun ty addr _
+           => Call pMemDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
+              Retv;
 
     memDeviceParamsWrite
       := fun ty req
@@ -50,6 +37,13 @@ Section mem_devices.
                     } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
               Call @^"writeMem0" (#writeRq: _);
               Ret $$true;
+
+    memDeviceParamsGetReadRes
+      := fun ty
+           => Call readData
+                :  Array Rlen_over_8 (Bit 8)
+                <- pMemDeviceGetResName ();
+              Ret (Valid (pack #readData) : Maybe Data @# ty);
 
     memDeviceParamsReadReservation
       := fun ty addr _
@@ -73,16 +67,13 @@ Section mem_devices.
   Definition pMemDevice
     :  MemDevice
     := {|
-         memDeviceName := "main memory";
+         memDeviceName := pMemDeviceName;
          memDeviceIO := false;
          memDevicePmas := pmas_default;
-
          memDeviceSendReq
-           := fun _ index req => memDeviceSendReqFn pMemDeviceParams index req;
-
+           := fun _ req => memDeviceSendReqFn pMemDeviceParams req;
          memDeviceGetRes
            := fun ty => memDeviceGetResFn ty pMemDeviceParams;
-         
          memDeviceFile
            := Some
                 (inl [@Build_RegFileBase
@@ -91,25 +82,11 @@ Section mem_devices.
                   (@^"mem_reg_file")
                   (Sync
                     true (* TODO: what does this arg represent? *) 
-                    {|
-                      readReqName := pMemDeviceSendReqName; (* must be called to send the request *)
-                      readResName := pMemDeviceGetResName; (* must be called to get the response *)
-                      readRegName := memDeviceParamsReadResRegName pMemDeviceRegNames
-                    |}
-(* [
-                      @^"readMem0"; (* mem unit loads *)
-                      @^"readMem1"; (* fetch lower *)
-                      @^"readMem2"; (* fetch upper *)
-                      @^"readMem3"; (* mem unit page table walker read mem call *)
-                      @^"readMem4"; (* mem unit page table walker read mem call *)
-                      @^"readMem5"; (* mem unit page table walker read mem call *)
-                      @^"readMem6"; (* fetch lower page table walker read mem call *)
-                      @^"readMem7"; (* fetch lower page table walker read mem call *)
-                      @^"readMem8"; (* fetch lower page table walker read mem call *)
-                      @^"readMem9"; (* fetch upper page table walker read mem call *)
-                      @^"readMemA"; (* fetch upper page table walker read mem call *)
-                      @^"readMemB"  (* fetch upper page table walker read mem call *)
-                    ] *))
+                    [{|
+                      readReqName := pMemDeviceSendReqName;
+                      readResName := pMemDeviceGetResName;
+                      readRegName := memDeviceParamsResRegName pMemDeviceRegNames
+                    |}])
                   (@^"writeMem0")
                   (pow2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
