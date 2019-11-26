@@ -13,49 +13,39 @@ Section tlb.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Class TlbParams
-    := {
-         NumClients : nat;
-         EntriesNum : nat;
-         (*
-           Accepts a device tag and a device offset; sends a read
-           request to the device; and returns true if the request
-           was accepted. This function is called by the TLB to read
-           page table entries.
- 
-           * Invalid - device busy, retry
-           * Valid - request accepted, possible error
-         *)
-         MemSendReq : forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt)
-       }.
-
   Section interface.
-    Context `{tlbParams : TlbParams}.
+    Context (EntriesNum: nat).
 
-    Definition ClientId := Bit (Nat.log2_up NumClients).
     Definition PAddr := Bit PAddrSz.
 
-    Definition HandleReqInput
+    Definition TlbReq
       := STRUCT_TYPE {
            "satp_mode"   :: Bit SatpModeWidth;
            "mxr"         :: Bool;
            "sum"         :: Bool;
            "mode"        :: PrivMode;
            "satp_ppn"    :: Bit 44;
-           "client_id"   :: ClientId;
            "access_type" :: VmAccessType;
            "vaddr"       :: VAddr
          }.
 
     Record Tlb
       := {
+           Regs
+             : list RegInitT;
            (*
              Accepts a virtual address and either returns its
              equivalent physical address or returns an exception.
            *)
-           HandleReq
-             : forall ty, ty HandleReqInput -> ActionT ty (Maybe (PktWithException PAddr));
+           GetPAddr
+             : forall ty, ty TlbReq -> ActionT ty (Maybe (PktWithException PAddr));
 
+           GetException
+             : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
+
+           SendMemReqRule (memSendReq: forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt))
+             : forall ty, ActionT ty Void;
+             
            (* mem response callback *)
            HandleMemRes 
              : forall ty, ty Data -> ActionT ty Void

@@ -64,17 +64,17 @@ Section pmp.
          then x / y
          else S (x / y))%nat.
 
-  Definition pmp_check
+  Definition checkPMP
     (check : VmAccessType @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
     (addr_len : MemRqLgSize @# ty)
     :  ActionT ty Bool
     := (* System [
-         DispString _ "[pmp_check] addr: ";
+         DispString _ "[checkPMP] addr: ";
          DispHex addr;
          DispString _ "\n";
-         DispString _ "[pmp_check] addr len: ";
+         DispString _ "[checkPMP] addr len: ";
          DispHex addr_len;
          DispString _ "\n"
        ]; *)
@@ -85,9 +85,9 @@ Section pmp.
                 => LETA acc <- acc_act;
 (*
                    System [
-                     DispString _ "[pmp_check] ==================================================\n";
-                     DispString _ ("[pmp_check] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
-                     DispString _ "[pmp_check] acc: ";
+                     DispString _ "[checkPMP] ==================================================\n";
+                     DispString _ ("[checkPMP] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
+                     DispString _ "[checkPMP] acc: ";
                      DispHex #acc;
                      DispString _ "\n"
                    ];
@@ -100,16 +100,16 @@ Section pmp.
                      <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 2 2)));
 (*
                    System [
-                     DispString _ "[pmp_check] entry: ";
+                     DispString _ "[checkPMP] entry: ";
                      DispHex #entry;
                      DispString _ "\n";
-                     DispString _ "[pmp_check] entry addr: ";
+                     DispString _ "[checkPMP] entry addr: ";
                      DispHex (#entry @% "addr");
                      DispString _ "\n";
-                     DispString _ "[pmp_check] sign extended entry addr: ";
+                     DispString _ "[checkPMP] sign extended entry addr: ";
                      DispHex (#entry @% "addr");
                      DispString _ "\n";
-                     DispString _ "[pmp_check] tor: ";
+                     DispString _ "[checkPMP] tor: ";
                      DispHex #tor;
                      DispString _ "\n"
                    ];
@@ -122,7 +122,7 @@ Section pmp.
                      <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
 (*
                    System [
-                     DispString _ "[pmp_check] mask: ";
+                     DispString _ "[checkPMP] mask: ";
                      DispHex #mask;
                      DispString _ "\n"
                    ];
@@ -188,8 +188,8 @@ Section pmp.
                  "pmp_cfg" ::= $$(getDefaultConst PmpCfg)
                } : pmp_entry_acc_kind @# ty));
     System [
-         DispString _ "[pmp_check] ##################################################\n";
-         DispString _ "[pmp_check] result: ";
+         DispString _ "[checkPMP] ##################################################\n";
+         DispString _ "[checkPMP] result: ";
          DispHex #result;
          DispString _ "\n"
        ];
@@ -207,11 +207,6 @@ Section pmp.
              })
            else
              (!(#result @% "any_on") || mode == $MachineMode)).
-
-  Definition pmp_check_access
-    (access_type : VmAccessType @# ty)
-    :  PrivMode @# ty -> PAddr @# ty -> MemRqLgSize @# ty -> ActionT ty Bool
-    := pmp_check access_type.
 
   Close Scope kami_action.
   Close Scope kami_expr.
