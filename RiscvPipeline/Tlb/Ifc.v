@@ -42,7 +42,6 @@ Section tlb.
            "sum"         :: Bool;
            "mode"        :: PrivMode;
            "satp_ppn"    :: Bit 44;
-           "client_id"   :: ClientId;
            "access_type" :: VmAccessType;
            "vaddr"       :: VAddr
          }.
@@ -54,7 +53,7 @@ Section tlb.
              equivalent physical address or returns an exception.
            *)
            HandleReq
-             : forall ty, ty HandleReqInput -> ActionT ty (Maybe (PktWithException PAddr));
+             : nat -> forall ty, ty HandleReqInput -> ActionT ty (Maybe (PktWithException PAddr));
 
            (* mem response callback *)
            HandleMemRes 
