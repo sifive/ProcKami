@@ -20,8 +20,8 @@ Import ListNotations.
 
 Section tlb.
   Context `{procParams: ProcParams}.
-  Context `{tlbParams : TlbParams}.
-
+  Context (EntriesNum : nat).
+  
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
@@ -374,24 +374,11 @@ Section tlb.
          slice offset vpn_spanned_fields_size entryTag.
   End ty.
 
-  Local Definition TlbReq
-    := STRUCT_TYPE {
-         "client_id" :: ClientId;
-         "vaddr"  :: VAddr
-       }.
-
   Local Definition TlbContext
     := STRUCT_TYPE {
          "access_type" :: VmAccessType;
          "satp_mode" :: Bit SatpModeWidth;
          "mode" :: PrivMode
-       }.
-
-  Local Definition TlbState
-    := STRUCT_TYPE {
-         "ready"  :: Bool; (* true iff waiting for caller to retrieve result *)
-         "active" :: Bool; (* true iff not starting new page table walks, either walking or waiting for someone to pick up result *)
-         "level"  :: PtLevel
        }.
 
   Record tlbReg
@@ -404,36 +391,6 @@ Section tlb.
   Local Definition tlbRegSpecs
     := [
          {|
-           tlbRegName := @^"tlbMemReqActive";
-           tlbRegKind := Bool;
-           tlbRegInit := Some (ConstBool false)
-         |};
-         {|
-           tlbRegName := @^"tlbMemReq"; (* Merge with Tlb State *)
-           tlbRegKind := PAddr;
-           tlbRegInit := Some (getDefaultConst PAddr)
-         |};
-         {|
-           tlbRegName := @^"tlbContext";
-           tlbRegKind := TlbContext;
-           tlbRegInit := None
-         |};
-         {|
-           tlbRegName := @^"tlbReqException"; (* What is Maybe ? *)
-           tlbRegKind := Maybe Exception;
-           tlbRegInit := None
-         |};
-         {|
-           tlbRegName := @^"tlbReq";
-           tlbRegKind := TlbReq;
-           tlbRegInit := Some (getDefaultConst TlbReq)
-         |};
-         {|
-           tlbRegName := @^"tlbState";
-           tlbRegKind := TlbState;
-           tlbRegInit := Some (getDefaultConst TlbState)
-         |};
-         {|
            tlbRegName := @^"tlbCacheLru";
            tlbRegKind := Array (EntriesNum - 1) Bool;
            tlbRegInit := Some (getDefaultConst (Array (EntriesNum - 1) Bool))
@@ -442,6 +399,41 @@ Section tlb.
            tlbRegName := @^"tlbCache";
            tlbRegKind := Array EntriesNum (Maybe (Pair (Bit VpnWidth) TlbEntry));
            tlbRegInit := Some (getDefaultConst (Array EntriesNum (Maybe (Pair (Bit VpnWidth) TlbEntry))))
+         |};
+         {|
+           tlbRegName := @^"tlbVAddr";
+           tlbRegKind := VAddr;
+           tlbRegInit := Some (getDefaultConst VAddr)
+         |};
+         {|
+           tlbRegName := @^"tlbContext";
+           tlbRegKind := TlbContext;
+           tlbRegInit := None
+         |};
+         {|
+           tlbRegName := @^"tlbLevel";
+           tlbRegKind := PtLevel;
+           tlbRegInit := Some (getDefaultConst PtLevel)
+         |};
+         {|
+           tlbRegName := @^"tlbBusy";
+           tlbRegKind := Bool;
+           tlbRegInit := Some (getDefaultConst Bool)
+         |};
+         {|
+           tlbRegName := @^"tlbSendMemReq";
+           tlbRegKind := Bool;
+           tlbRegInit := Some (ConstBool false)
+         |};
+         {|
+           tlbRegName := @^"tlbMemReq";
+           tlbRegKind := PAddr;
+           tlbRegInit := Some (getDefaultConst PAddr)
+         |};
+         {|
+           tlbRegName := @^"tlbException";
+           tlbRegKind := Maybe (Pair VAddr Exception);
+           tlbRegInit := None
          |}
        ].
 
@@ -481,118 +473,15 @@ Section tlb.
 
 
   Section ty.
+    Context (memSendReq: forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt)).
     Variable ty: Kind -> Type.
-
-    Local Definition tlbFinishException
-      (exception : Maybe Exception @# ty)
-      :  ActionT ty Void
-      := System [
-           DispString _ "[tlbFinishException]\n"
-         ];
-         Write @^"tlbFinishException" : Maybe Exception <- exception;
-         Write @^"tlbState" : TlbState
-           <- $$(getDefaultConst TlbState)
-                @%["ready" <- $$true]
-                @%["active" <- $$true];
-         Retv.
-
-    Local Definition tlbRet
-      (vpn : Bit VpnWidth @# ty)
-      (result : PktWithException TlbEntry @# ty)
-      :  ActionT ty Void
-      := System [
-           DispString _ "[tlbRet] vpn: ";
-           DispHex vpn;
-           DispString _ "\n";
-           DispString _ "[tlbRet] result: ";
-           DispHex result;
-           DispString _ "\n"
-         ];
-         If !(result @% "snd" @% "valid")
-           then
-             System [
-               DispString _ "[tlbRet] cached result.\n"
-             ];
-             Cam.Ifc.write cam vpn (result @% "fst");
-         tlbFinishException (result @% "snd").
-
-    (* wrap in a rule. *)
-    Definition memSendReqAsyncCont
-      :  ActionT ty Void
-      := Read active : Bool <- @^"tlbMemReqActive";
-         If #active
-           then
-             Read req : PAddr <- @^"tlbMemReq";
-             System [
-               DispString _ "[memSendReqAsyncCont]\n";
-               DispString _ "[memSendReqAsyncCont] req: ";
-               DispHex #req;
-               DispString _ "\n"
-             ];
-             LETA res : Maybe MemErrorPkt <- MemSendReq ty req;
-             System [
-               DispString _ "[memSendReqAsyncCont] res: ";
-               DispHex #res;
-               DispString _ "\n"
-             ];
-             If #res @% "valid"
-               then
-                 Write @^"tlbMemReqActive" : Bool <- $$false;
-                 System [
-                   DispString _ "[memSendReqAsyncCont] deactivated tlb req\n"
-                 ];
-                 Read context : TlbContext <- @^"tlbContext";
-                 tlbFinishException (STRUCT { "valid" ::= mem_error (#res @% "data") ;
-                                              "data" ::= (IF #res @% "data" @% "misaligned"
-                                                          then misalignedException (#context @% "access_type")
-                                                          else accessException (#context @% "access_type"))});
-             Retv;
-         Retv.
-
-    (*
-      Returns the exception generated by the last translation
-      request.
-
-      Note: callers using the TLB to translate a vaddr must call
-      this action to finish their transaction.
-    *)
-    Local Definition tlbGetException
-      (req : TlbReq @# ty)
-      :  ActionT ty (Maybe Exception)
-      := System [
-           DispString _ "[tlbGetException]\n"
-         ];
-         Read state : TlbState <- @^"tlbState";
-         If #state @% "ready"
-           then 
-             Read orig_req  : TlbReq          <- @^"tlbReq";
-             Read exception : Maybe Exception <- @^"tlbReqException";
-             If #orig_req @% "client_id" == req @% "client_id" && #orig_req @% "vaddr" == req @% "vaddr"
-               then
-                 Write @^"tlbState" : TlbState
-                   <- #state
-                        @%["ready"  <- $$false]
-                        @%["active" <- $$false];
-                 Retv;
-             Ret
-               (IF #orig_req @% "vaddr" == req @% "vaddr"
-                 then #exception
-                 else Invalid)
-           else Ret Invalid
-           as result;
-         System [
-           DispString _ "[tlbGetException] result: ";
-           DispHex #result;
-           DispString _ "\n"
-         ];
-         Ret #result.
 
     Local Definition getTlbEntry
       (access_type : VmAccessType @# ty)
       (satp_mode: Bit SatpModeWidth @# ty)
       (mode: PrivMode @# ty)
       (satp_ppn: Bit 44 @# ty)
-      (req : TlbReq @# ty)
+      (vaddr : VAddr @# ty)
       :  ActionT ty (Maybe TlbEntry)
       := System [
            DispString _ "[getTlbEntry] satp_mode: ";
@@ -604,31 +493,31 @@ Section tlb.
            DispString _ "[getTlbEntry] satp_ppn: ";
            DispHex satp_ppn;
            DispString _ "\n";
-           DispString _ "[getTlbEntry] req: ";
-           DispHex req;
+           DispString _ "[getTlbEntry] vaddr: ";
+           DispHex vaddr;
            DispString _ "\n"
          ];
          LET tag : (Bit VpnWidth)
-           <- ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) (req @% "vaddr"));
+           <- ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) vaddr);
          LETA mentry : Maybe TlbEntry
            <- Cam.Ifc.read cam #tag satp_mode;
-         Read state : TlbState <- @^"tlbState";
+         Read busy : Bool <- @^"tlbBusy";
          System [
            DispString _ "[getTlbEntry] mentry: ";
            DispHex #mentry;
            DispString _ "\n";
-           DispString _ "[getTlbEntry] state: ";
-           DispHex #state;
+           DispString _ "[getTlbEntry] busy: ";
+           DispHex #busy;
            DispString _ "\n"
          ];
-         If !(#mentry @% "valid") && !(#state @% "active")
+         Read exception : Maybe (Pair VAddr Exception) <- @^"tlbException";
+         If !(#mentry @% "valid") && !#busy && !(#exception @% "valid")
            then 
-             Write @^"tlbReq" : TlbReq <- req;
              LETA vpnOffset
                :  Bit VpnWidth
                <- convertLetExprSyntax_ActionT
                     (getVpnOffset satp_mode $0
-                      (ZeroExtendTruncMsb VpnWidth (req @% "vaddr")));
+                      (ZeroExtendTruncMsb VpnWidth vaddr));
              LET pte_addr
                :  PAddr
                <- (ppnToPAddr satp_ppn) +
@@ -640,19 +529,15 @@ Section tlb.
                     "satp_mode" ::= satp_mode;
                     "mode" ::= mode
                   } : TlbContext @# ty;
-             LET state
-               :  TlbState
-               <- STRUCT {
-                    "ready"  ::= $$false;
-                    "active" ::= $$true;
-                    "level"  ::= $(tlbMaxPageLevels - 2)
-                  } : TlbState @# ty;
              System [
                DispString _ "[getTlbEntry] context: ";
                DispHex #context;
                DispString _ "\n";
-               DispString _ "[getTlbEntry] state: ";
-               DispHex #state;
+               DispString _ "[getTlbEntry] busy: ";
+               DispHex $$true;
+               DispString _ "\n";
+               DispString _ "[getTlbEntry] level: ";
+               @DispHex _ PtLevel ($(tlbMaxPageLevels - 2));
                DispString _ "\n";
                DispString _ "[getTlbEntry] vpnOffset: ";
                DispHex #vpnOffset;
@@ -661,29 +546,71 @@ Section tlb.
                DispHex #pte_addr;
                DispString _ "\n"
              ];
-             Write @^"tlbState" : TlbState <- #state;
+             Write @^"tlbVAddr" : VAddr <- vaddr;
+             Write @^"tlbBusy" : Bool <- $$true;
+             Write @^"tlbLevel" : PtLevel <- $(tlbMaxPageLevels - 2);
              Write @^"tlbContext" : TlbContext <- #context;
              Write @^"tlbMemReq" : PAddr <- #pte_addr;
-             Write @^"tlbMemReqActive" : Bool <- $$true;
+             Write @^"tlbSendMemReq" : Bool <- $$true;
              Retv;
          Ret #mentry.
 
+
+    (* wrap in a rule. *)
+    Local Definition sendMemReq
+      : ActionT ty Void
+      := Read isSendMemReq : Bool <- @^"tlbSendMemReq";
+         Read req : PAddr <- @^"tlbMemReq";
+         System [
+           DispString _ "[sendMemReq]\n";
+           DispString _ "[sendMemReq] req: ";
+           DispHex #req;
+           DispString _ "\n"
+         ];
+         If #isSendMemReq
+           then
+             LETA res : Maybe MemErrorPkt <- memSendReq ty req;
+             System [
+               DispString _ "[sendMemReq] res: ";
+               DispHex #res;
+               DispString _ "\n"
+             ];
+             Write @^"tlbSendMemReq" : Bool <- !(#res @% "valid");
+             System [
+               DispString _ "[sendMemReq] sent tlb req\n"
+             ];
+             Read context : TlbContext <- @^"tlbContext";
+             Read vaddr : VAddr <- @^"tlbVAddr";
+             LET addrException : Pair VAddr Exception
+               <- STRUCT { "fst" ::= #vaddr;
+                           "snd" ::= (IF #res @% "data" @% "misaligned"
+                                      then misalignedException (#context @% "access_type")
+                                      else accessException (#context @% "access_type")) };
+             LET exception: Maybe (Pair VAddr Exception)
+               <- STRUCT { "valid" ::= #res @% "valid" && mem_error (#res @% "data") ;
+                           "data" ::= #addrException };
+
+             Write @^"tlbException" : Maybe (Pair VAddr Exception) <- #exception;
+           Retv;
+         Retv.
+
     (* method called by mem when response is ready. *)
     Local Definition tlbHandleMemRes
-      (data : Data @# ty)
+      (data : ty Data)
       :  ActionT ty Void
       := System [
            DispString _ "[tlbHandleMemRes]\n"
          ];
-         Read state : TlbState <- @^"tlbState";
-         Read req : TlbReq <- @^"tlbReq";
+         Read busy : Bool <- @^"tlbBusy";
+         Read level: PtLevel <- @^"tlbLevel";
+         Read vaddr : VAddr <- @^"tlbVAddr";
          Read context : TlbContext <- @^"tlbContext";
          LET pte
            : PteEntry
-           <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) data);
+           <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) #data);
          LET index
            :  PtLevel
-           <- $(tlbMaxPageLevels - 1) - (#state @% "level");
+           <- $(tlbMaxPageLevels - 1) - #level;
          System [
            DispString _ "[tlbHandleMemRes] index: ";
            DispHex #index;
@@ -696,17 +623,20 @@ Section tlb.
                   (#context @% "satp_mode")
                   (#context @% "access_type")
                   #index
-                  (#req @% "vaddr")
+                  #vaddr
                   #pte);
          System [
            DispString _ "[tlbHandleMemRes] pte: ";
            DispHex #pte;
            DispString _ "\n";
-           DispString _ "[tlbHandleMemRes] state: ";
-           DispHex #state;
+           DispString _ "[tlbHandleMemRes] level: ";
+           DispHex #level;
            DispString _ "\n";
-           DispString _ "[tlbHandleMemRes] req: ";
-           DispHex #req;
+           DispString _ "[tlbHandleMemRes] busy: ";
+           DispHex #busy;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] vaddr: ";
+           DispHex #vaddr;
            DispString _ "\n";
            DispString _ "[tlbHandleMemRes] context: ";
            DispHex #context;
@@ -715,162 +645,140 @@ Section tlb.
            DispHex #trans_result;
            DispString _ "\n"
          ];
-         If #trans_result @% "fst" || (* done *)
-            #trans_result @% "snd" @% "snd" @% "valid" (* exception *)
-           then
-             LET vpn_field_size
-               :  Bit (Nat.log2_up 26) (* TODO *)
-               <- satp_select (#context @% "satp_mode") (fun mode => $(vm_mode_vpn_size mode));
-             LET num_vpn_fields
-               :  PtLevel
-               <- satp_select (#context @% "satp_mode") (fun mode => $(length (vm_mode_sizes mode)));
-             LET num_spanned_vpn_fields
-               :  PtLevel
-               <- $((tlbMaxPageLevels - 1)%nat) - (#state @% "level");
-             LET vpn_fields_size
-               :  Bit (Nat.log2_up VpnWidth)
-               <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #num_vpn_fields) *
-                  (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #vpn_field_size);
-             LET vpn_spanned_fields_size
-               :  Bit (Nat.log2_up VpnWidth)
-               <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #num_spanned_vpn_fields) *
-                  (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #vpn_field_size);
-             LET vpn_value
-               <- slice 
-                    ($12 : Bit (Nat.log2_up 12) @# ty) (* page size *)
-                    #vpn_spanned_fields_size
-                    (#req @% "vaddr");
-             LET entry
-               :  TlbEntry
-               <- STRUCT {
-                    "pte" ::= #pte;
-                    "level" ::= #state @% "level"
-                  } : TlbEntry @# ty;
-             LET result
-               :  PktWithException TlbEntry
-               <- STRUCT {
-                    "fst" ::= #entry;
-                    "snd" ::= #trans_result @% "snd" @% "snd"
-                  } : PktWithException TlbEntry @# ty;
-             System [
-               DispString _ "[tlbHandleMemRes] max page levels: ";
-               DispHex ($tlbMaxPageLevels : Bit 64 @# ty);
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] vpn_field_size: ";
-               DispHex #vpn_field_size;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] num_vpn_fields: ";
-               DispHex #num_vpn_fields;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] num_spanned_vpn_fields: ";
-               DispHex #num_spanned_vpn_fields;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] vpn_fields_size: ";
-               DispHex #vpn_fields_size;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] vpn_spanned_fields_size: ";
-               DispHex #vpn_spanned_fields_size;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] vpn_value: ";
-               DispHex #vpn_value;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] result: ";
-               DispHex #result;
-               DispString _ "\n";
-               DispString _ "[tlbHandleMemRes] done.\n"
-             ];
-             tlbRet
-               (ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) (#req @% "vaddr")))
-               #result
-           else (* loop *)
-             LET next_state
-               :  TlbState
-               <- #state
-                    @%["active" <- $$true]
-                    @%["level" <- #state @% "level" - $1];
-             System [
-               DispString _ "[tlbHandleMemRes] next_state: ";
-               DispHex #next_state;
-               DispString _ "\n"
-             ];
-             Write @^"tlbState" : TlbState <- #next_state;
-             Write @^"tlbMemReq" : PAddr <- #trans_result @% "snd" @% "fst";
-             Write @^"tlbMemReqActive" : Bool <- $$true;
-             Retv
-           as _;
+         LET vpn_field_size
+           :  Bit (Nat.log2_up 26) (* TODO *)
+           <- satp_select (#context @% "satp_mode") (fun mode => $(vm_mode_vpn_size mode));
+         LET num_vpn_fields
+           :  PtLevel
+           <- satp_select (#context @% "satp_mode") (fun mode => $(length (vm_mode_sizes mode)));
+         LET num_spanned_vpn_fields
+           :  PtLevel
+           <- $((tlbMaxPageLevels - 1)%nat) - #level;
+         LET vpn_fields_size
+           :  Bit (Nat.log2_up VpnWidth)
+           <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #num_vpn_fields) *
+              (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #vpn_field_size);
+         LET vpn_spanned_fields_size
+           :  Bit (Nat.log2_up VpnWidth)
+           <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #num_spanned_vpn_fields) *
+              (ZeroExtendTruncLsb (Nat.log2_up VpnWidth) #vpn_field_size);
+         LET vpn_value
+           <- slice
+                ($12 : Bit (Nat.log2_up 12) @# ty) (* page size *)
+                #vpn_spanned_fields_size
+                #vaddr;
+         LET entry
+           :  TlbEntry
+           <- STRUCT {
+                "pte" ::= #pte;
+                "level" ::= #level
+              } : TlbEntry @# ty;
+         System [
+           DispString _ "[tlbHandleMemRes] max page levels: ";
+           DispHex ($tlbMaxPageLevels : Bit 64 @# ty);
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] vpn_field_size: ";
+           DispHex #vpn_field_size;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] num_vpn_fields: ";
+           DispHex #num_vpn_fields;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] num_spanned_vpn_fields: ";
+           DispHex #num_spanned_vpn_fields;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] vpn_fields_size: ";
+           DispHex #vpn_fields_size;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] vpn_spanned_fields_size: ";
+           DispHex #vpn_spanned_fields_size;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] vpn_value: ";
+           DispHex #vpn_value;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] entry: ";
+           DispHex #entry;
+           DispString _ "\n";
+           DispString _ "[tlbHandleMemRes] done.\n"
+         ];
+         LET vpn <- (ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) #vaddr));
+         LET result
+           :  PktWithException TlbEntry
+           <- STRUCT {
+                "fst" ::= #entry;
+                "snd" ::= #trans_result @% "snd" @% "snd"
+              } : PktWithException TlbEntry @# ty;
+         LET done <- #trans_result @% "fst";
+         LET exception : Maybe Exception <- #trans_result @% "snd" @% "snd";
+         Write @^"tlbBusy" : Bool <- !#done && !(#exception @% "valid");
+         If #done then Cam.Ifc.write cam #vpn #entry;
+         LET addrException : Pair VAddr Exception <- STRUCT { "fst" ::= #vaddr ;
+                                                              "snd" ::= #exception @% "data" };
+         Write @^"tlbException" : Maybe (Pair VAddr Exception) <- STRUCT { "valid" ::= #exception @% "valid";
+                                                                           "data" ::= #addrException };
+         Write @^"tlbLevel" : PtLevel <- #level - $1;
+         Write @^"tlbMemReq" : PAddr <- #trans_result @% "snd" @% "fst";
+         Write @^"tlbSendMemReq" : Bool <- !#done && !(#exception @% "valid");
          Retv.
 
-    Local Definition tlbHandleReq
-      (reqId: nat)
-      (tlbReq : HandleReqInput @# ty)
+    Local Definition getPAddr
+      (tlbReq : ty TlbReq)
       :  ActionT ty (Maybe (PktWithException PAddr))
       := System [
-           DispString _ "[tlbHandleReq]\n"
+           DispString _ "[tlbGetPAddr]\n"
          ];
-         LET req
-           :  TlbReq
-           <- STRUCT {
-                "client_id" ::= $reqId;
-                "vaddr"  ::= (tlbReq @% "vaddr")
-              } : TlbReq @# ty;
-         LETA mexception
-           :  Maybe Exception <- tlbGetException #req;
+         LET vaddr
+           :  VAddr
+           <- #tlbReq @% "vaddr";
          LETA mentry
            :  Maybe TlbEntry
                 <- getTlbEntry
-                     (tlbReq @% "access_type")
-                     (tlbReq @% "satp_mode")
-                     (tlbReq @% "mode")
-                     (tlbReq @% "satp_ppn")
-                     #req;
-         LETA paddr <- 
+                     (#tlbReq @% "access_type")
+                     (#tlbReq @% "satp_mode")
+                     (#tlbReq @% "mode")
+                     (#tlbReq @% "satp_ppn")
+                     #vaddr;
+         LETA paddr : PAddr <- 
              convertLetExprSyntax_ActionT
                (tlbEntryVAddrPAddr
-                 (tlbReq @% "satp_mode")
+                 (#tlbReq @% "satp_mode")
                  (#mentry @% "data")
-                 (tlbReq @% "vaddr"));
+                 (#tlbReq @% "vaddr"));
          LET finalException: Maybe Exception
            <- STRUCT { "valid" ::=
                          !(pte_grant
-                             (tlbReq @% "mxr")
-                             (tlbReq @% "sum")
-                             (tlbReq @% "mode")
-                             (tlbReq @% "access_type")
+                             (#tlbReq @% "mxr")
+                             (#tlbReq @% "sum")
+                             (#tlbReq @% "mode")
+                             (#tlbReq @% "access_type")
                              (#mentry @% "data" @% "pte"));
-                       "data" ::= (faultException (tlbReq @% "access_type")) };
-         LET pkt
-           :  PktWithException PAddr
-           <- STRUCT {
-                "fst" ::= #paddr;
-                "snd"
-                  ::= IF #mexception @% "valid"
-                        then #mexception
-                        else #finalException
-              } : PktWithException PAddr @# ty;
-         LET result
-           :  Maybe (PktWithException PAddr)
-           <- STRUCT {
-                "valid" ::= (#mexception @% "valid" || #mentry @% "valid");
-                "data"  ::= #pkt
-              } : Maybe (PktWithException PAddr) @# ty;
-         System [
-           DispString _ "[tlbHandleReq] mentry: ";
-           DispHex #mentry;
-           DispString _ "\n";
-           DispString _ "[tlbHandleReq] mexception: ";
-           DispHex #mexception;
-           DispString _ "\n";
-           DispString _ "[tlbHandleReq] result: ";
-           DispHex #result;
-           DispString _ "\n"
+                       "data" ::= (faultException (#tlbReq @% "access_type")) };
+         LET retval: PktWithException PAddr
+           <- STRUCT { "fst" ::= #paddr ;
+                       "snd" ::= #finalException };
+         Ret ((STRUCT { "valid" ::= #mentry @% "valid" ;
+                        "data" ::= #retval }): Maybe (PktWithException PAddr) @# ty).
+
+    (*
+      Returns the exception generated by the last translation
+      request.
+    *)
+    Local Definition getException
+      :  ActionT ty (Maybe (Pair VAddr Exception))
+      := System [
+           DispString _ "[tlbGetException]\n"
          ];
-         Ret #result.
+         Read exception : Maybe (Pair VAddr Exception) <- @^"tlbReqException";
+         Write @^"tlbReqException" : Maybe (Pair VAddr Exception) <- Invalid;
+         Ret #exception.
   End ty.
 
   Definition stdTlb : Tlb
     := {|
-         HandleReq := fun i _ req => tlbHandleReq i #req;
-         HandleMemRes := fun _ data => tlbHandleMemRes #data
+          Regs := tlbRegs;
+          GetPAddr := getPAddr;
+          GetException := getException;
+          SendMemReqRule := sendMemReq;
+          HandleMemRes := tlbHandleMemRes
        |}.
 
   Local Close Scope kami_action.
