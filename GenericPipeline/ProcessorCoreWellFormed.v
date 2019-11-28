@@ -1349,7 +1349,7 @@ Theorem WFConcat2:
                 (map (fun m : RegFileBase => Base (BaseRegFile m))
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
-(*Proof.
+(*SLOW Proof.
     intros.
     autorewrite with kami_rewrite_db in H.
     inversion H; subst; clear H.
@@ -2066,21 +2066,111 @@ Qed.
 
 Hint Resolve DisjKey_getAllRegisters_floatRegFile_mem_device_files : wfModProcessor_db.
 
+Theorem DisjKey_concat_map2:
+  forall a b c,
+      DisjKey a
+              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews (b::c))))))) <->
+      DisjKey a (concat (map csr_reg_csr_field (concat (map csrViewFields (csrViews b))))) /\
+      DisjKey a
+              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews c)))))).
+Proof.
+    intros.
+    simpl.
+    autorewrite with simp_csrs.
+    rewrite DisjKey_app2.
+    reflexivity.
+Qed.
+
+Theorem In_map_concat_debug_csr_data_list: forall x l,
+  In x
+      (map fst
+         (concat
+            (map csr_reg_csr_field
+               (concat
+                  (map csrViewFields
+                     (concat
+                        (map csrViews
+                           (map Debug.debug_csr_data l)))))))) ->
+exists q : string,
+  x = @^ ("data" ++ q).
+Proof.
+  intros.
+  induction l.
+  + simpl in H.
+    inversion H.
+  + simpl in H.
+    destruct H.
+    - eapply debug_csr_data_disjoint.
+      simpl.
+      left.
+      apply H.
+    - apply IHl.
+      apply H.
+Qed.
+
 Theorem DisjKey_getAllRegisters_floatRegFile_processorCore:
   DisjKey (getAllRegisters (BaseRegFile floatRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
-(*Proof.
-  unfold processorCore.
-  autorewrite with kami_rewrite_db.
-  simpl.
-  split.
-  + intros.
-    intro X.
-    inversion X.
-    discharge_append.
-    inversion H.*)
-
-
+(*SLOW Proof.
+    unfold processorCore.
+    autorewrite with kami_rewrite_db;try (apply string_dec).
+    simpl.
+    intros.
+    discharge_DisjKey.
+    + unfold Csrs.
+      unfold csr_regs.
+      apply DisjKey_NubBy2.
+      repeat (rewrite DisjKey_concat_map2;split);
+          autorewrite with simp_csrs;
+          discharge_DisjKey.
+      remember (existsb
+                    (fun '{| ext_name := x; ext_edit := z |} =>
+                    (((x =? "F") || (x =? "D")) && z)%bool) InitExtsAll).
+      destruct b.
+      - simpl in H1.
+        discharge_DisjKey.
+      - simpl in H1.
+        discharge_DisjKey.
+    + discharge_DisjKey.
+      apply mem_separate_name_space_regs in H1.
+      destruct H1.
+    + unfold debug_internal_regs.
+      discharge_DisjKey.
+    + unfold debug_csrs.
+      unfold csr_regs.
+      apply DisjKey_NubBy2.
+      repeat (rewrite DisjKey_concat_map2;split);
+          autorewrite with simp_csrs;
+          discharge_DisjKey.
+      autorewrite with simp_csrs in H1.
+      rewrite in_app in H1.
+      destruct H1.
+      - unfold Debug.debug_csrs_data in H.
+        assert (exists (q:string), 
+                ((proc_name++"_float_reg_file")%string=@^("data"++q))).
+        * eapply In_map_concat_debug_csr_data_list.
+          apply H.
+        * inversion H0;subst;clear H0.
+          discharge_append.
+      - discharge_DisjKey.
+        unfold Debug.debug_csrs_progbuf in H0.
+        eapply debug_csrs_prog_buf_disjoint in H0.
+        inversion H0.
+        discharge_append.
+    + unfold Tlb.tlbRegs.
+      simpl.
+      unfold Tlb.tlbMemReqActiveName.
+      discharge_DisjKey.
+    + unfold Fetch.fetchRegs.
+      simpl.
+      unfold Fetch.fetchStateName.
+      unfold Fetch.fetchResultName.
+      unfold Fetch.fetchSendLowerTlbRequestName.
+      unfold Fetch.fetchSendUpperTlbRequestName.
+      unfold Fetch.fetchTlbResultName.
+      discharge_DisjKey.
+    + apply DisjKey_nil2.
+Qed.*)
 
 Admitted.
 
@@ -2317,48 +2407,6 @@ Qed.
 
 Hint Resolve DisjKey_getAllRegisters_memReservationRegFile : wfModProcessor_db.
 
-Theorem DisjKey_concat_map2:
-  forall a b c,
-      DisjKey a
-              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews (b::c))))))) <->
-      DisjKey a (concat (map csr_reg_csr_field (concat (map csrViewFields (csrViews b))))) /\
-      DisjKey a
-              (concat (map csr_reg_csr_field (concat (map csrViewFields (concat (map csrViews c)))))).
-Proof.
-    intros.
-    simpl.
-    autorewrite with simp_csrs.
-    rewrite DisjKey_app2.
-    reflexivity.
-Qed.
-
-Theorem In_map_concat_debug_csr_data_list: forall x l,
-  In x
-      (map fst
-         (concat
-            (map csr_reg_csr_field
-               (concat
-                  (map csrViewFields
-                     (concat
-                        (map csrViews
-                           (map Debug.debug_csr_data l)))))))) ->
-exists q : string,
-  x = @^ ("data" ++ q).
-Proof.
-  intros.
-  induction l.
-  + simpl in H.
-    inversion H.
-  + simpl in H.
-    destruct H.
-    - eapply debug_csr_data_disjoint.
-      simpl.
-      left.
-      apply H.
-    - apply IHl.
-      apply H.
-Qed.
-
 (*Theorem In_map_concat_debug_csr_progbuf_list: forall x l,
   In x
       (map fst
@@ -2501,26 +2549,232 @@ Hint Resolve WfMod_memReservationFile : wfModProcessor_db.
 (*Theorem WfMod_processorCore: forall func_units mem_table, WfMod (processorCore func_units mem_table).
 Admitted.*)
 
+Set Printing Implicit.
+
+Theorem WfActionT_regs_only:
+  forall k regs rules meths r,
+      @WfActionT (BaseMod regs [] []) k r -> @WfActionT (BaseMod regs rules meths) k r.
+Admitted.
+(*Proof.
+    admit.
+    intros.
+    induction r.
+    + apply WfMCall.
+      intros.
+      apply H0.*)
+
+Theorem WfMod_processorCore:
+  forall mem_devices mem_table, WfMod (@processorCore procParams func_units mem_devices mem_table).
+(*Proof.
+  intros.
+  unfold processorCore.
+  unfold makeModule.
+  autorewrite with kami_rewrite_db.*)
+
+Admitted.
+
+Definition disjoint_devices (m1: MemDevice) (m2:MemDevice) :=
+  @memDeviceName procParams m1 <> @memDeviceName procParams m2 /\
+  match @memDeviceFile procParams m1,@memDeviceFile procParams m2 with
+  | Some (inl l1),Some (inl l2) =>
+    forall r1 r2, In r1 l1 -> In r2 l2 -> DisjKey (getAllRegisters (BaseRegFile r1)) (getAllRegisters (BaseRegFile r2))
+  | _,_ => True
+  end.
+
+Fixpoint disjoint_device_from_list m l :=
+  match l with
+  | nil => True
+  | f::r => disjoint_devices m f /\ disjoint_device_from_list m r
+  end.
+
+Fixpoint disjoint_device_list md :=
+  match md with
+  | nil => True
+  | f::r => disjoint_device_from_list f r /\ disjoint_device_list r
+  end.
+
+Theorem mem_device_files_cons:
+  forall a md,
+      mem_device_files (a :: md)=
+      (get_mem_device_file a)++mem_device_files md.
+Proof.
+    intros.
+    simpl.
+    unfold mem_device_files.
+    simpl.
+    reflexivity.
+Qed.
+
+Fixpoint disjoint_RegFileBase_list (l: list RegFileBase) :=
+  match l with
+  | nil => True
+  | (f::r) => (forall x, In x r ->
+      (DisjKey (getRegFileRegisters f) (getRegFileRegisters x)) /\
+       DisjKey (getRegFileMethods f) (getRegFileMethods x)) /\
+      disjoint_RegFileBase_list r
+  end.
+
+Definition disjoint_memDevice (a: MemDevice) :=
+    match memDeviceFile with
+    | None => True
+    | Some (inl x) => disjoint_RegFileBase_list x
+    | Some _ => True
+    end.
+
+Definition Disjoint_memDevice (m: MemDevice) (r:Mod) :=
+    match memDeviceFile with
+    | None => True
+    | Some (inl l) => forall x, In x l -> (DisjKey (getRegFileRegisters x) (getAllRegisters r) /\ DisjKey (getRegFileMethods x) (getAllMethods r))
+    | Some _ => True
+    end.
+
+Theorem wfMod_fold_right_mem_device_file:
+forall r a,
+       WfMod r ->
+       disjoint_memDevice a ->
+       Disjoint_memDevice a r ->
+       WfMod (@fold_right Mod Mod ConcatMod r
+         (@map RegFileBase Mod (fun m : RegFileBase => BaseRegFile m)
+           (@get_mem_device_file procParams a))).
+(*Proof.
+  clear.
+  intros.
+  destruct a.
+  simpl.
+  unfold get_mem_device_file.
+  simpl.
+  destruct memDeviceFile.
+  + destruct s.
+    unfold disjoint_memDevice in H0.
+    simpl in H0.
+    - induction l.
+      * simpl.
+        apply H.
+      * simpl.
+        simpl in H0.
+        destruct H0.
+        unfold Disjoint_memDevice in H1.
+        simpl in H1.
+        apply ConcatModWf.
+        ++ simpl.
+           induction l.
+           -- simpl.
+              simpl in H1.
+              apply H1.
+              left.
+              reflexivity.
+           -- simpl.
+              apply DisjKey_app2.
+              split.
+              ** apply H0.
+                 simpl.
+                 left.
+                 reflexivity.
+              ** apply IHl0.
+                 +++ intros.
+                     eapply H0.
+                     simpl.
+                     right.
+                     apply H3.
+                 +++ simpl in H2.
+                     destruct H2.
+                     apply H3.
+                 +++ intros.
+                     eapply H1.
+                     destruct H3.
+                     --- left.
+                         apply H3.
+                     --- right.
+                         simpl.
+                         right.
+                         apply H3.
+                 +++ intros.
+                     assert (
+                       WfMod
+                         (@fold_right Mod Mod ConcatMod r
+                            (@map RegFileBase Mod (fun m : RegFileBase => BaseRegFile m)
+                               (a0 :: l)))).
+
+                       --- apply IHl.
+                           split.
+                           *** intros.
+                               simpl in H2.
+                               destruct H2.
+                               apply H2.
+                               apply H5.
+                           *** apply H3.
+                           *** simpl.
+                               unfold Disjoint_memDevice.
+                               simpl.
+                               intros.
+                               unfold Disjoint_memDevice in H4.
+                               simpl in H4.
+                               destruct H5.
+                               ++++ subst.
+                                    apply H1.
+                                    right.
+                                    simpl.
+                                    left.
+                                    reflexivity.
+                               ++++ apply H4.
+                                    apply H5.
+                       --- simpl in H5.
+                           inversion H5;subst;clear H5.
+                           apply HWf2.
+        ++ rewrite getAllRules_fold_right_ConcatMod.
+           rewrite DisjKey_Append2.
+           split.
+           -- simpl.
+              apply DisjKey_nil1.
+           -- simpl.
+              apply DisjKey_nil1.
+           -- apply string_dec.
+        ++ rewrite getAllMethods_fold_right_ConcatMod.
+           rewrite DisjKey_Append2.
+           split.
+           -- simpl.
+*)
+
+Admitted.
+
+Theorem WfMod_processorCore_mem_devices_helper:
+  forall md,
+  disjoint_device_list md ->
+  WfMod (processorCore func_units mem_table) ->
+  WfMod
+    (fold_right ConcatMod (processorCore func_units mem_table)
+       (map (fun m : RegFileBase => Base (BaseRegFile m))
+          (mem_device_files md))).
+(*Proof.
+    simpl.
+    intros.
+    induction md.
+    + simpl.
+      apply WfMod_processorCore.
+    + simpl.
+      simpl in H;destruct H.
+      simpl.
+      rewrite mem_device_files_cons.
+      rewrite map_app.
+      rewrite fold_right_app.
+      apply wfMod_fold_right_mem_device_file.
+      apply IHmd.
+      apply H1.
+Qed.*)
+
+Admitted.
+
 Theorem WfMod_processorCore_mem_devices:  
   WfMod
     (fold_right ConcatMod (processorCore func_units mem_table)
        (map (fun m : RegFileBase => Base (BaseRegFile m))
           (mem_device_files mem_devices))).
-(*Proof.
-    simpl.
-    induction mem_devices.
-    + simpl.
-      unfold processorCore.
-      unfold makeModule.
-      apply BaseWf.
-      unfold WfBaseModule.
-      unfold getRules.
-      split.
-      -- intros.
-         autorewrite with kami_rewrite_db in H.*)
-
 Admitted.
-
+(*Proof.
+    apply WfMod_processorCore_mem_devices_helper.
+    apply WfMod_processorCore.
+Qed.*)
+  
 Hint Resolve WfMod_processorCore_mem_devices :wfModProcessor_db.
 
 Theorem WFConcat7:
