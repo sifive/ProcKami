@@ -43,6 +43,12 @@ Section tlb.
            GetException
              : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
 
+           (*
+             Note: clients must clear exceptions when the exception's
+             vaddr matches their request's vaddr.
+           *)
+           ClearException : forall ty, ActionT ty Void;
+
            SendMemReqRule (memSendReq: forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt))
              : forall ty, ActionT ty Void;
              
