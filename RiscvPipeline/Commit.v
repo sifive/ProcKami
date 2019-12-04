@@ -433,8 +433,8 @@ Section trap_handling.
             IF #usi then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptU} : Pair PrivMode Exception @# ty) else (
             IF #uti then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUTimer} : Pair PrivMode Exception @# ty) else
             Invalid))))))));
-       LET exception : Exception
-         <- #code @% "data" @% "snd";
+       LET exception : Exception <- #code @% "data" @% "snd";
+       LET interruptMode : PrivMode <- #code @% "data" @% "fst";
        System [
          DispString _ "[interruptAction] detected interrupt: ";
          DispHex #exception;
@@ -443,36 +443,23 @@ Section trap_handling.
        Read mideleg : Bit 16 <- @^"mideleg";
        Read sideleg : Bit 16 <- @^"sideleg";
        (* 3.1.6.1 and 3.1.9 *)
-       If #code @% "valid"
+       If #code @% "valid" &&
+         (* nondelegated *)
+         ((#interruptMode == $MachineMode &&
+            ((mode < $MachineMode) ||
+             (mode == $MachineMode && #mie))) ||
+          (* delegated *)
+          (delegated #mideleg #exception &&
+            (IF delegated #sideleg #exception
+              then mode == $UserMode && #uie
+              else
+                (mode == $SupervisorMode && #sie) ||
+                (mode == $UserMode))))
          then
-           If mode == $MachineMode && #mie
-             then
-               System [DispString _ "[trapInterrupt] trapping interrupt into machine mode.\n"];
-               LETA _ <- trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-               Retv
-             else
-               If delegated #mideleg (#code @% "data" @% "snd")
-                 then
-                   If mode == $SupervisorMode &&
-                      (#code @% "data" @% "fst" == $MachineMode ||
-                       (#code @% "data" @% "fst" == $SupervisorMode && #sie))
-                     then
-                       System [DispString _ "[trapInterrupt] trapping interrupt into supervisor mode.\n"];
-                       LETA _ <- trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-                       Retv
-                     else
-                       If delegated #sideleg (#code @% "data" @% "snd") &&
-                          mode == $UserMode &&
-                          ((#code @% "data" @% "fst" > mode) ||
-                           (#code @% "data" @% "fst" == $UserMode && #uie))
-                         then
-                           System [DispString _ "[trapInterrupt] trapping interrupt into user mode.\n"];
-                           LETA _ <- trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception  ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-                           Retv;
-                       Retv;
-                   Retv;
-                 Retv;
-           Retv;
+           System [
+             DispString _ "[interruptAction] trapping interrupt into machine mode.\n"
+           ];
+           trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
        Retv.
 
   Close Scope kami_expr.
