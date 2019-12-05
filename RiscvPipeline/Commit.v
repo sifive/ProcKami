@@ -41,6 +41,7 @@ Section trap_handling.
                                             ($LoadPageFault: Exception @# ty) ::= #memAddr;
                                             ($SAmoPageFault: Exception @# ty) ::= #memAddr})).
 
+
   Definition trapAction
     (prefix : string)
     (intrpt : Bool @# ty)
@@ -103,25 +104,20 @@ Section trap_handling.
        (* section 3.1.7 *)
        LET next_pc
          :  VAddr
-         <- IF #tvec_mode == $0 (* && intrpt *)
+         <- IF #tvec_mode == $0
               then #addr_base
               else (#addr_base + #addr_offset);
        Write @^"pc"
          :  VAddr
          <- #next_pc;
        (* section 3.1.8 *)
-(*
-       If next_mode != $MachineMode
-         then
-*)
-           (* section 3.1.20 *)
-           Write @^(prefix ++ "epc") : VAddr <- pc;
-           (* section 3.1.21 *)
-           Write @^(prefix ++ "cause_interrupt") : Bool <- intrpt;
-           Write @^(prefix ++ "cause_code")
-             :  Bit (Xlen - 1)
-             <- ZeroExtendTruncLsb (Xlen - 1) (exception);
-(*           Retv; *)
+       (* section 3.1.20 *)
+       Write @^(prefix ++ "epc") : VAddr <- pc;
+       (* section 3.1.21 *)
+       Write @^(prefix ++ "cause_interrupt") : Bool <- intrpt;
+       Write @^(prefix ++ "cause_code")
+         :  Bit (Xlen - 1)
+         <- ZeroExtendTruncLsb (Xlen - 1) (exception);
        (* section 3.1.22 *)
        Write @^(prefix ++ "tval") : Bit Xlen <- #final_exception_value;
        Write @^"mode" : PrivMode <- modeFix #extensions next_mode;
@@ -142,6 +138,29 @@ Section trap_handling.
          DispString _ "\n"
        ];
        Ret #next_pc.
+
+  Definition delegTrap
+    (delegMode : PrivMode @# ty)
+    (xlen : XlenValue @# ty)
+    (debug : Bool @# ty)
+    (mode : PrivMode @# ty)
+    (pc : VAddr @# ty)
+    (exception : Exception @# ty)
+    (inst: Inst @# ty)
+    (update_pkt: ExecUpdPkt @# ty)
+    (next_pc: VAddr @# ty)
+    (exceptionUpper: Bool @# ty)
+    :  ActionT ty VAddr
+    := If delegMode == $MachineMode
+         then trapAction "m" $$false $3 2 xlen debug mode pc exception inst update_pkt next_pc exceptionUpper
+         else
+           If delegMode == $SupervisorMode
+             then trapAction "s" $$false $1 1 xlen debug mode pc exception inst update_pkt next_pc exceptionUpper
+             else trapAction "u" $$false $0 0 xlen debug mode pc exception inst update_pkt next_pc exceptionUpper
+             as nextPc;
+           Ret #nextPc
+         as nextPc;
+       Ret #nextPc.
 
   Definition delegated
     (edeleg : Bit 16 @# ty)
@@ -208,29 +227,7 @@ Section trap_handling.
                           then $SupervisorMode
                           else $UserMode
                       else $MachineMode;
-               If #delegMode == $MachineMode
-                 then trapAction "m" $$false $3 2 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                 else
-                   If #delegMode == $SupervisorMode
-                     then trapAction "s" $$false $1 1 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                     else trapAction "u" $$false $0 0 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                     as next_pc;
-                   Ret #next_pc
-                 as next_pc;
-(*
-               If delegated #medeleg (exception) &&
-                  (mode == $SupervisorMode ||
-                   mode == $UserMode)
-                 then trapAction "s" $$false $1 1 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                 else
-                   (If delegated #sedeleg (exception) && mode == $UserMode
-                      then trapAction "u" $$false $0 0 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                      else trapAction "m" $$false $3 2 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                      as next_pc;
-                    Ret #next_pc)
-                  as next_pc;
-*)
-               Ret #next_pc
+                 delegTrap #delegMode xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
              as next_pc;
            Ret #next_pc
          as next_pc;
@@ -417,10 +414,10 @@ Section trap_handling.
 
   Definition intrpt_pending
     (name : string)
-    :  ActionT ty Bool
+    :  ActionT ty (Bit 1)
     := Read pending : Bool <- (name ++ "p");
        Read enabled : Bool <- (name ++ "e");
-       Ret (#pending && #enabled).
+       Ret (IF #pending && #enabled then $1 else $0).
 
   Definition trapInterrupt
     (xlen : XlenValue @# ty)
@@ -434,27 +431,25 @@ Section trap_handling.
        Read uie : Bool <- @^"uie";
        Read mideleg : Bit 16 <- @^"mideleg";
        Read sideleg : Bit 16 <- @^"sideleg";
-       LETA mei : Bool <- intrpt_pending @^"mei";
-       LETA msi : Bool <- intrpt_pending @^"msi";
-       LETA mti : Bool <- intrpt_pending @^"mti";
-       LETA sei : Bool <- intrpt_pending @^"sei";
-       LETA ssi : Bool <- intrpt_pending @^"ssi";
-       LETA sti : Bool <- intrpt_pending @^"sti";
-       LETA uei : Bool <- intrpt_pending @^"uei";
-       LETA usi : Bool <- intrpt_pending @^"usi";
-       LETA uti : Bool <- intrpt_pending @^"uti";
-       LET code : Maybe (Pair PrivMode Exception)
-         <- IF #mei then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMExt} : Pair PrivMode Exception @# ty) else (
-            IF #msi then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptM} : Pair PrivMode Exception @# ty) else (
-            IF #mti then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMTimer} : Pair PrivMode Exception @# ty) else (
-            IF #sei then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptSExt} : Pair PrivMode Exception @# ty) else (
-            IF #ssi then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptS} : Pair PrivMode Exception @# ty) else (
-            IF #sti then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptSTimer} : Pair PrivMode Exception @# ty) else (
-            IF #uei then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUExt} : Pair PrivMode Exception @# ty) else (
-            IF #usi then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptU} : Pair PrivMode Exception @# ty) else (
-            IF #uti then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUTimer} : Pair PrivMode Exception @# ty) else
-            Invalid))))))));
-       LET exception : Exception <- #code @% "data" @% "snd";
+       LETA mei : Bit 1 <- intrpt_pending @^"mei";
+       LETA msi : Bit 1 <- intrpt_pending @^"msi";
+       LETA mti : Bit 1 <- intrpt_pending @^"mti";
+       LETA sei : Bit 1 <- intrpt_pending @^"sei";
+       LETA ssi : Bit 1 <- intrpt_pending @^"ssi";
+       LETA sti : Bit 1 <- intrpt_pending @^"sti";
+       LETA uei : Bit 1 <- intrpt_pending @^"uei";
+       LETA usi : Bit 1 <- intrpt_pending @^"usi";
+       LETA uti : Bit 1 <- intrpt_pending @^"uti";
+       LET exceptionBits
+         :  Bit 12
+         <- ZeroExtendTruncLsb 12
+              ({< #usi, #ssi, ($0 : Bit 1 @# ty), #msi, #uti, #sti, ($0 : Bit 1 @# ty), #mti, #uei, #sei, ($0 : Bit 1 @# ty), #mei >});
+       LET isException
+         :  Bool
+         <- #exceptionBits != $0;
+       LET exception
+         :  Exception
+         <- countLeadingZeros 4 #exceptionBits;
        LET delegMode
          :  PrivMode
          <- IF delegated #mideleg #exception
@@ -470,15 +465,9 @@ Section trap_handling.
               ($SupervisorMode : PrivMode @# ty) ::= #sie;
               ($UserMode       : PrivMode @# ty) ::= #uie
             };
-       If (#code @% "valid" && ((mode < #delegMode) || ((mode == #delegMode && #enabled))))
+       If (#isException && ((mode < #delegMode) || ((mode == #delegMode && #enabled))))
          then 
-           If #delegMode == $MachineMode
-             then trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-           If #delegMode == $SupervisorMode
-             then trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-           If #delegMode == $UserMode
-             then trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception  ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-           Retv;
+           delegTrap #delegMode xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
        Retv.
 
   Close Scope kami_expr.
