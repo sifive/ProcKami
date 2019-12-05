@@ -434,32 +434,30 @@ Section trap_handling.
             IF #uti then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUTimer} : Pair PrivMode Exception @# ty) else
             Invalid))))))));
        LET exception : Exception <- #code @% "data" @% "snd";
-       LET interruptMode : PrivMode <- #code @% "data" @% "fst";
-       System [
-         DispString _ "[interruptAction] detected interrupt: ";
-         DispHex #exception;
-         DispString _ "\n"
-       ];
-       Read mideleg : Bit 16 <- @^"mideleg";
-       Read sideleg : Bit 16 <- @^"sideleg";
-       (* 3.1.6.1 and 3.1.9 *)
-       If #code @% "valid" &&
-         (* nondelegated *)
-         ((#interruptMode == $MachineMode &&
-            ((mode < $MachineMode) ||
-             (mode == $MachineMode && #mie))) ||
-          (* delegated *)
-          (delegated #mideleg #exception &&
-            (IF delegated #sideleg #exception
-              then mode == $UserMode && #uie
-              else
-                (mode == $SupervisorMode && #sie) ||
-                (mode == $UserMode))))
-         then
-           System [
-             DispString _ "[interruptAction] trapping interrupt into machine mode.\n"
-           ];
-           trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
+       LET delegMode
+         :  PrivMode
+         <- IF delegated #mideleg #exception
+              then
+                IF delegated #sideleg #exception
+                  then $SupervisorMode
+                  else $UserMode
+              else $MachineMode;
+       LET enabled
+         :  Bool
+         <- Switch delegMode Retn Bool With  {
+              ($MachineMode    : PrivMode @# ty) ::= #mie;
+              ($SupervisorMode : PrivMode @# ty) ::= #sie;
+              ($UserMode       : PrivMode @# ty) ::= #uie
+            }
+       If #code @% "valid" && (mode < #delegMode || (mode == #delegMode && #enabled))
+         then 
+           If #delegMode == $MachineMode
+             then trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
+           If #delegMode == $SupervisorMode
+             then trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
+           If #delegMode == $UserMode
+             then trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception  ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
+           Retv;
        Retv.
 
   Close Scope kami_expr.
