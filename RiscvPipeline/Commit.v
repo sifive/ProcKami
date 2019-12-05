@@ -414,10 +414,10 @@ Section trap_handling.
 
   Definition intrpt_pending
     (name : string)
-    :  ActionT ty (Bit 1)
+    :  ActionT ty Bool
     := Read pending : Bool <- (name ++ "p");
        Read enabled : Bool <- (name ++ "e");
-       Ret (IF #pending && #enabled then $1 else $0).
+       Ret (#pending && #enabled).
 
   Definition trapInterrupt
     (xlen : XlenValue @# ty)
@@ -431,30 +431,31 @@ Section trap_handling.
        Read uie : Bool <- @^"uie";
        Read mideleg : Bit 16 <- @^"mideleg";
        Read sideleg : Bit 16 <- @^"sideleg";
-       LETA mei : Bit 1 <- intrpt_pending @^"mei";
-       LETA msi : Bit 1 <- intrpt_pending @^"msi";
-       LETA mti : Bit 1 <- intrpt_pending @^"mti";
-       LETA sei : Bit 1 <- intrpt_pending @^"sei";
-       LETA ssi : Bit 1 <- intrpt_pending @^"ssi";
-       LETA sti : Bit 1 <- intrpt_pending @^"sti";
-       LETA uei : Bit 1 <- intrpt_pending @^"uei";
-       LETA usi : Bit 1 <- intrpt_pending @^"usi";
-       LETA uti : Bit 1 <- intrpt_pending @^"uti";
-       LET exceptionBits
-         :  Bit 12
-         <- ZeroExtendTruncLsb 12
-              ({< #usi, #ssi, ($0 : Bit 1 @# ty), #msi, #uti, #sti, ($0 : Bit 1 @# ty), #mti, #uei, #sei, ($0 : Bit 1 @# ty), #mei >});
-       LET isException
-         :  Bool
-         <- #exceptionBits != $0;
-       LET exception
-         :  Exception
-         <- countLeadingZeros 4 #exceptionBits;
+       LETA mei : Bool <- intrpt_pending @^"mei";
+       LETA msi : Bool <- intrpt_pending @^"msi";
+       LETA mti : Bool <- intrpt_pending @^"mti";
+       LETA sei : Bool <- intrpt_pending @^"sei";
+       LETA ssi : Bool <- intrpt_pending @^"ssi";
+       LETA sti : Bool <- intrpt_pending @^"sti";
+       LETA uei : Bool <- intrpt_pending @^"uei";
+       LETA usi : Bool <- intrpt_pending @^"usi";
+       LETA uti : Bool <- intrpt_pending @^"uti";
+       LET exception : Maybe Exception
+         <- IF #mei then Valid ($IntrptMExt   : Exception @# ty) else (
+            IF #msi then Valid ($IntrptM      : Exception @# ty) else (
+            IF #mti then Valid ($IntrptMTimer : Exception @# ty) else (
+            IF #sei then Valid ($IntrptSExt   : Exception @# ty) else (
+            IF #ssi then Valid ($IntrptS      : Exception @# ty) else (
+            IF #sti then Valid ($IntrptSTimer : Exception @# ty) else (
+            IF #uei then Valid ($IntrptUExt   : Exception @# ty) else (
+            IF #usi then Valid ($IntrptU      : Exception @# ty) else (
+            IF #uti then Valid ($IntrptUTimer : Exception @# ty) else
+            Invalid))))))));
        LET delegMode
          :  PrivMode
-         <- IF delegated #mideleg #exception
+         <- IF delegated #mideleg (#exception @% "data")
               then
-                IF delegated #sideleg #exception
+                IF delegated #sideleg (#exception @% "data")
                   then $SupervisorMode
                   else $UserMode
               else $MachineMode;
@@ -465,9 +466,9 @@ Section trap_handling.
               ($SupervisorMode : PrivMode @# ty) ::= #sie;
               ($UserMode       : PrivMode @# ty) ::= #uie
             };
-       If (#isException && ((mode < #delegMode) || ((mode == #delegMode && #enabled))))
+       If ((#exception @% "valid") && ((mode < #delegMode) || ((mode == #delegMode && #enabled))))
          then 
-           delegTrap #delegMode xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
+           delegTrap #delegMode xlen debug mode pc (#exception @% "data") ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
        Retv.
 
   Close Scope kami_expr.
