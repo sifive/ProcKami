@@ -200,6 +200,24 @@ Section trap_handling.
                LETA _ <- enterDebugMode mode pc $DebugCauseEBreak;
                Ret pc
              else
+               LET delegMode
+                 :  PrivMode
+                 <- IF delegated #medeleg exception
+                      then
+                        IF delegated #sedeleg exception
+                          then $SupervisorMode
+                          else $UserMode
+                      else $MachineMode;
+               If #delegMode == $MachineMode
+                 then trapAction "m" $$false $3 2 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
+                 else
+                   If #delegMode == $SupervisorMode
+                     then trapAction "s" $$false $1 1 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
+                     else trapAction "u" $$false $0 0 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
+                     as next_pc;
+                   Ret #next_pc
+                 as next_pc;
+(*
                If delegated #medeleg (exception) &&
                   (mode == $SupervisorMode ||
                    mode == $UserMode)
@@ -211,6 +229,7 @@ Section trap_handling.
                       as next_pc;
                     Ret #next_pc)
                   as next_pc;
+*)
                Ret #next_pc
              as next_pc;
            Ret #next_pc
@@ -413,6 +432,8 @@ Section trap_handling.
        Read mie : Bool <- @^"mie";
        Read sie : Bool <- @^"sie";
        Read uie : Bool <- @^"uie";
+       Read mideleg : Bit 16 <- @^"mideleg";
+       Read sideleg : Bit 16 <- @^"sideleg";
        LETA mei : Bool <- intrpt_pending @^"mei";
        LETA msi : Bool <- intrpt_pending @^"msi";
        LETA mti : Bool <- intrpt_pending @^"mti";
@@ -444,12 +465,12 @@ Section trap_handling.
               else $MachineMode;
        LET enabled
          :  Bool
-         <- Switch delegMode Retn Bool With  {
+         <- Switch #delegMode Retn Bool With  {
               ($MachineMode    : PrivMode @# ty) ::= #mie;
               ($SupervisorMode : PrivMode @# ty) ::= #sie;
               ($UserMode       : PrivMode @# ty) ::= #uie
-            }
-       If #code @% "valid" && (mode < #delegMode || (mode == #delegMode && #enabled))
+            };
+       If (#code @% "valid" && ((mode < #delegMode) || ((mode == #delegMode && #enabled))))
          then 
            If #delegMode == $MachineMode
              then trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
