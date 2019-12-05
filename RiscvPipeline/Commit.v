@@ -403,7 +403,7 @@ Section trap_handling.
        Read enabled : Bool <- (name ++ "e");
        Ret (#pending && #enabled).
 
-  Definition interruptAction
+  Definition trapInterrupt
     (xlen : XlenValue @# ty)
     (debug : Bool @# ty)
     (mode : PrivMode @# ty)
