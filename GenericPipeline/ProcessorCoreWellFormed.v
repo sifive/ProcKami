@@ -51,6 +51,44 @@ Section WfModProcessorProof.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
+    Fixpoint disjoint_RegFileBase_list (l: list RegFileBase) :=
+      match l with
+      | nil => True
+      | (f::r) => NoDup (map fst (getRegFileRegisters f)) /\
+                  NoDup (map fst (getRegFileMethods f)) /\
+                  (forall x, In x r ->
+          (DisjKey (getRegFileRegisters f) (getRegFileRegisters x)) /\
+           DisjKey (getRegFileMethods f) (getRegFileMethods x)) /\
+          disjoint_RegFileBase_list r
+      end.
+    
+    Definition disjoint_memDevice (a: MemDevice) :=
+        match memDeviceFile with
+        | None => True
+        | Some (inl x) => disjoint_RegFileBase_list x
+        | Some _ => True
+        end.
+
+    Definition disjoint_devices (m1: MemDevice) (m2:MemDevice) :=
+      @memDeviceName procParams m1 <> @memDeviceName procParams m2 /\
+      match @memDeviceFile procParams m1,@memDeviceFile procParams m2 with
+      | Some (inl l1),Some (inl l2) =>
+        forall r1 r2, In r1 l1 -> In r2 l2 -> DisjKey (getAllRegisters (BaseRegFile r1)) (getAllRegisters (BaseRegFile r2))
+      | _,_ => True
+      end.
+
+    Fixpoint disjoint_device_from_list m l :=
+      match l with
+      | nil => True
+      | f::r => disjoint_devices m f /\ disjoint_device_from_list m r
+      end.
+
+    Fixpoint disjoint_device_list md :=
+      match md with
+      | nil => True
+      | f::r => disjoint_device_from_list f r /\ disjoint_device_list r
+      end.
+
     Variable supported_exts : list (string * bool).
     Variable func_units : list FUEntry.
     Variable mem_devices : list MemDevice.
@@ -68,6 +106,8 @@ Section WfModProcessorProof.
            WfConcatActionT
              ((let (_, _, _, memDeviceRequestHandler, _) := m in memDeviceRequestHandler)
                 type s) c.
+    Variable disjoint_memDevices: forall a : MemDevice, In a mem_devices -> disjoint_memDevice a.
+    Variable disjoint_mem_devices: disjoint_device_list mem_devices.
 
     (*Variable mem_device_read_wellformed:
       forall m a x y r n, In m mem_devices -> Some a=mem_device_read_nth type m n -> WfConcatActionT (a x y) r.*)
@@ -2546,23 +2586,6 @@ Qed.
 
 Hint Resolve WfMod_memReservationFile : wfModProcessor_db.
 
-(*Theorem WfMod_processorCore: forall func_units mem_table, WfMod (processorCore func_units mem_table).
-Admitted.*)
-
-Set Printing Implicit.
-
-Theorem WfActionT_regs_only:
-  forall k regs rules meths r,
-      @WfActionT (BaseMod regs [] []) k r -> @WfActionT (BaseMod regs rules meths) k r.
-Admitted.
-(*Proof.
-    admit.
-    intros.
-    induction r.
-    + apply WfMCall.
-      intros.
-      apply H0.*)
-
 Theorem WfMod_processorCore:
   forall mem_devices mem_table, WfMod (@processorCore procParams func_units mem_devices mem_table).
 (*Proof.
@@ -2572,26 +2595,6 @@ Theorem WfMod_processorCore:
   autorewrite with kami_rewrite_db.*)
 
 Admitted.
-
-Definition disjoint_devices (m1: MemDevice) (m2:MemDevice) :=
-  @memDeviceName procParams m1 <> @memDeviceName procParams m2 /\
-  match @memDeviceFile procParams m1,@memDeviceFile procParams m2 with
-  | Some (inl l1),Some (inl l2) =>
-    forall r1 r2, In r1 l1 -> In r2 l2 -> DisjKey (getAllRegisters (BaseRegFile r1)) (getAllRegisters (BaseRegFile r2))
-  | _,_ => True
-  end.
-
-Fixpoint disjoint_device_from_list m l :=
-  match l with
-  | nil => True
-  | f::r => disjoint_devices m f /\ disjoint_device_from_list m r
-  end.
-
-Fixpoint disjoint_device_list md :=
-  match md with
-  | nil => True
-  | f::r => disjoint_device_from_list f r /\ disjoint_device_list r
-  end.
 
 Theorem mem_device_files_cons:
   forall a md,
@@ -2605,22 +2608,6 @@ Proof.
     reflexivity.
 Qed.
 
-Fixpoint disjoint_RegFileBase_list (l: list RegFileBase) :=
-  match l with
-  | nil => True
-  | (f::r) => (forall x, In x r ->
-      (DisjKey (getRegFileRegisters f) (getRegFileRegisters x)) /\
-       DisjKey (getRegFileMethods f) (getRegFileMethods x)) /\
-      disjoint_RegFileBase_list r
-  end.
-
-Definition disjoint_memDevice (a: MemDevice) :=
-    match memDeviceFile with
-    | None => True
-    | Some (inl x) => disjoint_RegFileBase_list x
-    | Some _ => True
-    end.
-
 Definition Disjoint_memDevice (m: MemDevice) (r:Mod) :=
     match memDeviceFile with
     | None => True
@@ -2628,16 +2615,318 @@ Definition Disjoint_memDevice (m: MemDevice) (r:Mod) :=
     | Some _ => True
     end.
 
+
+Theorem simplify_WfActionT_rfRead:
+  forall b a reads meth v rfIsWrMask rfNum rfDataArray rfWrite rfIdxNum rfData rfInit,
+    @WfActionT
+      (BaseRegFile
+         {|
+         rfIsWrMask := rfIsWrMask;
+         rfNum := rfNum;
+         rfDataArray := rfDataArray;
+         rfRead := Sync b (reads);
+         rfWrite := rfWrite;
+         rfIdxNum := rfIdxNum;
+         rfData := rfData;
+         rfInit := rfInit |})
+      (@snd Kind Kind
+         (@projT1 Signature (fun x : Signature => MethodT x)
+            (@snd string {x : Signature & MethodT x} meth)))
+      (@projT2 Signature (fun x : Signature => MethodT x)
+         (@snd string {x : Signature & MethodT x} meth) type v) ->
+    @WfActionT
+      (BaseRegFile
+         {|
+         rfIsWrMask := rfIsWrMask;
+         rfNum := rfNum;
+         rfDataArray := rfDataArray;
+         rfRead := Sync b (a :: reads);
+         rfWrite := rfWrite;
+         rfIdxNum := rfIdxNum;
+         rfData := rfData;
+         rfInit := rfInit |})
+      (@snd Kind Kind
+         (@projT1 Signature (fun x : Signature => MethodT x)
+            (@snd string {x : Signature & MethodT x} meth)))
+      (@projT2 Signature (fun x : Signature => MethodT x)
+         (@snd string {x : Signature & MethodT x} meth) type v).
+Admitted.
+(*Proof.
+    intros.
+    destruct x.
+    simpl in H.
+    simpl.
+    induction a0.
+    + apply WfMCall.
+      intros.
+      inversion H.*)
+
+Theorem WfActionT_BaseRegFile:
+    forall (a : RegFileBase)
+           (meth : string * {x : Signature & MethodT x}), 
+           In meth (getMethods (BaseRegFile a)) ->
+           forall v : type (fst (projT1 (snd meth))),
+               WfActionT (BaseRegFile a) (projT2 (snd meth) type v).
+Proof.
+    intros.
+    destruct a.
+    simpl in H.
+    destruct H.
+    + unfold writeRegFileFn in H.
+      destruct rfIsWrMask.
+      - subst.
+        discharge_wf.
+      - subst.
+        discharge_wf.
+    + destruct rfRead.
+      - unfold readRegFile in H.
+        simpl in H.
+        assert(forall reads1,
+            WfActionT
+              (BaseRegFile
+                 {|
+                 rfIsWrMask := rfIsWrMask;
+                 rfNum := rfNum;
+                 rfDataArray := rfDataArray;
+                 rfRead := Async reads1;
+                 rfWrite := rfWrite;
+                 rfIdxNum := rfIdxNum;
+                 rfData := rfData;
+                 rfInit := rfInit |}) (projT2 (snd meth) type v)).
+        * induction reads.
+          ++ inversion H.
+          ++ intros.
+             simpl in H.
+             destruct H.
+             -- subst.
+                unfold buildNumDataArray.
+                discharge_wf.
+             -- apply IHreads.
+                apply H.
+        * apply H0.
+      - unfold readSyncRegFile in H.
+        simpl in H.
+        destruct isAddr.
+        * rewrite in_app in H.
+          destruct H.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl.
+                intros.
+                simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                **
+                  +++ eapply simplify_WfActionT_rfRead.
+                      apply IHreads.
+                      apply H.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl.
+                intros.
+                simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                **
+                  +++ eapply simplify_WfActionT_rfRead.
+                      apply IHreads.
+                      apply H.
+        * rewrite in_app in H.
+          destruct H.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl.
+                intros.
+                simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                **
+                  +++ eapply simplify_WfActionT_rfRead.
+                      apply IHreads.
+                      apply H.
+          ++ induction reads.
+             -- inversion H.
+             -- simpl.
+                intros.
+                simpl in H.
+                destruct H.
+                ** subst.
+                   simpl.
+                   discharge_wf.
+                **
+                  +++ eapply simplify_WfActionT_rfRead.
+                      apply IHreads.
+                      apply H.
+Qed.
+
+(*Theorem NoDup_getMethods_BaseRegFile:
+    forall a, NoDup (map fst (getMethods (BaseRegFile a))).
+(*Proof.
+  destruct a.
+  simpl.
+  apply NoDup_cons.
+  + destruct rfRead.
+    destruct reads.
+    - simpl.
+      intro X.
+      elim X.
+    - simpl.
+      intro Q.
+      * destruct Q.
+        admit.
+        induction reads.
+        ++ inversion H.
+        ++ simpl in H.
+           destruct H.
+           -- admit.
+           -- apply IHreads.
+              apply H.
+    - destruct isAddr.
+      * simpl.
+        intro Q.
+        rewrite map_app in Q.
+        rewrite in_app in Q.
+        destruct Q.
+        ++ induction reads.
+           -- inversion H.
+           -- simpl in H.*)
+Admitted.
+
+
+Theorem NoDup_getRegisters_BaseRegFile:
+    forall a, NoDup (map fst (getRegisters (BaseRegFile a))).
+Admitted.*)
+
+Theorem WfMod_BaseRegFile:
+  forall a,
+      NoDup (map fst (getMethods (BaseRegFile a))) ->
+      NoDup (map fst (getRegisters (BaseRegFile a))) ->
+      WfMod (BaseRegFile a).
+Proof.
+  intros.
+  apply BaseWf.
+  unfold WfBaseModule.
+  split.
+  + intros.
+    destruct a.
+    simpl in H1.
+    inversion H1.
+  + split.
+    - intros.
+      apply WfActionT_BaseRegFile.
+      apply H1.
+    - intros.
+      split.
+      * apply H.
+      * split.
+        ++ apply H0.
+        ++ simpl.
+           apply NoDup_nil.
+Qed.
+
+Theorem In_getAllMethods_BaseRegFile_WfConcatActionT:
+    forall a meth r v, In meth (getAllMethods (BaseRegFile a)) ->
+    WfConcatActionT (projT2 (snd meth) type v) r.
+Proof.
+    intros.
+    destruct a.
+    simpl in H.
+    destruct H.
+    + subst.
+      unfold writeRegFileFn.
+      destruct rfIsWrMask.
+      - simpl.
+        unfold updateNumDataArrayMask.
+        discharge_wf.
+      - simpl.
+        unfold updateNumDataArray.
+        discharge_wf.
+    + destruct rfRead.
+      - unfold readRegFile in H.
+        induction reads.
+        * inversion H.
+        * simpl in H.
+          destruct H.
+          ++ subst.
+             simpl.
+             unfold buildNumDataArray.
+             discharge_wf.
+          ++ apply IHreads.
+             apply H.
+      - unfold readSyncRegFile in H.
+        destruct isAddr.
+        * rewrite in_app in H.
+          destruct H.
+          ++ simpl in H.
+             induction reads.
+             -- inversion H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+          ++ simpl in H.
+             induction reads.
+             -- inversion H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+        * rewrite in_app in H.
+          destruct H.
+          ++ simpl in H.
+             induction reads.
+             -- inversion H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+          ++ simpl in H.
+             induction reads.
+             -- inversion H.
+             -- simpl in H.
+                destruct H.
+                ** subst.
+                   discharge_wf.
+                ** apply IHreads.
+                   apply H.
+Qed.
+
+Theorem WfConcatActionT_Base: forall lret r x, @WfConcatActionT lret r (Base x).
+Proof.
+    intros.
+    induction r.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+    + discharge_wf.
+Qed.
+
 Theorem wfMod_fold_right_mem_device_file:
-forall r a,
+forall r a, 
        WfMod r ->
        disjoint_memDevice a ->
        Disjoint_memDevice a r ->
        WfMod (@fold_right Mod Mod ConcatMod r
          (@map RegFileBase Mod (fun m : RegFileBase => BaseRegFile m)
            (@get_mem_device_file procParams a))).
-(*Proof.
-  clear.
+Proof.
   intros.
   destruct a.
   simpl.
@@ -2647,12 +2936,14 @@ forall r a,
   + destruct s.
     unfold disjoint_memDevice in H0.
     simpl in H0.
-    - induction l.
+    induction l.
       * simpl.
         apply H.
       * simpl.
         simpl in H0.
         destruct H0.
+        destruct H2.
+        destruct H3.
         unfold Disjoint_memDevice in H1.
         simpl in H1.
         apply ConcatModWf.
@@ -2666,28 +2957,28 @@ forall r a,
            -- simpl.
               apply DisjKey_app2.
               split.
-              ** apply H0.
+              ** apply H3.
                  simpl.
                  left.
                  reflexivity.
               ** apply IHl0.
                  +++ intros.
-                     eapply H0.
+                     eapply H3.
                      simpl.
                      right.
-                     apply H3.
-                 +++ simpl in H2.
-                     destruct H2.
-                     apply H3.
+                     apply H5.
+                 +++ simpl in H4.
+                     destruct H4.
+                     apply H5.
                  +++ intros.
                      eapply H1.
-                     destruct H3.
+                     destruct H5.
                      --- left.
-                         apply H3.
+                         apply H5.
                      --- right.
                          simpl.
                          right.
-                         apply H3.
+                         apply H5.
                  +++ intros.
                      assert (
                        WfMod
@@ -2696,30 +2987,35 @@ forall r a,
                                (a0 :: l)))).
 
                        --- apply IHl.
+                           simpl in H4.
+                           destruct H4.
+                           destruct H7.
                            split.
-                           *** intros.
-                               simpl in H2.
-                               destruct H2.
-                               apply H2.
-                               apply H5.
-                           *** apply H3.
+                           *** apply H4.
+                           *** split.
+                               ++++ apply H7.
+                               ++++ split.
+                                    ---- intros.
+                                         apply H8.
+                                         apply H9.
+                                    ---- apply H8.
                            *** simpl.
                                unfold Disjoint_memDevice.
                                simpl.
                                intros.
-                               unfold Disjoint_memDevice in H4.
-                               simpl in H4.
-                               destruct H5.
+                               unfold Disjoint_memDevice in H6.
+                               simpl in H6.
+                               destruct H7.
                                ++++ subst.
                                     apply H1.
                                     right.
                                     simpl.
                                     left.
                                     reflexivity.
-                               ++++ apply H4.
-                                    apply H5.
-                       --- simpl in H5.
-                           inversion H5;subst;clear H5.
+                               ++++ apply H6.
+                                    apply H7.
+                       --- simpl in H7.
+                           inversion H7;subst;clear H7.
                            apply HWf2.
         ++ rewrite getAllRules_fold_right_ConcatMod.
            rewrite DisjKey_Append2.
@@ -2733,18 +3029,187 @@ forall r a,
            rewrite DisjKey_Append2.
            split.
            -- simpl.
+              induction l.
+              ** simpl.
+                 apply DisjKey_nil2.
+              ** simpl.
+                 apply DisjKey_Append2.
+                 apply string_dec.
+                 split.
+                 +++ apply H3.
+                     simpl.
+                     left.
+                     reflexivity.
+                 +++ apply IHl0.
+                     --- intros.
+                         apply H3.
+                         simpl.
+                         right.
+                         apply H5.
+                     --- simpl in H4.
+                         destruct H4.
+                         apply H5.
+                     --- intros.
+                         apply H1.
+                         destruct H5.
+                         *** left.
+                             apply H5.
+                         *** simpl.
+                             right.
+                             right.
+                             apply H5.
+                     --- intros.
+                         simpl in IHl.
+                         assert (
+                           WfMod
+                             (@fold_right Mod Mod ConcatMod r
+                                (@map RegFileBase Mod (fun m : RegFileBase => BaseRegFile m)
+                                   (a0 :: l)))).
+                           *** apply IHl.
+                               split.
+                               ++++ destruct H4.
+                                    apply H4.
+                               ++++ split.
+                                    ---- destruct H4.
+                                         destruct H7.
+                                         apply H7.
+                                    ---- split.
+                                         **** intros.
+                                              simpl in H4.
+                                              destruct H4.
+                                              destruct H8.
+                                              destruct H9.
+                                              apply H9.
+                                              apply H7.
+                                         **** destruct H4.
+                                              destruct H7.
+                                              destruct H8.
+                                              apply H9.
+                               ++++ simpl.
+                                    unfold Disjoint_memDevice.
+                                    simpl.
+                                    intros.
+                                    unfold Disjoint_memDevice in H6.
+                                    simpl in H6.
+                                    destruct H7.
+                                    ---- subst.
+                                         apply H1.
+                                         right.
+                                         simpl.
+                                         left.
+                                         reflexivity.
+                                    ---- apply H6.
+                                         apply H7.
+                            *** simpl in H7.
+                                inversion H7;subst;clear H7.
+                                apply HWf2.
+           -- simpl.
+              apply H1.
+              left.
+              reflexivity.
+           -- apply string_dec.
+        ++ apply  WfMod_BaseRegFile.
+           -- simpl.
+              apply H2.
+           -- simpl.
+              apply H0.
+        ++ apply IHl.
+           -- apply H4.
+           -- unfold Disjoint_memDevice.
+              simpl.
+              intros.
+              apply H1.
+              right.
+              apply H5.
+        ++ unfold WfConcat.
+           split.
+           -- intros.
+              simpl in H5.
+              inversion H5.
+           -- intros.
+              eapply In_getAllMethods_BaseRegFile_WfConcatActionT.
+              apply H5.
+        ++ split.
+           -- intros.
+              apply WfConcatActionT_Base.
+           -- intros.
+              apply WfConcatActionT_Base.
+      * simpl.
+        apply H.
+  + simpl.
+    apply H.
+Qed.
+
+(*Theorem in_mem_devices_not_prefixed:
+  forall l a r x,
+      In a mem_devices ->
+      Some (inl l) = memDeviceFile ->
+      In x l ->
+      ~In @^(r) (map fst (getRegFileRegisters x)).
+Proof.
+    intros.
+    simpl.*)
+
+Theorem disjoint_memDevice_processorCore:
+  forall a, In a mem_devices -> Disjoint_memDevice a (processorCore func_units mem_table).
+(*Proof.
+    intros.
+    unfold Disjoint_memDevice.
+    remember memDeviceFile.
+    destruct o.
+    + destruct s.
+      intros.
+      - intros.
+        split.
+        unfold processorCore.
+        autorewrite with kami_rewrite_db;try (apply string_dec).
 *)
 
 Admitted.
 
+Theorem Disjoint_memDevice_fold_right:
+    forall a md p, (forall m, In m md -> Disjoint_memDevice m p) ->
+                   disjoint_device_list md ->
+Disjoint_memDevice a
+  (fold_right ConcatMod p
+     (map (fun m : RegFileBase => Base (BaseRegFile m)) (mem_device_files md))).
+Admitted.
+(*Proof.
+    intros.
+    induction md.
+    + simpl.
+      apply H.
+    + simpl.
+      simpl in H0.
+      destruct H0.
+      simpl in H1.
+      destruct H1.
+
+      unfold mem_device_files.
+*)
+(*Theorem Disjoint_memDevice_fold_right_helper:
+  forall a p a0 md,
+      disjoint_device_from_list a0 md ->
+      disjoint_devices a a0 ->
+      Disjoint_memDevice a
+         (fold_right ConcatMod p
+            (map (fun m : RegFileBase => BaseRegFile m) (mem_device_files md))) ->
+      Disjoint_memDevice a
+      (fold_right ConcatMod p
+         (map (fun m : RegFileBase => BaseRegFile m)
+            (mem_device_files (a0 :: md)))).*)
+
 Theorem WfMod_processorCore_mem_devices_helper:
   forall md,
+  (forall a, In a md -> In a mem_devices) ->
+  (forall a, In a md -> disjoint_memDevice a) ->
   disjoint_device_list md ->
   WfMod (processorCore func_units mem_table) ->
   WfMod
     (fold_right ConcatMod (processorCore func_units mem_table)
        (map (fun m : RegFileBase => Base (BaseRegFile m))
           (mem_device_files md))).
+Admitted.
 (*Proof.
     simpl.
     intros.
@@ -2752,29 +3217,63 @@ Theorem WfMod_processorCore_mem_devices_helper:
     + simpl.
       apply WfMod_processorCore.
     + simpl.
-      simpl in H;destruct H.
+      simpl in H1;destruct H1.
       simpl.
       rewrite mem_device_files_cons.
       rewrite map_app.
       rewrite fold_right_app.
       apply wfMod_fold_right_mem_device_file.
-      apply IHmd.
-      apply H1.
-Qed.*)
+      - apply IHmd.
+        * simpl in H.
+          intros.
+          apply H.
+          right.
+          apply H4.
+        * intros.
+          eapply H0.
+          simpl.
+          right.
+          apply H4.
+        * apply H3.
+      - apply H0.
+        simpl.
+        left.
+        reflexivity.
+      - eapply Disjoint_memDevice_fold_right.
+        * intros.
+          unfold Disjoint_memDevice.
 
-Admitted.
+
+
+
+
+
+
+        apply disjoint_memDevice_processorCore.
+        apply H.
+        simpl.
+        left.
+        reflexivity.
+        intros.
+
+        apply H3.
+        apply H1.
+Qed.*)
 
 Theorem WfMod_processorCore_mem_devices:  
   WfMod
     (fold_right ConcatMod (processorCore func_units mem_table)
        (map (fun m : RegFileBase => Base (BaseRegFile m))
           (mem_device_files mem_devices))).
-Admitted.
-(*Proof.
+Proof.
     apply WfMod_processorCore_mem_devices_helper.
-    apply WfMod_processorCore.
-Qed.*)
-  
+    + intros.
+      apply H.
+    + apply disjoint_memDevices.
+    + apply disjoint_mem_devices.
+    + apply WfMod_processorCore.
+Qed.
+
 Hint Resolve WfMod_processorCore_mem_devices :wfModProcessor_db.
 
 Theorem WFConcat7:
