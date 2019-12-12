@@ -208,7 +208,7 @@ Section debug.
                     @csrFieldAny _ "ackhavereset" Bool Bool (Some (ConstBool false));
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
                     @csrFieldAny _ "hasel" Bool Bool (Some (ConstBool false));
-                    @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) (Some (ConstBit (wzero 20)));
+                    @csrFieldAny _ "hartsel" (Array debug_num_harts Bool) (Array debug_num_harts Bool) (Some (ConstArray (fun _ => false)));
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
                     @csrFieldAny _ "ndmreset" Bool Bool (Some (ConstBool false));
                     @csrFieldAny _ "dmactive" Bool Bool (Some (ConstBool false))
