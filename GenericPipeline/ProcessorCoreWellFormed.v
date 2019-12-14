@@ -2588,12 +2588,13 @@ Hint Resolve WfMod_memReservationFile : wfModProcessor_db.
 
 Theorem WfMod_processorCore:
   forall mem_devices mem_table, WfMod (@processorCore procParams func_units mem_devices mem_table).
-(*Proof.
+(*
+Proof.
   intros.
   unfold processorCore.
   unfold makeModule.
-  autorewrite with kami_rewrite_db.*)
-
+  autorewrite with kami_rewrite_db.
+*)
 Admitted.
 
 Theorem mem_device_files_cons:
@@ -3167,8 +3168,69 @@ Theorem disjoint_memDevice_processorCore:
 
 Admitted.
 
+Theorem Disjoint_memDevice_ConcatMod:
+  forall a b c,
+      Disjoint_memDevice a b ->
+      Disjoint_memDevice a c ->
+      Disjoint_memDevice a (ConcatMod b c).
+Proof.
+    intros.
+    unfold Disjoint_memDevice.
+    unfold Disjoint_memDevice in H.
+    unfold Disjoint_memDevice in H0.
+    destruct memDeviceFile.
+    + destruct s.
+      - intros.
+        simpl.
+        rewrite DisjKey_app2.
+        rewrite DisjKey_app2.
+        split.
+        * split.
+          ++ apply H.
+             apply H1.
+          ++ apply H0.
+             apply H1.
+        * split.
+          ++ apply H.
+             apply H1.
+          ++ apply H0.
+             apply H1.
+      - assumption.
+    + assumption.
+Qed.
+
+Theorem Disjoint_fold_right_ConcatMod:
+  forall a l r,
+      Disjoint_memDevice a r ->
+      (forall m, In m l -> Disjoint_memDevice a m) ->
+      Disjoint_memDevice a
+        (fold_right ConcatMod r l).
+Proof.
+    intros.
+    induction l.
+    + simpl.
+      apply H.
+    + simpl.
+      apply Disjoint_memDevice_ConcatMod.
+      - apply H0.
+        simpl.
+        left.
+        reflexivity.
+      - apply IHl.
+        intros.
+        apply H0.
+        simpl.
+        right.
+        apply H1.
+Qed.
+
+
+Set Printing Implicit.
+
 Theorem Disjoint_memDevice_fold_right:
-    forall a md p, (forall m, In m md -> Disjoint_memDevice m p) ->
+    forall a md p, Disjoint_memDevice a p ->
+                   disjoint_device_from_list a md ->
+                   (forall m, In m md -> Disjoint_memDevice m p) ->
                    disjoint_device_list md ->
 Disjoint_memDevice a
   (fold_right ConcatMod p
@@ -3176,17 +3238,53 @@ Disjoint_memDevice a
 Admitted.
 (*Proof.
     intros.
+    eapply Disjoint_fold_right_ConcatMod.
+    apply H.
+    intros.
+    induction md.
+    + simpl in H3.
+      inversion H3.
+    + simpl in H3.
+      unfold mem_device_files in H3.
+      simpl in H3.
+      rewrite map_app in H3.
+      rewrite in_app in H3.
+      destruct H3.
+      - simpl in H2.
+        destruct H2.
+
+        unfold get_mem_device_file in H3.
+        simpl in H3.
+        unfold disjoint_device_from_list in H0.
+        destruct H0.
+        unfold disjoint_devices in H0.
+        simpl in H0.
+        destruct H0.
+        destruct memDeviceFile.
+        * 
+
+
+
+
+        destruct H2.
+        simpl
+    unfold Disjoint_memDevice.
+
+    unfold mem_device_files.
     induction md.
     + simpl.
       apply H.
     + simpl.
+      rewrite map_app.
+      rewrite fold_right_app.
       simpl in H0.
-      destruct H0.
       simpl in H1.
-      destruct H1.
+      destruct H0.
+      
 
-      unfold mem_device_files.
-*)
+
+      unfold mem_device_files.*)
+
 (*Theorem Disjoint_memDevice_fold_right_helper:
   forall a p a0 md,
       disjoint_device_from_list a0 md ->
@@ -3229,7 +3327,29 @@ Theorem in_getRegFiles_methods_in_get_mem_device_file:
        In x l ->
        In r (getRegFileMethods x) ->
        In r (concat (map getRegFileMethods (get_mem_device_file m))).
-Admitted.
+Proof.
+    clear.
+    intros.
+    destruct m.
+    subst.
+    inversion H;subst;clear H.
+    unfold get_mem_device_file.
+    simpl.
+    induction l.
+    + inversion H1.
+    + simpl in H1.
+      destruct H1.
+      - simpl.
+        apply in_app.
+        left.
+        subst.
+        apply H2.
+      - simpl.
+        apply in_app.
+        right.
+        apply IHl.
+        apply H.
+Qed.
 
 Theorem in_getRegFiles_in_get_mem_device_file:
   forall r m l x memDeviceName memDeviceIO memDevicePmas memDeviceRequestHandler memDeviceFile,
@@ -3266,6 +3386,55 @@ Proof.
         apply H.
 Qed.
 
+Theorem pair_member1:
+    forall A (r:string) l, (exists (y:A), In (r,y) l) -> In r (map fst l).
+Proof.
+    intros.
+    + induction l.
+      - inversion H.
+        inversion H0.
+      - simpl in H.
+        destruct H.
+        destruct H.
+        * destruct a.
+          simpl in H.
+          simplify_eq H.
+          intros.
+          subst.
+          simpl.
+          left.
+          reflexivity.
+        * simpl.
+          right.
+          apply IHl.
+          eapply ex_intro.
+          apply H.
+Qed.
+
+Theorem pair_member2:
+    forall A (r:string) l, In r (map fst l) -> (exists (y:A), In (r,y) l).
+Proof.
+    intros.
+    induction l.
+    + inversion H.
+    + simpl in H.
+      destruct H.
+      - destruct a.
+        eapply ex_intro.
+        simpl.
+        left.
+        simpl in H. subst.
+        reflexivity.
+      - assert (exists y: A, In (r, y) l).
+        * eapply IHl.
+          apply H.
+        * inversion H0.
+          eapply ex_intro.
+          simpl.
+          right.
+          apply H1.
+Qed.
+
 Theorem in_map_fst_getRegFiles_methods_in_get_mem_device_file:
   forall r m l x memDeviceName memDeviceIO memDevicePmas memDeviceRequestHandler memDeviceFile,
        m = {|memDeviceName := memDeviceName;
@@ -3277,7 +3446,21 @@ Theorem in_map_fst_getRegFiles_methods_in_get_mem_device_file:
        In x l ->
        In r (map fst (getRegFileMethods x)) ->
        In r (map fst (concat (map getRegFileMethods (get_mem_device_file m)))).
-Admitted.
+Proof.
+    intros.
+    assert (exists y, In (r, y) (getRegFileMethods x)).
+    + apply pair_member2.
+      apply H2.
+    + inversion H3;subst;clear H3.
+      eapply pair_member1.
+      eapply ex_intro.
+      eapply in_getRegFiles_methods_in_get_mem_device_file.
+      Focus 3.
+      apply H1.
+      - reflexivity.
+      - reflexivity.
+      - apply H4.
+Qed.
 
 Theorem in_map_fst_getRegFiles_in_get_mem_device_file:
   forall r m l x memDeviceName memDeviceIO memDevicePmas memDeviceRequestHandler memDeviceFile,
@@ -3290,34 +3473,21 @@ Theorem in_map_fst_getRegFiles_in_get_mem_device_file:
        In x l ->
        In r (map fst (getRegFileRegisters x)) ->
        In r (map fst (concat (map getRegFileRegisters (get_mem_device_file m)))).
-(*Proof.
+Proof.
     intros.
-    assert (exists y, In (r,y) (getRegFileRegisters x)).
-    remember (getRegFileRegisters x).
-    induction l0.
-    + inversion H2.
-    + destruct H2.
-      - simpl in H2.
-        destruct a.
-        subst.
-        eapply ex_intro.
-        simpl.
-        left.
-        reflexivity.
-      - simpl.
-        assert ((exists y, In (r,y) l0) -> exists y, a = (r,y) \/ In (r,y) l0).
-        * intros.
-          inversion H3;subst;clear H3.
-          eapply ex_intro.
-          right.
-          apply H4.
-        * apply H3.
-          apply IHl0.
-
-        apply IHl0.
-
-        eapply IHl0.*)
-Admitted.
+    assert (exists y, In (r, y) (getRegFileRegisters x)).
+    + apply pair_member2.
+      apply H2.
+    + inversion H3;subst;clear H3.
+      eapply pair_member1.
+      eapply ex_intro.
+      eapply in_getRegFiles_in_get_mem_device_file.
+      Focus 3.
+      apply H1.
+      - reflexivity.
+      - reflexivity.
+      - apply H4.
+Qed.
 
 Theorem in_get_mem_device_files_mem_devices:
    forall r m,
@@ -3373,7 +3543,74 @@ Proof.
         left.
         reflexivity.
       - eapply Disjoint_memDevice_fold_right.
-        * intros.
+        * simpl in H0.
+          unfold Disjoint_memDevice.
+          remember (@memDeviceFile procParams a).
+          destruct o.
+          ++ destruct s.
+             -- intros.
+                split.
+                ** rewrite DisjKeyWeak_same.
+                   +++ unfold DisjKeyWeak.
+                       intros.
+                       apply getAllRegisters_processorCore_prefixed in H6.
+                       inversion H6;subst;clear H6.
+                       eapply in_map_fst_getRegFiles_in_get_mem_device_file in H5.
+                       Focus 2.
+                         instantiate (6:={|memDeviceName := memDeviceName;
+                                           memDeviceIO := memDeviceIO;
+                                           memDevicePmas := memDevicePmas;
+                                           memDeviceRequestHandler := memDeviceRequestHandler;
+                                           memDeviceFile := memDeviceFile |}).
+                         reflexivity.
+                       Focus 2.
+                         simpl in Heqo.
+                         rewrite Heqo.
+                         reflexivity.
+                       --- eapply in_get_mem_device_files_mem_devices in H5.
+                           *** apply mem_separate_name_space_registers in H5.
+                               inversion H5.
+                           *** apply H.
+                               simpl.
+                               left.
+                               destruct a.
+                               simpl.
+                               reflexivity.
+                       --- apply H4.
+                   +++ apply string_dec.
+                ** rewrite DisjKeyWeak_same.
+                   +++ unfold DisjKeyWeak.
+                       intros.
+                       apply getAllMethods_processorCore_prefixed in H6.
+                       inversion H6;subst;clear H6.
+                       eapply in_map_fst_getRegFiles_methods_in_get_mem_device_file in H5.
+                       Focus 2.
+                         instantiate (6:={|memDeviceName := memDeviceName;
+                                           memDeviceIO := memDeviceIO;
+                                           memDevicePmas := memDevicePmas;
+                                           memDeviceRequestHandler := memDeviceRequestHandler;
+                                           memDeviceFile := memDeviceFile |}).
+                         reflexivity.
+                       Focus 2.
+                         simpl in Heqo.
+                         rewrite Heqo.
+                         reflexivity.
+                       --- eapply in_method_get_mem_device_files_mem_devices in H5.
+                           *** apply mem_separate_name_space_methods in H5.
+                               inversion H5.
+                           *** apply H.
+                               simpl.
+                               left.
+                               destruct a.
+                               simpl.
+                               reflexivity.
+                       --- apply H4.
+                   +++ apply string_dec.
+             -- apply I.
+          ++ apply I.
+        * apply H1.
+        * simpl in H0.
+          intros.
           unfold Disjoint_memDevice.
           remember (@memDeviceFile procParams m).
           destruct o.
