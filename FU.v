@@ -8,7 +8,7 @@ Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
-Require Import BinNat.
+Require Import BinNat Psatz.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).
@@ -180,7 +180,7 @@ Class FpuParams
       expWidthMinus2     : nat;
       sigWidthMinus2     : nat; 
       fpu_exp_valid      : (expWidthMinus2 >= 2)%nat;
-      fpu_sig_valid      : (pow2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
+      fpu_sig_valid      : (2 ^ expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
       fpu_suffix         : string;
       fpu_int_suffix     : string;
       fpu_format_field   : word 2;
@@ -470,7 +470,7 @@ Section Params.
        then xlen
        else $maxXlen)%kami_expr.
 
-    Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => $x) ImplXlens).
+    Lemma xlenFix_in_ImplXlens: forall xlen , In (evalExpr (xlenFix xlen)) (map (fun x => natToWord _ x) ImplXlens).
     Proof.
       unfold xlenFix; simpl; intros.
       match goal with
@@ -482,7 +482,7 @@ Section Params.
         repeat (rewrite in_map_iff in *; dest); subst.
         simpl in *.
         exists x0; repeat constructor; auto.
-        destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
+        destruct (weq _ (evalExpr xlen) (natToWord _ x0)); simpl in *; congruence.
       - rewrite fold_left_orb_exists_false in G.
         rewrite Forall_forall in G.
         repeat (rewrite in_map_iff in *; dest); subst.
@@ -492,7 +492,7 @@ Section Params.
     Qed.
 
     Lemma xlen_in_xlenFix: forall xlen: XlenValue @# _,
-        In (evalExpr xlen) (map (fun x => $x) ImplXlens) -> evalExpr (xlenFix xlen) = evalExpr xlen.
+        In (evalExpr xlen) (map (fun x => natToWord _ x) ImplXlens) -> evalExpr (xlenFix xlen) = evalExpr xlen.
     Proof.
       intros.
       unfold xlenFix.
@@ -503,8 +503,8 @@ Section Params.
       rewrite fold_left_orb_exists_false in G.
       rewrite Forall_forall in *.
       rewrite in_map_iff in H; dest.
-      specialize (G (xlen == Const type ($x)%word)%kami_expr); simpl in *.
-      destruct (weq (evalExpr xlen) $x); simpl in *; [|congruence].
+      specialize (G (xlen == Const type (natToWord _ x))%kami_expr); simpl in *.
+      destruct (weq _ (evalExpr xlen) (natToWord _ x)); simpl in *; [|congruence].
       match type of G with
       | ?P -> _ => assert P as sth;[|specialize (G sth); discriminate]
       end.
@@ -537,6 +537,9 @@ Section Params.
            else $MachineMode)%kami_expr.
       End Mode.
     End Ty.
+
+    Lemma if_same {T} (b : bool) (x : T) : (if b then x else x) = x.
+    Proof. destruct b; auto. Qed.
     
     Lemma modeFix_idempotent ext: forall mode, evalExpr (modeFix ext (modeFix ext mode)) =  evalExpr (modeFix ext mode).
     Proof.
@@ -544,13 +547,13 @@ Section Params.
       unfold HypervisorMode, SupervisorMode, UserMode, MachineMode in *.
       simpl; intros.
       repeat match goal with
-             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
-                                          try solve [rewrite ?e in *; exfalso; word_omega]
+             | |- context[weq ?S ?P ?Q] => destruct (weq S P Q); simpl in *;
+                                          try solve [rewrite ?e in *; exfalso; arithmetizeWord; lia]
              | H: context [if ?P then _ else _] |- _ => let G := fresh "G" in
                                                         destruct P eqn: G;
-                                                          try solve [rewrite ?e1 in *; exfalso; word_omega]
+                                                          try solve [rewrite ?e1 in *; exfalso; contradiction; arithmetizeWord; lia]
                                                                                                       
-             end; auto.
+             end; try rewrite if_same; auto.
     Qed.
   End PrivModes.
 
@@ -609,19 +612,19 @@ Section Params.
       := {| vm_mode_vpn_size := 10 ;
             vm_mode_shift_num := 2 ;
             vm_mode_sizes := [12 ; 10 ];
-            vm_mode_mode := $SatpModeSv32 |}.
+            vm_mode_mode := (natToWord _ SatpModeSv32) |}.
 
     Definition vm_mode_sv39
       := {| vm_mode_vpn_size := 9 ;
             vm_mode_shift_num := 3 ;
             vm_mode_sizes := [26 ; 9; 9 ];
-            vm_mode_mode := $SatpModeSv39 |}.
+            vm_mode_mode := (natToWord _ SatpModeSv39) |}.
 
     Definition vm_mode_sv48
       := {| vm_mode_vpn_size := 9 ;
             vm_mode_shift_num := 4 ;
             vm_mode_sizes := [17 ; 9; 9; 9 ];
-            vm_mode_mode := $SatpModeSv48 |}.
+            vm_mode_mode := (natToWord _ SatpModeSv48) |}.
 
     Definition vmModes := [vm_mode_sv32; vm_mode_sv39; vm_mode_sv48].
 
@@ -992,7 +995,7 @@ Section Params.
     End ty.
   End func_units.
 
-  Definition debug_device_addr : word PAddrSz := (($0)%word : word PAddrSz).
+  Definition debug_device_addr : word PAddrSz := ((natToWord _ 0) : word PAddrSz).
 
   Definition debug_csrs_num_data
     := Xlen_over_8 * 3 / 4.

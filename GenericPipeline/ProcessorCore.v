@@ -14,6 +14,7 @@ Require Import Vector.
 Import VectorNotations.
 Require Import List.
 Import ListNotations.
+Require Import ZArith.
 Require Import ProcKami.RiscvPipeline.ConfigReader.
 Require Import ProcKami.GenericPipeline.Fetch.
 Require Import ProcKami.GenericPipeline.Decompressor.
@@ -50,7 +51,7 @@ Section Params.
               Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
               Register @^"pc"               : VAddr <- ConstBit pc_init with
               Registers (csr_regs Csrs) with
-              Register @^"mtimecmp"         : Bit 64 <- ConstBit (wzero 64) with
+              Register @^"mtimecmp"         : Bit 64 <- ConstBit (zToWord 64 0) with
               Registers (mem_device_regs mem_devices) with
               Registers debug_internal_regs with
               Registers (csr_regs debug_csrs) with
@@ -286,9 +287,9 @@ Section Params.
            (@^"memReservation_reg_file")
            (Async [ @^"readMemReservation" ])
            (@^"writeMemReservation")
-           (pow2 lgMemSz)
+           (2 ^ lgMemSz)
            Bool
-           (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
+           (RFFile true false "file0" 0 (2 ^ lgMemSz) (fun _ => false)).
 
     Definition processor
       :  Mod 

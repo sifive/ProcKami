@@ -101,7 +101,7 @@ Section debug_device.
          (map
            (fun x
              => {|
-                  gr_addr := ($(fst x)%word);
+                  gr_addr := (natToWord _ (fst x));
                   gr_kind := debug_device_kind (snd x);
                   gr_name := debug_device_name (snd x)
                 |})

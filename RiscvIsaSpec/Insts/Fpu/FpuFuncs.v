@@ -8,6 +8,7 @@ Require Import FpuKami.Definitions.
 Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.
+Require Import ZArith.
 
 Section ty.
   Context `{fpuParams: FpuParams}.
@@ -40,8 +41,8 @@ Section ty.
                   ::= ZeroExtendTruncLsb
                         (sigWidthMinus2 + 1)
                         ({<
-                          $$WO~1,
-                          $$(wzero sigWidthMinus2)
+                          $$(zToWord 1 1),
+                          $$(zToWord sigWidthMinus2 0)
                         >})
               } : FN expWidthMinus2 sigWidthMinus2 @# ty)).
 

@@ -7,6 +7,7 @@ Require Import StdLibKami.RegStruct.
 Require Import StdLibKami.RegMapper.
 Require Import List.
 Import ListNotations.
+Require Import ZArith.
 
 Section mmapped.
   Context `{procParams: ProcParams}.
@@ -27,8 +28,8 @@ Section mmapped.
     Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation RegMapT := (RegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
-    Local Notation maskSz := (pow2 mmregs_lgMaskSz).
-    Local Notation granuleSz := (pow2 mmregs_lgGranuleLgSz).
+    Local Notation maskSz := (2 ^ mmregs_lgMaskSz)%nat.
+    Local Notation granuleSz := (2 ^ mmregs_lgGranuleLgSz)%nat.
     Local Notation dataSz := (maskSz * granuleSz)%nat.
 
     Variable mmregs : list GroupReg.
@@ -38,7 +39,7 @@ Section mmapped.
       Variable ty : Kind -> Type.
 
       Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
-
+      
       Local Definition MmReq
         := STRUCT_TYPE {
              "isRd" :: Bool;
@@ -162,7 +163,7 @@ Section mmapped.
          (Nat.log2_up 1)
          [
            {|
-             gr_addr := $0%word;
+             gr_addr := (zToWord _ 0);
              gr_kind := Bit 64;
              gr_name := @^"msip"
            |}
@@ -173,7 +174,7 @@ Section mmapped.
          (Nat.log2_up 1)
          [
            {|
-             gr_addr := $0%word;
+             gr_addr := (zToWord _ 0);
              gr_kind := Bit 64;
              gr_name := @^"mtime"
            |}
@@ -184,7 +185,7 @@ Section mmapped.
          (Nat.log2_up 1)
          [
            {|
-             gr_addr := $0%word;
+             gr_addr := (zToWord _ 0);
              gr_kind := Bit 64;
              gr_name := @^"mtimecmp"
            |}

@@ -1,6 +1,7 @@
 Require Import Kami.All.
 Require Import ProcKami.FU.
 Require Import ProcKami.Devices.MemDevice.
+Require Import ZArith.
 
 Section device.
   Context `{procParams: ProcParams}.
@@ -62,9 +63,9 @@ Section device.
                     (@^"rom_rom_file")
                     (Async (map read_name (seq 0 12)))
                     (@^"writeROM0") (* never used *)
-                    (pow2 lgMemSz)
+                    (2 ^ lgMemSz)
                     (Bit 8)
-                    (RFFile true true "boot_rom" 0 (pow2 lgMemSz) (fun _ => wzero _))])
+                    (RFFile true true "boot_rom" 0 (2 ^ lgMemSz) (fun _ => zToWord _ 0))])
        |}.
 
   Close Scope kami_action.

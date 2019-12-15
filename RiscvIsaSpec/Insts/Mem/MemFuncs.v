@@ -42,7 +42,7 @@ Section Mem.
            <- STRUCT {
                 "data" ::= (#gcp @% "reg2" : Data @# ty);
                 "mask"
-                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                  ::= (unpack (Array Rlen_over_8 Bool) ($(2 ^ (2 ^ size) - 1))
                        : Array Rlen_over_8 Bool @# ty)
               } : MaskedMem @# ty;
          LETC ret
@@ -116,7 +116,7 @@ Section Mem.
       LETC maskedMem: MaskedMem <- (STRUCT {
                                         "data" ::= (#gcp @% "reg2" : Data @# ty);
                                         "mask"
-                                        ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 size) - 1))
+                                        ::= (unpack (Array Rlen_over_8 Bool) ($(2 ^ (2 ^ size) - 1))
                                              : Array Rlen_over_8 Bool @# ty)
                                       } : MaskedMem @# ty);
       LETC ret
@@ -195,7 +195,7 @@ Section Mem.
       LETC maskedMem: MaskedMem <- STRUCT {
                                   "data" ::= (#gcp @% "reg2" : Data @# ty);
                                   "mask"
-                                  ::= (unpack (Array Rlen_over_8 Bool) ($(pow2 (pow2 sz) - 1))
+                                  ::= (unpack (Array Rlen_over_8 Bool) ($(2 ^ (2 ^ sz) - 1))
                                        : Array Rlen_over_8 Bool @# ty)
                                 };
       LETC ret: MemInputAddrType <-

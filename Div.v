@@ -1,4 +1,4 @@
-Require Import Kami.AllNotations FpuKami.ModDivSqrt.
+Require Import Kami.AllNotations FpuKami.ModDivSqrt ZArith.
 
 Fixpoint iterator A (f: nat -> A -> A) (val: A) (max: nat) :=
   match max with
@@ -8,7 +8,7 @@ Fixpoint iterator A (f: nat -> A -> A) (val: A) (max: nat) :=
 
 Section divnat.
   Variable n d sz: nat.
-  Let d' := d * pow2 sz.
+  Let d' := d * (2 ^ sz).
   
   Section iter.
     Variable i: nat.
@@ -17,7 +17,7 @@ Section divnat.
     Let rem := snd q_rem.
     Let c := getBool (Compare_dec.le_lt_dec d' (2*rem)).
 
-    Let new_q := q + if c then pow2 i else 0.
+    Let new_q := q + if c then 2 ^ i else 0.
     Let new_rem := 2*rem - if c then d' else 0.
 
     Definition div_rem_nat := (new_q, new_rem).
@@ -25,7 +25,7 @@ Section divnat.
 
   Definition div_rem_nat_full := iterator div_rem_nat (0, n) sz.
 
-  Definition div_rem_nat_final := (fst div_rem_nat_full, snd div_rem_nat_full / pow2 sz).
+  Definition div_rem_nat_final := (fst div_rem_nat_full, snd div_rem_nat_full / (2 ^ sz)).
 End divnat.
 
 Section divnat_expr.
@@ -47,10 +47,10 @@ Section divnat_expr.
       refine (
           LETE q_rem' <- q_rem;
           LETC d <- #q_rem' @% "den";
-          LETC d' <- {< $$ WO~0, #d, $$ (wzero sz) >};
+          LETC d' <- {< $$(zToWord 1 0), #d, $$ (zToWord sz 0) >};
           LETC q <- #q_rem' @% "quo";
           LETC rem <- #q_rem' @% "rem";
-          LETC rem2 <- castBits _ ({< #rem, $$ WO~0 >});
+          LETC rem2 <- castBits _ ({< #rem, $$ (zToWord 1 0) >});
           LETC c <- #d' <= #rem2;
           LETC new_q <- #q + (IF #c then $1 << i else $0);
           LETC new_rem <- #rem2 - (IF #c then #d' else $0);
@@ -65,7 +65,7 @@ Section divnat_expr.
 
   Variable ty: Kind -> Type.
   Variable n d : Bit sz @# ty.
-  Definition div_rem_full := comb_loop sz loopFn ($$ WO) sz (RetE (STRUCT {"den" ::= d; "quo" ::= $$ (wzero sz); "rem" ::= ZeroExtend sz n})).
+  Definition div_rem_full := comb_loop sz loopFn $$(zToWord 0 0) sz (RetE (STRUCT {"den" ::= d; "quo" ::= $$ (zToWord sz 0); "rem" ::= ZeroExtend sz n})).
   Definition div_rem_final: DivRem ## ty := (LETE dr: DivRemDen <- div_rem_full;
                                                LETC ret: DivRem <- STRUCT { "quo" ::= #dr @% "quo" ;
                                                                             "rem" ::= UniBit (TruncMsb _ sz) (#dr @% "rem") } ;
@@ -74,6 +74,6 @@ End divnat_expr.
 
 Section test.
   Let test := evalLetExpr (@div_rem_final 4 type (Const type (ConstBit (wones 4))) $3)%kami_expr.
-  Let div_test := wordToNat (test (Fin.F1)).
-  Let rem_test := wordToNat (test (Fin.FS Fin.F1)).
+  Let div_test := wordToNat _ (test (Fin.F1)).
+  Let rem_test := wordToNat _ (test (Fin.FS Fin.F1)).
 End test.

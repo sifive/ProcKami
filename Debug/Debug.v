@@ -11,6 +11,7 @@ Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
 Require Import ProcKami.Debug.DebugDevice.
 Require Import List.
 Import ListNotations.
+Require Import ZArith.
 
 Section debug.
   Context `{procParams: ProcParams}.
@@ -34,27 +35,25 @@ Section debug.
 
   (* the address of the abstract command region. *)
   Local Definition debug_abstract_addr : word PAddrSz
-    := $debug_device_abstract_addr ^+ debug_device_addr.
-
+    := (natToWord _ debug_device_abstract_addr) ^+ debug_device_addr.
+  
   Local Definition debug_inst_nop
     : word 32
-    := {<
-         ($0 : word 12),
-         ($0 : word 5),
-         ($0 : word 3),
-         ($0 : word 5),
-         (7'b"0010011")
-       >}.
+    := @wconcat _ _ 32
+         ((zToWord _ 0) : word 12)
+         (@wconcat _ _ 20 ((zToWord _ 0) : word 5)
+                   (@wconcat _ _ 15 ((zToWord _ 0) : word 3)
+                             (@wconcat _ _ 12 ((zToWord _ 0) : word 5)
+                                       (7'b"0010011")))).
 
   Local Definition debug_inst_ebreak
     : word 32
-    := {<
-         ($1 : word 12),
-         ($0 : word 5),
-         ($0 : word 3),
-         ($0 : word 5),
-         (7'b"1110011")
-       >}.
+    := (@wconcat _ _ 32 
+                 ((zToWord _ 1) : word 12)
+                 (@wconcat _ _ 20 ((zToWord _ 0) : word 5)
+                           (@wconcat _ _ 15 ((zToWord _ 0) : word 3)
+                                     (@wconcat _ _ 12 ((zToWord _ 0) : word 5)
+                                               (7'b"1110011"))))).
 
   Close Scope word_scope.
 
@@ -113,7 +112,7 @@ Section debug.
           (@^"debug_progbuf_end", existT RegInitValT (SyntaxKind (Bit InstSz))
                                          (Some (SyntaxConst (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
                                                              then (ConstBit debug_inst_ebreak)
-                                                             else (ConstBit (wzero InstSz))))))
+                                                             else (ConstBit (zToWord InstSz 0))))))
          (* Register @^"debug_progbuf_end" *)
          (*   :  Bit InstSz *)
          (*   <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1) *)

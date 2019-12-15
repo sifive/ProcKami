@@ -1,6 +1,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.Devices.MemDevice.
+Require Import ZArith.
 
 Section mem_devices.
   Context `{procParams: ProcParams}.
@@ -83,9 +84,9 @@ Section mem_devices.
                       @^"readMemB"  (* fetch upper page table walker read mem call *)
                     ])
                   (@^"writeMem0")
-                  (pow2 lgMemSz) (* rfIdxNum: nat *)
+                  (2 ^ lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
-                  (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _))])
+                  (RFFile true true "testfile" 0 (2 ^ lgMemSz) (fun _ => zToWord _ 0))])
        |}.
 
   Close Scope kami_action.

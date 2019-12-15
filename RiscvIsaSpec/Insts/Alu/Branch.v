@@ -1,6 +1,6 @@
 Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.AluFuncs.
-Require Import List.
+Require Import List ZArith.
 
 Section Alu.
   Context `{procParams: ProcParams}.
@@ -39,7 +39,7 @@ Section Alu.
     Local Definition branchOffset (inst: Inst @# ty) :=
       LETC funct7v: Bit 7 <- funct7 inst;
         LETC rdv: Bit 5 <- rd inst;
-        RetE ({<#funct7v$[6:6], (#rdv$[0:0]), (#funct7v$[5:0]), (#rdv$[4:1]), $$ WO~0>}).
+        RetE ({<#funct7v$[6:6], (#rdv$[0:0]), (#funct7v$[5:0]), (#rdv$[4:1]), $$(zToWord 1 0)>}).
 
     Local Definition branchInput
       (lt unsigned inv: Bool @# ty)

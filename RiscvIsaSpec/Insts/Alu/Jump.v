@@ -1,5 +1,6 @@
 Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
 Require Import List.
+Require Import ZArith.
 
 Section Alu.
   Context `{procParams: ProcParams}.
@@ -61,7 +62,7 @@ Section Alu.
            <- ZeroExtendTruncMsb Xlen (* bit type cast *)
                 ({<
                    ZeroExtendTruncMsb (Xlen - 1) (#sem_output @% "newPc"),
-                   $$WO~0
+                   (Const _ (zToWord 1 0))
                 >});
          RetE (#sem_output @%["newPc" <- #newPc]).
 
@@ -121,7 +122,7 @@ Section Alu.
                                            (#inst $[19:12]),
                                            (#inst $[20:20]),
                                            (#inst $[30:21]),
-                                           $$ WO~0
+                                           $$ (zToWord 1 0)
                                          >})));
                                 "compressed?" ::= (#exec_pkt @% "compressed?")
                              } : JumpInputType @# ty);
@@ -152,7 +153,7 @@ Section Alu.
                                           ZeroExtendTruncMsb (Xlen - 1)
                                             ((xlen_sign_extend Xlen (cfg_pkt @% "xlen") (#exec_pkt @% "reg1")) +
                                              (SignExtendTruncLsb Xlen (imm #inst))),
-                                          $$ WO~0
+                                          $$ (zToWord 1 0)
                                         >});
                                 "compressed?" ::= (#exec_pkt @% "compressed?")
                               } : JumpInputType @# ty);
