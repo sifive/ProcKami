@@ -224,8 +224,8 @@ Section trap_handling.
                  <- IF delegated #medeleg exception
                       then
                         IF delegated #sedeleg exception
-                          then $SupervisorMode
-                          else $UserMode
+                          then $UserMode
+                          else $SupervisorMode
                       else $MachineMode;
                  delegTrap #delegMode xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
              as next_pc;
