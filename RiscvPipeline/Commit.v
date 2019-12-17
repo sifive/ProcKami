@@ -227,7 +227,12 @@ Section trap_handling.
                           then $UserMode
                           else $SupervisorMode
                       else $MachineMode;
-                 delegTrap #delegMode xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
+               LET trapMode
+                 :  PrivMode
+                 <- IF #delegMode <= mode
+                      then mode
+                      else #delegMode;
+               delegTrap #trapMode xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
              as next_pc;
            Ret #next_pc
          as next_pc;
