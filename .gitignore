@@ -14,3 +14,10 @@ Makefile.coq.all.conf
 *.hex
 *.sv
 *~
+.*.swk
+.*.swl
+.*.swm
+.*.swn
+.*.swo
+.*.swp
+
