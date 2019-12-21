@@ -20,10 +20,10 @@ Section Alu.
          fuFunc := (fun ty i
                       => LETE x: LogicalType <- i;
                          RetE (IF (#x @% "op") == $ XorOp
-                                 then ((#x @% "arg1") ^ (#x @% "arg2"))
+                                 then ((#x @% "arg1") .^ (#x @% "arg2"))
                                  else (IF (#x @% "op") == $ OrOp
-                                         then ((#x @% "arg1") | (#x @% "arg2"))
-                                         else ((#x @% "arg1") & (#x @% "arg2"))))) ;
+                                         then ((#x @% "arg1") .| (#x @% "arg2"))
+                                         else ((#x @% "arg1") .& (#x @% "arg2"))))) ;
          fuInsts := {| instName     := "xori" ; 
                        xlens        := xlens_all;
                        extensions   := "I" :: nil;

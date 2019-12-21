@@ -76,7 +76,7 @@ Section Fpu.
                      <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
                    LETC fflags
                      :  FflagsValue
-                     <- ((#sem_in_pkt @% "fflags" : FflagsValue @# ty) |
+                     <- ((#sem_in_pkt @% "fflags" : FflagsValue @# ty) .|
                          (ZeroExtendTruncLsb FflagsWidth (csr_invalid_mask ty)));
                    LETC result
                      :  FMinMaxOutputType

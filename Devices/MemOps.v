@@ -213,7 +213,7 @@ Section memops.
       memOpCode := 17;
       memOpSize := 2;
       memOpRegValue := memRegValueFn (fun _ mem => RetE (sign_extend_trunc 32 Rlen mem));
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) ^ (unsafeTruncLsb 32 mem))));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) .^ (unsafeTruncLsb 32 mem))));
       memOpReservation := memReservationNone
     |};
     {|
@@ -221,7 +221,7 @@ Section memops.
       memOpCode := 18;
       memOpSize := 2;
       memOpRegValue := memRegValueFn (fun _ mem => RetE (sign_extend_trunc 32 Rlen mem));
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) & (unsafeTruncLsb 32 mem))));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) .& (unsafeTruncLsb 32 mem))));
       memOpReservation := memReservationNone
     |};
     {|
@@ -229,7 +229,7 @@ Section memops.
       memOpCode := 19;
       memOpSize := 2;
       memOpRegValue := memRegValueFn (fun _ mem => RetE (sign_extend_trunc 32 Rlen mem));
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) | (unsafeTruncLsb 32 mem))));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) .| (unsafeTruncLsb 32 mem))));
       memOpReservation := memReservationNone
     |};
     {|
@@ -285,7 +285,7 @@ Section memops.
       memOpCode := 26;
       memOpSize := 3;
       memOpRegValue := memRegValueFn (fun _ mem => RetE mem);
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg ^ mem));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg .^ mem));
       memOpReservation := memReservationNone
     |};
     {|
@@ -293,7 +293,7 @@ Section memops.
       memOpCode := 27;
       memOpSize := 3;
       memOpRegValue := memRegValueFn (fun _ mem => RetE mem);
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg & mem));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg .& mem));
       memOpReservation := memReservationNone
     |};
     {|
@@ -301,7 +301,7 @@ Section memops.
       memOpCode := 28;
       memOpSize := 3;
       memOpRegValue := memRegValueFn (fun _ mem => RetE mem);
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg | mem));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg .| mem));
       memOpReservation := memReservationNone
     |};
     {|

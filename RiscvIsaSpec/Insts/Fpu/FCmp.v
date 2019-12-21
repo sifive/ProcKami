@@ -107,7 +107,7 @@ Section Fpu.
                      <- Compare_expr (#sem_in_pkt @% "arg1") (#sem_in_pkt @% "arg2");
                    LETC fflags
                      :  FflagsValue
-                     <- ((#sem_in_pkt @% "fflags") |
+                     <- ((#sem_in_pkt @% "fflags") .|
                          (ZeroExtendTruncLsb FflagsWidth (csr_invalid_mask ty)));
                    LETC result
                      :  FCmpOutputType

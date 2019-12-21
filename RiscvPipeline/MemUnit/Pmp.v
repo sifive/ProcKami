@@ -116,10 +116,10 @@ Section pmp.
 *)
                    LET mask0
                      :  PAddr
-                     <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) | $1;
+                     <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) .| $1;
                    LET mask
                      :  PAddr
-                     <- ~ (#mask0 & (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
+                     <- ~ (#mask0 .& (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
 (*
                    System [
                      DispString _ "[checkPMP] mask: ";
@@ -140,7 +140,7 @@ Section pmp.
                                   <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
                                 LET napot_match
                                   :  Bool
-                                  <- ((CABit Bxor [#curr_addr; #tor]) & #mask) == $0;
+                                  <- ((CABit Bxor [#curr_addr; #tor]) .& #mask) == $0;
                                 LET tor_match
                                   :  Bool
                                   <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);

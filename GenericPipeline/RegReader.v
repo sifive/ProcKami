@@ -125,9 +125,9 @@ Section reg_reader.
        Ret
          (STRUCT {
               "pc"          ::= pc;
-              "reg1"        ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) |
+              "reg1"        ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) .|
                                  (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
-              "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) |
+              "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) .|
                                  (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
               "reg3"        ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
               "fflags"      ::= #fflags_val;

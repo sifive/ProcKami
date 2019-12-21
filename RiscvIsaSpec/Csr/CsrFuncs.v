@@ -255,7 +255,7 @@ Section CsrInterface.
     := unpack (csrKind fields)
          (ZeroExtendTruncLsb
            (size (csrKind fields))
-           (((ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 data)) << (Const ty (natToWord 5 32))) &
+           (((ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 data)) << (Const ty (natToWord 5 32))) .&
             (ZeroExtendTruncLsb 64 (ZeroExtendTruncLsb 32 (pack curr_value))))).
 
   (* See 3.1.1 and 3.1.15 *)
@@ -591,7 +591,7 @@ Section CsrInterface.
                => rs1_index != $0;
             csr_params_write_value
             := fun old_value new_value
-               => ((CABit Bxor [new_value; ~(Const ty (natToWord _ 0))]) & old_value)
+               => ((CABit Bxor [new_value; ~(Const ty (natToWord _ 0))]) .& old_value)
           |}.
 
       Local Definition csr_params

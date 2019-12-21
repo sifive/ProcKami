@@ -56,7 +56,7 @@ Section Fpu.
                 ::= Switch op Retn (Bit 1) With {
                       (Const ty (natToWord 2 0)) ::= ZeroExtendTruncMsb 1 #reg2;
                       (Const ty (natToWord 2 1)) ::= ~ (ZeroExtendTruncMsb 1 #reg2);
-                      (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 #reg1) ^
+                      (Const ty (natToWord 2 2)) ::= ((ZeroExtendTruncMsb 1 #reg1) .^
                                                       (ZeroExtendTruncMsb 1 #reg2))
                     };
               "arg1" ::= #reg1

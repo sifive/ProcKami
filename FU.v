@@ -712,7 +712,7 @@ Section Params.
            "fence.i" ::= $$ false}).
 
     Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
-      ((~(~($0) << numZeros)) & ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
+      ((~(~($0) << numZeros)) .& ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
 
     Definition checkAligned (addr : VAddr @# ty) (size : MemRqLgSize @# ty)
       :  Bool @# ty
