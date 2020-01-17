@@ -500,7 +500,7 @@ Section tlb.
          LET tag : (Bit VpnWidth)
            <- ZeroExtendTruncMsb VpnWidth (ZeroExtendTruncLsb (VpnWidth + 12) vaddr);
          LETA mentry : Maybe TlbEntry
-           <- Cam.Ifc.read cam #tag satp_mode;
+           <- @Cam.Ifc.read camParams cam _ #tag satp_mode;
          Read busy : Bool <- @^"tlbBusy";
          System [
            DispString _ "[getTlbEntry] mentry: ";
@@ -712,7 +712,7 @@ Section tlb.
          Write @^"tlbBusy" : Bool <- !#done && !(#exception @% "valid");
          If #done && !(#exception @% "valid")
            then
-             Cam.Ifc.write cam #vpn #entry;
+             @Cam.Ifc.write camParams cam _ #vpn #entry;
          LET addrException : Pair VAddr Exception <- STRUCT { "fst" ::= #vaddr ;
                                                               "snd" ::= #exception @% "data" };
          Write @^"tlbException" : Maybe (Pair VAddr Exception) <- STRUCT { "valid" ::= #exception @% "valid";
