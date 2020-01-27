@@ -14,13 +14,7 @@ Section RegWriter.
     (reg_id : RegId @# ty)
     (data : Data @# ty)
     :  ActionT ty Void
-    := LET pkt
-         :  IntRegWrite
-         <- STRUCT {
-              "addr" ::= reg_id;
-              "data" ::= ARRAY {xlen_sign_extend Xlen xlen data}
-            };
-       Call @^"regWrite" (#pkt : IntRegWrite);
+    := WriteRf @^"regWrite" (reg_id : RegIdWidth ; xlen_sign_extend Xlen xlen data : Bit Xlen);
        System [
          DispString _ " Reg Write Wrote ";
          DispHex data;    
@@ -34,13 +28,7 @@ Section RegWriter.
     (reg_id : RegId @# ty)
     (data : Data @# ty)
     :  ActionT ty Void
-    := LET pkt
-         :  FloatRegWrite
-         <- STRUCT {
-              "addr" ::= reg_id;
-              "data" ::= ARRAY {OneExtendTruncLsb Flen data}
-            };
-       Call (@^"fregWrite") (#pkt : FloatRegWrite);
+    := WriteRf @^"fregWrite" (reg_id : RegIdWidth ; OneExtendTruncLsb Flen data : Bit Flen);
        System [
          DispString _ " Reg Write Wrote ";
          DispHex data;
