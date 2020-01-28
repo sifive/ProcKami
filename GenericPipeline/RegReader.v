@@ -56,7 +56,7 @@ Section reg_reader.
     (reg_id : RegId @# ty)
     :  ActionT ty Data
     := ReadRf reg_val
-         :  Bit Xlen
+         :  Bit (@Xlen procParams)
          <- (@^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
        Ret
          (IF reg_id == $0
@@ -68,7 +68,7 @@ Section reg_reader.
     (freg_id : RegId @# ty)
     :  ActionT ty Data
     := ReadRf freg_val
-         :  Bit Flen
+         :  Bit (@Flen procParams)
          <- (@^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
        Ret (flen_one_extend Rlen #freg_val).
 
