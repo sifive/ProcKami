@@ -452,9 +452,9 @@ Section tlb.
 
   Instance camParams : Cam.Ifc.CamParams
     := {|
-        Cam.Ifc.Data := TlbEntry;
-        MatchRead := tlbVpnMatch;
-        MatchClear := tlbVpnMatch
+        Cam.Ifc.dataK := TlbEntry;
+        matchRead := tlbVpnMatch;
+        matchClear := tlbVpnMatch
       |}.
 
   Local Definition pseudoLruParams : PseudoLruParams := {|
@@ -466,7 +466,7 @@ Section tlb.
                                                          regName := @^"tlbCache";
                                                          size := EntriesNum;
                                                          policy := @PseudoLru pseudoLruParams;
-                                                         CamParamsInst := camParams
+                                                         camParamsInst := camParams
                                                        |}.
 
   Local Definition cam : Cam camParams := SimpleCam simpleCamParams.
