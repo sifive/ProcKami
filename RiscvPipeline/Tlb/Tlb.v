@@ -450,24 +450,22 @@ Section tlb.
                   end)))
          tlbRegSpecs.
 
-  Instance camParams : Cam.Ifc.CamParams
+  Definition camParams : Cam.Ifc.CamParams
     := {|
+        Cam.Ifc.name := "tlbCache";
         Cam.Ifc.dataK := TlbEntry;
         matchRead := tlbVpnMatch;
         matchClear := tlbVpnMatch
       |}.
 
-  Local Definition pseudoLruParams : PseudoLruParams := {|
-                                                         num := EntriesNum; (* TODO: redundant w.r.t. simpleCamParams *)
-                                                         stateRegName := @^"tlbCacheLru";
-                                                       |}.
-
-  Local Definition simpleCamParams : SimpleCamParams := {|
-                                                         regName := @^"tlbCache";
-                                                         size := EntriesNum;
-                                                         policy := @PseudoLru pseudoLruParams;
-                                                         camParamsInst := camParams
-                                                       |}.
+  Local Definition simpleCamParams : SimpleCamParams :=
+    {|
+      size := EntriesNum;
+      policy := @PseudoLru
+                  {| name := @Cam.Ifc.name camParams ++ ".replacementPolicy";
+                     num := EntriesNum |};
+      camParamsInst := camParams
+    |}.
 
   Local Definition cam : Cam camParams := SimpleCam simpleCamParams.
 
