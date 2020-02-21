@@ -38,6 +38,7 @@ Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 Require Import ProcKami.RiscvPipeline.Commit.
 Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.GenericPipeline.ProcessorCore.
+Require Import Kami.kami_rewrites_untyped_reflection.
 
 Opaque getFins.
 Opaque Nat.mul.
@@ -782,18 +783,50 @@ Hint Resolve WfMod_intRegFile : wfModProcessor_db.
 
 Set Printing Depth 500.
 
+(*Ltac KRSimplifyTacT e tp :=
+  let xx := (ltac:(KRExprReify e tp)) in
+    change e with (KRExprDenote xx);
+    repeat (rewrite KRSimplifySound;
+            cbv [KRSimplify KRSimplifyTop]);cbv [KRExprDenote].*)
+
+Check makeModule.
+Check getAllRegisters.
+
 Theorem DisjKey_getAllRegisters_intRegFile:
   DisjKey (getAllRegisters (BaseRegFile intRegFile))
     (getAllRegisters (processorCore func_units mem_table)).
-Admitted.
-(* SLOW Proof.
+(*SLOW Proof.
     Set Printing Depth 4000.
     unfold intRegFile.
     unfold processorCore.
-    autorewrite with kami_rewrite_db.
-    autorewrite with simp_csrs.
-    autorewrite with kami_rewrite_db.
-    discharge_DisjKey.
+
+    time (match goal with
+          | |- DisjKey (getAllRegisters ?A) ?B =>
+    (*let x := (ltac:(KRExprReify (DisjKey (getAllRegisters A) B) (KRTypeElem KRElemProp))) in
+    idtac x*)
+               KRSimplifyTac (DisjKey (getAllRegisters A) B) (KRTypeElem KRElemProp)
+          end).
+    time (compute [getAllRegisters getRegisters getRegFileRegisters map fst]).
+    time (match goal with
+          | |- DisjKey ?A ?B =>
+    (*let x := (ltac:(KRExprReify (DisjKey A B) (KRTypeElem KRElemProp))) in
+    idtac x*)
+               KRSimplifyTac (DisjKey A B) (KRTypeElem KRElemProp)
+          end).
+    time (compute [getAllRegisters getRegisters getRegFileRegisters map fst]).
+    unfold Csrs.
+    unfold csr_regs.
+    unfold debug_csrs.
+    time (match goal with
+          | |-(?A /\ ?B) =>
+    (*let x := (ltac:(KRExprReify (A /\ B) (KRTypeElem KRElemProp))) in
+    idtac x*)
+               KRSimplifyTac (A /\ B) (KRTypeElem KRElemProp)
+          end).
+    time (autorewrite with simp_csrs).
+
+    + simpl. intro X. simpl in X.
+      time (trivialSolve).
     + unfold Csrs.
       unfold csr_regs.
       autorewrite with simp_csrs.
@@ -845,6 +878,7 @@ Admitted.
     + apply string_dec.
     + apply string_dec.
 Qed.*)
+Admitted.
 
 Hint Resolve DisjKey_getAllRegisters_intRegFile : wfModProcessor_db.
 
@@ -853,8 +887,14 @@ Theorem DisjKey_getAllMethods_intRegFile:
     (getAllMethods (processorCore func_units mem_table)).
 Proof.
     unfold processorCore.
-    autorewrite with kami_rewrite_db;try (apply string_dec).
-    discharge_DisjKey;try (apply DisjKey_nil2); try (apply string_dec).
+    time (match goal with
+          | |-(DisjKey ?A ?B) =>
+    let x := (ltac:(KRExprReify (DisjKey A B) (KRTypeElem KRElemProp))) in
+    (*idtac x*)
+
+               KRSimplifyTac (DisjKey A B) (KRTypeElem KRElemProp)
+          end).
+    apply I.
 Qed.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile : wfModProcessor_db.
@@ -869,12 +909,14 @@ Theorem DisjKey_getAllRules_intRegFile_processorCore:
     (getAllRules (processorCore func_units mem_table)).
 Proof.
   rewrite intRegFile_no_rules.
-  unfold DisjKey.
-  intros.
-  left.
-  simpl.
-  intro X.
-  apply X.
+  time (match goal with
+        | |-(DisjKey ?A ?B) =>
+  let x := (ltac:(KRExprReify (DisjKey A B) (KRTypeElem KRElemProp))) in
+  (*idtac x*)
+
+             KRSimplifyTac (DisjKey A B) (KRTypeElem KRElemProp)
+        end).
+  apply I.
 Qed.
 
 Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfModProcessor_db.
@@ -1390,9 +1432,17 @@ Theorem WFConcat2:
                    (mem_device_files mem_devices)))))) ->
   WfConcatActionT (snd rule type) (BaseRegFile intRegFile).
 (*SLOW Proof.
+    intro rule.
+    (*time (match goal with
+          | |-(In rule ?A) -> _ =>
+      let x := (ltac:(KRExprReify (In rule A) (KRTypeElem KRElemProp))) in
+    (*idtac x*)
+  
+               KRSimplifyTac (In rule A) (KRTypeElem KRElemProp)
+          end).*)
     intros.
     autorewrite with kami_rewrite_db in H.
-    inversion H; subst; clear H.
+    time (inversion H; subst; clear H).
     + inversion H0.
     + unfold processorCore in H0.
       autorewrite with kami_rewrite_db in H0.
@@ -2021,9 +2071,22 @@ Qed.
                    (mem_device_files mem_devices)))))) ->
   forall v : type (fst (projT1 (snd meth))),
   WfConcatActionT (projT2 (snd meth) type v) (BaseRegFile intRegFile).
-(*SLOW Proof.
+Proof.
+    intro meth.
+    time (match goal with
+          | |-(In meth ?A) -> _ =>
+      let x := (ltac:(KRExprReify (In meth A) (KRTypeElem KRElemProp))) in
+    (*idtac x*)
+               KRSimplifyTac (In meth A) (KRTypeElem KRElemProp)
+          end).
+    time (match goal with
+          | |-(?A \/ ?B) -> _ =>
+      let x := (ltac:(KRExprReify (A \/ B) (KRTypeElem KRElemProp))) in
+    idtac x
+               (*KRSimplifyTac (In meth A) (KRTypeElem KRElemProp)*)
+          end).
     intros.
-    autorewrite with kami_rewrite_db in H.
+    progress (autorewrite with kami_rewrite_db in H).
     inversion H; subst; clear H.
     + simpl in H0.
       autorewrite with kami_rewrite_db in H0.
@@ -3494,14 +3557,60 @@ Theorem in_get_mem_device_files_mem_devices:
        In r (map fst (concat (map getRegFileRegisters (get_mem_device_file m)))) ->
        In m mem_devices ->
        In r (map fst (concat (map getRegFileRegisters (mem_device_files mem_devices)))).
-Admitted.
+Proof.
+    clear.
+    intros.
+    induction mem_devices.
+    - inversion H0.
+    - inversion H0;subst;clear H0.
+      + unfold mem_device_files.
+        simpl.
+        rewrite map_app.
+        rewrite concat_app.
+        rewrite map_app.
+        rewrite in_app.
+        left.
+        apply H.
+      + unfold mem_device_files.
+        simpl.
+        rewrite map_app.
+        rewrite concat_app.
+        rewrite map_app.
+        rewrite in_app.
+        right.
+        apply IHl.
+        apply H1.
+Qed.
 
 Theorem in_method_get_mem_device_files_mem_devices:
    forall r m,
        In r (map fst (concat (map getRegFileMethods (get_mem_device_file m)))) ->
        In m mem_devices ->
        In r (map fst (concat (map getRegFileMethods (mem_device_files mem_devices)))).
-Admitted.
+Proof.
+    clear.
+    intros.
+    induction mem_devices.
+    - inversion H0.
+    - inversion H0;subst;clear H0.
+      + unfold mem_device_files.
+        simpl.
+        rewrite map_app.
+        rewrite concat_app.
+        rewrite map_app.
+        rewrite in_app.
+        left.
+        apply H.
+      + unfold mem_device_files.
+        simpl.
+        rewrite map_app.
+        rewrite concat_app.
+        rewrite map_app.
+        rewrite in_app.
+        right.
+        apply IHl.
+        apply H1.
+Qed.
 
 Theorem WfMod_processorCore_mem_devices_helper:
   forall md,
