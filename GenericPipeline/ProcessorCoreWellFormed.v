@@ -736,21 +736,25 @@ Admitted.
 
 Hint Resolve DisjKey_getAllRules_intRegFile_processorCore : wfMod_ConcatMod_Helper.
 
-Theorem WFConcat1:
-  forall meth : string * {x : Signature & MethodT x},
+(** commenting out for now -Evan **)
+
+(* Theorem WFConcat1:
+  forall ty (meth : string * {x : Signature & MethodT x}),
   In meth (getAllMethods (BaseRegFile intRegFile)) ->
-  forall v : type (fst (projT1 (snd meth))),
-  WfConcatActionT (projT2 (snd meth) type v)
+  forall v : ty (fst (projT1 (snd meth))),
+  WfConcatActionT (projT2 (snd meth) ty v)
     (ConcatMod (BaseRegFile floatRegFile)
        (ConcatMod (BaseRegFile memReservationRegFile)
           (fold_right ConcatMod (processorCore func_units mem_table)
              (map (fun m : RegFileBase => Base (BaseRegFile m))
                 (mem_device_files mem_devices))))).
 Proof.
-    discharge_wf.
+   discharge_wf.
 Qed.
 
 Hint Resolve WFConcat1 : wfMod_ConcatMod_Helper.
+
+*)
 
 Theorem WFConcat2:
   forall rule : RuleT,
@@ -831,7 +835,9 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_floatRegFile_processorCore : wfMod_ConcatMod_Helper.
 
-Theorem WFConcat4:
+(** commenting out for now -Evan **)
+
+(* Theorem WFConcat4:
   forall meth : string * {x : Signature & MethodT x},
   In meth (getAllMethods (BaseRegFile floatRegFile)) ->
   forall v : type (fst (projT1 (snd meth))),
@@ -843,8 +849,9 @@ Theorem WFConcat4:
 Proof.
     discharge_wf.
 Qed.
-
 Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
+
+*)
 
 Theorem wfMod_floatRegFile:
   WfMod (BaseRegFile floatRegFile).
@@ -975,7 +982,9 @@ Admitted.
 
 Hint Resolve WFConcat9 : wfMod_ConcatMod_Helper.
 
-Lemma WfModProcessor:
+(** commenting out for now -Evan **)
+
+(* Lemma WfModProcessor:
         WfMod (@processor procParams func_units mem_devices mem_table).
     Proof.
       unfold processor.
@@ -990,8 +999,8 @@ Lemma WfModProcessor:
       rewrite ?map_app.
 
       repeat ltac_wfMod_ConcatMod;try apply string_dec.
-Qed.
- 
+Qed. 
+ *) 
 Close Scope kami_expr.
 
 Close Scope kami_action.
