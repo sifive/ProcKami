@@ -52,6 +52,8 @@ Definition meths := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool))
   ].
 
+Axiom cheat : forall {X},X.
+
 Definition coqSim_32{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
   let '(_,(rfbs,bm)) := separateModRemove model32 in
     eval_BaseMod_Haskell _ env args rfbs timeout meths bm cheat.
