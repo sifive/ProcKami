@@ -14,6 +14,10 @@ Import Nat.
 Require Import StdLibKami.RegStruct.
 Require Import Kami.Compiler.Test.
 Require Import Kami.Simulator.NativeTest.
+Require Import Kami.Simulator.CoqSim.Simulator.
+Require Import Kami.Simulator.CoqSim.HaskellTypes.
+Require Import Kami.Simulator.CoqSim.SimTypes.
+Require Import Kami.Simulator.CoqSim.RegisterFile.
 
 Definition supportedExts
   :  list SupportedExt
@@ -41,6 +45,42 @@ Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts al
 Definition model32 := model [Xlen32].
 Definition model64 := model [Xlen32; Xlen64].
 
+(* Definition args := [("boot_rom", "boot_ROM_RV32.hex");("testfile", "haskelldump/rv32ui-p-add.hex")].
+ *)
+
+Definition meths := [
+  ("proc_core_ext_interrupt_pending", (Bit 0, Bool))
+  ].
+
+Definition coqSim_32{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove model32 in
+    eval_BaseMod_Haskell _ env args rfbs timeout meths bm cheat.
+
+Definition coqSim_64{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove model64 in
+    eval_BaseMod_Haskell _ env args rfbs timeout meths bm cheat.
+
+(* Definition coqSim_64 : IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove model64 in
+    eval_BaseMod_Haskell [] rfbs timeout [] bm cheat. *)
+(* 
+Definition coqSim_Native(args : list (string * string)) : IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove testNative in
+  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
+
+Definition coqSim_Async : IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove testAsync in
+  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
+
+Definition coqSim_SyncIsAddr : IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove testSyncIsAddr in
+  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
+
+Definition coqSim_SyncNotIsAddr : IO unit :=
+  let '(_,(rfbs,bm)) := separateModRemove testSyncNotIsAddr in
+  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
+
+ *)
 Separate Extraction
          predPack
          orKind
@@ -53,6 +93,7 @@ Separate Extraction
          pointwiseBypass
          getDefaultConstFullKind
          CAS_RulesRf
+         Fin_to_list
 
          getCallsWithSignPerMod
          RtlExpr'
@@ -62,6 +103,7 @@ Separate Extraction
          RmeSimple
          RtlModule
          getRules
+
          separateModRemove
          separateModHidesNoInline
 
@@ -73,4 +115,7 @@ Separate Extraction
          testSyncIsAddr
          testSyncNotIsAddr
          testNative
+
+         coqSim_32
+         coqSim_64
          .
