@@ -180,7 +180,7 @@ Class FpuParams
       expWidthMinus2     : nat;
       sigWidthMinus2     : nat; 
       fpu_exp_valid      : (expWidthMinus2 >= 2)%nat;
-      fpu_sig_valid      : (pow2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
+      fpu_sig_valid      : (Nat.pow 2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
       fpu_suffix         : string;
       fpu_int_suffix     : string;
       fpu_format_field   : word 2;

@@ -27,8 +27,8 @@ Section mmapped.
     Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation RegMapT := (RegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
     Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
-    Local Notation maskSz := (pow2 mmregs_lgMaskSz).
-    Local Notation granuleSz := (pow2 mmregs_lgGranuleLgSz).
+    Local Notation maskSz := (Nat.pow 2 mmregs_lgMaskSz).
+    Local Notation granuleSz := (Nat.pow 2 mmregs_lgGranuleLgSz).
     Local Notation dataSz := (maskSz * granuleSz)%nat.
 
     Variable mmregs : list GroupReg.

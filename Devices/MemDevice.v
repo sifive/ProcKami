@@ -216,7 +216,7 @@ Section deviceIfc.
              (fun memOp
                => Ret
                     (unpack DataMask
-                      ($(pow2 (pow2 (memOpSize memOp)) - 1)))).
+                      ($(Nat.pow 2 (Nat.pow 2 (memOpSize memOp)) - 1)))).
 
       Local Definition memDeviceWrite
         (addr : PAddr @# ty)

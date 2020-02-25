@@ -286,9 +286,9 @@ Section Params.
            (@^"memReservation_reg_file")
            (Async [ @^"readMemReservation" ])
            (@^"writeMemReservation")
-           (pow2 lgMemSz)
+           (Nat.pow 2 lgMemSz)
            Bool
-           (RFFile true false "file0" 0 (pow2 lgMemSz) (fun _ => false)).
+           (RFFile true false "file0" 0 (Nat.pow 2 lgMemSz) (fun _ => false)).
 
     Definition processor
       :  Mod 
