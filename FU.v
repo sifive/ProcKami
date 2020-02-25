@@ -544,13 +544,11 @@ Section Params.
       unfold HypervisorMode, SupervisorMode, UserMode, MachineMode in *.
       simpl; intros.
       repeat match goal with
-             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
-                                          try solve [rewrite ?e in *; exfalso; word_omega]
+             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *
              | H: context [if ?P then _ else _] |- _ => let G := fresh "G" in
-                                                        destruct P eqn: G;
-                                                          try solve [rewrite ?e1 in *; exfalso; word_omega]
+                                                        destruct P eqn: G
                                                                                                       
-             end; auto.
+             end; auto; try tauto.
     Qed.
   End PrivModes.
 
