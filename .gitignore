@@ -3,6 +3,8 @@ obj_dir
 .coqdeps.d
 *.glob
 *.vo
+*.vok
+*.vos
 Makefile.coq.all
 Makefile.coq.all.conf
 *.hi
