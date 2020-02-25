@@ -83,9 +83,9 @@ Section mem_devices.
                       @^"readMemB"  (* fetch upper page table walker read mem call *)
                     ])
                   (@^"writeMem0")
-                  (pow2 lgMemSz) (* rfIdxNum: nat *)
+                  (Nat.pow 2 lgMemSz) (* rfIdxNum: nat *)
                   (Bit 8) (* rfData: Kind *)
-                  (RFFile true true "testfile" 0 (pow2 lgMemSz) (fun _ => wzero _))])
+                  (RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))])
        |}.
 
   Close Scope kami_action.
