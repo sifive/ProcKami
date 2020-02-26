@@ -41,9 +41,10 @@ Definition debug_buffer_sz := 2.
 Definition debug_impebreak := true.
 
 Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak.
+(* Definition model (xlen : list nat) : BaseModule := generateModel xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak. *)
 
-Definition model32 := model [Xlen32].
-Definition model64 := model [Xlen32; Xlen64].
+Definition model32 : Mod := model [Xlen32].
+Definition model64 : Mod := model [Xlen32; Xlen64].
 
 (* Definition args := [("boot_rom", "boot_ROM_RV32.hex");("testfile", "haskelldump/rv32ui-p-add.hex")].
  *)
@@ -54,13 +55,29 @@ Definition meths := [
 
 Axiom cheat : forall {X},X.
 
+(*
+eval_BaseMod_Haskell :
+forall (E : Type) (H5 : Environment HWord HVec HMap IO E),
+E ->
+list (string * string) ->
+list RegFileBase ->
+nat ->
+forall (meths : list (string * Signature)) (basemod : BaseModule),
+WfBaseModule_new basemod -> curried (IO unit) (map (dec_sig (M:=IO)) meths)
+
+eval_BaseMod_Haskell is not universe polymorphic
+Arguments eval_BaseMod_Haskell [E]%type_scope _ _ (_ _)%list_scope
+  _%nat_scope _%list_scope [basemod]
+eval_BaseMod_Haskell is transparent
+Expands to: Constant Kami.Simulator.CoqSim.Simulator.eval_BaseMod_Haskell
+*)
 Definition coqSim_32{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
   let '(_,(rfbs,bm)) := separateModRemove model32 in
-    eval_BaseMod_Haskell _ env args rfbs timeout meths bm cheat.
+    @eval_BaseMod_Haskell _ _ env args rfbs timeout meths bm cheat.
 
 Definition coqSim_64{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
   let '(_,(rfbs,bm)) := separateModRemove model64 in
-    eval_BaseMod_Haskell _ env args rfbs timeout meths bm cheat.
+    @eval_BaseMod_Haskell _ _ env args rfbs timeout meths bm cheat.
 
 (* Definition coqSim_64 : IO unit :=
   let '(_,(rfbs,bm)) := separateModRemove model64 in
