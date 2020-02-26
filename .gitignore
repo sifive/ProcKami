@@ -7,6 +7,7 @@ obj_dir
 *.vos
 Makefile.coq.all
 Makefile.coq.all.conf
+.Makefile.coq.all.d
 *.hi
 *.ho
 *.o
