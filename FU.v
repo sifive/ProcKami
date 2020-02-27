@@ -180,7 +180,7 @@ Class FpuParams
       expWidthMinus2     : nat;
       sigWidthMinus2     : nat; 
       fpu_exp_valid      : (expWidthMinus2 >= 2)%nat;
-      fpu_sig_valid      : (pow2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
+      fpu_sig_valid      : (Nat.pow 2 expWidthMinus2 + 4 > sigWidthMinus2 + 1 + 1)%nat;
       fpu_suffix         : string;
       fpu_int_suffix     : string;
       fpu_format_field   : word 2;
@@ -544,13 +544,11 @@ Section Params.
       unfold HypervisorMode, SupervisorMode, UserMode, MachineMode in *.
       simpl; intros.
       repeat match goal with
-             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *;
-                                          try solve [rewrite ?e in *; exfalso; word_omega]
+             | |- context[weq ?P ?Q] => destruct (weq P Q); simpl in *
              | H: context [if ?P then _ else _] |- _ => let G := fresh "G" in
-                                                        destruct P eqn: G;
-                                                          try solve [rewrite ?e1 in *; exfalso; word_omega]
+                                                        destruct P eqn: G
                                                                                                       
-             end; auto.
+             end; auto; try tauto.
     Qed.
   End PrivModes.
 
