@@ -18,6 +18,7 @@ Require Import Kami.Simulator.CoqSim.Simulator.
 Require Import Kami.Simulator.CoqSim.HaskellTypes.
 Require Import Kami.Simulator.CoqSim.SimTypes.
 Require Import Kami.Simulator.CoqSim.RegisterFile.
+Require Import ProcKami.Devices.UARTDevice.
 
 Definition supportedExts
   :  list SupportedExt
@@ -34,72 +35,74 @@ Definition supportedExts
         Build_SupportedExt "Zifencei" true false
     ].
 
-Definition allow_misaligned := false.
+Definition allow_misaligned      := false.
 Definition allow_inst_misaligned := true.
-Definition misaligned_access := false.
-Definition debug_buffer_sz := 2.
-Definition debug_impebreak := true.
+Definition misaligned_access     := false.
+Definition debug_buffer_sz       := 2.
+Definition debug_impebreak       := true.
 
-Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak.
-(* Definition model (xlen : list nat) : BaseModule := generateModel xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak. *)
+Definition model (xlens : list nat) : Mod
+  := generate_model
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access
+       (_ 'h"1000")
+       debug_buffer_sz
+       debug_impebreak.
+
+Definition xlens32 := [Xlen32].
+Definition xlens64 := [Xlen32; Xlen64].
 
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
 
-(* Definition args := [("boot_rom", "boot_ROM_RV32.hex");("testfile", "haskelldump/rv32ui-p-add.hex")].
- *)
+Definition procParams (xlens : list nat) : ProcParams
+  := ModelParams.procParams
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access
+       (_ 'h"1000")
+       debug_buffer_sz
+       debug_impebreak.
 
-Definition meths := [
-  ("proc_core_ext_interrupt_pending", (Bit 0, Bool))
-  ].
+Definition meths (xlens : list nat) := [
+  ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
+  ("proc_core_readUART", (@UARTRead (procParams xlens), Data));
+  ("proc_core_writeUART", (@UARTWrite (procParams xlens), Bit 0))
+].
 
 Axiom cheat : forall {X},X.
 
-(*
-eval_BaseMod_Haskell :
-forall (E : Type) (H5 : Environment HWord HVec HMap IO E),
-E ->
-list (string * string) ->
-list RegFileBase ->
-nat ->
-forall (meths : list (string * Signature)) (basemod : BaseModule),
-WfBaseModule_new basemod -> curried (IO unit) (map (dec_sig (M:=IO)) meths)
+Definition coqSim_32
+  {E}
+  `{Environment _ _ _ _ E}
+  (env : E)
+  (args : list (string * string))
+  (timeout : nat)
+  :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit
+  := let '(_,(rfbs,bm)) := separateModRemove (model xlens32) in
+       @eval_BaseMod_Haskell _ _ env args rfbs timeout (meths xlens32) bm cheat.
 
-eval_BaseMod_Haskell is not universe polymorphic
-Arguments eval_BaseMod_Haskell [E]%type_scope _ _ (_ _)%list_scope
-  _%nat_scope _%list_scope [basemod]
-eval_BaseMod_Haskell is transparent
-Expands to: Constant Kami.Simulator.CoqSim.Simulator.eval_BaseMod_Haskell
-*)
-Definition coqSim_32{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove model32 in
-    @eval_BaseMod_Haskell _ _ env args rfbs timeout meths bm cheat.
+Definition coqSim_64
+  {E}
+  `{Environment _ _ _ _ E}
+  (env : E)
+  (args : list (string * string))
+  (timeout : nat)
+  :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit
+  := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
+       @eval_BaseMod_Haskell _ _ env args rfbs timeout (meths xlens64) bm cheat.
 
-Definition coqSim_64{E}`{Environment _ _ _ _ E}(env : E)(args : list (string * string))(timeout : nat) : (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) -> IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove model64 in
-    @eval_BaseMod_Haskell _ _ env args rfbs timeout meths bm cheat.
-
-(* Definition coqSim_64 : IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove model64 in
-    eval_BaseMod_Haskell [] rfbs timeout [] bm cheat. *)
-(* 
-Definition coqSim_Native(args : list (string * string)) : IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove testNative in
-  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
-
-Definition coqSim_Async : IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove testAsync in
-  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
-
-Definition coqSim_SyncIsAddr : IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove testSyncIsAddr in
-  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
-
-Definition coqSim_SyncNotIsAddr : IO unit :=
-  let '(_,(rfbs,bm)) := separateModRemove testSyncNotIsAddr in
-  eval_BaseMod_Haskell [] rfbs timeout [] bm cheat.
-
- *)
 Separate Extraction
          predPack
          orKind
