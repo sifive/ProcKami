@@ -14,6 +14,11 @@ Import Nat.
 Require Import StdLibKami.RegStruct.
 Require Import Kami.Compiler.Test.
 Require Import Kami.Simulator.NativeTest.
+Require Import Kami.Simulator.CoqSim.Simulator.
+Require Import Kami.Simulator.CoqSim.HaskellTypes.
+Require Import Kami.Simulator.CoqSim.SimTypes.
+Require Import Kami.Simulator.CoqSim.RegisterFile.
+Require Import ProcKami.Devices.UARTDevice.
 
 Definition supportedExts
   :  list SupportedExt
@@ -30,16 +35,73 @@ Definition supportedExts
         Build_SupportedExt "Zifencei" true false
     ].
 
-Definition allow_misaligned := false.
+Definition allow_misaligned      := false.
 Definition allow_inst_misaligned := true.
-Definition misaligned_access := false.
-Definition debug_buffer_sz := 2.
-Definition debug_impebreak := true.
+Definition misaligned_access     := false.
+Definition debug_buffer_sz       := 2.
+Definition debug_impebreak       := true.
 
-Definition model (xlen : list nat) : Mod := generate_model xlen supportedExts allow_misaligned allow_inst_misaligned misaligned_access (_ 'h"1000") debug_buffer_sz debug_impebreak.
+Definition model (xlens : list nat) : Mod
+  := generate_model
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access
+       (_ 'h"1000")
+       debug_buffer_sz
+       debug_impebreak.
 
-Definition model32 := model [Xlen32].
-Definition model64 := model [Xlen32; Xlen64].
+Definition xlens32 := [Xlen32].
+Definition xlens64 := [Xlen32; Xlen64].
+
+Definition model32 : Mod := model [Xlen32].
+Definition model64 : Mod := model [Xlen32; Xlen64].
+
+Definition procParams (xlens : list nat) : ProcParams
+  := ModelParams.procParams
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access
+       (_ 'h"1000")
+       debug_buffer_sz
+       debug_impebreak.
+
+Definition meths (xlens : list nat) := [
+  ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
+  ("proc_core_readUART", (@UARTRead (procParams xlens), Data));
+  ("proc_core_writeUART", (@UARTWrite (procParams xlens), Bit 0))
+].
+
+Axiom cheat : forall {X},X.
+
+Definition coqSim_32
+  {E}
+  `{Environment _ _ _ _ _ E}
+  (env : E)
+  (args : list (string * string))
+  (timeout : nat)
+  (*:  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit *)
+  := let '(_,(rfbs,bm)) := separateModRemove (model xlens32) in
+       @eval_BaseMod_Haskell _ _ _ _ _ env args rfbs timeout (meths xlens32) bm cheat.
+
+Definition coqSim_64
+  {E}
+  `{Environment _ _ _ _ _ E}
+  (env : E)
+  (args : list (string * string))
+  (timeout : nat)
+  (* :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit *)
+  := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
+       @eval_BaseMod_Haskell _ _ _ _ _ env args rfbs timeout (meths xlens64) bm cheat.
 
 Separate Extraction
          predPack
@@ -53,6 +115,7 @@ Separate Extraction
          pointwiseBypass
          getDefaultConstFullKind
          CAS_RulesRf
+         Fin_to_list
 
          getCallsWithSignPerMod
          RtlExpr'
@@ -62,6 +125,7 @@ Separate Extraction
          RmeSimple
          RtlModule
          getRules
+
          separateModRemove
          separateModHidesNoInline
 
@@ -73,4 +137,7 @@ Separate Extraction
          testSyncIsAddr
          testSyncNotIsAddr
          testNative
+
+         coqSim_32
+         coqSim_64
          .
