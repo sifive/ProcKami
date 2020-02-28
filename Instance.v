@@ -79,29 +79,29 @@ Axiom cheat : forall {X},X.
 
 Definition coqSim_32
   {E}
-  `{Environment _ _ _ _ E}
+  `{Environment _ _ _ _ _ E}
   (env : E)
   (args : list (string * string))
   (timeout : nat)
-  :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+  (*:  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
      ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
      ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
-     IO unit
+     IO unit *)
   := let '(_,(rfbs,bm)) := separateModRemove (model xlens32) in
-       @eval_BaseMod_Haskell _ _ env args rfbs timeout (meths xlens32) bm cheat.
+       @eval_BaseMod_Haskell _ _ _ _ _ env args rfbs timeout (meths xlens32) bm cheat.
 
 Definition coqSim_64
   {E}
-  `{Environment _ _ _ _ E}
+  `{Environment _ _ _ _ _ E}
   (env : E)
   (args : list (string * string))
   (timeout : nat)
-  :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+  (* :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
      ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
      ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
-     IO unit
+     IO unit *)
   := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
-       @eval_BaseMod_Haskell _ _ env args rfbs timeout (meths xlens64) bm cheat.
+       @eval_BaseMod_Haskell _ _ _ _ _ env args rfbs timeout (meths xlens64) bm cheat.
 
 Separate Extraction
          predPack
