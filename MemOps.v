@@ -1,76 +1,18 @@
 (* This module defines the memory operations semantics table. *)
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import List.
+Require Import ProcKami.MemOpsFuncs.
+
+
 Import ListNotations.
 
 Section memops.
-  Context `{procParams : ProcParams}.
+  Context {procParams : ProcParams}.
 
   Local Open Scope kami_expr.
 
-  (* specifies the value stored in the destination register by a memory operation. *)
-  Inductive MemRegValue
-    := memRegValueFn : (forall ty, Data @# ty -> Data ## ty) -> MemRegValue
-    |  memRegValueSc (* write 1 if reservation is valid *)
-    |  memRegValueNone.
-
-  Definition isMemRegValueFn (x : MemRegValue) : bool
-    := match x with
-       | memRegValueFn _ => true
-       | _ => false
-       end.
-
-  (* specifies the value written to memory by a memory operation. *)
-  Inductive MemWriteValue : Type
-    := memWriteValueFn : (forall ty, Data @# ty -> Data @# ty -> Data ## ty) -> MemWriteValue
-    |  memWriteValueStore (* write register value *)
-    |  memWriteValueSc (* write register value if reservation is valid. *)
-    |  memWriteValueNone.
-
-  Definition isMemWriteValueFn (x : MemWriteValue) : bool
-    := match x with
-       | memWriteValueFn _ => true
-       | _ => false
-       end.
-
-  Inductive MemReservation : Set
-    := memReservationSet
-    |  memReservationClear
-    |  memReservationNone.
-
-  Record MemOp := {
-    memOpName : MemOpName;
-    memOpCode : nat;
-    memOpSize : nat;
-    memOpRegValue : MemRegValue;
-    memOpWriteValue : MemWriteValue;
-    memOpReservation : MemReservation
-  }.
-
-  Definition lrReservation (size : nat) ty
-    :  Reservation @# ty
-    := $$(ConstArray
-         (fun i : Fin.t Rlen_over_8
-           => Nat.ltb (proj1_sig (Fin.to_nat i))
-                (if Nat.eqb size 2
-                  then Xlen_over_8/2
-                  else Xlen_over_8))).
-
-  Definition reservationValid
-    (size : nat) ty
-    (reservation : Reservation @# ty)
-    : Bool @# ty
-    := CABool And
-         (map
-           (ReadArrayConst reservation)
-           (getFinsBound
-             (if Nat.eqb size 2
-               then Xlen_over_8/2
-               else Xlen_over_8)
-             Rlen_over_8)).
-
-  (* TODO truncate inputs to 32 bit amo operations to avoid generating circuitry for adders etc on large bit sizes *)
+  (* TODO: LLEE: truncate inputs to 32 bit amo operations to avoid generating circuitry for adders etc on large bit sizes *)
   Definition memOps : list MemOp := [
     {|
       memOpName := Lb;
@@ -221,7 +163,7 @@ Section memops.
       memOpCode := 18;
       memOpSize := 2;
       memOpRegValue := memRegValueFn (fun _ mem => RetE (sign_extend_trunc 32 Rlen mem));
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) .& (unsafeTruncLsb 32 mem))));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg) .&  (unsafeTruncLsb 32 mem))));
       memOpReservation := memReservationNone
     |};
     {|
@@ -293,7 +235,7 @@ Section memops.
       memOpCode := 27;
       memOpSize := 3;
       memOpRegValue := memRegValueFn (fun _ mem => RetE mem);
-      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg .& mem));
+      memOpWriteValue := memWriteValueFn (fun _ reg mem => RetE (reg .&  mem));
       memOpReservation := memReservationNone
     |};
     {|
@@ -369,90 +311,6 @@ Section memops.
       memOpReservation := memReservationClear
     |}
   ].
-
-  Definition memOpNameEqDec (x y : MemOpName) : {x = y} + {x <> y}.
-    Proof.
-      induction x; repeat (induction y; try (left; reflexivity); try (right; discriminate)).
-    Defined.
-
-  Definition memOpNameEqb (x y : MemOpName) : bool
-    := if memOpNameEqDec x y then true else false.
-
-  Definition numMemOps := length memOps.
-
-  Definition MemOpCodeSz := Nat.log2_up numMemOps.
-
-  Definition MemOpCode := Bit MemOpCodeSz.
-
-  Definition applyMemOpByName
-    (t : Type)
-    (f : MemOp -> t)
-    (default : t)
-    (name : MemOpName)
-    :  t
-    := match find (fun memOp => memOpNameEqb name (memOpName memOp)) memOps with
-       | None => default
-       | Some memOp => f memOp
-       end.
-
-  Section ty.
-    Variable ty : Kind -> Type.
-
-    Definition getMemOpCode
-      :  MemOpName -> MemOpCode @# ty
-      := applyMemOpByName
-           (fun memOp => $(memOpCode memOp) : MemOpCode @# ty)
-           $0.
-
-    Local Open Scope kami_action.
-
-    Definition applyMemOp
-      (k : Kind)
-      (f : MemOp -> ActionT ty k)
-      (code : MemOpCode @# ty)
-      :  ActionT ty k
-      := LETA result
-           :  Maybe k
-           <- utila_acts_find_pkt
-                (map
-                  (fun memOp
-                    => If code == $(memOpCode memOp)
-                         then
-                           LETA result : k <- f memOp;
-                           Ret (Valid #result : Maybe k @# ty)
-                         else
-                           Ret (Invalid : Maybe k @# ty)
-                         as result;
-                       Ret #result)
-                  memOps);
-         Ret (#result @% "data").
-
-    Local Close Scope kami_action.
-
-    Section func_units. 
-      Variable func_units : list FUEntry.
-
-      Local Open Scope kami_action.
-
-      Definition applyMemInst
-        (k : Kind)
-        (f : forall t u, InstEntry t u -> MemOp -> k ## ty)
-        :  FuncUnitId func_units @# ty -> InstId func_units @# ty -> k ## ty
-        := applyInst
-             (fun t u inst
-               => match optMemParams inst with
-                  | Some name
-                    => match find (fun memOp => memOpNameEqb name (memOpName memOp)) memOps with
-                       | Some memOp => f t u inst memOp
-                       | None => RetE $$(getDefaultConst k) (* impossible case. *)
-                       end
-                  | None => RetE $$(getDefaultConst k) (* impossible case. *)
-                  end).
-
-      Local Close Scope kami_action.
-
-    End func_units.
-  End ty.
 
   Local Close Scope kami_expr.
 End memops.

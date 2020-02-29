@@ -1,9 +1,9 @@
 Require Import Kami.AllNotations ProcKami.FU.
-Require Import List.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.MemFuncs.
 
 Section Mem.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
 
   Local Open Scope kami_expr.
   

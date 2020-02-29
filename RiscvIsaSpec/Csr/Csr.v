@@ -3,18 +3,18 @@ Require Import Vector.
 Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.RegWriter.
-Require Import StdLibKami.RegStruct.
-Require Import StdLibKami.RegMapper.
+
+
+
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-Require Import List.
+
 Import ListNotations.
 
 Section csrs.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
   Definition Csrs
     :  list Csr
@@ -1316,6 +1316,6 @@ Section csrs.
          simpleCsr "dpc" (CsrIdWidth 'h"7b1") (width := Xlen) None accessDMode
        ].
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End csrs.

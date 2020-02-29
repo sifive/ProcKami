@@ -6,23 +6,20 @@
   write subfields within other registers. This module performs the
   transformations needed to handle this behavior.
 *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.RegWriter.
-Require Import StdLibKami.RegStruct.
+Require Import ProcKami.Pipeline.RegWriter.
+
 Require Import StdLibKami.RegMapper.
-Require Import ProcKami.RiscvPipeline.MemUnit.Pmp.
-Require Import List.
+Require Import ProcKami.MemInterface.Pmp.
+
 Import ListNotations.
 
 Section CsrInterface.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
 
-  Open Scope kami_expr.
-
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
   Definition CsrAccessPkt
     := STRUCT_TYPE {
@@ -505,262 +502,190 @@ Section CsrInterface.
          csrAccess := access
        |}.
 
+  Local Open Scope kami_scope.
+
+  Definition csr_reg_csr_field_reg k (r: CsrFieldRegister k) :=
+    (csrFieldRegisterName r,
+     existT RegInitValT (SyntaxKind (csrFieldRegisterKind r))
+       (match csrFieldRegisterValue r with
+        | None => None
+        | Some x => Some (SyntaxConst x)
+        end)).
+  
+  Definition csr_reg_csr_field (f: CsrField): list RegInitT :=
+    match csrFieldValue f with
+    | csrFieldValueReg r => [csr_reg_csr_field_reg r]
+    | _ => nil
+    end.
+
+  Local Close Scope kami_scope.
+
   Section csrs.
+    Context (Csrs : list Csr).
 
-    Variable Csrs : list Csr.
+    Definition csr_regs
+      := nubBy
+           (fun '(x, _) '(y, _) => String.eqb x y)
+             (concat
+               (map csr_reg_csr_field
+                 (concat (map csrViewFields (concat (map csrViews Csrs)))))).
 
-    Open Scope kami_scope.
-
-    Definition csr_reg_csr_field_reg k (r: CsrFieldRegister k) :=
-      (csrFieldRegisterName r, existT RegInitValT (SyntaxKind (csrFieldRegisterKind r)) (match csrFieldRegisterValue r with
-                                                                                         | None => None
-                                                                                         | Some x => Some (SyntaxConst x)
-                                                                                         end)).
-   
-    Definition csr_reg_csr_field (f: CsrField): list RegInitT :=
-      match csrFieldValue f with
-      | csrFieldValueReg r => [csr_reg_csr_field_reg r]
-      | _ => nil
-      end.
-
-    Definition csr_regs := nubBy (fun '(x, _) '(y, _) => String.eqb x y)
-                                 (concat (map csr_reg_csr_field
-                                              (concat (map csrViewFields (concat (map csrViews Csrs)))))).
-
-    Close Scope kami_scope.
-
-    Definition readCsr ty
-      (upd_pkt : CsrFieldUpdGuard @# ty)
-      (csrId : CsrId @# ty)
-      :  ActionT ty (Maybe CsrValue)
-      := csrReadWrite Csrs upd_pkt
-           (STRUCT {
-              "isRd"        ::= $$true;
-              "addr"        ::= csrId;
-              "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
-              "data"        ::= ($0 : CsrValue @# ty)
-            } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
-
-    Definition writeCsr ty
-      (upd_pkt : CsrFieldUpdGuard @# ty)
-      (csrId : CsrId @# ty)
-      (raw_data : CsrValue @# ty)
-      :  ActionT ty (Maybe CsrValue)
-      := csrReadWrite Csrs upd_pkt
-           (STRUCT {
-              "isRd"        ::= $$false;
-              "addr"        ::= csrId;
-              "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
-              "data"        ::= raw_data
-            } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
+    Local Open Scope kami_expr.
+    Local Open Scope kami_action.
 
     Section Ty.
       Variable ty: Kind -> Type.
+
+      Definition readCsr
+        (upd_pkt : CsrFieldUpdGuard @# ty)
+        (csrId : CsrId @# ty)
+        :  ActionT ty (Maybe CsrValue)
+        := csrReadWrite Csrs upd_pkt
+             (STRUCT {
+                "isRd"        ::= $$true;
+                "addr"        ::= csrId;
+                "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
+                "data"        ::= ($0 : CsrValue @# ty)
+              } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
+
+      Definition writeCsr
+        (upd_pkt : CsrFieldUpdGuard @# ty)
+        (csrId : CsrId @# ty)
+        (raw_data : CsrValue @# ty)
+        :  ActionT ty (Maybe CsrValue)
+        := csrReadWrite Csrs upd_pkt
+             (STRUCT {
+                "isRd"        ::= $$false;
+                "addr"        ::= csrId;
+                "contextCode" ::= upd_pkt @% "cfg" @% "xlen";
+                "data"        ::= raw_data
+              } : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty).
+
       Record CsrParams
         := {
-            csr_params_tag          : RoutingTag @# ty;
+            csr_params_tag          : CommitOpCode @# ty;
             csr_params_write_enable : RegId @# ty -> Bool @# ty;
             csr_params_write_value  : CsrValue @# ty -> CsrValue @# ty -> CsrValue @# ty;
           }.
 
       Local Definition csr_params_write
         := {|
-            csr_params_tag := $CsrWriteTag;
-            csr_params_write_enable
-            := fun _ => $$true;
-            csr_params_write_value
-            := fun _ new_value => new_value
-          |}.
+             csr_params_tag := $CsrWriteTag;
+             csr_params_write_enable
+               := fun _ => $$true;
+             csr_params_write_value
+               := fun _ new_value => new_value
+           |}.
 
       Local Definition csr_params_set
         := {|
-            csr_params_tag := $CsrSetTag;
-            csr_params_write_enable
-            := fun rs1_index
-               => rs1_index != Const ty (natToWord _ 0);
-            csr_params_write_value
-            := fun old_value new_value
-               => CABit Bxor [new_value; old_value]
-          |}.
+             csr_params_tag := $CsrSetTag;
+             csr_params_write_enable
+               := fun rs1_index
+                  => rs1_index != $0;
+             csr_params_write_value
+               := fun old_value new_value
+                  => CABit Bxor [new_value; old_value]
+           |}.
 
       Local Definition csr_params_clear
         := {|
-            csr_params_tag := $CsrClearTag;
-            csr_params_write_enable
-            := fun rs1_index
-               => rs1_index != $0;
-            csr_params_write_value
-            := fun old_value new_value
-               => ((CABit Bxor [new_value; ~(Const ty (natToWord _ 0))]) .& old_value)
-          |}.
+             csr_params_tag := $CsrClearTag;
+             csr_params_write_enable
+               := fun rs1_index
+                  => rs1_index != $0;
+             csr_params_write_value
+               := fun old_value new_value
+                  => ((CABit Bxor [new_value; ~(Const ty (natToWord _ 0))]) .& old_value)
+           |}.
 
       Local Definition csr_params
         := [csr_params_write; csr_params_set; csr_params_clear].
 
-      (* Returns true if an exception occurs *)
-      Definition commitCsrWrite
-                 (debug : Bool @# ty)
-                 (mode : PrivMode @# ty)
-                 (tvm : Bool @# ty)
-                 (mcounteren : CounterEnType @# ty)
-                 (scounteren : CounterEnType @# ty)
-                 (upd_pkt : CsrFieldUpdGuard @# ty)
-                 (rd_index : RegId @# ty)
-                 (rs1_index : RegId @# ty)
-                 (csr_index : CsrId @# ty)
-                 (val : Maybe RoutedReg @# ty)
-        :  ActionT ty Bool
-        := System [
-               DispString _ "[commitCsrWrite]\n"
-             ];
-             If val @% "valid" &&
-                (utila_any
-                   (map
-                      (fun params => csr_params_tag params == val @% "data" @% "tag")
-                      csr_params))
-      then
-        System [
-            DispString _ "[commitCsrWrite] routed reg request received\n"
-          ];
-          (* 3.1.6.4 *)
-          If !(utila_lookup_table_default
-                 Csrs
-                 (fun csr => $$(csrAddr csr) == csr_index)
-                 (fun csr
-                  => csrAccess csr
-                               (STRUCT {
-                                    "xlen"       ::= upd_pkt @% "cfg" @% "xlen";
-                                    "debug"      ::= debug;
-                                    "mode"       ::= mode;
-                                    "mcounteren" ::= mcounteren;
-                                    "scounteren" ::= scounteren;
-                                    "tvm"        ::= tvm
-                                  } : CsrAccessPkt @# ty))
-                 $$false)
-      then
-        System [
-            DispString _ "[commitCsrWrite] none of the csrs have index: \n";
-              DispHex csr_index;
-              DispString _ "\n"
-          ];
-          Ret $$true
-        else
-          LETA csr_val
-        :  Maybe CsrValue
-                 <- readCsr upd_pkt csr_index;
-          System [
-              DispString _ "[commitCsrWrite] read csr value: \n";
-                DispHex #csr_val;
-                DispString _ "done\n"
-            ];
-          If rd_index != $0
-      then
-        System [
-            DispString _ "[commitCsrWrite] writing to rd (rd index != 0): \n"
-          ];
-          reg_writer_write_reg (upd_pkt @% "cfg" @% "xlen") rd_index
-                               (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
-          If utila_lookup_table_default
-             csr_params
-             (fun params => csr_params_tag params == val @% "data" @% "tag")
-             (fun params => csr_params_write_enable params rs1_index)
-             $$false
-      then
-        System [
-            DispString _ "[commitCsrWrite] writing to csr: \n";
-              DispHex csr_index;
-              DispString _ "\n"
-          ];
-          LETA _
-               <- writeCsr upd_pkt csr_index
-               (utila_lookup_table_default
-                  csr_params
-                  (fun params => csr_params_tag params == val @% "data" @% "tag")
-                  (fun params
-                   => csr_params_write_value
-                        params
-                        (#csr_val @% "data")
-                        (ZeroExtendTruncLsb CsrValueWidth (val @% "data" @% "data")))
-                  $0);
-          Ret $$false
-        else
-          System [
-              DispString _ "[commitCsrWrite] not writing to any csr.\n"
-            ];
-          Ret $$false
-          as result;
-          Ret #result
-            as result;
-          Ret #result
-        else
-          Ret $$false
-        as result;
-          Ret #result.
+      Definition commitOpCallIsWriteCsr
+        (call : Maybe CommitOpCall @# ty)
+        :  Bool @# ty
+        := call @% "valid" &&
+           (utila_any
+             (map
+               (fun params => csr_params_tag params == call @% "data" @% "code")
+               csr_params)).
 
-        Definition commitCsrWrites
-                   (mcounteren : CounterEnType @# ty)
-                   (scounteren : CounterEnType @# ty)
-                   (pc : VAddr @# ty)
-                   (mepc : VAddr @# ty)
-                   (compressed : Bool @# ty)
-                   (cfg_pkt : ContextCfgPkt @# ty)
-                   (rd_index : RegId @# ty)
-                   (rs1_index : RegId @# ty)
-                   (csr_index : CsrId @# ty)
-                   (update_pkt : ExecUpdPkt @# ty)
-          :  ActionT ty Bool
-          := LET warlUpdateInfo
-                 <- (STRUCT {
-                         "pc" ::= pc;
-                         "mepc" ::= mepc;
-                         "compressed?" ::= compressed
-                       } : WarlUpdateInfo @# ty);
-               LET upd_pkt
-               :  CsrFieldUpdGuard
-                    <- STRUCT {
-                      "warlUpdateInfo"
-                      ::= #warlUpdateInfo;
-                      "cfg" ::= cfg_pkt
-                    } : CsrFieldUpdGuard @# ty;
-               (* NOTE: only one Csr write can occur per instruction *)
-               LETA result0 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val1");
-               LETA result1 <- commitCsrWrite (cfg_pkt @% "debug_hart_state" @% "debug") (cfg_pkt @% "mode") (cfg_pkt @% "tvm") mcounteren scounteren #upd_pkt rd_index rs1_index csr_index (update_pkt @% "val2");
-               Ret (#result0 || #result1).
+      Definition csrAccessible
+        (xlen : XlenValue @# ty)
+        (debug : Bool @# ty)
+        (mode : PrivMode @# ty)
+        (tvm : Bool @# ty)
+        (mcounteren : CounterEnType @# ty)
+        (scounteren : CounterEnType @# ty)
+        (csrId : CsrId @# ty)
+        :  Bool @# ty
+        := utila_lookup_table_default
+             Csrs
+             (fun csr => $$(csrAddr csr) == csrId)
+             (fun csr
+               => csrAccess csr
+                    (STRUCT {
+                       "xlen"       ::= xlen;
+                       "debug"      ::= debug;
+                       "mode"       ::= mode;
+                       "mcounteren" ::= mcounteren;
+                       "scounteren" ::= scounteren;
+                       "tvm"        ::= tvm
+                     } : CsrAccessPkt @# ty))
+             $$false.
 
-        Definition CsrUnit
-                   (mcounteren : CounterEnType @# ty)
-                   (scounteren : CounterEnType @# ty)
-                   (pc : VAddr @# ty)
-                   (mepc : VAddr @# ty)
-                   (inst : Inst @# ty)
-                   (compressed : Bool @# ty)
-                   (cfg_pkt : ContextCfgPkt @# ty)
-                   (rd_index : RegId @# ty)
-                   (rs1_index : RegId @# ty)
-                   (csr_index : CsrId @# ty)
-                   (update_pkt : PktWithException ExecUpdPkt @# ty)
-          :  ActionT ty (PktWithException ExecUpdPkt)
-          := bindException
-               (update_pkt @% "fst")
-               (update_pkt @% "snd")
-               (fun update_pkt : ExecUpdPkt @# ty
-                => LETA errored
-                   :  Bool
-                        <- commitCsrWrites mcounteren scounteren pc mepc compressed cfg_pkt rd_index rs1_index csr_index update_pkt;
-                     LET exception
-                     :  Maybe Exception
-                              <- IF #errored
-                then Valid ($IllegalInst: Exception @# ty)
-                else Invalid;
-                  Ret (STRUCT {
-                           "fst" ::= update_pkt;
-                           "snd" ::= #exception
-                         } : PktWithException ExecUpdPkt @# ty)).
+      Definition commitOpWriteCsr
+        (cfg : ContextCfgPkt @# ty)
+        (mepc : VAddr @# ty)
+        (pc : VAddr @# ty)
+        (compressed : Bool @# ty)
+        (csrId : CsrId @# ty)
+        (rdId : RegId @# ty)
+        (rs1Id : RegId @# ty)
+        (call : CommitOpCall @# ty)
+        :  ActionT ty Void
+        := LET warlUpdateInfo
+             <- (STRUCT {
+                   "pc" ::= pc;
+                   "mepc" ::= mepc;
+                   "compressed?" ::= compressed
+                 } : WarlUpdateInfo @# ty);
+           LET upd
+             :  CsrFieldUpdGuard
+             <- STRUCT {
+               "warlUpdateInfo" ::= #warlUpdateInfo;
+               "cfg"            ::= cfg
+             } : CsrFieldUpdGuard @# ty;
+           LETA csr_val
+             :  Maybe CsrValue
+             <- readCsr #upd csrId;
+           If rdId != $0
+             then
+               reg_writer_write_reg (cfg @% "xlen") rdId
+                 (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
+           If utila_lookup_table_default
+                csr_params
+                (fun params => csr_params_tag params == call @% "code")
+                (fun params => csr_params_write_enable params rs1Id)
+                $$false
+             then
+               LETA _
+                 <- writeCsr #upd csrId
+                      (utila_lookup_table_default
+                        csr_params
+                        (fun params => csr_params_tag params == call @% "code")
+                        (fun params
+                         => csr_params_write_value
+                              params
+                              (#csr_val @% "data")
+                              (ZeroExtendTruncLsb CsrValueWidth (call @% "arg")))
+                        $0);
+               Retv;
+           Retv.
     End Ty.
   End csrs.
 
-  Close Scope kami_expr.
-
-  Close Scope kami_action.
-
+  Local Close Scope kami_expr.
+  Local Close Scope kami_action.
 End CsrInterface.

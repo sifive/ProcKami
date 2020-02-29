@@ -8,7 +8,7 @@ Fixpoint iterator A (f: nat -> A -> A) (val: A) (max: nat) :=
 
 Section divnat.
   Variable n d sz: nat.
-  Let d' := d * (Nat.pow 2 sz).
+  Let d' := d * Nat.pow 2 sz.
   
   Section iter.
     Variable i: nat.
@@ -25,7 +25,7 @@ Section divnat.
 
   Definition div_rem_nat_full := iterator div_rem_nat (0, n) sz.
 
-  Definition div_rem_nat_final := (fst div_rem_nat_full, snd div_rem_nat_full / (Nat.pow 2 sz)).
+  Definition div_rem_nat_final := (fst div_rem_nat_full, snd div_rem_nat_full / Nat.pow 2 sz).
 End divnat.
 
 Section divnat_expr.

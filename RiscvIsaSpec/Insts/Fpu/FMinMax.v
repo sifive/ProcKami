@@ -6,20 +6,20 @@
 *)
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
-Require Import FpuKami.MulAdd.
+
 Require Import FpuKami.Compare.
-Require Import FpuKami.NFToIN.
-Require Import FpuKami.INToNF.
+
+
 Require Import FpuKami.Classify.
-Require Import FpuKami.ModDivSqrt.
+
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-Require Import List.
+
 Import ListNotations.
 
 Section Fpu.
-  Context `{procParams: ProcParams}.
-  Context `{fpuParams: FpuParams}.
+  Context {procParams: ProcParams}.
+  Context {fpuParams: FpuParams}.
   Definition add_format_field
     :  UniqId -> UniqId
     := cons (fieldVal fmtField fpu_format_field).
@@ -40,7 +40,7 @@ Section Fpu.
            "result" :: Bit fpu_len
          }.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -113,27 +113,15 @@ Section Fpu.
                                                 (NFToBit (#sem_in_pkt @% "arg2"))
                                                 (NFToBit (#sem_in_pkt @% "arg1"))))))
                      } : FMinMaxOutputType @# ty;
-                   LETC val1: RoutedReg <- (STRUCT {
-                                         "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                         "data" ::= OneExtendTruncLsb Rlen (#result @% "result")
+                   LETC wb1: CommitOpCall <- (STRUCT {
+                                         "code" ::= $$(natToWord CommitOpCodeSz FloatRegTag);
+                                         "arg"  ::= OneExtendTruncLsb Rlen (#result @% "result")
                                            });
-                   LETC val2: RoutedReg <- (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                   LETC wb2: CommitOpCall <- (STRUCT {
+                                            "code" ::= $$(natToWord CommitOpCodeSz FflagsTag);
+                                            "arg"  ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
                                          });
-                   LETC fstVal <- (STRUCT {
-                                 "val1"
-                                   ::= Valid #val1;
-                                 "val2"
-                                   ::= ITE (#result @% "fflags" @% "valid")
-                                         (Valid #val2)
-                                         Invalid;
-                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                 "taken?" ::= $$false;
-                                 "aq" ::= $$false;
-                                 "rl" ::= $$false;
-                                 "fence.i" ::= $$false
-                               } : ExecUpdPkt @# ty);
+                   LETC fstVal <- (noUpdPkt ty)@%[ "wb1" <- Valid #wb1 ] @%[ "wb2" <- Valid #wb2 ];
                    RetE
                      (STRUCT {
                         "fst"
@@ -181,6 +169,6 @@ Section Fpu.
               ]
        |}.
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End Fpu.

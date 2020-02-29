@@ -1,16 +1,18 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.Decoder.
+
+
 
 Section FUInputTrans.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
+  Context (func_units : list FUEntry).
+  
   Variable ty: Kind -> Type.
-
-  Variable func_units : list FUEntry.
 
   Local Open Scope kami_expr.
 
-  Definition createInputXForm
+  Local Definition createInputXForm
       (cfg_pkt : ContextCfgPkt @# ty)
       (decoder_pkt : DecoderPkt func_units @# ty)
       (exec_context_pkt : ExecContextPkt @# ty)
@@ -48,7 +50,9 @@ Section FUInputTrans.
 
   Local Open Scope kami_action.
 
-  Definition transWithException
+  (* TODO: LLEE: rename inputTransWithException - avoid confusing with mem addr trans. *)
+  (* TODO: LLEE: rename everywhere "trans" (aka transform vs translate) to "Xform". *)
+  Definition inputXformWithException
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : DecoderPkt func_units @# ty)
     (exec_context_pkt : PktWithException ExecContextPkt @# ty)
@@ -60,6 +64,5 @@ Section FUInputTrans.
            => convertLetExprSyntax_ActionT
                 (createInputXForm cfg_pkt decoder_pkt exec_context_pkt)).
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 End FUInputTrans.

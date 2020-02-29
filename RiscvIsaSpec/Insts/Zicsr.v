@@ -6,11 +6,11 @@
  *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import List.
+
 Import ListNotations.
 
 Section zicsr.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
 
   Definition ZicsrOpWidth : nat := 2.
   Definition ZicsrOpType : Kind := Bit ZicsrOpWidth.
@@ -34,32 +34,21 @@ Section zicsr.
            => LETE sem_in_pkt
               :  ZicsrInput
                    <- sem_in_pkt_expr;
-        LETC val1 <- (STRUCT {
-                                   "tag"
+        LETC wb1 <- (STRUCT {
+                                   "code"
                                      ::= Switch #sem_in_pkt @% "op"
-                                           Of ZicsrOpType Retn RoutingTag With {
-                                             ($zicsrOpWrite : ZicsrOpType @# ty) ::= ($CsrWriteTag : RoutingTag @# ty);
-                                             ($zicsrOpSet : ZicsrOpType @# ty)   ::= ($CsrSetTag : RoutingTag @# ty);
-                                             ($zicsrOpClear : ZicsrOpType @# ty) ::= ($CsrClearTag : RoutingTag @# ty)
+                                           Of ZicsrOpType Retn CommitOpCode With {
+                                             ($zicsrOpWrite : ZicsrOpType @# ty) ::= ($CsrWriteTag : CommitOpCode @# ty);
+                                             ($zicsrOpSet : ZicsrOpType @# ty)   ::= ($CsrSetTag : CommitOpCode @# ty);
+                                             ($zicsrOpClear : ZicsrOpType @# ty) ::= ($CsrClearTag : CommitOpCode @# ty)
                                            };
-                                   "data"
+                                   "arg"
                                      ::= ZeroExtendTruncLsb Rlen
                                          (#sem_in_pkt @% "mask_value" @% "data")
-                        } : RoutedReg @# ty);
-        LETC fstVal <- (STRUCT {
-                       "val1" (* writes to the Csr *)
-                       ::= ITE
-                             (#sem_in_pkt @% "mask_value" @% "valid")
-                             (Valid #val1)
-                             (@Invalid ty (RoutedReg));
-                       "val2" (* writes to RD *)
-                       ::= @Invalid ty RoutedReg;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?"     ::= $$false;
-                       "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "fence.i"    ::= $$false
-                     } : ExecUpdPkt @# ty);
+                        } : CommitOpCall @# ty);
+        LETC fstVal <- (noUpdPkt ty)@%["wb1" <- (IF (#sem_in_pkt @% "mask_value" @% "valid")
+                                                then (Valid #wb1)
+                                                else (@Invalid ty (CommitOpCall)))];
         RetE
           ((STRUCT {
               "fst"

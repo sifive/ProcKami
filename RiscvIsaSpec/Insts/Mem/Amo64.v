@@ -1,10 +1,10 @@
 Require Import Kami.AllNotations ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.MemFuncs.
-Require Import List.
+
 Import ListNotations.
 
 Section Mem.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.

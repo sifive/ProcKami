@@ -5,22 +5,22 @@
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
 Require Import Kami.AllNotations.
-Require Import FpuKami.Definitions.
-Require Import FpuKami.MulAdd.
-Require Import FpuKami.Compare.
-Require Import FpuKami.NFToIN.
-Require Import FpuKami.INToNF.
-Require Import FpuKami.Classify.
-Require Import FpuKami.ModDivSqrt.
+
+
+
+
+
+
+
 Require Import ProcKami.FU.
-Require Import List.
+
 Import ListNotations.
 
 Section Fpu.
-  Context `{procParams: ProcParams}.
-  Context `{fpu_params : FpuParams}.
+  Context {procParams: ProcParams}.
+  Context {fpu_params : FpuParams}.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
   Definition FMv
     :  FUEntry
@@ -30,12 +30,12 @@ Section Fpu.
            := fun ty (sem_in_pkt : Pair Bool (Bit Rlen) ## ty)
                 => LETE inp <- sem_in_pkt;
                    LETC isInt <- #inp @% "fst";
-                   LETC val1 <- ((STRUCT {
-                                             "tag"
+                   LETC wb1 <- ((STRUCT {
+                                             "code"
                                                ::= (IF #isInt
                                                       then $IntRegTag
-                                                      else $FloatRegTag: Bit RoutingTagSz @# ty);
-                                             "data"
+                                                      else $FloatRegTag: Bit CommitOpCodeSz @# ty);
+                                             "arg"
                                                ::= (IF #isInt
                                                       then SignExtendTruncLsb
                                                              Rlen
@@ -47,18 +47,8 @@ Section Fpu.
                                                              (ZeroExtendTruncLsb
                                                                fpu_len
                                                                ((#inp @% "snd") : Bit Rlen @# ty)))
-                                    }: RoutedReg @# ty));
-                   LETC fstVal <-  (STRUCT {
-                                 "val1"
-                                   ::= Valid #val1;
-                                 "val2" ::= @Invalid ty _;
-                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                 "taken?" ::= $$false;
-                                 "aq" ::= $$false;
-                                 "rl" ::= $$false;
-                                 "fence.i" ::= $$false
-                                            
-                               } : ExecUpdPkt @# ty);
+                                    }: CommitOpCall @# ty));
+                   LETC fstVal <- (noUpdPkt ty)@%["wb1" <- Valid #wb1];
                    RetE
                      (STRUCT {
                         "fst"
@@ -126,6 +116,6 @@ Section Fpu.
            ]
       |}.
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End Fpu.

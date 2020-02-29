@@ -2,19 +2,15 @@
   This module implements the physical memory protection interface.
 *)
 Require Import Kami.AllNotations.
-Require Import Kami.Utila.
+
 Require Import ProcKami.FU.
-Require Import Vector.
-Import VectorNotations.
-Require Import List.
-Import ListNotations.
 
 Section pmp.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
   Variable ty: Kind -> Type.
   
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
   Definition PmpCfg := STRUCT_TYPE {
                            "L" :: Bool ;
@@ -24,13 +20,13 @@ Section pmp.
                            "W" :: Bool ;
                            "R" :: Bool }.
 
-  Definition PmpEntryPkt
+  Local Definition PmpEntryPkt
     := STRUCT_TYPE {
          "cfg" :: PmpCfg ;
          "addr" :: Bit pmp_reg_width
          }.
 
-  Definition pmp_entry_read
+  Local Definition pmp_entry_read
     (n : nat)
     :  ActionT ty PmpEntryPkt
     := Read entry_cfg
@@ -64,17 +60,17 @@ Section pmp.
          then x / y
          else S (x / y))%nat.
 
-  Definition checkPMP
-    (check : VmAccessType @# ty)
+  Definition checkPmp
+    (check : AccessType @# ty)
     (mode : PrivMode @# ty)
     (addr : PAddr @# ty)
     (addr_len : MemRqLgSize @# ty)
     :  ActionT ty Bool
     := (* System [
-         DispString _ "[checkPMP] addr: ";
+         DispString _ "[checkPmp] addr: ";
          DispHex addr;
          DispString _ "\n";
-         DispString _ "[checkPMP] addr len: ";
+         DispString _ "[checkPmp] addr len: ";
          DispHex addr_len;
          DispString _ "\n"
        ]; *)
@@ -85,9 +81,9 @@ Section pmp.
                 => LETA acc <- acc_act;
 (*
                    System [
-                     DispString _ "[checkPMP] ==================================================\n";
-                     DispString _ ("[checkPMP] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
-                     DispString _ "[checkPMP] acc: ";
+                     DispString _ "[checkPmp] ==================================================\n";
+                     DispString _ ("[checkPmp] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
+                     DispString _ "[checkPmp] acc: ";
                      DispHex #acc;
                      DispString _ "\n"
                    ];
@@ -100,16 +96,16 @@ Section pmp.
                      <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 2 2)));
 (*
                    System [
-                     DispString _ "[checkPMP] entry: ";
+                     DispString _ "[checkPmp] entry: ";
                      DispHex #entry;
                      DispString _ "\n";
-                     DispString _ "[checkPMP] entry addr: ";
+                     DispString _ "[checkPmp] entry addr: ";
                      DispHex (#entry @% "addr");
                      DispString _ "\n";
-                     DispString _ "[checkPMP] sign extended entry addr: ";
+                     DispString _ "[checkPmp] sign extended entry addr: ";
                      DispHex (#entry @% "addr");
                      DispString _ "\n";
-                     DispString _ "[checkPMP] tor: ";
+                     DispString _ "[checkPmp] tor: ";
                      DispHex #tor;
                      DispString _ "\n"
                    ];
@@ -119,10 +115,10 @@ Section pmp.
                      <- ((ZeroExtendTruncLsb PAddrSz (#entry @% "addr")) << (Const ty (natToWord 1 1))) .| $1;
                    LET mask
                      :  PAddr
-                     <- ~ (#mask0 .& (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
+                     <- ~ (#mask0 .&  (~ (#mask0 + $1))) << (Const ty (natToWord 2 2));
 (*
                    System [
-                     DispString _ "[checkPMP] mask: ";
+                     DispString _ "[checkPmp] mask: ";
                      DispHex #mask;
                      DispString _ "\n"
                    ];
@@ -140,10 +136,10 @@ Section pmp.
                                   <- (addr + (ZeroExtendTruncLsb PAddrSz #offset));
                                 LET napot_match
                                   :  Bool
-                                  <- ((CABit Bxor [#curr_addr; #tor]) .& #mask) == $0;
+                                  <- ((CABit Bxor [#curr_addr; #tor]) .&  #mask) == $0;
                                 LET tor_match
                                   :  Bool
-                                  <- (#acc @% "addr" <= #curr_addr) && (#curr_addr < #tor);
+                                  <- (#acc @% "addr" <= #curr_addr) &&  (#curr_addr < #tor);
                                 LET matched
                                   :  Bool
                                   <- IF #entry @% "cfg" @% "A" == $1
@@ -162,7 +158,7 @@ Section pmp.
                             ::= CABool Or
                                   (map
                                     (fun result : Maybe Bool @# ty
-                                      => result @% "valid" && result @% "data")
+                                      => result @% "valid" &&  result @% "data")
                                     match_results);
                           "all_matched"
                             ::= CABool And
@@ -176,7 +172,7 @@ Section pmp.
                             "any_on"  ::= ((#acc @% "any_on") || !#isOff) ;
                             "addr"    ::= #tor ;
                             "matched" ::= ((#acc @% "matched") ||
-                                           (!#isOff && #addr_result @% "all_matched"));
+                                           (!#isOff &&  #addr_result @% "all_matched"));
                             "pmp_cfg" ::= (IF #acc @% "matched"
                                            then #acc @% "pmp_cfg"
                                            else #entry @% "cfg") }: pmp_entry_acc_kind @# ty))
@@ -187,28 +183,30 @@ Section pmp.
                  "matched" ::= $$false;
                  "pmp_cfg" ::= $$(getDefaultConst PmpCfg)
                } : pmp_entry_acc_kind @# ty));
+(*
     System [
-         DispString _ "[checkPMP] ##################################################\n";
-         DispString _ "[checkPMP] result: ";
+         DispString _ "[checkPmp] ##################################################\n";
+         DispString _ "[checkPmp] result: ";
          DispHex #result;
          DispString _ "\n"
        ];
+*)
        Ret
          (IF #result @% "matched"
           then
-             (mode == $MachineMode && !(#result @% "pmp_cfg" @% "L")) ||
+             (mode == $MachineMode &&  !(#result @% "pmp_cfg" @% "L")) ||
              (Switch check Retn Bool With {
-               ($VmAccessLoad : VmAccessType @# ty)
+               ($VmAccessLoad : AccessType @# ty)
                  ::= #result @% "pmp_cfg" @% "R";
-               ($VmAccessSAmo : VmAccessType @# ty)
-                 ::= #result @% "pmp_cfg" @% "R" && #result @% "pmp_cfg" @% "W";
-               ($VmAccessInst : VmAccessType @# ty)
+               ($VmAccessSAmo : AccessType @# ty)
+                 ::= #result @% "pmp_cfg" @% "R" &&  #result @% "pmp_cfg" @% "W";
+               ($VmAccessInst : AccessType @# ty)
                  ::= #result @% "pmp_cfg" @% "X"
              })
            else
              (!(#result @% "any_on") || mode == $MachineMode)).
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End pmp.

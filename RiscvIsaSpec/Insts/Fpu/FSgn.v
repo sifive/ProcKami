@@ -5,21 +5,21 @@
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
 Require Import Kami.AllNotations.
-Require Import FpuKami.Definitions.
-Require Import FpuKami.MulAdd.
-Require Import FpuKami.Compare.
-Require Import FpuKami.NFToIN.
-Require Import FpuKami.INToNF.
-Require Import FpuKami.Classify.
-Require Import FpuKami.ModDivSqrt.
+
+
+
+
+
+
+
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-Require Import List.
+
 Import ListNotations.
 
 Section Fpu.
-  Context `{procParams: ProcParams}.
-  Context `{fpuParams : FpuParams}.
+  Context {procParams: ProcParams}.
+  Context {fpuParams : FpuParams}.
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -32,7 +32,7 @@ Section Fpu.
            "arg1"     :: Bit fpu_len
          }.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -72,29 +72,20 @@ Section Fpu.
                 => LETE sem_in_pkt
                      :  FSgnInputType
                           <- sem_in_pkt_expr;
-         LETC val1 : RoutedReg <- (STRUCT {
-                                       "tag" ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                       "data" ::=
-                                         OneExtendTruncLsb Rlen
-                                                           ({<
-                                                             (#sem_in_pkt @% "sign_bit"),
-                                                             (OneExtendTruncLsb (fpu_len - 1)
-                                                                                (#sem_in_pkt @% "arg1")) >})});
-         LETC fstVal : ExecUpdPkt <- STRUCT {
-                                    "val1"
-                                    ::= Valid (#val1);
-                                    "val2" ::= @Invalid ty RoutedReg;
-                                    "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                    "taken?" ::= $$false;
-                                    "aq" ::= $$false;
-                                    "rl" ::= $$false;
-                                    "fence.i" ::= $$false
-                                  };
+                   LETC wb1 : CommitOpCall <- (STRUCT {
+                                                   "code" ::= $$(natToWord CommitOpCodeSz FloatRegTag);
+                                                   "arg"  ::=
+                                                     OneExtendTruncLsb Rlen
+                                                                       ({<
+                                                                         (#sem_in_pkt @% "sign_bit"),
+                                                                         (OneExtendTruncLsb (fpu_len - 1)
+                                                                             (#sem_in_pkt @% "arg1")) >})});
+                   LETC fstVal : ExecUpdPkt <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1 ];
                    RetE
                      (STRUCT {
-                        "fst" ::= #fstVal;
-                        "snd" ::= Invalid
-                      } : PktWithException ExecUpdPkt@# ty);
+                          "fst" ::= #fstVal;
+                          "snd" ::= Invalid
+              } : PktWithException ExecUpdPkt@# ty);
          fuInsts
            := [
                 {|
@@ -154,6 +145,6 @@ Section Fpu.
               ]
        |}.
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End Fpu.

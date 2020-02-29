@@ -12,27 +12,33 @@ Section mret.
 
   Local Open Scope kami_expr.
 
-  Definition MRet : FUEntry
+  Local Definition mRetInputXform
+    (ty : Kind -> Type) 
+    (_ : ContextCfgPkt @# ty)
+    (_ : ExecContextPkt ## ty)
+    :  Void ## ty
+    := RetE $$(getDefaultConst Void).
+
+  Local Definition mRetOutputXform
+    (retTag : nat)
+    (ty : Kind -> Type)
+    (resultExpr : Void ## ty)
+    :  PktWithException ExecUpdPkt ## ty
+    := RetE (STRUCT {
+         "fst"
+           ::= (noUpdPkt ty)
+                 @%["val2"
+                     <- Valid (STRUCT {
+                          "tag"  ::= ($retTag : RoutingTag @# ty);
+                          "data" ::= $$(getDefaultConst Data)
+                        })];
+         "snd" ::= Invalid (* Note: exceptions are detected by the Commit Unit. *)
+       }).
+
+  Definition MRet : @FUEntry procParams
     := {|
          fuName := "mret";
-         fuFunc
-           := fun ty (in_pkt_expr : Pair Inst Bool ## ty)
-                => LETE in_pkt : Pair Inst Bool <- in_pkt_expr;
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= ((noUpdPkt ty)
-                                @%["val2"
-                                    <- (Valid (STRUCT {
-                                         "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
-                                         "data" ::= ZeroExtendTruncLsb Rlen (funct7 (#in_pkt @% "fst"))
-                                        }))]);
-                        "snd"
-                          ::= IF #in_pkt @% "snd"
-                                then
-                                  Valid ($IllegalInst: Exception @# ty)
-                                else Invalid
-                      } : PktWithException ExecUpdPkt @# ty);
+         fuFunc := fun ty (_ : Void ## ty) => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -50,17 +56,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty _ context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= $$false
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform MRetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |};
                 {|
                   instName   := "sret";
@@ -77,17 +76,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty cfg_pkt context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= (cfg_pkt @% "mode" == $SupervisorMode) && cfg_pkt @% "tsr"
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform SRetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |};
                 {|
                   instName   := "uret";
@@ -104,17 +96,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty _ context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= $$false
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform URetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |}
               ]
        |}.

@@ -4,11 +4,8 @@
   and include units such as the fetch, decode, and memory elements.
 *)
 Require Import Kami.AllNotations.
-Require Import StdLibKami.RegStruct.
-Require Import StdLibKami.RegMapper.
-Require Import List.
+
 Import ListNotations.
-Require Import BinNat.
 
 Definition InstSz := 32.
 Definition Inst := (Bit InstSz).
@@ -74,8 +71,8 @@ Definition FrmValue : Kind := Bit FrmWidth.
 Definition FflagsWidth : nat := 5.
 Definition FflagsValue : Kind := Bit FflagsWidth.
 
-Definition RoutingTagSz := 3.
-Definition RoutingTag := Bit RoutingTagSz.
+Definition CommitOpCodeSz := 3.
+Definition CommitOpCode := Bit CommitOpCodeSz.
 
 Definition IntRegTag := 0. (* 1 *)
 Definition FloatRegTag := 1. (*  1 *)
@@ -87,21 +84,15 @@ Definition CsrClearTag := 5. (* 1 *)
 Definition PcTag := 0. (* 2 *)
 Definition MemAddrTag := 1. (* 2 *)
 Definition FflagsTag := 2. (* 2 *)
-Definition RetTag := 3. (* 2 *)
-Definition DRetTag := 4. (* 2 *)
+Definition MRetTag := 3. (* 2 *)
+Definition SRetTag := 4. (* 2 *)
+Definition URetTag := 5. (* 2 *)
+Definition DRetTag := 6. (* 2 *)
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
 Definition RetCodeM := 24.
-(*
-Definition Ld  := 0.
-Definition St  := 1.
-Definition Lr  := 2.
-Definition Sc  := 3.
-Definition Amo := 4.
 
-Definition MemOp := Bit 3.
-*)
 Inductive MemOpName : Set :=
   Lb | Lh | Lw | Lbu | Lhu | Lwu | Ld |
   Sb | Sh | Sw | Sd |
@@ -111,6 +102,14 @@ Inductive MemOpName : Set :=
   AmoSwapD | AmoAddD | AmoXorD | AmoAndD | AmoOrD | AmoMinD | AmoMaxD | AmoMinuD | AmoMaxuD |
   LrW | ScW |
   LrD | ScD.
+
+Definition memOpNameEqDec (x y : MemOpName) : {x = y} + {x <> y}.
+  Proof.
+    destruct x; repeat (destruct y; try (left; reflexivity); try (right; discriminate)).
+  Defined.
+
+Definition memOpNameEqb (x y : MemOpName) : bool
+  := if memOpNameEqDec x y then true else false.
 
 Record InstHints :=
   { hasRs1      : bool ;
@@ -163,6 +162,7 @@ Class ProcParams :=
   { proc_name : string ;
     Xlen_over_8: nat ;
     Flen_over_8: nat ;
+    MemOpCodeSz: nat ;
     pc_init: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
@@ -170,7 +170,7 @@ Class ProcParams :=
     allow_inst_misaligned: bool;
     misaligned_access: bool;
     debug_buffer_sz : nat;
-    debug_impebreak : bool
+    debug_impebreak : bool;
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -190,8 +190,8 @@ Class FpuParams
     }.
 
 Section ParamDefinitions.
-  Context `{procParams: ProcParams}.
-  Context `{fpuParams: FpuParams}.
+  Context {procParams: ProcParams}.
+  Context {fpuParams: FpuParams}.
   Definition Rlen_over_8 := Nat.max Xlen_over_8 Flen_over_8.
 
   Definition Xlen := (Xlen_over_8 * 8).
@@ -205,6 +205,7 @@ Section ParamDefinitions.
   Definition CsrValue := Bit CsrValueWidth.
   Definition PAddrSz := Xlen.
   Definition PAddr := Bit PAddrSz.
+  Definition Offset := PAddr.
 
   Definition Exception := Bit 4.
 
@@ -218,6 +219,53 @@ Section ParamDefinitions.
 
   Definition xlens_all := [Xlen32; Xlen64].
   
+  Definition PrivModeWidth  := 2.
+  Definition PrivMode       := Bit PrivModeWidth.
+  Definition MachineMode    := 3.
+  Definition HypervisorMode := 2.
+  Definition SupervisorMode := 1.
+  Definition UserMode       := 0.
+
+  Definition AccessType := Bit 2.
+  Definition VmAccessInst := 0.
+  Definition VmAccessLoad := 1.
+  Definition VmAccessSAmo := 2.
+
+  Definition MemOpCode := Bit MemOpCodeSz.
+
+  Definition MemClientReq
+    := STRUCT_TYPE {
+         "mode" :: PrivMode;
+         "accessType" :: AccessType;
+         "memOp" :: MemOpCode;
+         "addr"  :: PAddr;
+         "data"  :: Data
+       }.
+
+  Class MemInterfaceSizeParams
+    := {
+         prefetcherFifoLogLen : nat;
+         completionBufferLogNumReqId : nat;
+         tlbNumEntries : nat;
+         memUnitTagSz : nat;
+         MemUnitArbiterReq
+           := STRUCT_TYPE {
+                "tag" :: Bit memUnitTagSz;
+                "req" :: MemClientReq
+              };
+         ArbiterMemUnitRes 
+           := STRUCT_TYPE {
+                "tag" :: Bit memUnitTagSz;
+                "res" :: Maybe Data
+              }
+       }.
+
+  Class MemInterfaceParams
+    := {
+         memInterfaceSizes : MemInterfaceSizeParams;
+         memHandleRes : forall ty, ty (@ArbiterMemUnitRes memInterfaceSizes) -> ActionT ty Void;
+       }.
+
   Definition initXlen
     := ConstBit
          (natToWord XlenWidth
@@ -237,43 +285,45 @@ Section ParamDefinitions.
 End ParamDefinitions.
 
 Section Params.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
   
-  Definition PrivModeWidth  := 2.
-  Definition PrivMode       := Bit PrivModeWidth.
-  Definition MachineMode    := 3.
-  Definition HypervisorMode := 2.
-  Definition SupervisorMode := 1.
-  Definition UserMode       := 0.
-
   Definition FetchPkt := STRUCT_TYPE {
                              "pc" :: VAddr ;
                              "inst" :: Inst ;
                              "compressed?" :: Bool;
                              "exceptionUpper" :: Bool }.
 
+  Definition MemHintsPkt :=
+    STRUCT_TYPE {
+      "memOp"  :: MemOpCode;
+      "isSAmo" :: Bool; (* accessType = VmAccessSAmo if true, VmAccessLoad otherwise *)
+      "isFrd"  :: Bool (* rd is a floating point register if true, an int reg otherwise. *)
+    }.
+
   Definition ExecContextPkt :=
     STRUCT_TYPE {
-        "pc"                       :: VAddr ;
-        "reg1"                     :: Data ;
-        "reg2"                     :: Data ;
-        "reg3"                     :: Data ;
-        "fflags"                   :: FflagsValue;
-        "frm"                      :: FrmValue;
-        "inst"                     :: Inst ;
-        "compressed?"              :: Bool
+        "pc"             :: VAddr ;
+        "reg1"           :: Data ;
+        "reg2"           :: Data ;
+        "reg3"           :: Data ;
+        "fflags"         :: FflagsValue;
+        "frm"            :: FrmValue;
+        "inst"           :: Inst ;
+        "compressed?"    :: Bool ;
+        "exceptionUpper" :: Bool ;
+        "memHints"       :: Maybe MemHintsPkt
       }.
 
-  Definition RoutedReg
+  Definition CommitOpCall
     := STRUCT_TYPE {
-           "tag"  :: RoutingTag;
-           "data" :: Data
+           "code" :: CommitOpCode;
+           "arg"  :: Data
          }.
 
   Definition ExecUpdPkt :=
     STRUCT_TYPE {
-        "val1"       :: Maybe RoutedReg ;
-        "val2"       :: Maybe RoutedReg ;
+        "wb1"        :: Maybe CommitOpCall ;
+        "wb2"        :: Maybe CommitOpCall ;
         "memBitMask" :: DataMask ;
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
@@ -281,23 +331,11 @@ Section Params.
         "fence.i"    :: Bool
       }.
 
-  Definition IntRegWrite := STRUCT_TYPE {
-                             "addr" :: RegId ;
-                             "data" :: Array 1 (Bit Xlen) }.
+  Definition MemWrite := WriteRqMask PAddrSz Rlen_over_8 (Bit 8).
 
-  Definition FloatRegWrite := STRUCT_TYPE {
-                               "addr" :: RegId ;
-                               "data" :: Array 1 (Bit Flen) }.
-
-  Definition MemWrite := STRUCT_TYPE {
-                             "addr" :: PAddr ;
-                             "data" :: Data ;
-                             "mask" :: Array Rlen_over_8 Bool ;
-                             "size" :: MemRqLgSize }. (* the number of bytes to be read or written - PMA *)
-  
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
-                           "tag"  :: RoutingTag ;
+                           "tag"  :: CommitOpCode ;
                            "data" :: Data }.
   
   Definition MemUnitInput := STRUCT_TYPE {
@@ -313,24 +351,6 @@ Section Params.
          "mepc" :: VAddr;
          "compressed?" :: Bool
        }.
-
-  Inductive LdExtend :=
-    | LdExtendZero
-    | LdExtendOne
-    | LdExtendSign.
-
-  Inductive MemEntry :=
-  | LdEntry (zeroExtend : LdExtend)
-  | StEntry
-  | LrEntry
-  | ScEntry
-  | AmoEntry (xform: forall ty, Data @# ty -> Data @# ty -> Data @# ty).
-
-  Record MemInstParams
-    := {
-        accessSize : nat; (* num bytes read/written = 2^accessSize. Example accessSize = 0 => 1 byte *)
-        memXform : MemEntry
-     }.
 
   Definition debug_hart_state
     := STRUCT_TYPE {
@@ -412,18 +432,38 @@ Section Params.
 
   End Extensions.
 
+  Definition CounterEnType
+    := STRUCT_TYPE {
+           "hpm_flags" :: Bit 29;
+           "IR" :: Bool;
+           "TM" :: Bool;
+           "CY" :: Bool
+         }.
+
   Definition ContextCfgPkt :=
     STRUCT_TYPE {
-        "xlen"             :: XlenValue;
-        "satp_mode"        :: Bit SatpModeWidth;
-        "debug_hart_state" :: debug_hart_state;
-        "mode"             :: PrivMode;
-        "tsr"              :: Bool;
-        "tvm"              :: Bool;
-        "tw"               :: Bool;
-        "extensions"       :: Extensions;
-        "fs"               :: Bit 2;
-        "xs"               :: Bit 2
+        "xlen"             :: XlenValue; (* First read during inputXlate *)
+        "satp_mode"        :: Bit SatpModeWidth; (* First read during vpc translation in fetch *)
+        (* "debug_hart_state" :: debug_hart_state; *)
+        "mode"             :: PrivMode; (* First read during vpc translation in fetch *)
+        "tsr"              :: Bool; (* Move MRet to commit and remove this *)
+        "tvm"              :: Bool; (* Move MRet to commit and remove this *)
+        "tw"               :: Bool; (* Move MRet to commit and remove this *)
+        "extensions"       :: Extensions; (* First read during decode *)
+        "fs"               :: Bit 2; (* First read during decode *)
+        "xs"               :: Bit 2; (* First read during decode, not used in this project *)
+        "mxr"              :: Bool; (* First read during vpc translation in memory stage *)
+        "sum"              :: Bool; (* First read during vpc translation in fetch *)
+        "mprv"             :: Bool; (* First read during vpc translation in fetch *)
+        "mpp"              :: PrivMode; (* First read during vpc translation in fetch *)
+        "satp_ppn"         :: Bit 44 (* First read during vpc translation in fetch *)
+(*
+        "mcounteren"       :: CounterEnType;
+        "scounteren"       :: CounterEnType;
+        "mepc"             :: VAddr;
+        "sepc"             :: VAddr;
+        "uepc"             :: VAddr
+*)
       }.
 
   Record InstEntry ik ok :=
@@ -592,7 +632,7 @@ Section Params.
   Section ty.
     Variable ty: Kind -> Type.
 
-    Definition LgPageSize := 12.
+    Definition LgPageSz := 12.
 
     (* virtual memory translation params.*)
     Record VmMode
@@ -635,45 +675,40 @@ Section Params.
     Definition vm_mode_max_num_vpn_fields
       := fold_right Nat.max 0 (map (fun mode => length (vm_mode_sizes mode)) vmModes).
 
-    Definition VmAccessType := Bit 2.
-    Definition VmAccessInst := 0.
-    Definition VmAccessLoad := 1.
-    Definition VmAccessSAmo := 2.
-
     Local Open Scope kami_expr.
     Definition faultException
-               (access_type : VmAccessType @# ty)
+               (access_type : AccessType @# ty)
       :  Exception @# ty
       := Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
+                          ($VmAccessInst : AccessType @# ty)
                           ::= ($InstPageFault : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
+                          ($VmAccessLoad : AccessType @# ty)
                           ::= ($LoadPageFault : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ($VmAccessSAmo : AccessType @# ty)
                           ::= ($SAmoPageFault : Exception @# ty)
                         }.
 
     Definition accessException
-               (access_type : VmAccessType @# ty)
+               (access_type : AccessType @# ty)
       :  Exception @# ty
       := Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
+                          ($VmAccessInst : AccessType @# ty)
                           ::= ($InstAccessFault : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
+                          ($VmAccessLoad : AccessType @# ty)
                           ::= ($LoadAccessFault : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ($VmAccessSAmo : AccessType @# ty)
                           ::= ($SAmoAccessFault : Exception @# ty)
                         }.
 
     Definition misalignedException
-               (access_type : VmAccessType @# ty)
+               (access_type : AccessType @# ty)
       :  Exception @# ty
       := Switch access_type Retn Exception With {
-                          ($VmAccessInst : VmAccessType @# ty)
+                          ($VmAccessInst : AccessType @# ty)
                           ::= ($InstAddrMisaligned : Exception @# ty);
-                          ($VmAccessLoad : VmAccessType @# ty)
+                          ($VmAccessLoad : AccessType @# ty)
                           ::= ($LoadAddrMisaligned : Exception @# ty);
-                          ($VmAccessSAmo : VmAccessType @# ty)
+                          ($VmAccessSAmo : AccessType @# ty)
                           ::= ($SAmoAddrMisaligned : Exception @# ty)
                         }.
 
@@ -701,13 +736,13 @@ Section Params.
 
     Definition noUpdPkt: ExecUpdPkt @# ty :=
       (STRUCT {
-           "val1" ::= @Invalid ty _ ;
-           "val2" ::= @Invalid ty _ ;
+           "wb1" ::= @Invalid ty _ ;
+           "wb2" ::= @Invalid ty _ ;
            "memBitMask" ::= $$ (getDefaultConst DataMask) ;
            "taken?" ::= $$ false ;
            "aq" ::= $$ false ;
            "rl" ::= $$ false ;
-           "fence.i" ::= $$ false}).
+           "fence.i" ::= $$ false }).
 
     Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
       ((~(~($0) << numZeros)) .& ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
@@ -731,34 +766,44 @@ Section Params.
     Definition MemUpdateCodeTime := 1.
     Definition MemUpdateCodeTimeCmp := 2.
 
-    Definition CounterEnType
-      := STRUCT_TYPE {
-             "hpm_flags" :: Bit 29;
-             "IR" :: Bool;
-             "TM" :: Bool;
-             "CY" :: Bool
-           }.
-
     Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
 
     Definition MemErrorPkt
       := STRUCT_TYPE {
              "pmp"        :: Bool; (* request failed pmp check *)
-             "paddr"      :: Bool; (* paddr exceeded virtual memory mode upper bound *)
-             "range"      :: Bool; (* paddr failed to match any device range *)
              "width"      :: Bool; (* unsupported access width *)
              "pma"        :: Bool; (* failed device pma check *)
              "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
              "lrsc"       :: Bool  (* does not support lrsc operations *) 
            }.
 
+    (* the immediate response from the memory system. *)
+(*
+    Definition RouterImmRes
+      := STRUCT_TYPE {
+           "ready" :: Bool; (* true iff the device accepted this request and a response callback is pending. *)
+           "info"  :: MemErrorPkt
+         }.
+*)
+    Local Open Scope kami_expr.
+
     Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
-      := (err_pkt @% "pmp" || err_pkt @% "paddr" || err_pkt @% "range" ||
-          err_pkt @% "width" || err_pkt @% "pma" || err_pkt @% "misaligned" ||
-          err_pkt @% "lrsc")%kami_expr.
+      := err_pkt @% "pmp" ||
+         err_pkt @% "width" ||
+         err_pkt @% "pma" ||
+         err_pkt @% "misaligned" ||
+         err_pkt @% "lrsc".
+
+    Definition getMemErrorException
+      (access_type : AccessType @# ty)
+      (err_pkt : MemErrorPkt @# ty)
+      :  Exception @# ty
+      := IF err_pkt @% "misaligned"
+           then misalignedException access_type
+           else accessException access_type.
 
     Section Fields.
-      Local Open Scope kami_expr.
+
       Variable inst: Inst @# ty.
       
       Definition instSize := inst$[fst instSizeField: snd instSizeField].
@@ -782,7 +827,6 @@ Section Params.
                                  (ZeroExtendTruncLsb
                                     (fst fcsr_frmField + 1)%nat
                                     fcsr)).
-
     End Fields.
 
     Section XlenInterface.
@@ -834,9 +878,9 @@ Section Params.
     Local Open Scope kami_expr.
 
     (* See 3.1.1 and 3.1.15 *)
-    Definition maskEpc (cfg_pkt : ContextCfgPkt @# ty) (epc : VAddr @# ty)
+    Definition maskEpc (exts : Extensions @# ty) (epc : VAddr @# ty)
       :  VAddr @# ty
-      := let shiftAmount := (IF struct_get_field_default (cfg_pkt @% "extensions") "C" ($$ false) then $1 else $2): Bit 2 @# ty in
+      := let shiftAmount := (IF struct_get_field_default exts "C" ($$ false) then $1 else $2): Bit 2 @# ty in
          (epc >> shiftAmount) << shiftAmount.
 
     Local Close Scope kami_expr.
@@ -856,21 +900,6 @@ Section Params.
         }.
 
   End ty.
-
-  Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
-  Definition mmregs_lgMaskSz := Nat.log2_up 8.
-
-  Record MMRegs
-    := {
-        mmregs_dev_lgNumRegs : nat;
-        mmregs_dev_regs : list (GroupReg mmregs_lgMaskSz mmregs_dev_lgNumRegs)
-      }.
-
-  Definition mmregs_regs (mmregs : MMRegs)
-    := map
-         (fun x : GroupReg mmregs_lgMaskSz (mmregs_dev_lgNumRegs mmregs)
-          => (gr_name x, existT RegInitValT (SyntaxKind (gr_kind x)) (Some (SyntaxConst (getDefaultConst (gr_kind x))))))
-         (mmregs_dev_regs mmregs).
 
   Section func_units.
     Variable func_units : list FUEntry.

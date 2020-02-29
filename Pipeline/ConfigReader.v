@@ -1,33 +1,23 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.Debug.Debug.
-Require Import List.
+
+
 Import ListNotations.
 
 Section config_reader.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
   Variable ty: Kind -> Type.
   
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
-  Definition readXlen
+  Local Definition readXlen
     (mode : PrivMode @# ty)
     :  ActionT ty XlenValue
     := Read mxl : XlenValue <- @^"mxl";
        Read sxl : XlenValue <- @^"sxl";
        Read uxl : XlenValue <- @^"uxl";
-       (* System [
-           DispString _ "mxl: ";
-           DispHex #mxl;
-           DispString _ "\n";
-           DispString _ "sxl: ";
-           DispHex #sxl;
-           DispString _ "\n";
-           DispString _ "uxl: ";
-           DispHex #uxl;
-           DispString _ "\n"
-       ]; *)
        Ret (xlenFix
               (IF mode == $MachineMode
                then #mxl
@@ -35,8 +25,7 @@ Section config_reader.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
-    := LETA state : debug_hart_state <- debug_hart_state_read ty;
-       Read satp_mode : Bit SatpModeWidth <- @^"satp_mode";
+    := Read satp_mode : Bit SatpModeWidth <- @^"satp_mode";
        Read modeRaw : PrivMode <- @^"mode";
        Read extensionsReg
          :  ExtensionsReg
@@ -51,6 +40,11 @@ Section config_reader.
        Read tw : Bool <- @^"tw";
        Read fs : Bit 2 <- @^"fs";
        LET xs : Bit 2 <- $0;
+       Read mxr : Bool <- @^"mxr";
+       Read sum : Bool <- @^"sum";
+       Read mprv : Bool <- @^"mprv";
+       Read mpp : PrivMode <- @^"mpp";
+       Read satp_ppn : Bit 44 <- @^"satp_ppn";
        System
          [
            DispString _ "Start\n";
@@ -68,17 +62,24 @@ Section config_reader.
          (STRUCT {
             "xlen"             ::= #xlen;
             "satp_mode"        ::= #satp_mode;
-            "debug_hart_state" ::= #state;
-            "mode"             ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *)
+            (* TODO: LLEE: we may need to reinstate this depending on how we implement debug support. *)
+            (* "debug_hart_state" ::= #state; *)
+            (* "mode"             ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *) *)
+            "mode"             ::= #mode;
             "tsr"              ::= #tsr;
             "tvm"              ::= #tvm;
             "tw"               ::= #tw;
             "extensions"       ::= #extensions;
             "fs"               ::= #fs;
-            "xs"               ::= #xs
+            "xs"               ::= #xs;
+            "mxr"              ::= #mxr;
+            "sum"              ::= #sum;
+            "mprv"             ::= #mprv;
+            "mpp"              ::= #mpp;
+            "satp_ppn"         ::= #satp_ppn
           } : ContextCfgPkt @# ty).
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End config_reader.

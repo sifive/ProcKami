@@ -6,16 +6,16 @@
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
 Require Import ProcKami.FU.
-Require Import List.
+
 Import ListNotations.
 
 Section ty.
-  Context `{fpuParams: FpuParams}.
+  Context {fpuParams: FpuParams}.
   Variable ty : Kind -> Type.
 
   Section fpu.
 
-    Open Scope kami_expr.
+    Local Open Scope kami_expr.
 
     Definition bitToFN (x : Bit fpu_len @# ty)
       :  FN expWidthMinus2 sigWidthMinus2 @# ty
@@ -81,14 +81,14 @@ Section ty.
            then OneExtendTruncLsb fpu_len x
            else FN_canonical_nan.
 
-    Close Scope kami_expr.
+    Local Close Scope kami_expr.
 
   End fpu.
 
   Section fpu.
-    Context `{procParams: ProcParams}.
+    Context {procParams: ProcParams}.
 
-    Open Scope kami_expr.
+    Local Open Scope kami_expr.
 
     Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
 
@@ -108,7 +108,7 @@ Section ty.
            (context_pkt @% "frm")
            rounding_mode.
 
-    Close Scope kami_expr.
+    Local Close Scope kami_expr.
 
   End fpu.
 

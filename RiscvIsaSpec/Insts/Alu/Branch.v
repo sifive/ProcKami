@@ -1,9 +1,9 @@
 Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.AluFuncs.
-Require Import List.
+
 
 Section Alu.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -70,15 +70,15 @@ Section Alu.
     Local Definition branchTag (branchOut: BranchOutputType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE bOut: BranchOutputType <- branchOut;
-         LETC val2: RoutedReg <- (STRUCT {
-                                      "tag"  ::= Const ty (natToWord RoutingTagSz PcTag);
-                                      "data" ::= xlen_sign_extend Rlen (#bOut @% "xlen") (#bOut @% "newPc")
+         LETC wb2: CommitOpCall <- (STRUCT {
+                                      "code" ::= Const ty (natToWord CommitOpCodeSz PcTag);
+                                      "arg"  ::= xlen_sign_extend Rlen (#bOut @% "xlen") (#bOut @% "newPc")
                                  });
          LETC val
            :  ExecUpdPkt
            <- (noUpdPkt ty
-                 @%["val2"
-                      <- (Valid #val2)]
+                 @%["wb2"
+                      <- (Valid #wb2)]
                  @%["taken?" <- #bOut @% "taken?"]);
          LETC fullException: Exception <- ($(if misaligned_access
                                              then InstAccessFault
