@@ -675,8 +675,8 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_intRegFile_mem_device_files_mem_devices : wfMod_ConcatMod_Helper.
 
-Theorem WfMod_intRegFile:
-  WfMod (BaseRegFile intRegFile).
+Theorem WfMod_intRegFile ty:
+  WfMod ty (BaseRegFile intRegFile).
 Proof.
    discharge_wf.
 Qed.
@@ -853,8 +853,8 @@ Hint Resolve WFConcat4 : wfMod_ConcatMod_Helper.
 
 *)
 
-Theorem wfMod_floatRegFile:
-  WfMod (BaseRegFile floatRegFile).
+Theorem wfMod_floatRegFile ty:
+  WfMod ty (BaseRegFile floatRegFile).
 Proof.
     discharge_wf.
 Qed.
@@ -923,8 +923,8 @@ Hint Resolve DisjKey_getAllMethods_memReservationFile_processorCore : wfMod_Conc
 Opaque getFins.
 Opaque Nat.mul.
 
-Theorem WfMod_memReservationFile:
-  WfMod (BaseRegFile memReservationRegFile).
+Theorem WfMod_memReservationFile ty:
+  WfMod ty (BaseRegFile memReservationRegFile).
 (*Admitted.*)
 Proof.
   unfold memReservationRegFile.
@@ -937,9 +937,9 @@ Hint Resolve WfMod_memReservationFile : wfMod_ConcatMod_Helper.
 
 Theorem WfMod_processorCore_mem_devices:  
   WfMod
-    (fold_right ConcatMod (processorCore func_units mem_table)
-       (map (fun m : RegFileBase => Base (BaseRegFile m))
-          (mem_device_files mem_devices))).
+    type (fold_right ConcatMod (processorCore func_units mem_table)
+                     (map (fun m : RegFileBase => Base (BaseRegFile m))
+                          (mem_device_files mem_devices))).
 Admitted.
 
 Hint Resolve WfMod_processorCore_mem_devices :wfMod_ConcatMod_Helper.
