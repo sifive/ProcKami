@@ -15,13 +15,13 @@ Section device.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Definition UARTRead
+  Definition UARTRead
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz
          (* "size" :: MemRqLgSize *)
        }.
 
-  Local Definition UARTWrite
+  Definition UARTWrite
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz;
          "data" :: Data (* every UART interface register is one byte wide *)
