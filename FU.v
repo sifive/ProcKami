@@ -233,39 +233,6 @@ Section ParamDefinitions.
 
   Definition MemOpCode := Bit MemOpCodeSz.
 
-  Definition MemClientReq
-    := STRUCT_TYPE {
-         "mode" :: PrivMode;
-         "accessType" :: AccessType;
-         "memOp" :: MemOpCode;
-         "addr"  :: PAddr;
-         "data"  :: Data
-       }.
-
-  Class MemInterfaceSizeParams
-    := {
-         prefetcherFifoLogLen : nat;
-         completionBufferLogNumReqId : nat;
-         tlbNumEntries : nat;
-         memUnitTagSz : nat;
-         MemUnitArbiterReq
-           := STRUCT_TYPE {
-                "tag" :: Bit memUnitTagSz;
-                "req" :: MemClientReq
-              };
-         ArbiterMemUnitRes 
-           := STRUCT_TYPE {
-                "tag" :: Bit memUnitTagSz;
-                "res" :: Maybe Data
-              }
-       }.
-
-  Class MemInterfaceParams
-    := {
-         memInterfaceSizes : MemInterfaceSizeParams;
-         memHandleRes : forall ty, ty (@ArbiterMemUnitRes memInterfaceSizes) -> ActionT ty Void;
-       }.
-
   Definition initXlen
     := ConstBit
          (natToWord XlenWidth

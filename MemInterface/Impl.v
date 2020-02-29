@@ -7,49 +7,206 @@ Require Import ProcKami.MemRegion.
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
 
-Section withParams.
+Require Import ProcKami.PmaPmp.Impl.
+
+Require Import StdLibKami.RegArray.Ifc.
+Require Import StdLibKami.RegArray.RegList.
+
+Require Import StdLibKami.Fifo.Ifc.
+Require Import StdLibKami.Fifo.Impl.
+
+Require Import StdLibKami.FreeList.Ifc.
+Require Import StdLibKami.FreeList.Array.
+
+Require Import StdLibKami.Fetcher.Ifc.
+Require Import StdLibKami.Fetcher.Impl.
+
+Require Import StdLibKami.CompletionBuffer.Ifc.
+Require Import StdLibKami.CompletionBuffer.Impl.
+
+Require Import ProcKami.MemInterface.Tlb.Ifc.
+Require Import ProcKami.MemInterface.Tlb.Impl.
+
+Require Import StdLibKami.ReplacementPolicy.Ifc.
+Require Import StdLibKami.ReplacementPolicy.PseudoLru.
+
+Require Import StdLibKami.Cam.Ifc.
+Require Import StdLibKami.Cam.Impl.
+
+Require Import StdLibKami.Arbiter.Ifc.
+Require Import StdLibKami.Arbiter.Impl.
+
+Require Import StdLibKami.Router.Ifc.
+Require Import StdLibKami.Router.Impl.
+
+Require Import ProcKami.Pipeline.Decoder.
+
+Section Impl.
   Context {procParams : ProcParams}.
-  Context {memInterfaceParams : MemInterfaceParams}.
   Context (Tag: Kind).
   Context {devicesIfc: DevicesIfc Tag}.
 
+  Class Params
+    := {
+         fetcherLgSize : nat;
+         completionBufferLgSize : nat;
+         tlbSize : nat;
+         memUnitTagSz : nat
+      }.
+
+  Context {params: Params}.
+
+  Local Definition MemResp := STRUCT_TYPE {
+                                  "tag" :: Bit memUnitTagSz;
+                                  "res" :: Maybe Data
+                                }.
+
+  Context (memCallback: forall ty, ty MemResp -> ActionT ty Void).
+  
+  Context {memInterfaceParams : MemInterfaceParams}.
+  
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Instance ifcParams
-    :  Fetcher.Ifc.Params
-    := {|
-         Fetcher.Ifc.name       := @^"prefetcher";
-         Fetcher.Ifc.size       := Nat.pow 2 (@prefetcherFifoLogLen _ memInterfaceSizes);
-         Fetcher.Ifc.privModeK  := FU.PrivMode;
-         Fetcher.Ifc.pAddrSz    := FU.PAddrSz;
-         Fetcher.Ifc.vAddrSz    := Xlen;
-         Fetcher.Ifc.compInstSz := FU.CompInstSz;
-         Fetcher.Ifc.immResK    := MemErrorPkt;
-         Fetcher.Ifc.finalErrK  := Bool;
-         Fetcher.Ifc.isCompressed
-           := fun ty (inst : Bit FU.CompInstSz @# ty)
-                => Decoder.isInstCompressed inst;
-         Fetcher.Ifc.isImmErr := mem_error;
-         Fetcher.Ifc.isFinalErr := (fun ty (finalErr: Bool @# ty) => finalErr)
-       |}.
+  Local Definition FetchReq := STRUCT_TYPE {
+                                   "vaddr" :: FU.VAddr;
+                                   "dtag"  :: @DeviceTag _ _ devicesIfc;
+                                   "paddr" :: PAddr;
+                                   "mode"  :: PrivMode;
+                                   "offset" :: Offset
+                                 }.
 
-  Definition impl
-    : Fetcher.Ifc.Ifc
-    . refine (@Fetcher.Impl.impl
-               ifcParams
-               (@Fifo.Impl.impl _ {| Fifo.Impl.sizePow2 := _;
-                                     Fifo.Impl.regArray := RegArray.RegList.impl
-                                  |})).
-      abstract (simpl; f_equal; rewrite Nat.log2_up_pow2; try lia).
-    Defined.
+  Local Definition fetcherParams :=
+    {|
+      Fetcher.Ifc.name       := @^"fetcher";
+      Fetcher.Ifc.size       := Nat.pow 2 (@prefetcherFifoLogLen _ memInterfaceSizes);
+      Fetcher.Ifc.memReqK    := FetchReq;
+      Fetcher.Ifc.vAddrSz    := Xlen;
+      Fetcher.Ifc.compInstSz := FU.CompInstSz;
+      Fetcher.Ifc.immResK    := Void;
+      Fetcher.Ifc.finalErrK  := Bool;
+      Fetcher.Ifc.isCompressed
+      := fun ty (inst : Bit FU.CompInstSz @# ty)
+         => Decoder.isInstCompressed inst;
+      Fetcher.Ifc.isImmErr := (fun _ _ => $$false);
+      Fetcher.Ifc.isFinalErr := (fun ty (finalErr: Bool @# ty) => finalErr)
+    |}.
 
+  Local Definition fetcher
+    : @Fetcher.Ifc.Ifc fetcherParams.
+    refine (@Fetcher.Impl.impl
+              fetcherParams
+              (@Fifo.Impl.impl _ {| Fifo.Impl.sizePow2 := _;
+                                    Fifo.Impl.regArray := RegArray.RegList.impl
+                                 |})).
+    abstract (simpl; f_equal; rewrite Nat.log2_up_pow2; try lia).
+  Defined.
 
-  (*
-    Accepts a prefetch request and tries to fetch the instruction
-    referenced by the request.
+  Local Definition FetchMemReq
+    := STRUCT_TYPE {
+           "dtag"  :: @DeviceTag _ _ devicesIfc;
+           "paddr" :: PAddr;
+           "mode"  :: PrivMode;
+           "offset" :: Offset
+       }.
 
-  *)
+  Local Definition completionBuffer
+    :  CompletionBuffer.Ifc.Ifc
+    := @CompletionBuffer.Impl.impl
+         {|
+           CompletionBuffer.Ifc.name      := @^"completionBuffer";
+           CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLogNumReqId procParams memInterfaceSizes);
+           CompletionBuffer.Ifc.inReqK    := FetchReq;
+           CompletionBuffer.Ifc.outReqK   := FetchMemReq;
+           CompletionBuffer.Ifc.storeReqK := FU.VAddr;
+           CompletionBuffer.Ifc.immResK   := MemErrorPkt;
+           CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
+           CompletionBuffer.Ifc.inReqToOutReq
+           := fun ty (req : FetchReq @# ty)
+              => (STRUCT {
+                      "dtag" ::= req @% "dtag";
+                      "paddr" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "paddr"),
+                                                               $$(natToWord 2 0) >});
+                      "mode" ::= req @% "mode";
+                      "offset" ::= req @% "offset"
+                 })%kami_expr;
+           CompletionBuffer.Ifc.inReqToStoreReq
+           := fun ty (req : FetchReq @# ty)
+              => (req @% "vaddr")%kami_expr;
+           CompletionBuffer.Ifc.isError
+           := mem_error
+         |}
+         {|
+           storeArray := @RegArray.RegList.impl _;
+           resArray   := @RegArray.RegList.impl _;
+           freeList   := @FreeList.Array.impl _
+         |}.
+
+  Local Definition tlb : Tlb.Ifc.Ifc := @Tlb.Impl.impl _ @^"tlb"
+                                                       {| Tlb.Impl.lgPageSz := LgPageSz;
+                                                          Tlb.Impl.cam := @Cam.Impl.impl _ {|
+                                                                                           Cam.Impl.size      := @tlbNumEntries _ memInterfaceSizes;
+                                                                                           Cam.Impl.policy    := ReplacementPolicy.PseudoLru.impl
+                                                                                         |}
+                                                       |}.
+
+  Local Definition MemReq := STRUCT_TYPE {
+                                 "dtag" :: @DeviceTag _ _ devicesIfc;
+                                 "paddr" :: PAddr;
+                                 "mode" :: PrivMode;
+                                 "offset" :: Offset;
+                                 "memOp" :: MemOpCode;
+                                 "accessType" :: AccessType;
+                                 "data" :: Data
+                               }.
+  
+  Local Definition arbiterClients
+    :  list (Client MemReq (Maybe Data)).
+    refine [
+        (* memory unit client *)
+        {| clientTagSz := memUnitTagSz;
+           clientHandleRes := memCallback
+        |} ;
+           
+        (* TLB client *)
+        {| clientTagSz := 0;
+           clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
+                                      @Tlb.Ifc.callback _ tlb _ res)%kami_action |};
+        (* Fetch Client *)                                                                                 
+        {| clientTagSz := @completionBufferLogNumReqId _ memInterfaceSizes;
+           clientHandleRes ty
+                           (res: ty (STRUCT_TYPE { "tag" :: Bit _;
+                                                   "res" :: Maybe Data }))
+           := (LET inst: Maybe FU.Inst
+                         <- STRUCT { "valid" ::= #res @% "res" @% "valid" ;
+                                     "data"  ::= ZeroExtendTruncLsb FU.InstSz (#res @% "res" @% "data") };
+                                      LET fullRes: STRUCT_TYPE { "tag" :: Bit _;
+                                                                 "res" :: Maybe FU.Inst }
+                                                   <- STRUCT { "tag" ::= castBits _ (#res @% "tag");
+                                                               "res" ::= #inst};
+                                      @CompletionBuffer.Ifc.callback _ completionBuffer ty fullRes)%kami_action |}
+      ].
+    abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
+  Defined.
+
+  Local Definition arbiter
+    :  @Arbiter.Ifc.Ifc _
+    := @Arbiter.Impl.impl
+         {|
+           Arbiter.Ifc.name    := @^"procArbiter";
+           Arbiter.Ifc.reqK    := MemReq;
+           Arbiter.Ifc.resK    := Maybe Data;
+           Arbiter.Ifc.immResK := Void;
+           Arbiter.Ifc.clients := arbiterClients;
+           Arbiter.Ifc.isError := fun _ _ => $$false
+         |}.
+
+  Local Definition router :=
+    @Router.Impl.impl {|
+        Router.Ifc.name := @^"devRouter";
+        Router.Ifc.devices := map (@deviceRouterIfc _ _) (ProcKami.Device.devices devicesIfc)
+      |}.
+
   Local Definition sendPrefetchMemReq
     (ty : Kind -> Type)
     (prefetcherReq : ty (@Fetcher.Ifc.Req fetcherParams))

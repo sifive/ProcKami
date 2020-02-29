@@ -15,7 +15,7 @@ Section PmaPmp.
   Context (Tag: Kind).
   Context {devicesIfc : @DevicesIfc procParams Tag}.
   
-  Local Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
+  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -45,7 +45,10 @@ Section PmaPmp.
          (memRegions (memTable _)).
 
   Definition pmaPmpError ty
-    (req : ty MemClientReq)
+             (accessType: VmAccessType @# ty)
+             (memOp: MemOp @# ty)
+             (mode: PrivMode @# ty)
+             (addr: PAddr @# ty)
     :  ActionT ty MemErrorPkt
     := LETA size
          :  MemRqLgSize
@@ -53,7 +56,7 @@ Section PmaPmp.
               memOps
               (fun memOp
                 => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
-              (#req @% "memOp");
+              memOp;
        LETA lrsc
          :  Bool
          <- applyMemOp
@@ -65,22 +68,22 @@ Section PmaPmp.
                       | memReservationSet => $$true
                       | _ => $$false
                       end))
-              (#req @% "memOp");
+              memOp;
        LETA pmp_result
          :  Bool
          <- checkPmp
-              (#req @% "accessType")
-              (#req @% "mode")
-              (#req @% "addr")
+              accessType
+              mode
+              addr
               #size;
-       LETA dtagOffset: Maybe DTagOffset <- getDTagOffset (#req @% "addr");
+       LETA dtagOffset: Maybe DTagOffset <- getDTagOffset addr;
        LETA pma_result
          :  PmaSuccessPkt
          <- checkPma
               (#dtagOffset @% "data" @% "dtag")
               (#dtagOffset @% "data" @% "offset")
               #size
-              (#req @% "accessType")
+              accessType
               #lrsc;
        LET err_pkt : MemErrorPkt
          <- STRUCT {
