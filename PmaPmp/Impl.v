@@ -11,7 +11,6 @@ Require Import ProcKami.PmaPmp.Pma.
 
 Section PmaPmp.
   Context {procParams: ProcParams}.
-  Context {memInterfaceParams : MemInterfaceParams}.
   Context (Tag: Kind).
   Context {devicesIfc : @DevicesIfc procParams Tag}.
   
@@ -45,8 +44,8 @@ Section PmaPmp.
          (memRegions (memTable _)).
 
   Definition pmaPmpError ty
-             (accessType: VmAccessType @# ty)
-             (memOp: MemOp @# ty)
+             (accessType: AccessType @# ty)
+             (memOp: MemOpCode @# ty)
              (mode: PrivMode @# ty)
              (addr: PAddr @# ty)
     :  ActionT ty MemErrorPkt
