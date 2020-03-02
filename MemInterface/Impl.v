@@ -63,8 +63,6 @@ Section Impl.
 
   Context (memCallback: forall ty, ty MemResp -> ActionT ty Void).
   
-  Context {memInterfaceParams : MemInterfaceParams}.
-  
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
@@ -79,7 +77,7 @@ Section Impl.
   Local Definition fetcherParams :=
     {|
       Fetcher.Ifc.name       := @^"fetcher";
-      Fetcher.Ifc.size       := Nat.pow 2 (@prefetcherFifoLogLen _ memInterfaceSizes);
+      Fetcher.Ifc.size       := Nat.pow 2 (@fetcherLgSize params);
       Fetcher.Ifc.memReqK    := FetchReq;
       Fetcher.Ifc.vAddrSz    := Xlen;
       Fetcher.Ifc.compInstSz := FU.CompInstSz;
@@ -115,7 +113,7 @@ Section Impl.
     := @CompletionBuffer.Impl.impl
          {|
            CompletionBuffer.Ifc.name      := @^"completionBuffer";
-           CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLogNumReqId procParams memInterfaceSizes);
+           CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize params);
            CompletionBuffer.Ifc.inReqK    := FetchReq;
            CompletionBuffer.Ifc.outReqK   := FetchMemReq;
            CompletionBuffer.Ifc.storeReqK := FU.VAddr;
@@ -145,7 +143,7 @@ Section Impl.
   Local Definition tlb : Tlb.Ifc.Ifc := @Tlb.Impl.impl _ @^"tlb"
                                                        {| Tlb.Impl.lgPageSz := LgPageSz;
                                                           Tlb.Impl.cam := @Cam.Impl.impl _ {|
-                                                                                           Cam.Impl.size      := @tlbNumEntries _ memInterfaceSizes;
+                                                                                           Cam.Impl.size      := @tlbSize params;
                                                                                            Cam.Impl.policy    := ReplacementPolicy.PseudoLru.impl
                                                                                          |}
                                                        |}.
@@ -173,7 +171,7 @@ Section Impl.
            clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
                                       @Tlb.Ifc.callback _ tlb _ res)%kami_action |};
         (* Fetch Client *)                                                                                 
-        {| clientTagSz := @completionBufferLogNumReqId _ memInterfaceSizes;
+        {| clientTagSz := @completionBufferLgSize params;
            clientHandleRes ty
                            (res: ty (STRUCT_TYPE { "tag" :: Bit _;
                                                    "res" :: Maybe Data }))
