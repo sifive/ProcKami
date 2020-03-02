@@ -5,7 +5,6 @@ Require Import ProcKami.Device.
 
 Section Pma.
   Context {procParams: ProcParams}.
-  Context {memInterfaceParams : MemInterfaceParams}.
   Context (Tag: Kind).
   Context {devicesIfc : @DevicesIfc procParams Tag}.
   

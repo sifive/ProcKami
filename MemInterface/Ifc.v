@@ -7,9 +7,6 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.MemInterface.Arbiter.
-Require Import ProcKami.MemInterface.Fetcher.
-
 Require Import ProcKami.PmaPmp.Impl.
 
 Require Import StdLibKami.Arbiter.Ifc.
