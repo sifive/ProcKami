@@ -4,13 +4,13 @@
 *)
 
 Require Import Kami.AllNotations.
-
+Require Import FpuKami.Definitions.
 Require Import ProcKami.FU.
-
+Require Import List.
 Import ListNotations.
 
 Section ty.
-  Context {procParams: ProcParams}.
+  Context `{procParams: ProcParams}.
   Variable ty: Kind -> Type.
   Local Open Scope kami_expr.
 
@@ -22,14 +22,14 @@ Section ty.
     :  PktWithException ExecUpdPkt @# ty
     := STRUCT {
          "fst"
-           ::= (noUpdPkt ty)@%["wb1"
+           ::= (noUpdPkt ty)@%["val1"
                  <- (Valid (STRUCT {
-                       "code" ::= Const ty (natToWord CommitOpCodeSz IntRegTag);
-                       "arg"  ::= val
+                       "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                       "data" ::= val
                      }))] ;
          "snd" ::= Invalid
        }.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End ty.

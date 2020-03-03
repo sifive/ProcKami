@@ -1,8 +1,8 @@
 Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
-
+Require Import List.
 
 Section Alu.
-  Context {procParams: ProcParams}.
+  Context `{procParams: ProcParams}.
 
   Section Ty.
     Variable ty: Kind -> Type.
@@ -25,13 +25,13 @@ Section Alu.
     Local Definition jumpTag (jumpOut: JumpOutputType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE jOut <- jumpOut;
-         LETC wb1: CommitOpCall <- (STRUCT {
-                                      "code" ::= Const ty (natToWord CommitOpCodeSz IntRegTag);
-                                      "arg"  ::= SignExtendTruncLsb Rlen (#jOut @% "retPc")
+         LETC val1: RoutedReg <- (STRUCT {
+                                      "tag" ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                                      "data" ::= SignExtendTruncLsb Rlen (#jOut @% "retPc")
                                  });
-         LETC wb2: CommitOpCall <- (STRUCT {
-                                      "code" ::= Const ty (natToWord CommitOpCodeSz PcTag);
-                                      "arg"  ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
+         LETC val2: RoutedReg <- (STRUCT {
+                                      "tag" ::= Const ty (natToWord RoutingTagSz PcTag);
+                                      "data" ::= SignExtendTruncLsb Rlen (#jOut @% "newPc")
                                  });
          LETC fullException: Exception <- ($(if misaligned_access
                                                                 then InstAccessFault
@@ -41,10 +41,10 @@ Section Alu.
          LETC val
            :  ExecUpdPkt
            <- (noUpdPkt ty
-                 @%["wb1"
-                      <- (Valid #wb1)]
-                 @%["wb2"
-                      <- (Valid #wb2)]
+                 @%["val1"
+                      <- (Valid #val1)]
+                 @%["val2"
+                      <- (Valid #val2)]
                  @%["taken?" <- $$ true]) ;
          LETC retval:
            (PktWithException ExecUpdPkt)
@@ -164,5 +164,5 @@ Section Alu.
               nil
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 End Alu.

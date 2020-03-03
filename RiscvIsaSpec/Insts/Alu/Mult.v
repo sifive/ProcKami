@@ -1,9 +1,9 @@
 Require Import Kami.AllNotations ProcKami.FU ProcKami.Div.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.AluFuncs.
-
+Require Import List.
 
 Section Alu.
-  Context {procParams: ProcParams}.
+  Context `{procParams: ProcParams}.
 
   Definition MultInputType
     := STRUCT_TYPE {

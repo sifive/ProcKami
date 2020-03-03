@@ -71,8 +71,8 @@ Definition FrmValue : Kind := Bit FrmWidth.
 Definition FflagsWidth : nat := 5.
 Definition FflagsValue : Kind := Bit FflagsWidth.
 
-Definition CommitOpCodeSz := 3.
-Definition CommitOpCode := Bit CommitOpCodeSz.
+Definition RoutingTagSz := 3.
+Definition RoutingTag := Bit RoutingTagSz.
 
 Definition IntRegTag := 0. (* 1 *)
 Definition FloatRegTag := 1. (*  1 *)
@@ -281,16 +281,16 @@ Section Params.
         "memHints"       :: Maybe MemHintsPkt
       }.
 
-  Definition CommitOpCall
+  Definition RoutedReg
     := STRUCT_TYPE {
-           "code" :: CommitOpCode;
-           "arg"  :: Data
+          "tag"  :: RoutingTag;
+          "data"   :: Data
          }.
 
   Definition ExecUpdPkt :=
     STRUCT_TYPE {
-        "wb1"        :: Maybe CommitOpCall ;
-        "wb2"        :: Maybe CommitOpCall ;
+        "val1"       :: Maybe RoutedReg ;
+        "val2"       :: Maybe RoutedReg ;
         "memBitMask" :: DataMask ;
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
@@ -302,7 +302,7 @@ Section Params.
 
   Definition MemRet := STRUCT_TYPE {
                            "writeReg?" :: Bool ;
-                           "tag"  :: CommitOpCode ;
+                           "tag"  :: RoutingTag ;
                            "data" :: Data }.
   
   Definition MemUnitInput := STRUCT_TYPE {
@@ -703,8 +703,8 @@ Section Params.
 
     Definition noUpdPkt: ExecUpdPkt @# ty :=
       (STRUCT {
-           "wb1" ::= @Invalid ty _ ;
-           "wb2" ::= @Invalid ty _ ;
+           "val1" ::= @Invalid ty _ ;
+           "val2" ::= @Invalid ty _ ;
            "memBitMask" ::= $$ (getDefaultConst DataMask) ;
            "taken?" ::= $$ false ;
            "aq" ::= $$ false ;

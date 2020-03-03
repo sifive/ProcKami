@@ -6,25 +6,25 @@
 *)
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
-
+Require Import FpuKami.MulAdd.
 Require Import FpuKami.Compare.
-
-
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
-
+Require Import FpuKami.ModDivSqrt.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-
+Require Import List.
 Import ListNotations.
 
 Section Fpu.
-  Context {procParams: ProcParams}.
-  Context {fpuParams : FpuParams}.
+  Context `{procParams: ProcParams}.
+  Context `{fpuParams : FpuParams}.
 
   Section ty.
     Variable ty : Kind -> Type.
 
-    Local Open Scope kami_expr.
+    Open Scope kami_expr.
 
     Definition csr_invalid_mask : FflagsValue @# ty := Const ty ('b("10000")).
 
@@ -46,7 +46,7 @@ Section Fpu.
                        (result @% "lt")
                        (result @% "gt"))). 
 
-    Local Close Scope kami_expr.
+    Close Scope kami_expr.
 
     Definition FCmpInputType
       :  Kind
@@ -66,7 +66,7 @@ Section Fpu.
              "result" :: Bit fpu_len
            }.
 
-    Local Open Scope kami_expr.
+    Open Scope kami_expr.
 
     Definition FCmpInput
         (signal : Bool @# ty)
@@ -87,11 +87,43 @@ Section Fpu.
               "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"))
             } : FCmpInputType @# ty).
 
-    Local Close Scope kami_expr.
+    Definition FCmpOutput
+      (resultExpr : FCmpOutputType ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE result <- resultExpr;
+         LETC val1 <- (STRUCT {
+                               "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
+                               "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
+                         } : RoutedReg @# ty);
+         LETC val2 <- (STRUCT {
+                                  "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                  "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                         } : RoutedReg @# ty);
+         LETC fstVal <- (STRUCT {
+                       "val1"
+                         ::= Valid #val1;
+                       "val2"
+                         ::= ITE
+                               (#result @% "fflags" @% "valid")
+                               (Valid #val2)
+                               (@Invalid ty _);
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                     } :  ExecUpdPkt @# ty);
+         RetE
+           (STRUCT {
+              "fst" ::= #fstVal;
+              "snd" ::= @Invalid ty _
+            } : PktWithException ExecUpdPkt @# ty).
+
+    Close Scope kami_expr.
 
   End ty.
 
-  Local Open Scope kami_expr.
+  Open Scope kami_expr.
 
   Definition FCmp
     :  FUEntry
@@ -133,22 +165,7 @@ Section Fpu.
                                    cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
                                   $1 $0)
                      } : FCmpOutputType @# ty;
-                   LETC wb1 <- (STRUCT {
-                                         "code" ::= $$(natToWord CommitOpCodeSz IntRegTag);
-                                         "arg"  ::= SignExtendTruncLsb Rlen (#result @% "result")
-                                   } : CommitOpCall @# ty);
-                   LETC wb2 <- (STRUCT {
-                                            "code" ::= $$(natToWord CommitOpCodeSz FflagsTag);
-                                            "arg"  ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                   } : CommitOpCall @# ty);
-                   LETC fstVal <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1 ]
-                        @%[ "wb2" <- STRUCT { "valid" ::= (#result @% "fflags" @% "valid");
-                                              "data" ::= #wb2 } ];
-                   RetE
-                     (STRUCT {
-                        "fst" ::= #fstVal;
-                        "snd" ::= @Invalid ty _
-                      } : PktWithException ExecUpdPkt @# ty);
+                   RetE #result;
          fuInsts
            := [
                 {|
@@ -165,7 +182,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$false) (cmp_cond_eq ty) (cmp_cond_not_used ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -183,7 +200,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_not_used ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -201,13 +218,13 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_eq ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |}
               ]
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End Fpu.
