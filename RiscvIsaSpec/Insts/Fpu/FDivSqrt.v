@@ -7,23 +7,23 @@
 Require Import Vector.
 Import VectorNotations.
 Require Import Kami.AllNotations.
-
-
-
-
-
-
+Require Import FpuKami.Definitions.
+Require Import FpuKami.MulAdd.
+Require Import FpuKami.Compare.
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
+Require Import FpuKami.Classify.
 Require Import FpuKami.ModDivSqrt.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-
+Require Import List.
 Import ListNotations.
 
 Section Fpu.
-  Context {procParams: ProcParams}.
-  Context {fpuParams : FpuParams}.
+  Context `{procParams: ProcParams}.
+  Context `{fpuParams : FpuParams}.
 
-  Local Open Scope kami_expr.
+  Open Scope kami_expr.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -50,18 +50,29 @@ Section Fpu.
       := LETE sem_out_pkt
            :  outK expWidthMinus2 sigWidthMinus2
                    <- sem_out_pkt_expr;
-         LETC wb1 : CommitOpCall <- (STRUCT {
-                                       "code" ::= Const ty (natToWord CommitOpCodeSz FloatRegTag);
-                                       "arg"
+         LETC val1 : RoutedReg <- (STRUCT {
+                                       "tag" ::= Const ty (natToWord RoutingTagSz FloatRegTag);
+                                       "data"
                                        ::= (OneExtendTruncLsb Rlen
                                                               (pack (NFToBit (#sem_out_pkt @% "outNf")))
                                             : Bit Rlen @# ty)
                                   });
-         LETC wb2 : CommitOpCall <- (STRUCT {
-                               "code"  ::= Const ty (natToWord CommitOpCodeSz FflagsTag);
-                               "arg" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
+         LETC val2 : RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
+                               "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                                   });
-         LETC fstVal : ExecUpdPkt <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1] @%[ "wb2" <- Valid #wb2];
+         LETC fstVal : ExecUpdPkt <- (STRUCT {
+                       "val1"
+                         ::= Valid #val1;
+                       "val2"
+                         ::= Valid #val2;
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                                  
+                     });
          RetE
            (STRUCT {
               "fst"
@@ -120,6 +131,6 @@ Section Fpu.
               ]
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End Fpu.

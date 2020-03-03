@@ -563,7 +563,7 @@ Section CsrInterface.
 
       Record CsrParams
         := {
-            csr_params_tag          : CommitOpCode @# ty;
+            csr_params_tag          : RoutingTag @# ty;
             csr_params_write_enable : RegId @# ty -> Bool @# ty;
             csr_params_write_value  : CsrValue @# ty -> CsrValue @# ty -> CsrValue @# ty;
           }.
@@ -603,12 +603,12 @@ Section CsrInterface.
         := [csr_params_write; csr_params_set; csr_params_clear].
 
       Definition commitOpCallIsWriteCsr
-        (call : Maybe CommitOpCall @# ty)
+        (call : Maybe RoutedReg @# ty)
         :  Bool @# ty
         := call @% "valid" &&
            (utila_any
              (map
-               (fun params => csr_params_tag params == call @% "data" @% "code")
+               (fun params => csr_params_tag params == call @% "data" @% "tag" )
                csr_params)).
 
       Definition csrAccessible
@@ -643,7 +643,7 @@ Section CsrInterface.
         (csrId : CsrId @# ty)
         (rdId : RegId @# ty)
         (rs1Id : RegId @# ty)
-        (call : CommitOpCall @# ty)
+        (call : RoutedReg @# ty)
         :  ActionT ty Void
         := LET warlUpdateInfo
              <- (STRUCT {
@@ -666,7 +666,7 @@ Section CsrInterface.
                  (ZeroExtendTruncLsb Rlen (#csr_val @% "data"));
            If utila_lookup_table_default
                 csr_params
-                (fun params => csr_params_tag params == call @% "code")
+                (fun params => csr_params_tag params == call @% "tag")
                 (fun params => csr_params_write_enable params rs1Id)
                 $$false
              then
@@ -674,12 +674,12 @@ Section CsrInterface.
                  <- writeCsr #upd csrId
                       (utila_lookup_table_default
                         csr_params
-                        (fun params => csr_params_tag params == call @% "code")
+                        (fun params => csr_params_tag params == call @% "tag")
                         (fun params
                          => csr_params_write_value
                               params
                               (#csr_val @% "data")
-                              (ZeroExtendTruncLsb CsrValueWidth (call @% "arg")))
+                              (ZeroExtendTruncLsb CsrValueWidth (call @% "data")))
                         $0);
                Retv;
            Retv.

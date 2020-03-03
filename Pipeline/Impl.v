@@ -78,16 +78,16 @@ Section Pipeline.
            DispString _ "\n"
          ];
          LETA oldOptCommit : Maybe CommitPkt <- @Fifo.Ifc.first _ decExecFifo _;
-         LET wb : CommitOpCall <- STRUCT {
-                                 "code" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
+         LET wb : RoutedReg <- STRUCT {
+                                 "tag" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
                                              then $FloatRegTag
                                              else $IntRegTag);
-                                 "arg"  ::= #res @% "resp" @% "data"
+                                 "data"  ::= #res @% "resp" @% "data"
                                };
          LET newUpdatePkt
            :  ExecUpdPkt
            <- IF #res @% "resp" @% "valid"
-                then #oldOptCommit @% "data" @% "execUpd" @%["wb1" <- Valid #wb]
+                then #oldOptCommit @% "data" @% "execUpd" @%["val1" <- Valid #wb]
                 else #oldOptCommit @% "data" @% "execUpd";
          LET commitPkt
            :  CommitPkt
@@ -336,7 +336,7 @@ Section Pipeline.
                 LET vaddr: FU.VAddr
                  <- xlen_sign_extend Xlen
                       (#cxtCfg @% "xlen")
-                      (#execUpdPkt @% "fst" @% "wb2" @% "data" @% "arg" : Bit Rlen @# ty);
+                      (#execUpdPkt @% "fst" @% "val2" @% "data" @% "data" : Bit Rlen @# ty);
                 LETA tlbResp
                   :  Maybe (PktWithException PAddr)
                   <- @memTranslate _ _ memInterface _  #cxtCfg

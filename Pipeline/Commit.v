@@ -25,12 +25,12 @@ Section trap_handling.
   Local Open Scope kami_expr.
 
   Local Definition commitOpCallCode
-    (call : Maybe CommitOpCall @# ty)
-    :  Maybe CommitOpCode @# ty
+    (call : Maybe RoutedReg @# ty)
+    :  Maybe RoutingTag @# ty
     := STRUCT {
          "valid" ::= call @% "valid";
-         "data"  ::= call @% "data" @% "code"
-       } : Maybe CommitOpCode @# ty.
+         "data"  ::= call @% "data" @% "tag"
+       } : Maybe RoutingTag @# ty.
 
   Local Definition commitOpEnterDebugMode
     (mode : PrivMode @# ty)
@@ -79,17 +79,17 @@ Section trap_handling.
     (csrId : CsrId @# ty)
     (rdId : RegId  @# ty)
     (rs1Id : RegId @# ty)
-    (call : Maybe CommitOpCall @# ty)
+    (call : Maybe RoutedReg @# ty)
     (callIsWriteCsr : Bool @# ty)
     :  ActionT ty Void
     := If callIsWriteCsr
          then commitOpWriteCsr Csrs cfg mepc pc compressed csrId rdId rs1Id (call @% "data");
        If call @% "valid"
          then
-           If call @% "data" @% "code" == $IntRegTag
-             then reg_writer_write_reg (cfg @% "xlen") rdId (call @% "data" @% "arg");
-           If call @% "data" @% "code" == $FloatRegTag
-             then reg_writer_write_freg rdId (call @% "data" @% "arg");
+           If call @% "data" @% "tag" == $IntRegTag
+             then reg_writer_write_reg (cfg @% "xlen") rdId (call @% "data" @% "data");
+           If call @% "data" @% "tag" == $FloatRegTag
+             then reg_writer_write_freg rdId (call @% "data" @% "data");
            Retv;
        Retv.
                
@@ -97,20 +97,20 @@ Section trap_handling.
     (dpc : VAddr @# ty)
     (prv : PrivMode @# ty)
     (debugHartState : debug_hart_state @# ty)
-    (call : Maybe CommitOpCall @# ty)
+    (call : Maybe RoutedReg @# ty)
     :  ActionT ty Void
     := If call @% "valid"
          then
-           If call @% "data" @% "code" == $FflagsTag
-             then reg_writer_write_fflags (call @% "data" @% "arg");
-           If call @% "data" @% "code" == $MRetTag
-             then commitOpRetAux "m" 2
-           If call @% "data" @% "code" == $SRetTag
-             then commitOpRetAux "s" 1
-           If call @% "data" @% "code" == $URetTag
-             then commitOpRetAux "u" 0
+           If call @% "data" @% "tag" == $FflagsTag
+             then reg_writer_write_fflags (call @% "data" @% "data");
+           If call @% "data" @% "tag" == $MRetTag
+             then commitOpRetAux "m" 2;
+           If call @% "data" @% "tag" == $SRetTag
+             then commitOpRetAux "s" 1;
+           If call @% "data" @% "tag" == $URetTag
+             then commitOpRetAux "u" 0;
            If debugHartState @% "debug" &&
-              call @% "data" @% "code" == $DRetTag
+              call @% "data" @% "tag" == $DRetTag
              then commitOpExitDebugMode dpc prv;
            Retv;
        Retv.
@@ -123,21 +123,21 @@ Section trap_handling.
     (dpc : VAddr @# ty)
     (compressed : Bool @# ty)
     (pc : VAddr @# ty)
-    (call : Maybe CommitOpCall @# ty)
+    (call : Maybe RoutedReg @# ty)
     :  VAddr ## ty
     := LETC nextPc
          :  Maybe VAddr
          <- Switch commitOpCallCode call Retn Maybe VAddr With {
-              (Valid ($MRetTag : CommitOpCode @# ty))
+              (Valid ($MRetTag : RoutingTag @# ty))
                 ::= Valid mepc;
-              (Valid ($SRetTag : CommitOpCode @# ty))
+              (Valid ($SRetTag : RoutingTag @# ty))
                 ::= Valid sepc;
-              (Valid ($URetTag : CommitOpCode @# ty))
+              (Valid ($URetTag : RoutingTag @# ty))
                 ::= Valid uepc;
-              (Valid ($DRetTag : CommitOpCode @# ty))
+              (Valid ($DRetTag : RoutingTag @# ty))
                 ::= Valid (xlen_sign_extend Xlen xlen dpc);
-              (Valid ($PcTag : CommitOpCode @# ty))
-                ::= Valid (xlen_sign_extend Xlen xlen (call @% "data" @% "arg"));
+              (Valid ($PcTag : RoutingTag @# ty))
+                ::= Valid (xlen_sign_extend Xlen xlen (call @% "data" @% "data"))
             };
        RetE
          (IF #nextPc @% "valid"
@@ -181,10 +181,10 @@ Section trap_handling.
          :  VAddr
          <- convertLetExprSyntax_ActionT
             (commitNextPc (cfg_pkt @% "xlen") #mepc #sepc #uepc #dpc (exec_context_pkt @% "compressed?")
-                       (exec_context_pkt @% "pc") (update_pkt @% "wb2"));
+                       (exec_context_pkt @% "pc") (update_pkt @% "val2"));
        LET callIsWriteCsr
          :  Bool
-         <- commitOpCallIsWriteCsr (update_pkt @% "wb1");
+         <- commitOpCallIsWriteCsr (update_pkt @% "val1");
        LET commitException
          :  Maybe Exception
          <- IF exception @% "valid"
@@ -192,7 +192,7 @@ Section trap_handling.
               else
                 IF 
                   (* sret exception *)
-                  (update_pkt @% "wb2" @% "code" == $SRetTag &&
+                  (update_pkt @% "val2" @% "data" @% "tag" == $SRetTag &&
                    cfg_pkt @% "mode" == $SupervisorMode &&
                    cfg_pkt @% "tsr") ||
                   (* CSR write exception *)
@@ -225,12 +225,12 @@ Section trap_handling.
                    (imm (exec_context_pkt @% "inst"))
                    (rd (exec_context_pkt @% "inst"))
                    (rs1 (exec_context_pkt @% "inst"))
-                   (update_pkt @% "wb1")
+                   (update_pkt @% "val1")
                    #callIsWriteCsr;
             LETA _
               <- commitOpCall2
                    #dpc #prv #debugHartState
-                   (update_pkt @% "wb2");
+                   (update_pkt @% "val2");
             LETA _ <- commitIncCounters;
             Write @^"pc" : VAddr <- #nextPc;
             Ret #nextPc

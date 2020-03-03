@@ -5,21 +5,21 @@
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
 Require Import Kami.AllNotations.
-
-
-
-
-
-
-
+Require Import FpuKami.Definitions.
+Require Import FpuKami.MulAdd.
+Require Import FpuKami.Compare.
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
+Require Import FpuKami.Classify.
+Require Import FpuKami.ModDivSqrt.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-
+Require Import List.
 Import ListNotations.
 
 Section Fpu.
-  Context {procParams: ProcParams}.
-  Context {fpuParams : FpuParams}.
+  Context `{procParams: ProcParams}.
+  Context `{fpuParams : FpuParams}.
 
   Definition add_format_field
     :  UniqId -> UniqId
@@ -28,11 +28,13 @@ Section Fpu.
   Definition FSgnInputType
     :  Kind
     := STRUCT_TYPE {
-           "sign_bit" :: Bit 1;
-           "arg1"     :: Bit fpu_len
-         }.
+         "sign_bit" :: Bit 1;
+         "arg1"     :: Bit fpu_len
+       }.
 
-  Local Open Scope kami_expr.
+  Definition FSgnOutputType := FSgnInputType.
+
+  Open Scope kami_expr.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -61,31 +63,34 @@ Section Fpu.
                     };
               "arg1" ::= #reg1
             } : FSgnInputType @# ty).
+
+    Definition FSgnOutput
+      (resultExpr : FSgnOutputType ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE result <- resultExpr;
+         RetE (STRUCT {
+           "fst"
+             ::= (noUpdPkt ty)
+                   @%["val1"
+                       <- Valid (STRUCT {
+                            "tag" ::= $$(natToWord RoutingTagSz FloatRegTag);
+                            "data"
+                              ::= OneExtendTruncLsb Rlen
+                                    ({<
+                                       #result @% "sign_bit",
+                                       OneExtendTruncLsb (fpu_len - 1) (#result @% "arg1")
+                                     >})
+                          }) : Maybe RoutedReg @# ty];
+           "snd" ::= Invalid
+         } : PktWithException ExecUpdPkt @# ty).
+
   End ty.
 
   Definition FSgn
     :  FUEntry
     := {|
          fuName := append "fsgn" fpu_suffix;
-         fuFunc
-           := fun ty (sem_in_pkt_expr : FSgnInputType ## ty)
-                => LETE sem_in_pkt
-                     :  FSgnInputType
-                          <- sem_in_pkt_expr;
-                   LETC wb1 : CommitOpCall <- (STRUCT {
-                                                   "code" ::= $$(natToWord CommitOpCodeSz FloatRegTag);
-                                                   "arg"  ::=
-                                                     OneExtendTruncLsb Rlen
-                                                                       ({<
-                                                                         (#sem_in_pkt @% "sign_bit"),
-                                                                         (OneExtendTruncLsb (fpu_len - 1)
-                                                                             (#sem_in_pkt @% "arg1")) >})});
-                   LETC fstVal : ExecUpdPkt <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1 ];
-                   RetE
-                     (STRUCT {
-                          "fst" ::= #fstVal;
-                          "snd" ::= Invalid
-              } : PktWithException ExecUpdPkt@# ty);
+         fuFunc := fun ty => id;
          fuInsts
            := [
                 {|
@@ -102,7 +107,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $0;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -120,7 +125,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $1;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -138,13 +143,13 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $2;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}
               ]
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End Fpu.

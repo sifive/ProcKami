@@ -6,20 +6,20 @@
 *)
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
-
-
-
-
-
-
+Require Import FpuKami.MulAdd.
+Require Import FpuKami.Compare.
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
+Require Import FpuKami.Classify.
+Require Import FpuKami.ModDivSqrt.
 Require Import FpuKami.Round.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-
+Require Import List.
 Import ListNotations.
 
 Section Fpu.
-  Context {procParams: ProcParams}.
+  Context `{procParams: ProcParams}.
 
   Variable fpuParamsSingle : FpuParams.
   Variable fpuParamsDouble : FpuParams.
@@ -32,7 +32,7 @@ Section Fpu.
   Local Definition single_Flen := single_expWidthMinus2 + 1 + 1 + (single_sigWidthMinus2 + 1 + 1).
   Local Definition double_Flen := double_expWidthMinus2 + 1 + 1 + (double_sigWidthMinus2 + 1 + 1).
 
-  Local Open Scope kami_expr.
+  Open Scope kami_expr.
 
   Definition Float_double
     :  FUEntry
@@ -75,15 +75,25 @@ Section Fpu.
                   outputXform
                     := (fun ty (sem_out_pkt_expr : OpOutput double_expWidthMinus2 double_sigWidthMinus2 ## ty)
                         => LETE sem_out_pkt <- sem_out_pkt_expr;
-                             LETC wb1: CommitOpCall <- (STRUCT {
-                                                    "code" ::= (Const ty (natToWord CommitOpCodeSz FloatRegTag) : CommitOpCode @# ty);
-                                                    "arg"  ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
+                             LETC val1: RoutedReg <- (STRUCT {
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
+                                                    "data" ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
                                                      });
-                             LETC wb2: CommitOpCall <- (STRUCT {
-                                                    "code" ::= (Const ty (natToWord CommitOpCodeSz FflagsTag) : CommitOpCode @# ty);
-                                                    "arg"  ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
+                             LETC val2: RoutedReg <- (STRUCT {
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
+                                                    "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                      });
-                             LETC fstVal <- (noUpdPkt ty)@%[ "wb1" <- Valid #wb1 ]@%[ "wb2" <- Valid #wb2 ];
+                             LETC fstVal <- (STRUCT {
+                                           "val1"
+                                             ::= (Valid #val1 : Maybe RoutedReg @# ty);
+                                           "val2"
+                                             ::= (Valid #val2 : Maybe RoutedReg @# ty);
+                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                           "taken?"     ::= $$false;
+                                           "aq"         ::= $$false;
+                                           "rl"         ::= $$false;
+                                           "fence.i"    ::= $$false
+                                         } : ExecUpdPkt @# ty);
                              RetE
                                (STRUCT {
                                   "fst"
@@ -137,15 +147,25 @@ Section Fpu.
                   outputXform
                     := (fun ty (sem_out_pkt_expr : OpOutput single_expWidthMinus2 single_sigWidthMinus2 ## ty)
                         => LETE sem_out_pkt <- sem_out_pkt_expr;
-                             LETC wb1: CommitOpCall <- (STRUCT {
-                                                    "code" ::= (Const ty (natToWord CommitOpCodeSz FloatRegTag) : CommitOpCode @# ty);
-                                                    "arg"  ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
+                             LETC val1: RoutedReg <- (STRUCT {
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FloatRegTag) : RoutingTag @# ty);
+                                                    "data" ::= (OneExtendTruncLsb Rlen (NFToBit (#sem_out_pkt @% "out")) : Bit Rlen @# ty)
                                           });
-                             LETC wb2: CommitOpCall <- (STRUCT {
-                                                    "code" ::= (Const ty (natToWord CommitOpCodeSz FflagsTag) : CommitOpCode @# ty);
-                                                    "arg"  ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
+                             LETC val2: RoutedReg <- (STRUCT {
+                                                    "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
+                                                    "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                           });
-                             LETC fstVal <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1 ] @%[ "wb2" <- Valid #wb2];
+                             LETC fstVal <- (STRUCT {
+                                           "val1"
+                                             ::= (Valid #val1: Maybe RoutedReg @# ty);
+                                           "val2"
+                                             ::= (Valid #val2: Maybe RoutedReg @# ty);
+                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                                           "taken?" ::= $$false;
+                                           "aq" ::= $$false;
+                                           "rl" ::= $$false;
+                                           "fence.i" ::= $$false
+                                         } : ExecUpdPkt @# ty);
                              RetE
                                (STRUCT {
                                   "fst"
@@ -158,6 +178,6 @@ Section Fpu.
               ]
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End Fpu.

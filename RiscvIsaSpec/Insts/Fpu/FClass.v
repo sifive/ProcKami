@@ -6,22 +6,22 @@
 *)
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
-
-
-
-
+Require Import FpuKami.MulAdd.
+Require Import FpuKami.Compare.
+Require Import FpuKami.NFToIN.
+Require Import FpuKami.INToNF.
 Require Import FpuKami.Classify.
-
+Require Import FpuKami.ModDivSqrt.
 Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
-
+Require Import List.
 Import ListNotations.
 
 Section Fpu.
-  Context {procParams: ProcParams}.
-  Context {fpuParams: FpuParams}.
+  Context `{procParams: ProcParams}.
+  Context `{fpuParams: FpuParams}.
 
-  Local Open Scope kami_expr.
+  Open Scope kami_expr.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -40,11 +40,19 @@ Section Fpu.
       := LETE res
            :  Bit Xlen
                   <- sem_out_pkt_expr;
-         LETC wb1: CommitOpCall <- (STRUCT {
-                               "code" ::= Const ty (natToWord CommitOpCodeSz IntRegTag);
-                               "arg"  ::= SignExtendTruncLsb Rlen #res
+         LETC val1: RoutedReg <- (STRUCT {
+                               "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
+                               "data" ::= SignExtendTruncLsb Rlen #res
                                     });
-         LETC fstVal: ExecUpdPkt <- (noUpdPkt ty) @%[ "wb1" <- Valid #wb1 ];
+         LETC fstVal: ExecUpdPkt <- (STRUCT {
+                       "val1" ::= Valid #val1;
+                       "val2" ::= @Invalid ty _;
+                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                       "taken?" ::= $$false;
+                       "aq" ::= $$false;
+                       "rl" ::= $$false;
+                       "fence.i" ::= $$false
+                     });
          RetE
            (STRUCT {
               "fst" ::= #fstVal;
@@ -86,6 +94,6 @@ Section Fpu.
              ]
        |}.
 
-  Local Close Scope kami_expr.
+  Close Scope kami_expr.
 
 End Fpu.
