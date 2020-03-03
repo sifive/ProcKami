@@ -13,7 +13,6 @@ Require Import ProcKami.Pipeline.Trap.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 
-
 Import ListNotations.
 
 Section trap_handling.
@@ -157,6 +156,96 @@ Section trap_handling.
            Retv;
        Retv.
 
+  Local Definition commitIllegalInst
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (exec_context_pkt : ExecContextPkt @# ty)
+    (update_pkt : ExecUpdPkt @# ty)
+    (debugHartState : debug_hart_state @# ty)
+    (mcounteren : CounterEnType @# ty)
+    (scounteren : CounterEnType @# ty)
+    (callIsWriteCsr : Bool @# ty)
+    :  Maybe Exception @# ty
+    := STRUCT {
+         "valid"
+           ::= (* Illegal SRet instruction *)
+               ((update_pkt @% "val2" @% "data" @% "tag" == $SRetTag &&
+                 cfg_pkt @% "mode" == $SupervisorMode &&
+                 cfg_pkt @% "tsr") ||
+                (* Illegal SFence instruction *)
+                (update_pkt @% "val1" @% "data" @% "tag" == $SFenceTag &&
+                 cfg_pkt @% "tvm") ||
+                (* Illegal WFI instruction *)
+                (update_pkt @% "val1" @% "data" @% "tag" == $WfiTag &&
+                 !(cfg_pkt @% "debug_hart_state" @% "debug") &&
+                 cfg_pkt @% "tw" &&
+                 cfg_pkt @% "mode" != $MachineMode) ||
+                (* CSR write exception *)
+                (callIsWriteCsr &&
+                 !csrAccessible 
+                   Csrs
+                   (cfg_pkt @% "xlen")
+                   (debugHartState @% "debug")
+                   (cfg_pkt @% "mode")
+                   (cfg_pkt @% "tvm")
+                   mcounteren
+                   scounteren
+                   (imm (exec_context_pkt @% "inst"))));
+         "data" ::= ($IllegalInst : Exception @# ty)
+       }.
+
+  Local Definition commitECall
+    (update_pkt : ExecUpdPkt @# ty)
+    :  Maybe Exception @# ty
+    := IF update_pkt @% "val2" @% "data" @% "tag" == $ECallMTag
+         then Valid ($ECallM : Exception @# ty)
+         else
+           IF update_pkt @% "val2" @% "data" @% "tag" == $ECallSTag
+             then Valid ($ECallS : Exception @# ty)
+             else
+               IF update_pkt @% "val2" @% "data" @% "tag" == $ECallUTag
+                 then Valid ($ECallU : Exception @# ty)
+                 else Invalid.
+
+  Local Definition commitEBreak
+    (update_pkt : ExecUpdPkt @# ty)
+    :  Maybe Exception @# ty
+    := STRUCT {
+         "valid" ::= update_pkt @% "val2" @% "data" @% "tag" == $EBreakTag;
+         "data"  ::= ($Breakpoint : Exception @# ty)
+       }.
+
+  Local Definition commitException 
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (exec_context_pkt : ExecContextPkt @# ty)
+    (update_pkt : ExecUpdPkt @# ty)
+    (debugHartState : debug_hart_state @# ty)
+    (mcounteren : CounterEnType @# ty)
+    (scounteren : CounterEnType @# ty)
+    (callIsWriteCsr : Bool @# ty)
+    (exception : Maybe Exception @# ty)
+    :  Maybe Exception ## ty
+    := LETC illegalInstException
+         :  Maybe Exception
+         <- commitIllegalInst
+              cfg_pkt exec_context_pkt update_pkt debugHartState
+              mcounteren scounteren callIsWriteCsr;
+       LETC eCallException
+         :  Maybe Exception
+         <- commitECall update_pkt;
+       LETC eBreakException
+         :  Maybe Exception
+         <- commitEBreak update_pkt;
+       RetE
+         (IF #eBreakException @% "valid" (* TODO: LLEE: check exception priority *)
+           then #eBreakException
+           else
+             IF exception @% "valid"
+               then exception
+               else
+                 IF #eCallException @% "valid"
+                   then #eCallException
+                   else #illegalInstException).
+
   Definition commit
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
@@ -180,34 +269,21 @@ Section trap_handling.
        LETA nextPc
          :  VAddr
          <- convertLetExprSyntax_ActionT
-            (commitNextPc (cfg_pkt @% "xlen") #mepc #sepc #uepc #dpc (exec_context_pkt @% "compressed?")
-                       (exec_context_pkt @% "pc") (update_pkt @% "val2"));
+              (commitNextPc
+                (cfg_pkt @% "xlen") #mepc #sepc #uepc #dpc
+                (exec_context_pkt @% "compressed?")
+                (exec_context_pkt @% "pc")
+                (update_pkt @% "val2"));
        LET callIsWriteCsr
          :  Bool
          <- commitOpCallIsWriteCsr (update_pkt @% "val1");
-       LET commitException
+       LETA commitException
          :  Maybe Exception
-         <- IF exception @% "valid"
-              then exception
-              else
-                IF 
-                  (* sret exception *)
-                  (update_pkt @% "val2" @% "data" @% "tag" == $SRetTag &&
-                   cfg_pkt @% "mode" == $SupervisorMode &&
-                   cfg_pkt @% "tsr") ||
-                  (* CSR write exception *)
-                  (#callIsWriteCsr &&
-                   !csrAccessible 
-                     Csrs
-                     (cfg_pkt @% "xlen")
-                     (#debugHartState @% "debug")
-                     (cfg_pkt @% "mode")
-                     (cfg_pkt @% "tvm")
-                     #mcounteren
-                     #scounteren
-                     (imm (exec_context_pkt @% "inst")))
-                 then Valid ($IllegalInst : Exception @# ty)
-                 else Invalid;
+         <- convertLetExprSyntax_ActionT
+              (commitException
+                cfg_pkt exec_context_pkt update_pkt
+                #debugHartState #mcounteren #scounteren
+                #callIsWriteCsr exception);
        If (#commitException @% "valid")
          then
            trapException
