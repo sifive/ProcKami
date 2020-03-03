@@ -43,37 +43,35 @@ Require Import ProcKami.Pipeline.Decoder.
 
 Section Impl.
   Context {procParams : ProcParams}.
+  Class Params
+    := {
+        fetcherLgSize : nat;
+        completionBufferLgSize : nat;
+        tlbSize : nat;
+        memUnitTagSz : nat
+      }.
 
-  Section Tag.
-    Context (Tag: Kind).
-    Context {devicesIfc: DevicesIfc Tag}.
+  Context {params: Params}.
 
-    Class Params
-      := {
-          fetcherLgSize : nat;
-          completionBufferLgSize : nat;
-          tlbSize : nat;
-          memUnitTagSz : nat
-        }.
+  Local Definition MemResp := STRUCT_TYPE {
+                                  "tag" :: Bit memUnitTagSz;
+                                  "res" :: Maybe Data
+                                }.
 
-    Context {params: Params}.
+  Context (memCallback: forall ty, ty MemResp -> ActionT ty Void).
 
-    Local Definition MemResp := STRUCT_TYPE {
-                                    "tag" :: Bit memUnitTagSz;
-                                    "res" :: Maybe Data
-                                  }.
+  Section DTag.
+    Context (dTagK: Kind).
 
-    Context (memCallback: forall ty, ty MemResp -> ActionT ty Void).
-    
     Local Open Scope kami_expr.
     Local Open Scope kami_action.
 
     Local Definition FetcherOutReqNoVAddr := STRUCT_TYPE {
-                                                 "dtag"  :: @DeviceTag _ _ devicesIfc;
+                                                 "dtag"   :: dTagK;
                                                  "offset" :: Offset
                                                }.
     
-    Local Definition FetcherOutReq := STRUCT_TYPE { "vaddr" :: FU.VAddr;
+    Local Definition FetcherOutReq := STRUCT_TYPE { "vaddr"  :: FU.VAddr;
                                                     "memReq" :: FetcherOutReqNoVAddr }.
 
     Local Definition fetcherParams :=
@@ -141,53 +139,52 @@ Section Impl.
                                                                                            |}
                                                          |}.
 
-  End Tag.
+    Local Definition arbiterClients
+      :  list (Client (Maybe Data)).
+    refine [
+        (* memory unit client *)
+        {| clientTagSz := memUnitTagSz;
+           clientHandleRes := memCallback
+        |} ;
+        
+        (* TLB client *)
+        {| clientTagSz := 0;
+           clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
+                                      @Tlb.Ifc.callback _ tlb _ res)%kami_action |};
+        (* Fetch Client *)                                                                                 
+        {| clientTagSz := @completionBufferLgSize params;
+           clientHandleRes ty
+                           (res: ty (STRUCT_TYPE { "tag" :: Bit _;
+                                                   "res" :: Maybe Data }))
+           := (LET inst: Maybe FU.Inst
+                         <- STRUCT { "valid" ::= #res @% "res" @% "valid" ;
+                                                 "data"  ::= ZeroExtendTruncLsb FU.InstSz (#res @% "res" @% "data") };
+               LET fullRes: STRUCT_TYPE { "tag" :: Bit _;
+                                          "res" :: Maybe FU.Inst }
+                            <- STRUCT { "tag" ::= castBits _ (#res @% "tag");
+                                                  "res" ::= #inst};
+               @CompletionBuffer.Ifc.callback _ completionBuffer ty fullRes)%kami_action |}
+      ].
+    abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
+    Defined.
 
-  Local Definition ArbiterInReq := STRUCT_TYPE {
-                                       "memReq" :: FetcherOutReqNoVAddr (Arbiter.Ifc.Tag);
-                                       "memOp" :: MemOpCode;
-                                       "data" :: Data }.
-  Local Definition arbiterClients
-    :  list (Client (Maybe Data)).
-  refine [
-      (* memory unit client *)
-      {| clientTagSz := memUnitTagSz;
-         clientHandleRes := memCallback
-      |} ;
-      
-      (* TLB client *)
-      {| clientTagSz := 0;
-         clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
-                                    @Tlb.Ifc.callback _ tlb _ res)%kami_action |};
-      (* Fetch Client *)                                                                                 
-      {| clientTagSz := @completionBufferLgSize params;
-         clientHandleRes ty
-                         (res: ty (STRUCT_TYPE { "tag" :: Bit _;
-                                                 "res" :: Maybe Data }))
-         := (LET inst: Maybe FU.Inst
-                       <- STRUCT { "valid" ::= #res @% "res" @% "valid" ;
-                                               "data"  ::= ZeroExtendTruncLsb FU.InstSz (#res @% "res" @% "data") };
-             LET fullRes: STRUCT_TYPE { "tag" :: Bit _;
-                                        "res" :: Maybe FU.Inst }
-                          <- STRUCT { "tag" ::= castBits _ (#res @% "tag");
-                                                "res" ::= #inst};
-             @CompletionBuffer.Ifc.callback _ completionBuffer ty fullRes)%kami_action |}
-    ].
-  abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
-  Defined.
+    Local Definition ArbiterInReq := STRUCT_TYPE {
+                                         "dtag" :: dTagK;
+                                         "memReq" :: FetcherOutReqNoVAddr;
+                                         "memOp" :: MemOpCode;
+                                         "data" :: Data }.
+    
+    Local Definition arbiter
+      :  @Arbiter.Ifc.Ifc _ {| clientList := arbiterClients |}
+      := @Arbiter.Impl.impl
+           {|
+             Arbiter.Ifc.name    := @^"arbiter";
+             Arbiter.Ifc.inReqK  := ArbiterInReq;
+             Arbiter.Ifc.immResK := Void;
+             Arbiter.Ifc.isError := fun ty _ => Const ty false
+           |} _.
+  End DTag.
 
-  Local Definition arbiter
-    :  @Arbiter.Ifc.Ifc _
-    := @Arbiter.Impl.impl
-         {|
-           Arbiter.Ifc.name    := @^"arbiter";
-           Arbiter.Ifc.inReqK  := ArbiterInReq;
-           Arbiter.Ifc.outResK := Maybe Data;
-           Arbiter.Ifc.immResK := Void;
-           Arbiter.Ifc.clients := arbiterClients;
-           Arbiter.Ifc.isError := fun ty _ => Const ty false
-         |}.
-End Tag.
 
 
   

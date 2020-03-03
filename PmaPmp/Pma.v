@@ -5,10 +5,9 @@ Require Import ProcKami.Device.
 
 Section Pma.
   Context {procParams: ProcParams}.
-  Context (Tag: Kind).
-  Context {devicesIfc : @DevicesIfc procParams Tag}.
+  Context {devicesIfc : @DevicesIfc procParams}.
   
-  Local Definition DeviceTag := Bit (Nat.log2_up (length (map (@deviceRouterIfc _ _) (Device.devices devicesIfc)))).
+  Local Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
   
   Definition PmaSuccessPkt
     := STRUCT_TYPE {
@@ -22,15 +21,15 @@ Section Pma.
   Local Open Scope kami_action.
   
   Local Definition mem_device_apply ty
-    (devs : list (Device Tag))
+    (devs : list Device)
     (devTag : DeviceTag @# ty)
     (k : Kind)
-    (f : Device Tag -> ActionT ty k)
+    (f : Device -> ActionT ty k)
     :  ActionT ty k
     := LETA result
          <- utila_acts_find_pkt
               (map
-                (fun dev : nat * Device Tag
+                (fun dev : nat * Device
                   => If devTag == $(fst dev)
                        then
                          LETA result <- f (snd dev);
@@ -49,10 +48,10 @@ Section Pma.
     (lrsc : Bool @# ty)
     :  ActionT ty PmaSuccessPkt 
     := @mem_device_apply ty
-         (@ProcKami.Device.devices _ _ devicesIfc)
+         (@ProcKami.Device.devices _ devicesIfc)
          dtag PmaSuccessPkt
          (fun dev
-           => let acc_pmas f := CABool Or (map f (@pmas _ _ dev)) in
+           => let acc_pmas f := CABool Or (map f (@pmas _ dev)) in
               let width_match pma := req_len == $(pma_width pma) in
               Ret (STRUCT {
                   "width" ::= acc_pmas width_match;
