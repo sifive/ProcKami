@@ -24,7 +24,7 @@ Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 
 Require Import StdLibKami.Fifo.Ifc.
-Require Import StdLibKami.Fifo.RegList.
+Require Import StdLibKami.Fifo.Impl.
 
 Import ListNotations.
 

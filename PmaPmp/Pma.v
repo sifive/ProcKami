@@ -8,8 +8,8 @@ Section Pma.
   Context (Tag: Kind).
   Context {devicesIfc : @DevicesIfc procParams Tag}.
   
-  Local Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
-
+  Local Definition DeviceTag := Bit (Nat.log2_up (length (map (@deviceRouterIfc _ _) (Device.devices devicesIfc)))).
+  
   Definition PmaSuccessPkt
     := STRUCT_TYPE {
          "width"      :: Bool;

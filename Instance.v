@@ -6,7 +6,7 @@
 
 Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.UnverifiedIncompleteCompiler.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.ProcessorCore.
+Require Import ProcKami.Pipeline.ProcessorCore.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.ModelParams.

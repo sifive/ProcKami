@@ -11,7 +11,7 @@ Require Import ProcKami.FU.
 Require Import ProcKami.Pipeline.RegWriter.
 
 Require Import StdLibKami.RegMapper.
-Require Import ProcKami.MemInterface.Pmp.
+Require Import ProcKami.PmaPmp.Pmp.
 
 Import ListNotations.
 

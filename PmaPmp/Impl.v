@@ -14,11 +14,11 @@ Section PmaPmp.
   Context (Tag: Kind).
   Context {devicesIfc : @DevicesIfc procParams Tag}.
   
-  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
-
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
+  Definition DeviceTag := Bit (Nat.log2_up (length (map (@deviceRouterIfc _ _) (Device.devices devicesIfc)))).
+  
   Local Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
                                                "offset" :: FU.Offset }.
 

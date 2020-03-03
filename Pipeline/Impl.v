@@ -12,7 +12,6 @@ Require Import ProcKami.Pipeline.Executer.
 Require Import ProcKami.Pipeline.Mem.
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Pipeline.ConfigReader.
-Require Import ProcKami.MemInterface.Prefetcher.
 
 Require Import StdLibKami.Fifo.Ifc.
 Require Import StdLibKami.Fetcher.Ifc.
