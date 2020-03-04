@@ -11,12 +11,12 @@ Require Import ProcKami.PmaPmp.Pma.
 
 Section PmaPmp.
   Context {procParams: ProcParams}.
-  Context {devicesIfc : @DevicesIfc procParams}.
+  Context {deviceTree : @DeviceTree procParams}.
   
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
+  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices deviceTree))).
   
   Local Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
                                                "offset" :: FU.Offset }.
@@ -26,7 +26,7 @@ Section PmaPmp.
     :  ActionT ty (Maybe DTagOffset)
     := @memRegionApply
          _
-         (length (ProcKami.Device.devices devicesIfc))
+         (length (ProcKami.Device.devices deviceTree))
          ty DTagOffset addr
          (fun region (offset: PAddr @# ty)
             =>

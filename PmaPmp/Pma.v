@@ -5,9 +5,9 @@ Require Import ProcKami.Device.
 
 Section Pma.
   Context {procParams: ProcParams}.
-  Context {devicesIfc : @DevicesIfc procParams}.
+  Context {deviceTree : @DeviceTree procParams}.
   
-  Local Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices devicesIfc))).
+  Local Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices deviceTree))).
   
   Definition PmaSuccessPkt
     := STRUCT_TYPE {
@@ -48,7 +48,7 @@ Section Pma.
     (lrsc : Bool @# ty)
     :  ActionT ty PmaSuccessPkt 
     := @mem_device_apply ty
-         (@ProcKami.Device.devices _ devicesIfc)
+         (@ProcKami.Device.devices _ deviceTree)
          dtag PmaSuccessPkt
          (fun dev
            => let acc_pmas f := CABool Or (map f (@pmas _ dev)) in
