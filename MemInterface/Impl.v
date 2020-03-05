@@ -71,8 +71,8 @@ Section Impl.
                                                "paddr"  :: PAddr
                                              }.
   
-  Local Definition FetcherOutReq := STRUCT_TYPE { "vaddr"  :: FU.VAddr;
-                                                  "memReq" :: FetcherOutReqNoVAddr }.
+  Local Definition FetcherOutReq := STRUCT_TYPE { "memReq" :: FetcherOutReqNoVAddr;
+                                                  "vaddr"  :: FU.VAddr }.
 
   Local Definition fetcherParams :=
     {|
@@ -100,32 +100,35 @@ Section Impl.
   abstract (simpl; f_equal; rewrite Nat.log2_up_pow2; try lia).
   Defined.
 
+  Local Definition completionBufferParams :=
+    {|
+      CompletionBuffer.Ifc.name      := @^"completionBuffer";
+      CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize params);
+      CompletionBuffer.Ifc.inReqK    := FetcherOutReq;
+      CompletionBuffer.Ifc.outReqK   := FetcherOutReqNoVAddr;
+      CompletionBuffer.Ifc.storeReqK := FU.VAddr;
+      CompletionBuffer.Ifc.immResK   := Void;
+      CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
+      CompletionBuffer.Ifc.inReqToOutReq
+      := fun ty req
+         => (STRUCT {
+                 "dtag" ::= req @% "memReq" @% "dtag";
+                 "offset" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "memReq" @% "offset"),
+                                                           $$(natToWord 2 0) >});
+                 "paddr" ::= req @% "memReq" @% "paddr"
+                                 
+            })%kami_expr;
+      CompletionBuffer.Ifc.inReqToStoreReq
+      := fun ty req
+         => (req @% "vaddr")%kami_expr;
+      CompletionBuffer.Ifc.isError
+      := fun ty _ => $$false
+    |}.
+  
   Local Definition completionBuffer
     :  CompletionBuffer.Ifc.Ifc
     := @CompletionBuffer.Impl.impl
-         {|
-           CompletionBuffer.Ifc.name      := @^"completionBuffer";
-           CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize params);
-           CompletionBuffer.Ifc.inReqK    := FetcherOutReq;
-           CompletionBuffer.Ifc.outReqK   := FetcherOutReqNoVAddr;
-           CompletionBuffer.Ifc.storeReqK := FU.VAddr;
-           CompletionBuffer.Ifc.immResK   := MemErrorPkt;
-           CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
-           CompletionBuffer.Ifc.inReqToOutReq
-           := fun ty req
-              => (STRUCT {
-                      "dtag" ::= req @% "memReq" @% "dtag";
-                      "offset" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "memReq" @% "offset"),
-                                                                $$(natToWord 2 0) >});
-                      "paddr" ::= req @% "memReq" @% "paddr"
-                                                                
-                 })%kami_expr;
-           CompletionBuffer.Ifc.inReqToStoreReq
-           := fun ty req
-              => (req @% "vaddr")%kami_expr;
-           CompletionBuffer.Ifc.isError
-           := mem_error
-         |}
+         completionBufferParams
          {|
            storeArray := @RegArray.RegList.impl _;
            resArray   := @RegArray.RegList.impl _;
@@ -170,19 +173,23 @@ Section Impl.
   Defined.
 
   Local Definition ArbiterInReq := STRUCT_TYPE {
-                                       "memReq" :: FetcherOutReqNoVAddr;
+                                       "dtag" :: @DeviceTag _ deviceTree;
+                                       "offset" :: Offset ;
+                                       "paddr" :: PAddr ;
                                        "memOp" :: MemOpCode;
                                        "data" :: Data }.
+
+  Local Definition arbiterParams :=
+    {|
+      Arbiter.Ifc.name    := @^"arbiter";
+      Arbiter.Ifc.inReqK  := ArbiterInReq;
+      Arbiter.Ifc.immResK := Void;
+      Arbiter.Ifc.isError := fun ty _ => Const ty false
+    |}.
   
   Local Definition arbiter
     :  @Arbiter.Ifc.Ifc _ {| clientList := arbiterClients |}
-    := @Arbiter.Impl.impl
-         {|
-           Arbiter.Ifc.name    := @^"arbiter";
-           Arbiter.Ifc.inReqK  := ArbiterInReq;
-           Arbiter.Ifc.immResK := Void;
-           Arbiter.Ifc.isError := fun ty _ => Const ty false
-         |} _.
+    := @Arbiter.Impl.impl arbiterParams _.
 
   Local Definition ArbiterTag := Arbiter.Ifc.Tag {| clientList :=  arbiterClients |}.
 
@@ -199,73 +206,51 @@ Section Impl.
   Local Definition ArbiterOutReq := STRUCT_TYPE { "tag" :: ArbiterTag;
                                                   "req" :: ArbiterInReq }.
 
+  Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
+    @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize params) @# ty.
+  refine (
+    let req := (inReq @% "outReq") in
+    let reqStruct := STRUCT { "dtag" ::= req @% "dtag" ;
+                              "offset" ::= req @% "offset" ;
+                              "paddr" ::= req @% "paddr" ;
+                              "memOp" ::= getMemOpCode memOps _ Lw ;
+                              "data" ::= $$ (getDefaultConst Data) } in
+    STRUCT { "tag" ::= castBits _ (inReq @% "tag");
+             "req" ::= reqStruct }).
+  abstract (simpl; rewrite Natlog2_up_pow2; auto).
+  Defined.
+  
   Local Definition arbiterReqToRouterReq ty (req: ty ArbiterOutReq): @Router.Ifc.OutReq routerParams @# ty.
   refine (
     let deviceInReq : Device.Req ArbiterTag @# ty := STRUCT { "tag" ::= #req @% "tag" ;
                                                               "memOp" ::= #req @% "req" @% "memOp" ;
-                                                              "addr" ::= #req @% "req" @% "memReq" @% "offset" ;
+                                                              "addr" ::= #req @% "req" @% "offset" ;
                                                               "data" ::= #req @% "req" @% "data" } in
-    STRUCT { "dtag" ::= castBits _ (#req @% "req" @% "memReq" @% "dtag") ;
+    STRUCT { "dtag" ::= castBits _ (#req @% "req" @% "dtag") ;
              "req" ::= deviceInReq}).
   abstract (unfold numDevices; simpl; unfold deviceIfcs; rewrite map_length; auto).
   Defined.
   
   
-  Local Definition routerSendReq ty (req: ty ArbiterOutReq): ActionT ty (Maybe Void).
-  refine (
+  Local Definition routerSendReq ty (req: ty ArbiterOutReq): ActionT ty (Maybe Void) :=
     LET inReq <- arbiterReqToRouterReq ty req;
     LETA ret <- @Router.Ifc.sendReq _ router ty inReq;
     Ret ((STRUCT { "valid" ::= #ret ;
-                   "data" ::= $$(getDefaultConst Void) }): Maybe Void @# ty)).
-  Defined.
-  
-  Local Definition fetcherSendAddr ty (req: ty FetcherOutReq) :=
+                   "data" ::= $$(getDefaultConst Void) }): Maybe Void @# ty).
+
+  Local Definition fetcherSendAddr ty (req: ty Fetcher.Ifc.OutReq) :=
     @Fetcher.Ifc.sendAddr
       _ fetcher
       (@CompletionBuffer.Ifc.sendReq
          _ completionBuffer
-         (@Arbiter.Ifc.sendReq _
-            _ arbiter
-            routerSendReq
-            (Fin.FS (Fin.FS Fin.F1)))
-      ) _ req.
+         (fun ty inReq2 =>
+            LET inReqFinal <- cbReqToArbiterReq #inReq2;
+            @Arbiter.Ifc.sendReq
+              _ _ arbiter
+              routerSendReq
+              (Fin.FS (Fin.FS Fin.F1)) ty inReqFinal)
+      ) ty req.
     
-    
-
-  Local Definition sendPrefetchMemReq
-    (ty : Kind -> Type)
-    (prefetcherReq : ty (@Fetcher.Ifc.Req fetcherParams))
-    :  ActionT ty Bool
-    := System [
-         DispString _ "[sendPrefetchMemReq] req: ";
-         DispHex #prefetcherReq;
-         DispString _ "\n"
-       ];
-       Fetcher.Ifc.doPrefetch prefetcher
-         (@CompletionBuffer.Ifc.sendReq
-              procCompletionBufferParams
-              procCompletionBuffer
-              ty
-              (@mem_error ty)
-              (fun (completionBufferReq : ty (@CompletionBufferArbiterReq procCompletionBufferParams))
-                => LETA arbiterReq
-                     :  clientReqK (nth_Fin procArbiterClients prefetcherArbiterClientId)
-                     <- convertLetExprSyntax_ActionT
-                          (@toArbiterClientReadReq
-                            procParams
-                            memInterfaceParams
-                            ty
-                            prefetcherArbiterClientId
-                            (#completionBufferReq @% "mode")
-                            (#completionBufferReq @% "tag")
-                            (#completionBufferReq @% "paddr"));
-                   @Arbiter.Ifc.sendReq
-                     procArbiterParams
-                     procArbiter
-                     mem_error
-                     (@routeReq _ _ devicesIfc)
-                     prefetcherArbiterClientId ty arbiterReq))
-         prefetcherReq.
 
   (*
     Sends the next pending memory read request from the TLB.
