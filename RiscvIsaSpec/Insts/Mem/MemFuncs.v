@@ -11,20 +11,29 @@ Section Mem.
   Section Ty.
     Variable ty: Kind -> Type.
 
-    Definition MemInputAddrType := STRUCT_TYPE {
-                                       "base" :: VAddr ;
-                                       "offset" :: VAddr ;
-                                       "numZeros" :: MemRqLgSize ;
-                                       "data" :: MaskedMem ;
-                                       "aq" :: Bool ;
-                                       "rl" :: Bool }.
+    Definition MemInputAddrType
+      := STRUCT_TYPE {
+           "addr"     :: VAddr;
+           "numZeros" :: MemRqLgSize;
+           "data"     :: MaskedMem;
+           "aq"       :: Bool;
+           "rl"       :: Bool;
+           "isLr"     :: Bool;
+           "isSc"     :: Bool;
+           "reservationValid" :: Bool
+         }.
 
-    Definition MemOutputAddrType := STRUCT_TYPE {
-                                        "addr" :: VAddr ;
-                                        "data" :: MaskedMem ;
-                                        "aq" :: Bool ;
-                                        "rl" :: Bool ;
-                                        "misalignedException?" :: Bool }.
+    Definition MemOutputAddrType
+      := STRUCT_TYPE {
+           "addr" :: VAddr;
+           "data" :: MaskedMem;
+           "aq"   :: Bool;
+           "rl"   :: Bool;
+           "isLr" :: Bool;
+           "isSc" :: Bool;
+           "reservationValid"     :: Bool;
+           "misalignedException?" :: Bool
+         }.
 
     Local Open Scope kami_expr.
 
@@ -45,130 +54,183 @@ Section Mem.
                   ::= (unpack (Array Rlen_over_8 Bool) ($(Nat.pow 2 (Nat.pow 2 size) - 1))
                        : Array Rlen_over_8 Bool @# ty)
               } : MaskedMem @# ty;
-         LETC ret
-           :  MemInputAddrType
-           <- STRUCT {
-                  "base"     ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                  "offset"   ::= SignExtendTruncLsb Xlen (imm (#gcp @% "inst"));
-                  "numZeros" ::= $size;
-                  "data" ::= #maskedMem;
-                  "aq" ::= $$ false;
-                  "rl" ::= $$ false
-                } : MemInputAddrType @# ty;
-         RetE #ret.
+         LETC addr
+           :  VAddr
+           <- (ZeroExtendTruncLsb Xlen (#gcp @% "reg1")) +
+              (SignExtendTruncLsb Xlen (imm (#gcp @% "inst")));
+         RetE (STRUCT {
+           "addr"     ::= #addr;
+           "numZeros" ::= $size;
+           "data"     ::= #maskedMem;
+           "aq"       ::= $$false;
+           "rl"       ::= $$false;
+           "isLr"     ::= $$false;
+           "isSc"     ::= $$false;
+           "reservationValid" ::= $$false
+         } : MemInputAddrType @# ty).
 
     Definition loadTag (valin: MemOutputAddrType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr";
-         LETC val2: RoutedReg <- (STRUCT {
-                            "tag"  ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                            "data" ::= SignExtendTruncLsb Rlen #addr
-                                 });
-         LETC fullException: Exception <- (if misaligned_access then $LoadAccessFault else $LoadAddrMisaligned: Exception @# ty) ;
+         LETC val1
+           :  RoutedReg
+           <- STRUCT {
+                "tag"  ::= ($MemAddrTag : RoutingTag @# ty);
+                "data" ::= SignExtendTruncLsb Rlen #addr
+              };
+         LETC val2
+           :  RoutedReg
+           <- STRUCT {
+                "tag"  ::= ($LrTag : RoutingTag @# ty);
+                "data" ::= SignExtendTruncLsb Rlen (SignExtendTruncMsb ReservationSz #addr)
+              };
+         LETC fullException
+           :  Exception
+           <- if misaligned_access
+                then $LoadAccessFault
+                else $LoadAddrMisaligned;
          LETC valret
            :  ExecUpdPkt
-           <- ((noUpdPkt ty)
-                 @%["val2"
-                      <- (Valid #val2)]) ;
-         LETC retval
-           :  (PktWithException ExecUpdPkt)
-           <- STRUCT {
-                "fst" ::= #valret ;
-                "snd"
-                  ::= (IF #val @% "misalignedException?"
-                         then Valid #fullException
-                         else Invalid)} ;
-         RetE #retval.
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2"
+                  <- STRUCT {
+                       "valid" ::= #val @% "isLr";
+                       "data"  ::= #val2
+                     } : Maybe RoutedReg @# ty];
+         RetE (STRUCT {
+           "fst" ::= #valret ;
+           "snd"
+             ::= IF #val @% "misalignedException?"
+                   then Valid #fullException
+                   else Invalid
+         } : PktWithException ExecUpdPkt @# ty).
 
     Definition storeInput
       (size: nat)
       (ty : Kind -> Type)
       (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
-      : MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt <- gcpin ;
-      LETC maskedMem: MaskedMem <- (STRUCT {
-                                        "data" ::= (#gcp @% "reg2" : Data @# ty);
-                                        "mask"
-                                        ::= (unpack (Array Rlen_over_8 Bool) ($(Nat.pow 2 (Nat.pow 2 size) - 1))
-                                             : Array Rlen_over_8 Bool @# ty)
-                                      } : MaskedMem @# ty);
-      LETC ret
-        :  MemInputAddrType
-        <- STRUCT {
-             "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-             "offset" ::= SignExtendTruncLsb Xlen ({< funct7 (#gcp @% "inst"), rd (#gcp @% "inst") >});
-             "numZeros" ::= $size;
-             "data" ::= #maskedMem;
-             "aq" ::= $$ false;
-             "rl" ::= $$ false
-           };
-      RetE #ret.
+      : MemInputAddrType ## ty
+      := LETE gcp: ExecContextPkt <- gcpin ;
+         LETC maskedMem
+           :  MaskedMem
+           <- STRUCT {
+                "data" ::= (#gcp @% "reg2" : Data @# ty);
+                "mask"
+                  ::= (unpack (Array Rlen_over_8 Bool) ($(Nat.pow 2 (Nat.pow 2 size) - 1))
+                        : Array Rlen_over_8 Bool @# ty)
+              } : MaskedMem @# ty;
+         LETC addr
+           :  VAddr
+           <- (ZeroExtendTruncLsb Xlen (#gcp @% "reg1")) +
+              (SignExtendTruncLsb Xlen ({< funct7 (#gcp @% "inst"), rd (#gcp @% "inst") >}));
+         RetE (STRUCT {
+           "addr"     ::= #addr;
+           "numZeros" ::= $size;
+           "data"     ::= #maskedMem;
+           "aq"       ::= $$false;
+           "rl"       ::= $$false;
+           "isLr"     ::= $$false;
+           "isSc"     ::= $$false;
+           "reservationValid" ::= $$false
+         } : MemInputAddrType @# ty).
 
     Definition storeTagGeneric (allow_misaligned_val: bool) (isLoad: bool) (valin: MemOutputAddrType ## ty)
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr" ;
          LETC data: MaskedMem <- #val @% "data" ;
-         LETC val1: RoutedReg <- (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                              "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
-                                 });
-         LETC val2: RoutedReg <- (STRUCT {
-                              "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                              "data" ::= SignExtendTruncLsb Rlen #addr
-                                 });
-         LETC fullException: Exception <- ($(if isLoad then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
-                                                     else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned): Exception @# ty) ;
+         LETC val1
+           :  RoutedReg
+           <- STRUCT {
+                "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                "data" ::= SignExtendTruncLsb Rlen #addr
+              };
+         LETC val2
+           :  RoutedReg
+           <- STRUCT {
+                "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
+                "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
+              };
+         LETC fullException
+           :  Exception
+           <- $(if isLoad
+                then if allow_misaligned then LoadAccessFault else LoadAddrMisaligned
+                else if allow_misaligned then SAmoAccessFault else SAmoAddrMisaligned);
+         LETC mayWrite
+           :  Bool
+           <- !(#val @% "isSc") || #val @% "reservationValid";
          LETC valret
            :  ExecUpdPkt
-             <- ((noUpdPkt ty)
+             <- (noUpdPkt ty)
                    @%["val1"
-                        <- (Valid #val1)]
+                       <- STRUCT {
+                            "valid" ::= #mayWrite;
+                            "data"  ::= #val1
+                          } : Maybe RoutedReg @# ty]
                    @%["val2"
-                        <- (Valid #val2)]
-                   @%["memBitMask" <- #data @% "mask"]) ;
-         LETC retval:
-           (PktWithException ExecUpdPkt)
-             <-
-             STRUCT { "fst" ::= #valret ;
-                      "snd" ::= (IF #val @% "misalignedException?"
-                                 then Valid #fullException
-                                 else Invalid) } ;
-         RetE #retval.
+                       <- STRUCT {
+                            "valid" ::= #mayWrite;
+                            "data"  ::= #val2
+                          } : Maybe RoutedReg @# ty]
+                   @%["memBitMask" <- #data @% "mask"]
+                   @%["isSc" <- #val @% "isSc"]
+                   @%["reservationValid" <- #val @% "reservationValid"];
+         RetE (STRUCT {
+           "fst" ::= #valret ;
+           "snd"
+             ::= IF #val @% "misalignedException?"
+                   then Valid #fullException
+                   else Invalid
+         } : PktWithException ExecUpdPkt @# ty).
 
     Definition storeTag := storeTagGeneric allow_misaligned false.
 
+    Local Definition reservationValid
+      (reservation : Reservation @# ty)
+      (vaddr : VAddr @# ty)
+      :  Bool @# ty
+      := reservation == ZeroExtendTruncMsb ReservationSz vaddr.
+
     Definition amoInput
-      (ty : Kind -> Type)
-      sz
+      (sz : nat)
+      (isLr : bool)
+      (isSc : bool)
       (cfg : ContextCfgPkt @# ty)
       (gcpin: ExecContextPkt ## ty)
-      : MemInputAddrType ## ty :=
-      LETE gcp: ExecContextPkt <- gcpin ;
-      LETC maskedMem: MaskedMem <- STRUCT {
-                                  "data" ::= (#gcp @% "reg2" : Data @# ty);
-                                  "mask"
-                                  ::= (unpack (Array Rlen_over_8 Bool) ($(Nat.pow 2 (Nat.pow 2 sz) - 1))
-                                       : Array Rlen_over_8 Bool @# ty)
-                                };
-      LETC ret: MemInputAddrType <-
-                                 STRUCT {
-                                   "base" ::= ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
-                                   "offset" ::= $0 ;
-                                   "numZeros" ::= $sz ;
-                                   "data" ::= #maskedMem;
-                                   "aq" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]) ;
-                                   "rl" ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0])
-                                 } ;
-      RetE #ret.
+      :  MemInputAddrType ## ty
+      := LETE gcp: ExecContextPkt <- gcpin ;
+         LETC maskedMem
+           :  MaskedMem
+           <- STRUCT {
+                "data" ::= (#gcp @% "reg2" : Data @# ty);
+                "mask"
+                  ::= (unpack (Array Rlen_over_8 Bool) ($(Nat.pow 2 (Nat.pow 2 sz) - 1))
+                       : Array Rlen_over_8 Bool @# ty)
+              };
+         LETC addr
+           :  VAddr
+           <- ZeroExtendTruncLsb Xlen (#gcp @% "reg1");
+         RetE (STRUCT {
+           "addr"     ::= #addr;
+           "numZeros" ::= $sz;
+           "data"     ::= #maskedMem;
+           "aq"       ::= unpack Bool ((funct7 (#gcp @% "inst"))$[1:1]);
+           "rl"       ::= unpack Bool ((funct7 (#gcp @% "inst"))$[0:0]);
+           "isLr"     ::= $$isLr;
+           "isSc"     ::= $$isSc;
+           "reservationValid"
+             ::= (#gcp @% "reservation" @% "valid") &&
+                 (reservationValid (#gcp @% "reservation" @% "data" : Reservation @# ty) #addr)
+         } : MemInputAddrType @# ty).
 
     Definition amoTag := storeTagGeneric allow_misaligned false.
 
     Definition lrInput := amoInput.
 
-    Definition lrTag := storeTagGeneric allow_misaligned true.
+    Definition LrTag := loadTag.
 
     Definition scInput := amoInput.
 

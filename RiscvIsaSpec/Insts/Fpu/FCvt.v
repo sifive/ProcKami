@@ -54,15 +54,15 @@ Section Fpu.
                                "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
                                  });
          LETC fstVal: ExecUpdPkt <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
-                       "val2"
-                         ::= Valid #val2;
+                       "val1"       ::= Valid #val1;
+                       "val2"       ::= Valid #val2;
                        "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false;
+                       "fence.i"    ::= $$false;
+                       "isSc"       ::= $$false;
+                       "reservationValid" ::= $$false
                      });
          RetE
            (STRUCT {
@@ -89,15 +89,15 @@ Section Fpu.
                                "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
                                  });
          LETC fstVal <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
-                       "val2"
-                         ::= Valid #val2;
+                       "val1"       ::= Valid #val1;
+                       "val2"       ::= Valid #val2;
                        "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false;
+                       "fence.i"    ::= $$false;
+                       "isSc"       ::= $$false;
+                       "reservationValid" ::= $$false
                      } : ExecUpdPkt @# ty);
          RetE
            (STRUCT {

@@ -84,16 +84,16 @@ Section Fpu.
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                      });
                              LETC fstVal <- (STRUCT {
-                                           "val1"
-                                             ::= (Valid #val1 : Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid #val2 : Maybe RoutedReg @# ty);
-                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                           "taken?"     ::= $$false;
-                                           "aq"         ::= $$false;
-                                           "rl"         ::= $$false;
-                                           "fence.i"    ::= $$false
-                                         } : ExecUpdPkt @# ty);
+                               "val1"       ::= (Valid #val1 : Maybe RoutedReg @# ty);
+                               "val2"       ::= (Valid #val2 : Maybe RoutedReg @# ty);
+                               "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                               "taken?"     ::= $$false;
+                               "aq"         ::= $$false;
+                               "rl"         ::= $$false;
+                               "fence.i"    ::= $$false;
+                               "isSc"       ::= $$false;
+                               "reservationValid" ::= $$false
+                             } : ExecUpdPkt @# ty);
                              RetE
                                (STRUCT {
                                   "fst"
@@ -156,16 +156,16 @@ Section Fpu.
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                           });
                              LETC fstVal <- (STRUCT {
-                                           "val1"
-                                             ::= (Valid #val1: Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid #val2: Maybe RoutedReg @# ty);
-                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                           "taken?" ::= $$false;
-                                           "aq" ::= $$false;
-                                           "rl" ::= $$false;
-                                           "fence.i" ::= $$false
-                                         } : ExecUpdPkt @# ty);
+                               "val1"       ::= (Valid #val1: Maybe RoutedReg @# ty);
+                               "val2"       ::= (Valid #val2: Maybe RoutedReg @# ty);
+                               "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
+                               "taken?"     ::= $$false;
+                               "aq"         ::= $$false;
+                               "rl"         ::= $$false;
+                               "fence.i"    ::= $$false;
+                               "isSc"       ::= $$false;
+                               "reservationValid" ::= $$false
+                             } : ExecUpdPkt @# ty);
                              RetE
                                (STRUCT {
                                   "fst"
