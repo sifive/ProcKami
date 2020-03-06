@@ -93,6 +93,7 @@ Section reg_reader.
        LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
        Read fflags_val : FflagsValue <- @^"fflags";
        Read frm_val : FrmValue <- @^"frm";
+       Read reservation : Maybe Reservation <- @^"reservation";
        LETA msg <- Sys [
            DispString _ "Reg 1 selector: ";
            DispHex (rs1 #raw_inst);
@@ -141,7 +142,8 @@ Section reg_reader.
               "inst"           ::= #raw_inst;
               "compressed?"    ::= compressed;
               "exceptionUpper" ::= exceptionUpper;
-              "memHints"       ::= #mMemHints
+              "memHints"       ::= #mMemHints;
+              "reservation"    ::= #reservation
             } : ExecContextPkt @# ty).
 
   Definition readerWithException

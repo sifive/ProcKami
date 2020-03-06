@@ -76,14 +76,14 @@ Definition RoutingTag := Bit RoutingTagSz.
 
 Definition IntRegTag := 0. (* 1 *)
 Definition FloatRegTag := 1. (*  1 *)
-Definition MemDataTag := 2. (* 1 *)
+Definition MemAddrTag := 2. (* 1 *)
 Definition CsrWriteTag := 3. (* 1 *)
 Definition CsrSetTag := 4. (* 1 *)
 Definition CsrClearTag := 5. (* 1 *)
 Definition SFenceTag := 6. (* 1 *)
 
 Definition PcTag := 0. (* 2 *)
-Definition MemAddrTag := 1. (* 2 *)
+Definition MemDataTag := 1. (* 2 *)
 Definition FflagsTag := 2. (* 2 *)
 Definition MRetTag := 3. (* 2 *)
 Definition SRetTag := 4. (* 2 *)
@@ -94,6 +94,7 @@ Definition ECallSTag := 8. (* 2 *)
 Definition ECallUTag := 9. (* 2 *)
 Definition EBreakTag := 10. (* 2 *)
 Definition WfiTag := 11. (* 2 *)
+Definition LrTag := 12. (* 2 *)
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
@@ -177,6 +178,7 @@ Class ProcParams :=
     misaligned_access: bool;
     debug_buffer_sz : nat;
     debug_impebreak : bool;
+    lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -205,7 +207,6 @@ Section ParamDefinitions.
   Definition Rlen := (Rlen_over_8 * 8).
   Definition Data := Bit Rlen.
   Definition DataMask := (Array Rlen_over_8 Bool).
-  Definition Reservation := (Array Rlen_over_8 Bool).
   Definition VAddr := Bit Xlen.
   Definition CsrValueWidth := Xlen.
   Definition CsrValue := Bit CsrValueWidth.
@@ -217,6 +218,9 @@ Section ParamDefinitions.
 
   Definition PktWithException k := Pair k (Maybe Exception).
   
+  Definition ReservationSz := Xlen - lgGranularity.
+  Definition Reservation := Bit ReservationSz.
+
   Definition XlenWidth := 2.
   Definition XlenValue := Bit XlenWidth.
 
@@ -284,7 +288,8 @@ Section Params.
         "inst"           :: Inst ;
         "compressed?"    :: Bool ;
         "exceptionUpper" :: Bool ;
-        "memHints"       :: Maybe MemHintsPkt
+        "memHints"       :: Maybe MemHintsPkt;
+        "reservation"    :: Maybe Reservation
       }.
 
   Definition RoutedReg
@@ -301,7 +306,9 @@ Section Params.
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
         "rl"         :: Bool ;
-        "fence.i"    :: Bool
+        "fence.i"    :: Bool ;
+        "isSc"       :: Bool ; (* is store conditional instruction. *)
+        "reservationValid" :: Bool  (* LrSc reservation is valid. *)
       }.
 
   Definition MemWrite := WriteRqMask PAddrSz Rlen_over_8 (Bit 8).
@@ -707,15 +714,7 @@ Section Params.
                                                                  "snd" ::= #new_exception });
           Ret #retVal)%kami_action.
 
-    Definition noUpdPkt: ExecUpdPkt @# ty :=
-      (STRUCT {
-           "val1" ::= @Invalid ty _ ;
-           "val2" ::= @Invalid ty _ ;
-           "memBitMask" ::= $$ (getDefaultConst DataMask) ;
-           "taken?" ::= $$ false ;
-           "aq" ::= $$ false ;
-           "rl" ::= $$ false ;
-           "fence.i" ::= $$ false }).
+    Definition noUpdPkt: ExecUpdPkt @# ty := $$(getDefaultConst ExecUpdPkt).
 
     Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
       ((~(~($0) << numZeros)) .& ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.

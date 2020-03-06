@@ -166,6 +166,7 @@ Section exts.
   Variable debug_impebreak : bool.
 
   Local Definition procNumMemOps := 6.
+  Local Definition lgGranularity := 3. (* log2 (log2 (min size of a reservation region)). *)
 
   Local Instance procParams
     :  ProcParams
@@ -179,7 +180,8 @@ Section exts.
          misaligned_access
          debug_buffer_sz
          debug_impebreak
-         arbiterNumTransactions.
+         arbiterNumTransactions
+         lgGranularity.
 
   Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
   Proof. cbv; reflexivity. Qed.

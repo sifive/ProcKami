@@ -30,12 +30,12 @@ Section device.
 
   Local Definition uartDeviceRegs
     :  list RegInitT
-    := createDeviceRegs Tag uartDeviceName.
+    := createRegs Tag uartDeviceName.
 
-  Local Definition uartDeviceRegNames : DeviceRegNames := createDeviceRegNames uartDeviceName.
+  Local Definition uartDeviceRegNames : DeviceRegNames := createRegNames uartDeviceName.
 
   Local Definition uartDeviceParams := {|
-    regNames := createDeviceRegNames uartDeviceName;
+    regNames := createRegNames uartDeviceName;
 
     read
       := fun ty addr
@@ -82,16 +82,10 @@ Section device.
                  DispString _ "\n"
               ];
               Ret #memData;
-
-    readReservation
-      := fun ty _ => Ret $$(getDefaultConst Reservation);
-
-    writeReservation
-      := fun ty _ _ _ => Retv
   |}.
 
   Definition uartDevice
-    :  Device Tag
+    :  Device
     := {|
          Device.name := uartDeviceName;
          io := true;
@@ -110,12 +104,12 @@ Section device.
                (seq 0 4));
          deviceFiles := nil;
          deviceRegs := nil;
-         deviceRouterIfc
+         deviceIfc
            := {|
-                memDeviceReq
-                  := fun _ req => memDeviceSendReqFn _ _ uartDeviceParams req;
-                memDevicePoll
-                  := fun ty => memDeviceGetResFn _ ty uartDeviceParams
+                deviceReq
+                  := fun _ req => deviceSendReqFn _ _ _ Tag uartDeviceParams req;
+                devicePoll
+                  := fun ty => deviceGetResFn _ ty uartDeviceParams
               |}
        |}.
 

@@ -18,10 +18,10 @@ Section device.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Definition bootRomDeviceRegNames := createDeviceRegNames bootRomDeviceName.
+  Local Definition bootRomDeviceRegNames := createRegNames bootRomDeviceName.
 
   Local Definition bootRomDeviceParams := {|
-    regNames := createDeviceRegNames bootRomDeviceName;
+    regNames := createRegNames bootRomDeviceName;
 
     read
       := fun ty addr
@@ -42,20 +42,14 @@ Section device.
                  DispString _ "\n"
               ];
               Ret (Valid (pack #readData) : Maybe Data @# ty);
-
-    readReservation
-      := fun ty _ => Ret $$(getDefaultConst Reservation);
-
-    writeReservation
-      := fun ty _ _ _ => Retv
   |}.
 
   Local Definition bootRomDeviceRegs
     :  list RegInitT
-    := createDeviceRegs Tag bootRomDeviceName.
+    := createRegs Tag bootRomDeviceName.
 
   Definition bootRomDevice
-    :  Device Tag
+    :  Device
     := {|
          Device.name := bootRomDeviceName;
          io := true;
@@ -89,12 +83,12 @@ Section device.
                     (Bit 8)
                     (RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
          deviceRegs := nil;
-         deviceRouterIfc
+         deviceIfc
            := {|
-                memDeviceReq
-                  := fun _ req => memDeviceSendReqFn _ _ bootRomDeviceParams req;
-                memDevicePoll
-                  := fun ty => memDeviceGetResFn _ _ bootRomDeviceParams
+                deviceReq
+                  := fun _ req => deviceSendReqFn _ _ _ Tag bootRomDeviceParams req;
+                devicePoll
+                  := fun ty => deviceGetResFn _ _ bootRomDeviceParams
               |}
       |}.
                          

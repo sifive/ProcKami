@@ -327,6 +327,7 @@ Section Pipeline.
                      "exception"  ::= #execUpdPkt @% "snd"
                    };
               If #execContextPkt @% "fst" @% "memHints" @% "valid" &&
+                 #execUpdPkt @% "fst" @% "val1" @% "valid" &&
                  !(#execUpdPkt @% "snd" @% "valid")
               then
                 System [
@@ -335,7 +336,7 @@ Section Pipeline.
                 LET vaddr: FU.VAddr
                  <- xlen_sign_extend Xlen
                       (#cxtCfg @% "xlen")
-                      (#execUpdPkt @% "fst" @% "val2" @% "data" @% "data" : Bit Rlen @# ty);
+                      (#execUpdPkt @% "fst" @% "val1" @% "data" @% "data" : Bit Rlen @# ty);
                 LETA tlbResp
                   :  Maybe (PktWithException PAddr)
                   <- @memTranslate _ _ memInterface _  #cxtCfg
