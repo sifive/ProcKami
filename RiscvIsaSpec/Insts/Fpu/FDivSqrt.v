@@ -61,20 +61,14 @@ Section Fpu.
                                "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                                "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                                   });
-         LETC fstVal : ExecUpdPkt <- (STRUCT {
-                       "val1"       ::= Valid #val1;
-                       "val2"       ::= Valid #val2;
-                       "taken?"     ::= $$false;
-                       "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "fence.i"    ::= $$false;
-                       "isSc"       ::= $$false;
-                       "reservationValid" ::= $$false
-                     });
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2" <- (Valid #val2)];
          RetE
            (STRUCT {
-              "fst"
-                ::= #fstVal;
+              "fst" ::= #fstVal;
               "snd" ::= Invalid
             } : PktWithException ExecUpdPkt @# ty).
   End ty.

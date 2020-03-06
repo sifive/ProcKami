@@ -83,16 +83,11 @@ Section Fpu.
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                      });
-                             LETC fstVal <- (STRUCT {
-                               "val1"       ::= (Valid #val1 : Maybe RoutedReg @# ty);
-                               "val2"       ::= (Valid #val2 : Maybe RoutedReg @# ty);
-                               "taken?"     ::= $$false;
-                               "aq"         ::= $$false;
-                               "rl"         ::= $$false;
-                               "fence.i"    ::= $$false;
-                               "isSc"       ::= $$false;
-                               "reservationValid" ::= $$false
-                             } : ExecUpdPkt @# ty);
+                             LETC fstVal
+                               :  ExecUpdPkt
+                               <- (noUpdPkt ty)
+                                    @%["val1" <- (Valid #val1)]
+                                    @%["val2" <- (Valid #val2)];
                              RetE
                                (STRUCT {
                                   "fst"
@@ -154,16 +149,11 @@ Section Fpu.
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                           });
-                             LETC fstVal <- (STRUCT {
-                               "val1"       ::= (Valid #val1: Maybe RoutedReg @# ty);
-                               "val2"       ::= (Valid #val2: Maybe RoutedReg @# ty);
-                               "taken?"     ::= $$false;
-                               "aq"         ::= $$false;
-                               "rl"         ::= $$false;
-                               "fence.i"    ::= $$false;
-                               "isSc"       ::= $$false;
-                               "reservationValid" ::= $$false
-                             } : ExecUpdPkt @# ty);
+                             LETC fstVal
+                               :  ExecUpdPkt
+                               <- (noUpdPkt ty)
+                                    @%["val1" <- (Valid #val1)]
+                                    @%["val2" <- (Valid #val2)];
                              RetE
                                (STRUCT {
                                   "fst"

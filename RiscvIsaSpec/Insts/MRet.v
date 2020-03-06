@@ -127,8 +127,7 @@ Section mret.
                        ];
 
                   inputXform 
-                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE ((cfg_pkt @% "debug_hart_state" @% "debug") : Bool @# ty);
+                    := fun ty _ _ => RetE $$(getDefaultConst Void);
                   outputXform 
                     := fun ty (_ : Void ## ty)
                          => RetE (STRUCT {

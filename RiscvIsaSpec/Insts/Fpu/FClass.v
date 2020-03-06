@@ -44,16 +44,9 @@ Section Fpu.
                                "tag"  ::= Const ty (natToWord RoutingTagSz IntRegTag);
                                "data" ::= SignExtendTruncLsb Rlen #res
                                     });
-         LETC fstVal: ExecUpdPkt <- (STRUCT {
-                       "val1"       ::= Valid #val1;
-                       "val2"       ::= @Invalid ty _;
-                       "taken?"     ::= $$false;
-                       "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "fence.i"    ::= $$false;
-                       "isSc"       ::= $$false;
-                       "reservationValid" ::= $$false
-                     });
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)@%["val1" <- Valid #val1];
          RetE
            (STRUCT {
               "fst" ::= #fstVal;
