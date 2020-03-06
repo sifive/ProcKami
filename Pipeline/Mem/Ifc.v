@@ -7,13 +7,11 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.PmaPmp.Impl.
-
 Require Import StdLibKami.Arbiter.Ifc.
 
 Require Import StdLibKami.Fetcher.Ifc.
 
-Require Import ProcKami.MemInterface.Impl.
+Require Import ProcKami.Pipeline.Mem.Impl.
 
 (* Section Ifc. *)
 (*   Context {procParams: ProcParams}. *)

@@ -2,7 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.MemInterface.Impl.
+Require Import ProcKami.Pipeline.Mem.Impl.
 
 Require Import ProcKami.Pipeline.Ifc.
 Require Import ProcKami.Pipeline.Decoder.

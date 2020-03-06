@@ -7,11 +7,13 @@
   transformations needed to handle this behavior.
 *)
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
 Require Import ProcKami.Pipeline.RegWriter.
 
 Require Import StdLibKami.RegMapper.
-Require Import ProcKami.PmaPmp.Pmp.
+
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Import ListNotations.
 

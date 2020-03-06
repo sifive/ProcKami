@@ -8,8 +8,6 @@ Require Import ProcKami.MemRegion.
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
 
-Require Import ProcKami.PmaPmp.Impl.
-
 Require Import StdLibKami.RegArray.Ifc.
 Require Import StdLibKami.RegArray.RegList.
 
@@ -25,8 +23,8 @@ Require Import StdLibKami.Fetcher.Impl.
 Require Import StdLibKami.CompletionBuffer.Ifc.
 Require Import StdLibKami.CompletionBuffer.Impl.
 
-Require Import ProcKami.MemInterface.Tlb.Ifc.
-Require Import ProcKami.MemInterface.Tlb.Impl.
+Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
+Require Import ProcKami.Pipeline.Mem.Mmu.Impl.
 
 Require Import StdLibKami.ReplacementPolicy.Ifc.
 Require Import StdLibKami.ReplacementPolicy.PseudoLru.
@@ -140,9 +138,9 @@ Section Impl.
            freeList   := @FreeList.Array.impl _
          |}.
 
-  Local Definition tlb : Tlb.Ifc.Ifc := @Tlb.Impl.impl _ deviceTree @^"tlb"
-                                                       {| Tlb.Impl.lgPageSz := LgPageSz;
-                                                          Tlb.Impl.cam := @Cam.Impl.impl _ {|
+  Local Definition mmu : Mmu.Ifc.Ifc := @Mmu.Impl.impl _ deviceTree @^"tlb"
+                                                       {| Mmu.Impl.lgPageSz := LgPageSz;
+                                                          Mmu.Impl.cam := @Cam.Impl.impl _ {|
                                                                                            Cam.Impl.size      := @tlbSize params;
                                                                                            Cam.Impl.policy    := ReplacementPolicy.PseudoLru.impl
                                                                                          |}
@@ -159,7 +157,7 @@ Section Impl.
       (* TLB client *)
       {| clientTagSz := 0;
          clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
-                                    @Tlb.Ifc.callback _ deviceTree tlb _ res)%kami_action |};
+                                    @Mmu.Ifc.callback _ deviceTree mmu _ res)%kami_action |};
       (* Fetch Client *)                                                                                 
       {| clientTagSz := @completionBufferLgSize params;
          clientHandleRes ty
@@ -246,9 +244,9 @@ Section Impl.
             @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq (Fin.FS (Fin.FS Fin.F1)) ty inReqFinal)
       ) ty req.
 
-  Local Definition tlbSendReqRule ty: ActionT ty Void :=
-    @Tlb.Ifc.sendReqRule
-      _ _ tlb
+  Local Definition mmuSendReqRule ty: ActionT ty Void :=
+    @Mmu.Ifc.sendReqRule
+      _ _ mmu
       (fun ty req =>
          LET reqFinal: @Arbiter.Ifc.ClientReq arbiterParams 0 <- STRUCT { "tag" ::= $0;
                                                                           "req" ::= #req };

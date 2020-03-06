@@ -12,11 +12,12 @@ Require Import ProcKami.Device.
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
 
-Require Import ProcKami.PmaPmp.Impl.
+Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
+
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Require Import StdLibKami.Cam.Ifc.
 Require Import StdLibKami.ReplacementPolicy.Ifc.
-Require Import ProcKami.MemInterface.Tlb.Ifc.
 
 Section Impl.
   Context {procParams: ProcParams}.

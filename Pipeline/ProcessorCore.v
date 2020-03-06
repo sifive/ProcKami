@@ -15,8 +15,8 @@ Require Import ProcKami.Devices.UARTDevice.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.MemInterface.Ifc.
-Require Import ProcKami.MemInterface.Impl.
+Require Import ProcKami.Pipeline.Mem.Ifc.
+Require Import ProcKami.Pipeline.Mem.Impl.
 
 Require Import ProcKami.Pipeline.Impl.
 

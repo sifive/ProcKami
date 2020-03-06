@@ -4,7 +4,7 @@ Require Import ProcKami.FU.
 
 Require Import ProcKami.Device.
 
-Require Import ProcKami.PmaPmp.Impl.
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Section Ifc.
   Context {procParams: ProcParams}.
