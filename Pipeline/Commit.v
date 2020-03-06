@@ -89,6 +89,14 @@ Section trap_handling.
        ];
        Retv.
 
+  Local Definition commitOpWfi
+    :  ActionT ty Void
+    := Write @^"isWfi" : Bool <- $$true;
+       System [
+         DispString _ "[commitOpWfi]\n"
+       ];
+       Retv.
+
   Local Definition commitOpCall1
     (cfg : ContextCfgPkt @# ty)
     (mepc : VAddr @# ty)
@@ -127,6 +135,8 @@ Section trap_handling.
              then commitOpRetAux "s" 1;
            If call @% "data" @% "tag" == $URetTag
              then commitOpRetAux "u" 0;
+           If call @% "data" @% "tag" == $WfiTag
+             then commitOpWfi;
            If debugHartState @% "debug" &&
               call @% "data" @% "tag" == $DRetTag
              then commitOpExitDebugMode dpc prv;

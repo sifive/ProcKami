@@ -398,9 +398,10 @@ Section Pipeline.
 
     (* Stage 4 *)
     Local Definition commitRule: ActionT ty Void :=
+      Read isWfi : Bool <- @^"isWfi";
       LETA optCommit <- @Fifo.Ifc.first _ decExecFifo _;
       LETA cxtCfg: ContextCfgPkt <- readConfig _;
-      If #optCommit @% "valid"
+      If #optCommit @% "valid" && !#isWfi 
       then (
         System [
           DispString _ "[commitRule] optCommit: ";
