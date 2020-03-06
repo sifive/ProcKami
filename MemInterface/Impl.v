@@ -222,7 +222,7 @@ Section Impl.
   refine (
     let deviceInReq : Device.Req ArbiterTag @# ty := STRUCT { "tag" ::= #req @% "tag" ;
                                                               "memOp" ::= #req @% "req" @% "memOp" ;
-                                                              "addr" ::= #req @% "req" @% "offset" ;
+                                                              "offset" ::= #req @% "req" @% "offset" ;
                                                               "data" ::= #req @% "req" @% "data" } in
     STRUCT { "dtag" ::= castBits _ (#req @% "req" @% "dtag") ;
              "req" ::= deviceInReq}).
@@ -258,7 +258,7 @@ Section Impl.
   Local Definition memSendReq ty (req: ty FullMemReq): ActionT ty Bool :=
     LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq Fin.F1 ty req;
     Ret (#retVal @% "valid").
-  
+(*
   Definition procMemInterface
     :  MemInterface
     := {|
@@ -308,7 +308,7 @@ Section Impl.
                 @CompletionBuffer.Ifc.regFiles procCompletionBufferParams procCompletionBuffer
               )
        |}.
-
+*)
   Local Close Scope kami_action.
   Local Close Scope kami_expr.
-End withParams.
+End Impl.
