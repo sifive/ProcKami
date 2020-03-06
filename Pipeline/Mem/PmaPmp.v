@@ -6,7 +6,7 @@ Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
 Require Import ProcKami.MemRegion.
 
-Require Import ProcKami.Pipeline.Mem.PmaPmp.Pmp.
+Require Import ProcKami.Pipeline.Mem.Pmp.
 
 Section PmaPmp.
   Context {procParams: ProcParams}.
