@@ -98,7 +98,7 @@ Section debug_device.
   Local Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
 
   Definition debugDevice
-    := @genRegDevice Tag procParams 
+    := @genRegDevice procParams 
          (Nat.log2_up debug_device_regs_size)
          (map
            (fun x
@@ -111,7 +111,7 @@ Section debug_device.
          "debug_device" false.
 
   Definition debugDeviceRegs
-    := createDeviceRegs Tag "debug_device".
+    := createRegs Tag "debug_device".
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.

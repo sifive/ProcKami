@@ -12,7 +12,6 @@ Section memOpsFuncs.
   (* specifies the value stored in the destination register by a memory operation. *)
   Inductive MemRegValue
     := memRegValueFn : (forall ty, Data @# ty -> Data ## ty) -> MemRegValue
-    |  memRegValueSc (* write 1 if reservation is valid *)
     |  memRegValueNone.
 
   Definition isMemRegValueFn (x : MemRegValue) : bool
@@ -21,28 +20,15 @@ Section memOpsFuncs.
        | _ => false
        end.
 
-  Definition isMemRegValueSc (x : MemRegValue) : bool
-    := match x with
-        | memRegValueSc => true
-        | _ => false
-       end.
-
   (* specifies the value written to memory by a memory operation. *)
   Inductive MemWriteValue : Type
     := memWriteValueFn : (forall ty, Data @# ty -> Data @# ty -> Data ## ty) -> MemWriteValue
     |  memWriteValueStore (* write register value *)
-    |  memWriteValueSc (* write register value if reservation is valid. *)
     |  memWriteValueNone.
 
   Definition isMemWriteValueFn (x : MemWriteValue) : bool
     := match x with
        | memWriteValueFn _ => true
-       | _ => false
-       end.
-
-  Definition isMemWriteValueSc (x : MemWriteValue) : bool
-    := match x with
-       | memWriteValueSc => true
        | _ => false
        end.
 
@@ -56,27 +42,13 @@ Section memOpsFuncs.
     memOpCode : nat;
     memOpSize : nat;
     memOpRegValue : MemRegValue;
-    memOpWriteValue : MemWriteValue;
-    memOpReservation : MemReservation
+    memOpWriteValue : MemWriteValue
   }.
 
   Definition getMask (size: nat) ty
     :  DataMask @# ty
     := unpack DataMask
          ($(Nat.pow 2 (Nat.pow 2 size) - 1)).
-
-  Definition reservationValid
-    (size : nat) ty
-    (reservation : Reservation @# ty)
-    : Bool ## ty
-    := LETC mask : DataMask <- getMask size ty;
-       RetE
-         (CABool And
-           (map
-             (fun i
-               => !(ReadArrayConst #mask i) ||
-                  (ReadArrayConst reservation i))
-             (getFins Rlen_over_8))).
 
   Section memOps.
     Variable memOps : list MemOp.

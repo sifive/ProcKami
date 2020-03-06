@@ -62,16 +62,14 @@ Section Fpu.
                                "data" ::= (csr (#sem_out_pkt @% "exception") : Bit Rlen @# ty)
                                   });
          LETC fstVal : ExecUpdPkt <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
-                       "val2"
-                         ::= Valid #val2;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
-                                  
+                       "val1"       ::= Valid #val1;
+                       "val2"       ::= Valid #val2;
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false;
+                       "fence.i"    ::= $$false;
+                       "isSc"       ::= $$false;
+                       "reservationValid" ::= $$false
                      });
          RetE
            (STRUCT {

@@ -24,7 +24,7 @@ Section trap.
     LETC currPc <- SignExtendTruncLsb Rlen pc;
     LETC currPc2 <- (#currPc + IF exceptionUpper then $2 else $0);
     LETC nextPc <- SignExtendTruncLsb Rlen next_pc;
-    LETC memAddr <- (update_pkt @% "val2" @% "data" @% "data");
+    LETC memAddr <- (update_pkt @% "val1" @% "data" @% "data");
     RetE
       (ZeroExtendTruncLsb Xlen
         (Switch exception Retn Data With {

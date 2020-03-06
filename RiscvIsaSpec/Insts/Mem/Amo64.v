@@ -13,19 +13,20 @@ Section Mem.
 
     Definition Amo64: FUEntry :=
       {| fuName := "amo64" ;
-         fuFunc := (fun ty i => LETE x: MemInputAddrType <- i;
-                               LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
-                               LETC ret: MemOutputAddrType
-                                           <-
-                                           STRUCT {
-                                             "addr" ::= #addr ;
-                                             "data" ::= #x @% "data" ;
-                                             "aq" ::= #x @% "aq" ;
-                                             "rl" ::= #x @% "rl" ;
-                                             "misalignedException?" ::=
-                                               !(checkAligned #addr (#x @% "numZeros"))
-                                           } ;
-                               RetE #ret ) ;
+         fuFunc
+           := fun ty i
+                => LETE x: MemInputAddrType <- i;
+                   RetE (STRUCT {
+                     "addr" ::= #x @% "addr";
+                     "data" ::= #x @% "data";
+                     "aq"   ::= #x @% "aq";
+                     "rl"   ::= #x @% "rl";
+                     "isLr" ::= #x @% "isLr";
+                     "isSc" ::= #x @% "isSc";
+                     "reservationValid" ::= #x @% "reservationValid";
+                     "misalignedException?"
+                       ::= !checkAligned (#x @% "addr") (#x @% "numZeros")
+                   } : MemOutputAddrType @# ty);
          fuInsts :=
            {| instName     := "amoswap.d" ;
               xlens        :=  [Xlen64];
@@ -35,7 +36,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"00001") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoSwapD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -48,7 +49,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"00000") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoAddD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -61,7 +62,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"00100") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoXorD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -74,7 +75,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"01100") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoAndD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -87,7 +88,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"01000") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoOrD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -100,7 +101,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"10000") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoMinD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -113,7 +114,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"10100") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoMaxD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -126,7 +127,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"11000") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoMinuD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>
@@ -139,7 +140,7 @@ Section Mem.
                                        fieldVal opcodeField ('b"01011") ::
                                        fieldVal funct3Field ('b"011") ::
                                        fieldVal funct5Field ('b"11100") :: nil ;
-              inputXform   := fun ty => amoInput 3 (ty := ty);
+              inputXform   := fun ty => amoInput 3 false false (ty := ty);
               outputXform  := fun ty => amoTag (ty := ty) ;
               optMemParams := Some AmoMaxuD;
               instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>

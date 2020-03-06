@@ -24,7 +24,6 @@ Section DeviceIfc.
         pma_writeable : bool;
         pma_executable : bool;
         pma_misaligned : bool;
-        pma_lrsc : bool;
         pma_amo : PMAAmoClass
       }.
 
@@ -37,17 +36,16 @@ Section DeviceIfc.
               pma_writeable  := true;
               pma_executable := true;
               pma_misaligned := true;
-              pma_lrsc       := true;
               pma_amo        := AMOArith
             |})
          [0; 1; 2; 3].
 
   Definition Req tagK
     := STRUCT_TYPE {
-         "tag"   :: tagK;
-         "memOp" :: MemOpCode;
-         "addr"  :: PAddr;
-         "data"  :: Data
+         "tag"    :: tagK;
+         "memOp"  :: MemOpCode;
+         "offset" :: PAddr;
+         "data"   :: Data
        }.
 
   Definition Res tagK
@@ -96,18 +94,6 @@ Section DeviceIfc.
 
     (* Returns the value retrieved by the last read request. *)
     readRes : forall ty, ActionT ty (Maybe Data);
-
-    readReservation
-      : forall ty,
-          PAddr @# ty ->
-          ActionT ty Reservation;
-
-    writeReservation
-      : forall ty,
-          PAddr @# ty ->
-          DataMask @# ty ->
-          Reservation @# ty ->
-          ActionT ty Void
   }.
 
   Definition createRegs tagK
@@ -118,8 +104,8 @@ Section DeviceIfc.
                         Register (@deviceReqRegName names): Maybe (Req tagK) <- Default ++
                         RegisterU (@deviceResRegName names): Maybe Data)%kami.
 
-  Context (baseDevice: BaseDevice).
   Section ty.
+    Context (baseDevice: BaseDevice).
     Variable ty : Kind -> Type.
 
     Local Open Scope kami_expr.
@@ -144,41 +130,10 @@ Section DeviceIfc.
            then read addr;
          Retv.
 
-    Local Definition deviceUsesReservation
-      :  MemOpCode @# ty -> ActionT ty Bool
-      := applyMemOp
-           memOps
-           (fun memOp
-             => Ret
-                  $$(orb
-                    (isMemRegValueSc (memOpRegValue memOp))
-                    (isMemWriteValueSc (memOpWriteValue memOp)))).
-
-    Local Definition deviceReadReservation
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      :  ActionT ty Reservation
-      := LETA usesReservation : Bool <- deviceUsesReservation code;
-         If #usesReservation
-           then readReservation addr
-           else Ret $$(getDefaultConst Reservation)
-           as result;
-         Ret #result.
-
-    Local Definition deviceIsReservationValid
-      (code : MemOpCode @# ty)
-      (reservation : Reservation @# ty)
-      :  ActionT ty Bool
-      := applyMemOp
-           memOps
-           (fun memOp => convertLetExprSyntax_ActionT (reservationValid (memOpSize memOp) reservation))
-           code.
-
     Local Definition deviceWriteValue
       (code : MemOpCode @# ty)
       (memData : Data @# ty)
       (regData : Data @# ty)
-      (isReservationValid : Bool @# ty)
       :  ActionT ty (Maybe Data)
       := applyMemOp
            memOps
@@ -191,11 +146,6 @@ Section DeviceIfc.
                      Ret (Valid #result : Maybe Data @# ty)
                 | memWriteValueStore
                   => Ret (Valid regData)
-                | memWriteValueSc
-                  => Ret
-                       (IF isReservationValid
-                         then Valid regData
-                         else Invalid : Maybe Data @# ty)
                 | memWriteValueNone
                   => Ret (Invalid : Maybe Data @# ty)
                 end)
@@ -227,38 +177,9 @@ Section DeviceIfc.
            as result;
          Ret #result.
 
-    Local Definition deviceReservation
-      :  MemOpCode @# ty -> ActionT ty (Maybe Reservation)
-      := applyMemOp
-           memOps
-           (fun memOp
-             => Ret
-                  (match memOpReservation memOp return Maybe Reservation @# ty with
-                   | memReservationSet
-                     => Valid (getMask (memOpSize memOp) ty)
-                   | memReservationClear
-                     => Valid ($$(getDefaultConst (Reservation)))
-                   | memReservationNone
-                     => Invalid : Maybe Reservation @# ty
-                   end)).
-
-    Local Definition deviceWriteReservation
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      (writeMask : DataMask @# ty)
-      :  ActionT ty Void
-      := LETA reservation : Maybe Reservation <- deviceReservation code;
-         If #reservation @% "valid"
-           then 
-             writeReservation addr writeMask
-               (#reservation @% "data" : Reservation @# ty)
-               ;
-         Retv.
-
     Local Definition deviceRegValue
       (code : MemOpCode @# ty)
       (memData : Data @# ty)
-      (isReservationValid : Bool @# ty)
       :  ActionT ty (Maybe Data)
       := applyMemOp
            memOps
@@ -267,8 +188,6 @@ Section DeviceIfc.
                   | memRegValueFn f
                     => LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
                        Ret (Valid #result : Maybe Data @# ty)
-                  | memRegValueSc
-                    => Ret (Valid (IF isReservationValid then $0 : Data @# ty else $1))
                   | memRegValueNone
                     => Ret (Invalid : Maybe Data @# ty)
                   end)
@@ -280,7 +199,7 @@ Section DeviceIfc.
       := Read busy : Bool <- deviceBusyRegName regNames;
          Write (deviceBusyRegName regNames) : Bool <- $$true;
          If !#busy
-           then deviceRead (#req @% "memOp") (#req @% "addr");
+           then deviceRead (#req @% "memOp") (#req @% "offset");
          Read currReq
            :  Maybe (Req tagK)
            <- deviceReqRegName regNames;
@@ -301,7 +220,7 @@ Section DeviceIfc.
 
     (*
       Reads the value returned by the last read request sent to the
-      deviceice; computes a register result, reservation, and memory
+      deviceice; computes a register result, and memory
       write value, using the current deviceice request and most recent
       memory read result; attempts to write the memory write value
       to memory; and returns the computed register result value.
@@ -325,12 +244,6 @@ Section DeviceIfc.
              System [
                DispString _ "[deviceGetResFn] we have a valid request in buffer.\n"
              ];
-             LETA reservation
-               :  Reservation
-               <- deviceReadReservation (#req @% "data" @% "memOp") (#req @% "data" @% "addr");
-             LETA isReservationValid
-               :  Bool
-               <- deviceIsReservationValid (#req @% "data" @% "memOp") #reservation;
              LETA memData : Maybe Data <- readRes ty;
              System [
                DispString _ "[Device.deviceGetResFn] memData: ";
@@ -339,17 +252,16 @@ Section DeviceIfc.
              ];
              LETA writeData
                :  Maybe Data
-               <- deviceWriteValue (#req @% "data" @% "memOp") (#memData @% "data") (#req @% "data" @% "data") #isReservationValid;
+               <- deviceWriteValue (#req @% "data" @% "memOp") (#memData @% "data") (#req @% "data" @% "data");
              LETA writeMask
                :  DataMask
                <- deviceWriteMask (#req @% "data" @% "memOp");
              LETA writeSucceeded
                :  Bool
-               <- deviceWrite (#req @% "data" @% "addr") #writeMask #writeData;
-             LETA _ <- deviceWriteReservation (#req @% "data" @% "memOp") (#req @% "data" @% "addr") #writeMask;
+               <- deviceWrite (#req @% "data" @% "offset") #writeMask #writeData;
              LETA regData
                :  Maybe Data
-               <- deviceRegValue (#req @% "data" @% "memOp") (#memData @% "data") #isReservationValid;
+               <- deviceRegValue (#req @% "data" @% "memOp") (#memData @% "data");
              Write (deviceReqRegName regNames)
                :  Maybe (Req tagK)
                <- Invalid;

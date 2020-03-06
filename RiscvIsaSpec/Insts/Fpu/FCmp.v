@@ -100,18 +100,18 @@ Section Fpu.
                                   "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
                          } : RoutedReg @# ty);
          LETC fstVal <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
+                       "val1" ::= Valid #val1;
                        "val2"
                          ::= ITE
                                (#result @% "fflags" @% "valid")
                                (Valid #val2)
                                (@Invalid ty _);
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
+                       "taken?"     ::= $$false;
+                       "aq"         ::= $$false;
+                       "rl"         ::= $$false;
+                       "fence.i"    ::= $$false;
+                       "isSc"       ::= $$false;
+                       "reservationValid" ::= $$false
                      } :  ExecUpdPkt @# ty);
          RetE
            (STRUCT {

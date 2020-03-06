@@ -91,6 +91,7 @@ Section Params.
     := MODULE {
          Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
          Register @^"pc"               : VAddr <- ConstBit pc_init with
+         Register @^"reservation"      : Maybe Reservation <- getDefaultConst (Maybe Reservation) with
          Registers (@csr_regs procParams Csrs) with
          Registers (@debug_internal_regs procParams) with
          Registers (@devicesRegs procParams (@devices procParams devicesIfc)) with
@@ -197,19 +198,6 @@ Section Params.
          (Bit Flen)
          (RFNonFile _ None).
 
-  Local Notation lgMemSz := 20.
-  Definition memReservationRegFile
-    :  RegFileBase
-    := @Build_RegFileBase
-         true
-         Rlen_over_8
-         (@^"memReservation_reg_file")
-         (Async [ @^"readMemReservation" ])
-         (@^"writeMemReservation")
-         (Nat.pow 2 lgMemSz)
-         Bool
-         (RFFile true false "file0" 0 (Nat.pow 2 lgMemSz) (fun _ => false)).
-
   Definition processor
     :  Mod 
     := let md
@@ -219,9 +207,8 @@ Section Params.
               (map
                 (fun m => Base (BaseRegFile m)) 
                 ([   
-                   intRegFile; 
-                   floatRegFile; 
-                   memReservationRegFile
+                   intRegFile;
+                   floatRegFile
                  ] ++
                  (@Pipeline.Ifc.regFiles procPipeline) ++
                  (@MemInterface.Ifc.allRegFiles procParams procMemInterfaceParams procMem) ++

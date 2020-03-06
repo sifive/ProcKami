@@ -4,9 +4,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
-
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-
 
 Require Import ProcKami.Debug.DebugDevice.
 
@@ -14,7 +12,6 @@ Import ListNotations.
 
 Section debug.
   Context {procParams: ProcParams}.
-  Context {memInterfaceParams : MemInterfaceParams}.
 
   Local Definition debug_num_harts := 1.
   Local Definition debug_hart_indexSz := Nat.log2_up debug_num_harts.

@@ -18,10 +18,10 @@ Section device.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Definition bootRomDeviceRegNames := createDeviceRegNames bootRomDeviceName.
+  Local Definition bootRomDeviceRegNames := createRegNames bootRomDeviceName.
 
   Local Definition bootRomDeviceParams := {|
-    regNames := createDeviceRegNames bootRomDeviceName;
+    regNames := createRegNames bootRomDeviceName;
 
     read
       := fun ty addr
@@ -42,20 +42,14 @@ Section device.
                  DispString _ "\n"
               ];
               Ret (Valid (pack #readData) : Maybe Data @# ty);
-
-    readReservation
-      := fun ty _ => Ret $$(getDefaultConst Reservation);
-
-    writeReservation
-      := fun ty _ _ _ => Retv
   |}.
 
   Local Definition bootRomDeviceRegs
     :  list RegInitT
-    := createDeviceRegs Tag bootRomDeviceName.
+    := createRegs Tag bootRomDeviceName.
 
   Definition bootRomDevice
-    :  Device Tag
+    :  Device
     := {|
          Device.name := bootRomDeviceName;
          io := true;
@@ -68,7 +62,6 @@ Section device.
                      pma_writeable  := false;
                      pma_executable := true;
                      pma_misaligned := true;
-                     pma_lrsc       := false;
                      pma_amo        := AMONone
                    |})
                 (seq 0 4);
@@ -89,15 +82,14 @@ Section device.
                     (Bit 8)
                     (RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
          deviceRegs := nil;
-         deviceRouterIfc
+         deviceIfc Tag
            := {|
-                memDeviceReq
-                  := fun _ req => memDeviceSendReqFn _ _ bootRomDeviceParams req;
-                memDevicePoll
-                  := fun ty => memDeviceGetResFn _ _ bootRomDeviceParams
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams bootRomDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams bootRomDeviceParams ty Tag
               |}
       |}.
-                         
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.

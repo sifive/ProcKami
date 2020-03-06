@@ -20,9 +20,9 @@ Section mem_devices.
 
   Local Definition pMemDeviceRegs
     :  list RegInitT
-    := createDeviceRegs Tag pMemDeviceName.
+    := createRegs Tag pMemDeviceName.
 
-  Local Definition pDevRegNames := createDeviceRegNames pMemDeviceName.
+  Local Definition pDevRegNames := createRegNames pMemDeviceName.
 
   Local Definition pMemDeviceParams := {|
     regNames := pDevRegNames;
@@ -55,28 +55,10 @@ Section mem_devices.
                  DispString _ "\n"
               ];
               Ret (Valid (pack #readData) : Maybe Data @# ty);
-
-    readReservation
-      := fun ty addr
-           => ReadRf reservation : Reservation
-                <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-              Ret #reservation;
-
-    writeReservation
-      := fun ty addr mask reservation
-           => LET writeRq
-                :  WriteRqMask lgMemSz Rlen_over_8 Bool
-                <- STRUCT {
-                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
-                     "data" ::= reservation;
-                     "mask" ::= mask
-                   };
-              Call @^"writeMemReservation" (#writeRq: _);
-              Retv
   |}.
   
   Definition pMemDevice
-    :  Device Tag
+    :  Device
     := {|
          Device.name := pMemDeviceName;
          io   := false;
@@ -98,12 +80,12 @@ Section mem_devices.
                     (Bit 8) (* rfData: Kind *)
                     (RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
          deviceRegs := nil;
-         deviceRouterIfc
+         deviceIfc Tag
            := {|
-                memDeviceReq
-                  := fun _ req => memDeviceSendReqFn _ _ pMemDeviceParams req;
-                memDevicePoll
-                  := fun ty => memDeviceGetResFn _ ty pMemDeviceParams
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams pMemDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams pMemDeviceParams ty Tag
               |}
        |}.
 

@@ -70,6 +70,25 @@ Section trap_handling.
          <- ZeroExtendTruncLsb pp_width (modeFix #extensions (Const ty (natToWord _ UserMode)));
        Retv.
 
+  Local Definition commitOpSetReservation
+    (reservation : Reservation @# ty)
+    :  ActionT ty Void
+    := Write @^"reservation" : Maybe Reservation <- Valid reservation;
+       System [
+         DispString _ "[commitOpSetReservation] reservation: ";
+         DispHex reservation;
+         DispString _ "\n"
+       ];
+       Retv.
+
+  Local Definition commitOpClearReservation
+    :  ActionT ty Void
+    := Write @^"reservation" : Maybe Reservation <- Invalid;
+       System [
+         DispString _ "[commitOpClearReservation]\n"
+       ];
+       Retv.
+
   Local Definition commitOpCall1
     (cfg : ContextCfgPkt @# ty)
     (mepc : VAddr @# ty)
@@ -91,7 +110,7 @@ Section trap_handling.
              then reg_writer_write_freg rdId (call @% "data" @% "data");
            Retv;
        Retv.
-               
+
   Local Definition commitOpCall2
     (dpc : VAddr @# ty)
     (prv : PrivMode @# ty)
@@ -111,6 +130,8 @@ Section trap_handling.
            If debugHartState @% "debug" &&
               call @% "data" @% "tag" == $DRetTag
              then commitOpExitDebugMode dpc prv;
+           If call @% "data" @% "tag" == $LrTag
+             then commitOpSetReservation (SignExtendTruncMsb ReservationSz (call @% "data" @% "data"));
            Retv;
        Retv.
 
@@ -153,6 +174,23 @@ Section trap_handling.
          then 
            Read instret_reg <- @^"minstret";
            Write @^"minstret" : Bit 64 <- #instret_reg + $1;
+           Retv;
+       Retv.
+
+  Local Definition commitSc
+    (xlen : XlenValue @# ty)
+    (rdId : RegId @# ty)
+    (isSc : Bool @# ty)
+    (reservationValid : Bool @# ty)
+    :  ActionT ty Void
+    := If isSc
+         then
+           LETA _ <- commitOpClearReservation;
+           LETA _
+             <- reg_writer_write_reg xlen rdId
+                  (IF reservationValid
+                    then $0
+                    else $1);
            Retv;
        Retv.
 
@@ -307,6 +345,12 @@ Section trap_handling.
               <- commitOpCall2
                    #dpc #prv #debugHartState
                    (update_pkt @% "val2");
+            LETA _
+              <- commitSc
+                   (cfg_pkt @% "xlen")
+                   (rd (exec_context_pkt @% "inst"))
+                   (update_pkt @% "isSc")
+                   (update_pkt @% "reservationValid");
             LETA _ <- commitIncCounters;
             Write @^"pc" : VAddr <- #nextPc;
             Ret #nextPc

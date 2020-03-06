@@ -18,24 +18,22 @@ Section device.
   Definition UARTRead
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz
-         (* "size" :: MemRqLgSize *)
        }.
 
   Definition UARTWrite
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz;
          "data" :: Data (* every UART interface register is one byte wide *)
-         (* "size" :: MemRqLgSize *)
        }.
 
   Local Definition uartDeviceRegs
     :  list RegInitT
-    := createDeviceRegs Tag uartDeviceName.
+    := createRegs Tag uartDeviceName.
 
-  Local Definition uartDeviceRegNames : DeviceRegNames := createDeviceRegNames uartDeviceName.
+  Local Definition uartDeviceRegNames := createRegNames uartDeviceName.
 
   Local Definition uartDeviceParams := {|
-    regNames := createDeviceRegNames uartDeviceName;
+    regNames := createRegNames uartDeviceName;
 
     read
       := fun ty addr
@@ -82,16 +80,10 @@ Section device.
                  DispString _ "\n"
               ];
               Ret #memData;
-
-    readReservation
-      := fun ty _ => Ret $$(getDefaultConst Reservation);
-
-    writeReservation
-      := fun ty _ _ _ => Retv
   |}.
 
   Definition uartDevice
-    :  Device Tag
+    :  Device
     := {|
          Device.name := uartDeviceName;
          io := true;
@@ -104,18 +96,17 @@ Section device.
                     pma_writeable  := true;
                     pma_executable := false;
                     pma_misaligned := true;
-                    pma_lrsc       := false;
                     pma_amo        := AMONone
                   |})
                (seq 0 4));
          deviceFiles := nil;
          deviceRegs := nil;
-         deviceRouterIfc
+         deviceIfc Tag
            := {|
-                memDeviceReq
-                  := fun _ req => memDeviceSendReqFn _ _ uartDeviceParams req;
-                memDevicePoll
-                  := fun ty => memDeviceGetResFn _ ty uartDeviceParams
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams uartDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams uartDeviceParams ty Tag
               |}
        |}.
 

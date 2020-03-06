@@ -94,6 +94,7 @@ Definition ECallSTag := 8. (* 2 *)
 Definition ECallUTag := 9. (* 2 *)
 Definition EBreakTag := 10. (* 2 *)
 Definition WfiTag := 11. (* 2 *)
+Definition LrTag := 12. (* 2 *)
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.
@@ -177,6 +178,7 @@ Class ProcParams :=
     misaligned_access: bool;
     debug_buffer_sz : nat;
     debug_impebreak : bool;
+    lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -205,7 +207,6 @@ Section ParamDefinitions.
   Definition Rlen := (Rlen_over_8 * 8).
   Definition Data := Bit Rlen.
   Definition DataMask := (Array Rlen_over_8 Bool).
-  Definition Reservation := (Array Rlen_over_8 Bool).
   Definition VAddr := Bit Xlen.
   Definition CsrValueWidth := Xlen.
   Definition CsrValue := Bit CsrValueWidth.
@@ -217,6 +218,9 @@ Section ParamDefinitions.
 
   Definition PktWithException k := Pair k (Maybe Exception).
   
+  Definition ReservationSz := Xlen - lgGranularity.
+  Definition Reservation := Bit ReservationSz.
+
   Definition XlenWidth := 2.
   Definition XlenValue := Bit XlenWidth.
 
@@ -284,7 +288,8 @@ Section Params.
         "inst"           :: Inst ;
         "compressed?"    :: Bool ;
         "exceptionUpper" :: Bool ;
-        "memHints"       :: Maybe MemHintsPkt
+        "memHints"       :: Maybe MemHintsPkt;
+        "reservation"    :: Maybe Reservation
       }.
 
   Definition RoutedReg
@@ -297,11 +302,12 @@ Section Params.
     STRUCT_TYPE {
         "val1"       :: Maybe RoutedReg ;
         "val2"       :: Maybe RoutedReg ;
-        "memBitMask" :: DataMask ;
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
         "rl"         :: Bool ;
-        "fence.i"    :: Bool
+        "fence.i"    :: Bool ;
+        "isSc"       :: Bool ; (* is store conditional instruction. *)
+        "reservationValid" :: Bool  (* LrSc reservation is valid. *)
       }.
 
   Definition MemWrite := WriteRqMask PAddrSz Rlen_over_8 (Bit 8).
@@ -707,15 +713,7 @@ Section Params.
                                                                  "snd" ::= #new_exception });
           Ret #retVal)%kami_action.
 
-    Definition noUpdPkt: ExecUpdPkt @# ty :=
-      (STRUCT {
-           "val1" ::= @Invalid ty _ ;
-           "val2" ::= @Invalid ty _ ;
-           "memBitMask" ::= $$ (getDefaultConst DataMask) ;
-           "taken?" ::= $$ false ;
-           "aq" ::= $$ false ;
-           "rl" ::= $$ false ;
-           "fence.i" ::= $$ false }).
+    Definition noUpdPkt: ExecUpdPkt @# ty := $$(getDefaultConst ExecUpdPkt).
 
     Definition isAligned (addr: VAddr @# ty) (numZeros: MemRqLgSize @# ty) :=
       ((~(~($0) << numZeros)) .& ZeroExtendTruncLsb (MemRqSize-1) addr) == $0.
@@ -746,26 +744,16 @@ Section Params.
              "pmp"        :: Bool; (* request failed pmp check *)
              "width"      :: Bool; (* unsupported access width *)
              "pma"        :: Bool; (* failed device pma check *)
-             "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
-             "lrsc"       :: Bool  (* does not support lrsc operations *) 
+             "misaligned" :: Bool  (* address misaligned and misaligned access not supported by device *)
            }.
 
-    (* the immediate response from the memory system. *)
-(*
-    Definition RouterImmRes
-      := STRUCT_TYPE {
-           "ready" :: Bool; (* true iff the device accepted this request and a response callback is pending. *)
-           "info"  :: MemErrorPkt
-         }.
-*)
     Local Open Scope kami_expr.
 
     Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
       := err_pkt @% "pmp" ||
          err_pkt @% "width" ||
          err_pkt @% "pma" ||
-         err_pkt @% "misaligned" ||
-         err_pkt @% "lrsc".
+         err_pkt @% "misaligned".
 
     Definition getMemErrorException
       (access_type : AccessType @# ty)

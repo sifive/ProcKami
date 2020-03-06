@@ -9,19 +9,20 @@ Section Mem.
 
   Definition LrSc32: FUEntry :=
     {| fuName := "lrsc32" ;
-       fuFunc := (fun ty i => LETE x: MemInputAddrType <- i;
-                             LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
-                             LETC ret: MemOutputAddrType
-                                         <-
-                                         STRUCT {
-                                           "addr" ::= #addr ;
-                                           "data" ::= #x @% "data" ;
-                                           "aq" ::= #x @% "aq" ;
-                                           "rl" ::= #x @% "rl" ;
-                                           "misalignedException?" ::=
-                                             !(checkAligned #addr (#x @% "numZeros"))
-                                         } ;
-                             RetE #ret ) ;
+       fuFunc
+         := fun ty i
+              => LETE x: MemInputAddrType <- i;
+                 RetE (STRUCT {
+                   "addr" ::= #x @% "addr";
+                   "data" ::= #x @% "data";
+                   "aq"   ::= #x @% "aq";
+                   "rl"   ::= #x @% "rl";
+                   "isLr" ::= #x @% "isLr";
+                   "isSc" ::= #x @% "isSc";
+                   "reservationValid" ::= #x @% "reservationValid";
+                   "misalignedException?"
+                     ::= !checkAligned (#x @% "addr") (#x @% "numZeros")
+                 } : MemOutputAddrType @# ty);
        fuInsts :=
          {| instName     := "lr.w" ;
             xlens        := xlens_all;
@@ -33,8 +34,8 @@ Section Mem.
                                      fieldVal funct5Field ('b"00010") ::
                                      fieldVal rs2Field ('b"00000") ::
                                      nil ;
-            inputXform   := fun ty => lrInput 2 (ty := ty);
-            outputXform  := fun ty => lrTag (ty := ty);
+            inputXform   := fun ty => lrInput 2 true false (ty := ty);
+            outputXform  := fun ty => LrTag (ty := ty);
             optMemParams := Some LrW;
             instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|>
          |} ::
@@ -47,7 +48,7 @@ Section Mem.
                                         fieldVal funct3Field ('b"010") ::
                                         fieldVal funct5Field ('b"00011") ::
                                         nil ;
-               inputXform   := fun ty => scInput 2 (ty := ty);
+               inputXform   := fun ty => scInput 2 false true (ty := ty);
                outputXform  := fun ty => scTag (ty := ty);
                optMemParams := Some ScW;
                instHints    := falseHints<|hasRs1 := true|><|hasRs2 := true|><|hasRd := true|><|writeMem := true|>

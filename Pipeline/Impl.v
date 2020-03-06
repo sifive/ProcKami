@@ -327,6 +327,7 @@ Section Pipeline.
                      "exception"  ::= #execUpdPkt @% "snd"
                    };
               If #execContextPkt @% "fst" @% "memHints" @% "valid" &&
+                 #execUpdPkt @% "fst" @% "val2" @% "valid" &&
                  !(#execUpdPkt @% "snd" @% "valid")
               then
                 System [

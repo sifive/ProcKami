@@ -55,18 +55,6 @@ Section PmaPmp.
               (fun memOp
                 => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
               memOp;
-       LETA lrsc
-         :  Bool
-         <- applyMemOp
-              memOps
-              (fun memOp
-                => Ret
-                     (match memOpReservation memOp with
-                      | memReservationClear => $$true
-                      | memReservationSet => $$true
-                      | _ => $$false
-                      end))
-              memOp;
        LETA pmp_result
          :  Bool
          <- checkPmp
@@ -81,15 +69,13 @@ Section PmaPmp.
               (#dTagOffset @% "data" @% "dtag")
               (#dTagOffset @% "data" @% "offset")
               #size
-              accessType
-              #lrsc;
+              accessType;
        LET err_pkt : MemErrorPkt
          <- STRUCT {
               "pmp"        ::= !#pmp_result;
               "width"      ::= !(#pma_result @% "width");
               "pma"        ::= !(#pma_result @% "pma");
-              "misaligned" ::= !(#pma_result @% "misaligned");
-              "lrsc"       ::= !(#pma_result @% "lrsc")
+              "misaligned" ::= !(#pma_result @% "misaligned")
             } : MemErrorPkt @# ty;
        LET ret : Pair (Maybe DTagOffset) MemErrorPkt <- STRUCT { "fst" ::= #dTagOffset;
                                                                  "snd" ::= #err_pkt };
