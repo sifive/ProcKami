@@ -214,7 +214,7 @@ Section trap_handling.
                  cfg_pkt @% "tvm") ||
                 (* Illegal WFI instruction *)
                 (update_pkt @% "val1" @% "data" @% "tag" == $WfiTag &&
-                 !(cfg_pkt @% "debug_hart_state" @% "debug") &&
+                 !(debugHartState @% "debug") &&
                  cfg_pkt @% "tw" &&
                  cfg_pkt @% "mode" != $MachineMode) ||
                 (* CSR write exception *)

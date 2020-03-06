@@ -257,8 +257,8 @@ Section trap.
        ];
        Read mideleg' : Bit 12 <- @^"mideleg";
        Read sideleg' : Bit 12 <- @^"sideleg";
-       LETE mideleg : Bit 16 <- ZeroExtend 4 #mideleg';
-       LETE sideleg : Bit 16 <- ZeroExtend 4 #sideleg';
+       LET mideleg : Bit 16 <- ZeroExtend 4 #mideleg';
+       LET sideleg : Bit 16 <- ZeroExtend 4 #sideleg';
        (* 3.1.6.1 and 3.1.9 *)
        If #code @% "valid"
          then
