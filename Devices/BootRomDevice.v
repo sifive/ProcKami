@@ -83,15 +83,14 @@ Section device.
                     (Bit 8)
                     (RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
          deviceRegs := nil;
-         deviceIfc
+         deviceIfc Tag
            := {|
                 deviceReq
-                  := fun _ req => deviceSendReqFn _ _ _ Tag bootRomDeviceParams req;
+                  := fun {ty} req => @deviceSendReqFn procParams bootRomDeviceParams ty Tag req;
                 devicePoll
-                  := fun ty => deviceGetResFn _ _ bootRomDeviceParams
+                  := fun {ty} => @deviceGetResFn procParams bootRomDeviceParams ty Tag
               |}
       |}.
-                         
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.

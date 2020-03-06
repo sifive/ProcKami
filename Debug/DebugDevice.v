@@ -98,7 +98,7 @@ Section debug_device.
   Local Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
 
   Definition debugDevice
-    := @genRegDevice Tag procParams 
+    := @genRegDevice procParams 
          (Nat.log2_up debug_device_regs_size)
          (map
            (fun x

@@ -18,21 +18,19 @@ Section device.
   Definition UARTRead
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz
-         (* "size" :: MemRqLgSize *)
        }.
 
   Definition UARTWrite
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz;
          "data" :: Data (* every UART interface register is one byte wide *)
-         (* "size" :: MemRqLgSize *)
        }.
 
   Local Definition uartDeviceRegs
     :  list RegInitT
     := createRegs Tag uartDeviceName.
 
-  Local Definition uartDeviceRegNames : DeviceRegNames := createRegNames uartDeviceName.
+  Local Definition uartDeviceRegNames := createRegNames uartDeviceName.
 
   Local Definition uartDeviceParams := {|
     regNames := createRegNames uartDeviceName;
@@ -104,12 +102,12 @@ Section device.
                (seq 0 4));
          deviceFiles := nil;
          deviceRegs := nil;
-         deviceIfc
+         deviceIfc Tag
            := {|
                 deviceReq
-                  := fun _ req => deviceSendReqFn _ _ _ Tag uartDeviceParams req;
+                  := fun {ty} req => @deviceSendReqFn procParams uartDeviceParams ty Tag req;
                 devicePoll
-                  := fun ty => deviceGetResFn _ ty uartDeviceParams
+                  := fun {ty} => @deviceGetResFn procParams uartDeviceParams ty Tag
               |}
        |}.
 

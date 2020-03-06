@@ -106,8 +106,8 @@ Section DeviceIfc.
                         Register (@deviceReqRegName names): Maybe (Req tagK) <- Default ++
                         RegisterU (@deviceResRegName names): Maybe Data)%kami.
 
-  Context (baseDevice: BaseDevice).
   Section ty.
+    Context (baseDevice: BaseDevice).
     Variable ty : Kind -> Type.
 
     Local Open Scope kami_expr.

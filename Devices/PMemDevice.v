@@ -80,12 +80,12 @@ Section mem_devices.
                     (Bit 8) (* rfData: Kind *)
                     (RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
          deviceRegs := nil;
-         deviceIfc
+         deviceIfc Tag
            := {|
                 deviceReq
-                  := fun _ req => deviceSendReqFn _ _ _ Tag pMemDeviceParams req;
+                  := fun {ty} req => @deviceSendReqFn procParams pMemDeviceParams ty Tag req;
                 devicePoll
-                  := fun ty => deviceGetResFn _ ty pMemDeviceParams
+                  := fun {ty} => @deviceGetResFn procParams pMemDeviceParams ty Tag
               |}
        |}.
 

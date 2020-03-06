@@ -6,7 +6,6 @@ Require Import ProcKami.Device.
 Require Import StdLibKami.RegMapper.
 Require Import StdLibKami.Router.Ifc.
 
-
 Import ListNotations.
 
 Section mmregs.
@@ -176,12 +175,12 @@ Section mmregs.
                              mmregs_dev_regs      := mmregs
                            |}
                     else nil;
-               deviceIfc
+               deviceIfc Tag
                  := {|
                       deviceReq
-                        := fun ty req => @deviceSendReqFn _ _ ty Tag req;
+                        := fun {ty} req => @deviceSendReqFn procParams regDeviceParams ty Tag req;
                       devicePoll
-                        := fun ty => @deviceGetResFn _ _ ty Tag
+                        := fun {ty} => @deviceGetResFn procParams regDeviceParams ty Tag
                     |}
             |}.
 
