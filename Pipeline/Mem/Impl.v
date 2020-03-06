@@ -61,7 +61,7 @@ Section Impl.
                             "res" :: Maybe Data
                           }.
 
-  Definition FullMemReq := STRUCT_TYPE {
+  Definition MemUnitMemReq := STRUCT_TYPE {
                                "tag" :: Bit memUnitTagLgSize;
                                "req" :: @MemReq _ deviceTree }.
 
@@ -171,7 +171,7 @@ Section Impl.
              LET fullRes: STRUCT_TYPE { "tag" :: Bit _;
                                         "res" :: Maybe FU.Inst }
                           <- STRUCT { "tag" ::= castBits _ (#res @% "tag");
-                                                "res" ::= #inst};
+                                      "res" ::= #inst};
              @CompletionBuffer.Ifc.callback _ completionBuffer ty fullRes)%kami_action |}
     ].
   abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
@@ -255,7 +255,7 @@ Section Impl.
          LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq (Fin.FS Fin.F1) ty reqFinal;
          Ret (#retVal @% "valid")) ty.
 
-  Local Definition memSendReq ty (req: ty FullMemReq): ActionT ty Bool :=
+  Local Definition memSendReq ty (req: ty MemUnitMemReq): ActionT ty Bool :=
     LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq Fin.F1 ty req;
     Ret (#retVal @% "valid").
 (*
