@@ -7,12 +7,20 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
+Require Import ProcKami.Device.
+
+Require Import ProcKami.MemOps.
+Require Import ProcKami.MemOpsFuncs.
+
+Require Import ProcKami.PmaPmp.Impl.
+
 Require Import StdLibKami.Cam.Ifc.
 Require Import StdLibKami.ReplacementPolicy.Ifc.
 Require Import ProcKami.MemInterface.Tlb.Ifc.
 
 Section Impl.
   Context {procParams: ProcParams}.
+  Context {deviceTree: @DeviceTree procParams}.
   Context (name: string).
 
   Local Open Scope kami_expr.
@@ -490,10 +498,10 @@ Section Impl.
     read request to the Arbiter and returns an arbiter response;
     and sends a pending TLB memory read request to the Arbiter.
   *)
-  Local Definition sendReq
+  Local Definition sendReqRule
     (memSendReq
-      : forall ty, ty PAddr ->
-        ActionT ty (Maybe MemErrorPkt)) ty
+      : forall ty, ty (@MemReq _ deviceTree) ->
+        ActionT ty Bool) ty
     : ActionT ty Void
     := System [
          DispString _ "[tlb.sendReq]\n"
@@ -510,35 +518,51 @@ Section Impl.
              DispHex #req;
              DispString _ "\n"
            ];
-           LETA res <- memSendReq ty req;
-           System [
-             DispString _ "[tlb.sendReq] res: ";
-             DispHex #res;
-             DispString _ "\n"
-           ];
-           Write (name ++ ".sendReq")%string : Bool <- !(#res @% "valid");
-           (* System [
-             DispString _ "[tlb.sendReq] sent tlb req\n"
-           ]; *)
+           Read tlbContext : TlbContext <- (name ++ ".context")%string;
+           LET satpMode: Bit SatpModeWidth <- satp_select (#tlbContext @% "satp_mode") (fun satpMode => $$(vm_mode_mode satpMode));
+           LET memOp <- (IF #satpMode == $SatpModeSv32
+                         then (getMemOpCode memOps _ Lw)
+                         else (getMemOpCode memOps _ Ld));
+           LETA dTagOffsetPmaPmpError <- @getDTagOffsetPmaPmpError _ deviceTree _
+                                                                   (#tlbContext @% "access_type") #memOp (#tlbContext @% "mode") #req;
            Read context : TlbContext <- (name ++ ".context")%string;
            Read vaddr : VAddr <- (name ++ ".vAddr")%string;
            LET addrException
              :  Pair VAddr Exception
              <- STRUCT {
                   "fst" ::= #vaddr;
-                  "snd" ::= IF #res @% "data" @% "misaligned"
+                  "snd" ::= IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                               then misalignedException (#context @% "access_type")
                               else accessException (#context @% "access_type")
                 };
            LET exception
              :  Maybe (Pair VAddr Exception)
              <- STRUCT {
-                  "valid" ::= #res @% "valid" && mem_error (#res @% "data") ;
+                  "valid" ::= #dTagOffsetPmaPmpError @% "fst" @% "valid" && !mem_error (#dTagOffsetPmaPmpError @% "snd") ;
                   "data"  ::= #addrException
                 };
            Write (name ++ ".pmaPmpException")%string
              :  Maybe (Pair VAddr Exception)
              <- #exception;
+           If !(#exception @% "valid")
+           then (
+             LET finalReq <- STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
+                                      "offset" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "offset" ;
+                                      "paddr" ::= #req ;
+                                      "memOp" ::= #memOp ;
+                                      "data" ::= $0
+                                    };
+             LETA accepted <- memSendReq ty finalReq;
+             System [
+               DispString _ "[tlb.sendReq] accepted: ";
+               DispHex #accepted;
+               DispString _ "\n"
+             ];
+             Write (name ++ ".sendReq")%string : Bool <- !#accepted;
+             Retv );
+           (* System [ *)
+           (*     DispString _ "[tlb.sendReq] sent tlb req\n" *)
+           (*   ]; *)
          Retv;
        Retv.
 
@@ -631,43 +655,44 @@ Section Impl.
        Retv.
 
   Local Definition getPAddr ty
-    (tlbReq : ty Req)
+    (context : ContextCfgPkt @# ty)
+    (accessType : AccessType @# ty)
+    (memOp: MemOpCode @# ty)
+    (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe (PktWithException PAddr))
     := System [
          DispString _ "[getPAddr]\n"
        ];
-       LET vaddr
-         :  VAddr
-         <- #tlbReq @% "vaddr";
        LETA mentry
          :  Maybe TlbEntry
               <- getTlbEntry
-                   (#tlbReq @% "access_type")
-                   (#tlbReq @% "satp_mode")
-                   (#tlbReq @% "mode")
-                   (#tlbReq @% "satp_ppn")
-                   #vaddr;
-       LETA paddr : PAddr <- 
+                   accessType
+                   (context @% "satp_mode")
+                   (context @% "mode")
+                   (context @% "satp_ppn")
+                   vaddr;
+       LETA paddr : PAddr <-
            convertLetExprSyntax_ActionT
              (tlbEntryVAddrPAddr lgPageSz
-               (#tlbReq @% "satp_mode")
+               (context @% "satp_mode")
                (#mentry @% "data")
-               (#tlbReq @% "vaddr"));
+               vaddr);
+       LETA dTagOffsetPmaPmpError <- @getDTagOffsetPmaPmpError _ deviceTree _ accessType memOp (context @% "mode") #paddr;
        LET finalException: Maybe Exception
          <- STRUCT { "valid" ::=
                        !(pte_grant
-                           (#tlbReq @% "mxr")
-                           (#tlbReq @% "sum")
-                           (#tlbReq @% "mode")
-                           (#tlbReq @% "access_type")
+                           (context @% "mxr")
+                           (context @% "sum")
+                           (context @% "mode")
+                           accessType
                            (#mentry @% "data" @% "pte"));
-                     "data" ::= (faultException (#tlbReq @% "access_type")) };
+                     "data" ::= faultException accessType };
        LET retval: PktWithException PAddr
-         <- STRUCT { "fst" ::= #paddr ;
-                     "snd" ::= #finalException };
+                   <- STRUCT { "fst" ::= #paddr ;
+                               "snd" ::= #finalException };
        LET result: Maybe (PktWithException PAddr)
          <- ((STRUCT { "valid" ::= #mentry @% "valid" ;
-                      "data" ::= #retval }): Maybe (PktWithException PAddr) @# ty);
+                       "data" ::= #retval }): Maybe (PktWithException PAddr) @# ty);
        Ret #result.
 
   Local Definition readException ty
@@ -693,14 +718,60 @@ Section Impl.
        Write (name ++ ".pmaPmpException")%string : Maybe (Pair VAddr Exception) <- Invalid;
        Retv.
 
+  Local Definition memTranslate ty
+      (context : ContextCfgPkt @# ty)
+      (accessType : AccessType @# ty)
+      (memOp: MemOpCode @# ty)
+      (vaddr : FU.VAddr @# ty)
+      (data: FU.Data @# ty)
+      :  ActionT ty (Maybe (PktWithException MemReq))
+      := LET effective_mode : FU.PrivMode
+           <- IF context @% "mprv"
+                then context @% "mpp" else context @% "mode";
+         If #effective_mode != $MachineMode && (context @% "satp_mode") != $SatpModeBare
+           then
+             getPAddr context accessType memOp vaddr
+           else
+             Ret (Valid (STRUCT {
+               "fst" ::= SignExtendTruncLsb FU.PAddrSz vaddr;
+               "snd" ::= Invalid
+             } : PktWithException PAddr @# ty))
+           as paddrException;
+         
+         LETA dTagOffsetPmaPmpError <-
+           @getDTagOffsetPmaPmpError _ deviceTree _ accessType memOp (context @% "mode")
+                                     (#paddrException @% "data" @% "fst");
+         LET finalException: Maybe Exception <-
+                             STRUCT { "valid" ::= #paddrException @% "valid" &&
+                                                  (#paddrException @% "data" @% "snd" @% "valid"
+                                                   || !(#dTagOffsetPmaPmpError @% "fst" @% "valid")
+                                                   || mem_error (#dTagOffsetPmaPmpError @% "snd")) ;
+                                      "data" ::= (IF #paddrException @% "data" @% "snd" @% "valid"
+                                                  then #paddrException @% "data" @% "snd" @% "data"
+                                                  else (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
+                                                        then misalignedException accessType
+                                                        else accessException accessType)) };
+         LET memReq : MemReq <-
+                      STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
+                               "offset" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "offset" ;
+                               "paddr" ::= #paddrException @% "data" @% "fst" ;
+                               "memOp" ::= memOp;
+                               "data" ::= data
+                             };
+         LET result: Maybe (PktWithException MemReq) <-
+                     STRUCT {"valid" ::= #paddrException @% "valid" ;
+                             "data" ::= STRUCT { "fst" ::= #memReq ;
+                                                 "snd" ::= #finalException } };
+         Ret #result.
+
   Definition impl : Ifc
     := {|
           Tlb.Ifc.regs := regs;
           Tlb.Ifc.regFiles := Cam.Ifc.regFiles cam;
-          Tlb.Ifc.getPAddr := getPAddr;
           Tlb.Ifc.readException := readException;
           Tlb.Ifc.clearException := clearException;
-          Tlb.Ifc.sendReqRule := sendReq;
+          Tlb.Ifc.sendReqRule := sendReqRule;
+          Tlb.Ifc.memTranslate := memTranslate;
           Tlb.Ifc.callback := callback
        |}.
 

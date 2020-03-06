@@ -21,7 +21,7 @@ Section PmaPmp.
   Local Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
                                                "offset" :: FU.Offset }.
 
-  Definition getDTagOffset ty
+  Local Definition getDTagOffset ty
     (addr : PAddr @# ty)
     :  ActionT ty (Maybe DTagOffset)
     := @memRegionApply
@@ -42,12 +42,12 @@ Section PmaPmp.
               Ret #tagOffset)
          (memRegions (memTable _)).
 
-  Definition pmaPmpError ty
+  Definition getDTagOffsetPmaPmpError ty
              (accessType: AccessType @# ty)
              (memOp: MemOpCode @# ty)
              (mode: PrivMode @# ty)
              (addr: PAddr @# ty)
-    :  ActionT ty MemErrorPkt
+    :  ActionT ty (Pair (Maybe DTagOffset) MemErrorPkt)
     := LETA size
          :  MemRqLgSize
          <- applyMemOp
@@ -74,12 +74,12 @@ Section PmaPmp.
               mode
               addr
               #size;
-       LETA dtagOffset: Maybe DTagOffset <- getDTagOffset addr;
+       LETA dTagOffset: Maybe DTagOffset <- getDTagOffset addr;
        LETA pma_result
          :  PmaSuccessPkt
          <- checkPma
-              (#dtagOffset @% "data" @% "dtag")
-              (#dtagOffset @% "data" @% "offset")
+              (#dTagOffset @% "data" @% "dtag")
+              (#dTagOffset @% "data" @% "offset")
               #size
               accessType
               #lrsc;
@@ -91,5 +91,7 @@ Section PmaPmp.
               "misaligned" ::= !(#pma_result @% "misaligned");
               "lrsc"       ::= !(#pma_result @% "lrsc")
             } : MemErrorPkt @# ty;
-       Ret #err_pkt.
+       LET ret : Pair (Maybe DTagOffset) MemErrorPkt <- STRUCT { "fst" ::= #dTagOffset;
+                                                                 "snd" ::= #err_pkt };
+       Ret #ret.
 End PmaPmp.

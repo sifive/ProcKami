@@ -2,45 +2,45 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
+Require Import ProcKami.Device.
+
+Require Import ProcKami.PmaPmp.Impl.
+
 Section Ifc.
   Context {procParams: ProcParams}.
+  Context {deviceTree : @DeviceTree procParams}.
 
-  Definition Req
-    := STRUCT_TYPE {
-         "satp_mode"   :: Bit SatpModeWidth;
-         "mxr"         :: Bool;
-         "sum"         :: Bool;
-         "mode"        :: PrivMode;
-         "satp_ppn"    :: Bit 44;
-         "access_type" :: AccessType;
-         "vaddr"       :: VAddr
-       }.
-
+  Definition MemReq := STRUCT_TYPE {
+                           "dtag" :: @DeviceTag _ deviceTree;
+                           "offset" :: Offset ;
+                           "paddr" :: PAddr ;
+                           "memOp" :: MemOpCode;
+                           "data" :: Data }.
+  
   Record Ifc
     := {
          regs: list RegInitT;
 
          regFiles: list RegFileBase;
          
-         getPAddr
-           : forall ty, ty Req -> ActionT ty (Maybe (PktWithException PAddr));
-
          readException
            : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
 
-         (*
-           Note: clients must clear exceptions when the exception's
-           vaddr matches their request's vaddr.
-         *)
          clearException : forall ty, ActionT ty Void;
 
          sendReqRule
-           (sendReq : forall ty, ty PAddr -> ActionT ty (Maybe MemErrorPkt))
+           (sendReq : forall ty, ty MemReq -> ActionT ty Bool)
            : forall ty, ActionT ty Void;
            
-         (* mem response callback *)
+         memTranslate ty
+                      (context : ContextCfgPkt @# ty)
+                      (accessType : AccessType @# ty)
+                      (memOp: MemOpCode @# ty)
+                      (vaddr : FU.VAddr @# ty)
+                      (data: FU.Data @# ty)
+         : ActionT ty (Maybe (PktWithException MemReq));
+         
          callback 
            : forall ty, ty (Maybe Data) -> ActionT ty Void
        }.
 End Ifc.
-

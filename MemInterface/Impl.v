@@ -1,6 +1,7 @@
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
+
 Require Import ProcKami.Device.
 
 Require Import ProcKami.MemRegion.
@@ -50,35 +51,39 @@ Section Impl.
         fetcherLgSize : nat;
         completionBufferLgSize : nat;
         tlbSize : nat;
-        memUnitTagSz : nat
+        memUnitTagLgSize : nat
       }.
 
   Context {params: Params}.
 
-  Local Definition MemResp := STRUCT_TYPE {
-                                  "tag" :: Bit memUnitTagSz;
-                                  "res" :: Maybe Data
-                                }.
+  Definition MemResp := STRUCT_TYPE {
+                            "tag" :: Bit memUnitTagLgSize;
+                            "res" :: Maybe Data
+                          }.
+
+  Definition FullMemReq := STRUCT_TYPE {
+                               "tag" :: Bit memUnitTagLgSize;
+                               "req" :: @MemReq _ deviceTree }.
 
   Context (memCallback: forall ty, ty MemResp -> ActionT ty Void).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Definition FetcherOutReqNoVAddr := STRUCT_TYPE {
-                                               "dtag"   :: @DeviceTag _ deviceTree;
-                                               "offset" :: Offset;
-                                               "paddr"  :: PAddr
-                                             }.
+  Definition PAddrDevOffset := STRUCT_TYPE {
+                                   "dtag"   :: @DeviceTag _ deviceTree;
+                                   "offset" :: Offset;
+                                   "paddr"  :: PAddr
+                                 }.
   
-  Local Definition FetcherOutReq := STRUCT_TYPE { "memReq" :: FetcherOutReqNoVAddr;
-                                                  "vaddr"  :: FU.VAddr }.
+  Local Definition PAddrDevOffsetVAddr := STRUCT_TYPE { "memReq" :: PAddrDevOffset;
+                                                        "vaddr"  :: FU.VAddr }.
 
   Local Definition fetcherParams :=
     {|
       Fetcher.Ifc.name       := @^"fetcher";
       Fetcher.Ifc.size       := Nat.pow 2 (@fetcherLgSize params);
-      Fetcher.Ifc.memReqK    := FetcherOutReqNoVAddr;
+      Fetcher.Ifc.memReqK    := PAddrDevOffset;
       Fetcher.Ifc.vAddrSz    := Xlen;
       Fetcher.Ifc.compInstSz := FU.CompInstSz;
       Fetcher.Ifc.immResK    := Void;
@@ -104,8 +109,8 @@ Section Impl.
     {|
       CompletionBuffer.Ifc.name      := @^"completionBuffer";
       CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize params);
-      CompletionBuffer.Ifc.inReqK    := FetcherOutReq;
-      CompletionBuffer.Ifc.outReqK   := FetcherOutReqNoVAddr;
+      CompletionBuffer.Ifc.inReqK    := PAddrDevOffsetVAddr;
+      CompletionBuffer.Ifc.outReqK   := PAddrDevOffset;
       CompletionBuffer.Ifc.storeReqK := FU.VAddr;
       CompletionBuffer.Ifc.immResK   := Void;
       CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
@@ -135,7 +140,7 @@ Section Impl.
            freeList   := @FreeList.Array.impl _
          |}.
 
-  Local Definition tlb : Tlb.Ifc.Ifc := @Tlb.Impl.impl _ @^"tlb"
+  Local Definition tlb : Tlb.Ifc.Ifc := @Tlb.Impl.impl _ deviceTree @^"tlb"
                                                        {| Tlb.Impl.lgPageSz := LgPageSz;
                                                           Tlb.Impl.cam := @Cam.Impl.impl _ {|
                                                                                            Cam.Impl.size      := @tlbSize params;
@@ -147,14 +152,14 @@ Section Impl.
     :  list (Client (Maybe Data)).
   refine [
       (* memory unit client *)
-      {| clientTagSz := memUnitTagSz;
+      {| clientTagSz := memUnitTagLgSize;
          clientHandleRes := memCallback
       |} ;
       
       (* TLB client *)
       {| clientTagSz := 0;
          clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
-                                    @Tlb.Ifc.callback _ tlb _ res)%kami_action |};
+                                    @Tlb.Ifc.callback _ deviceTree tlb _ res)%kami_action |};
       (* Fetch Client *)                                                                                 
       {| clientTagSz := @completionBufferLgSize params;
          clientHandleRes ty
@@ -172,17 +177,10 @@ Section Impl.
   abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
   Defined.
 
-  Local Definition ArbiterInReq := STRUCT_TYPE {
-                                       "dtag" :: @DeviceTag _ deviceTree;
-                                       "offset" :: Offset ;
-                                       "paddr" :: PAddr ;
-                                       "memOp" :: MemOpCode;
-                                       "data" :: Data }.
-
   Local Definition arbiterParams :=
     {|
       Arbiter.Ifc.name    := @^"arbiter";
-      Arbiter.Ifc.inReqK  := ArbiterInReq;
+      Arbiter.Ifc.inReqK  := @MemReq _ deviceTree;
       Arbiter.Ifc.immResK := Void;
       Arbiter.Ifc.isError := fun ty _ => Const ty false
     |}.
@@ -204,7 +202,7 @@ Section Impl.
     @Router.Impl.impl routerParams.
 
   Local Definition ArbiterOutReq := STRUCT_TYPE { "tag" :: ArbiterTag;
-                                                  "req" :: ArbiterInReq }.
+                                                  "req" :: @MemReq _ deviceTree }.
 
   Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
     @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize params) @# ty.
@@ -238,78 +236,29 @@ Section Impl.
     Ret ((STRUCT { "valid" ::= #ret ;
                    "data" ::= $$(getDefaultConst Void) }): Maybe Void @# ty).
 
-  Local Definition fetcherSendAddr ty (req: ty Fetcher.Ifc.OutReq) :=
+  Local Definition fetcherSendReq ty (req: ty Fetcher.Ifc.OutReq) :=
     @Fetcher.Ifc.sendAddr
       _ fetcher
       (@CompletionBuffer.Ifc.sendReq
          _ completionBuffer
          (fun ty inReq2 =>
             LET inReqFinal <- cbReqToArbiterReq #inReq2;
-            @Arbiter.Ifc.sendReq
-              _ _ arbiter
-              routerSendReq
-              (Fin.FS (Fin.FS Fin.F1)) ty inReqFinal)
+            @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq (Fin.FS (Fin.FS Fin.F1)) ty inReqFinal)
       ) ty req.
-    
 
-  (*
-    Sends the next pending memory read request from the TLB.
-  *)
-  Local Definition sendTlbMemReq
-    ty
-    :  ActionT ty Void
-    := System [
-         DispString _ "[sendTlbMemReq]\n"
-       ];
-       @Tlb.Ifc.sendMemReqRule
-         procParams
-         procTlb
-         (fun ty0 paddr
-           => LETA req
-                :  clientReqK (nth_Fin procArbiterClients tlbArbiterClientId)
-                <- convertLetExprSyntax_ActionT
-                     (@toArbiterClientReadReq
-                       procParams
-                       memInterfaceParams
-                       ty0
-                       tlbArbiterClientId
-                       $MachineMode
-                       $0
-                       #paddr);
-              @Arbiter.Ifc.sendReq
-                procArbiterParams
-                procArbiter
-                mem_error
-                (@routeReq _ _ devicesIfc)
-                tlbArbiterClientId ty0 req)
-         ty.
+  Local Definition tlbSendReqRule ty: ActionT ty Void :=
+    @Tlb.Ifc.sendReqRule
+      _ _ tlb
+      (fun ty req =>
+         LET reqFinal: @Arbiter.Ifc.ClientReq arbiterParams 0 <- STRUCT { "tag" ::= $0;
+                                                                          "req" ::= #req };
+         LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq (Fin.FS Fin.F1) ty reqFinal;
+         Ret (#retVal @% "valid")) ty.
 
-  (*
-    Accepts a request from the Memory Unit and sends the request to
-    the Arbiter, which forwards the request to the Device Router,
-    and returns the immediate response.
-  *)
-  Local Definition sendMemUnitMemReq
-    ty
-    (req : ty (clientReqK (nth_Fin procArbiterClients memUnitArbiterClientId)))
-    :  ActionT ty (Maybe MemErrorPkt)
-    := System [
-         DispString _ "[sendMemUnitMemReq] req: ";
-         DispHex #req;
-         DispString _ "\n"
-       ];
-       @Arbiter.Ifc.sendReq
-         procArbiterParams 
-         procArbiter
-         mem_error
-         (@routeReq _ _ devicesIfc)
-         memUnitArbiterClientId
-         ty
-         req.
-
-  (*
-    TODO: LLEE rename these interface functions something clearer.
-  *)
+  Local Definition memSendReq ty (req: ty FullMemReq): ActionT ty Bool :=
+    LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq Fin.F1 ty req;
+    Ret (#retVal @% "valid").
+  
   Definition procMemInterface
     :  MemInterface
     := {|
