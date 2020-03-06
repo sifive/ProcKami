@@ -12,12 +12,12 @@ Require Import ProcKami.Device.
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
 
-Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
-
 Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Require Import StdLibKami.Cam.Ifc.
 Require Import StdLibKami.ReplacementPolicy.Ifc.
+
+Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
 
 Section Impl.
   Context {procParams: ProcParams}.
@@ -767,13 +767,13 @@ Section Impl.
 
   Definition impl : Ifc
     := {|
-          Tlb.Ifc.regs := regs;
-          Tlb.Ifc.regFiles := Cam.Ifc.regFiles cam;
-          Tlb.Ifc.readException := readException;
-          Tlb.Ifc.clearException := clearException;
-          Tlb.Ifc.sendReqRule := sendReqRule;
-          Tlb.Ifc.memTranslate := memTranslate;
-          Tlb.Ifc.callback := callback
+          Mmu.Ifc.regs := regs;
+          Mmu.Ifc.regFiles := Cam.Ifc.regFiles cam;
+          Mmu.Ifc.readException := readException;
+          Mmu.Ifc.clearException := clearException;
+          Mmu.Ifc.sendReqRule := sendReqRule;
+          Mmu.Ifc.memTranslate := memTranslate;
+          Mmu.Ifc.callback := callback
        |}.
 
   Local Close Scope kami_action.
