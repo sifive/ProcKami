@@ -106,7 +106,6 @@ Section Fpu.
                                (#result @% "fflags" @% "valid")
                                (Valid #val2)
                                (@Invalid ty _);
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
                        "rl"         ::= $$false;

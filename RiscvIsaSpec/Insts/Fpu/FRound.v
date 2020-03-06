@@ -86,7 +86,6 @@ Section Fpu.
                              LETC fstVal <- (STRUCT {
                                "val1"       ::= (Valid #val1 : Maybe RoutedReg @# ty);
                                "val2"       ::= (Valid #val2 : Maybe RoutedReg @# ty);
-                               "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                "taken?"     ::= $$false;
                                "aq"         ::= $$false;
                                "rl"         ::= $$false;
@@ -158,7 +157,6 @@ Section Fpu.
                              LETC fstVal <- (STRUCT {
                                "val1"       ::= (Valid #val1: Maybe RoutedReg @# ty);
                                "val2"       ::= (Valid #val2: Maybe RoutedReg @# ty);
-                               "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                                "taken?"     ::= $$false;
                                "aq"         ::= $$false;
                                "rl"         ::= $$false;

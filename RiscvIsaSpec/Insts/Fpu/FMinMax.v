@@ -79,7 +79,6 @@ Section Fpu.
                          ::= ITE (#result @% "fflags" @% "valid")
                                (Valid #val2)
                                Invalid;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
                        "rl"         ::= $$false;

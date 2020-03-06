@@ -47,7 +47,6 @@ Section Fpu.
          LETC fstVal: ExecUpdPkt <- (STRUCT {
                        "val1"       ::= Valid #val1;
                        "val2"       ::= @Invalid ty _;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
                        "taken?"     ::= $$false;
                        "aq"         ::= $$false;
                        "rl"         ::= $$false;

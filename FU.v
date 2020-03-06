@@ -76,14 +76,14 @@ Definition RoutingTag := Bit RoutingTagSz.
 
 Definition IntRegTag := 0. (* 1 *)
 Definition FloatRegTag := 1. (*  1 *)
-Definition MemAddrTag := 2. (* 1 *)
+Definition MemDataTag := 2. (* 1 *)
 Definition CsrWriteTag := 3. (* 1 *)
 Definition CsrSetTag := 4. (* 1 *)
 Definition CsrClearTag := 5. (* 1 *)
 Definition SFenceTag := 6. (* 1 *)
 
 Definition PcTag := 0. (* 2 *)
-Definition MemDataTag := 1. (* 2 *)
+Definition MemAddrTag := 1. (* 2 *)
 Definition FflagsTag := 2. (* 2 *)
 Definition MRetTag := 3. (* 2 *)
 Definition SRetTag := 4. (* 2 *)
@@ -302,7 +302,6 @@ Section Params.
     STRUCT_TYPE {
         "val1"       :: Maybe RoutedReg ;
         "val2"       :: Maybe RoutedReg ;
-        "memBitMask" :: DataMask ;
         "taken?"     :: Bool ;
         "aq"         :: Bool ;
         "rl"         :: Bool ;

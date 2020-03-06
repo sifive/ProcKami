@@ -131,7 +131,7 @@ Section trap_handling.
               call @% "data" @% "tag" == $DRetTag
              then commitOpExitDebugMode dpc prv;
            If call @% "data" @% "tag" == $LrTag
-             then commitOpSetReservation (unsafeTruncLsb ReservationSz (call @% "data" @% "data"));
+             then commitOpSetReservation (SignExtendTruncMsb ReservationSz (call @% "data" @% "data"));
            Retv;
        Retv.
 

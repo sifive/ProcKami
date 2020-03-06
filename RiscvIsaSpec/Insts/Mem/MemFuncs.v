@@ -73,17 +73,14 @@ Section Mem.
       :  PktWithException ExecUpdPkt ## ty
       := LETE val: MemOutputAddrType <- valin;
          LETC addr: VAddr <- #val @% "addr";
-         LETC val1
-           :  RoutedReg
-           <- STRUCT {
-                "tag"  ::= ($MemAddrTag : RoutingTag @# ty);
-                "data" ::= SignExtendTruncLsb Rlen #addr
-              };
          LETC val2
            :  RoutedReg
            <- STRUCT {
-                "tag"  ::= ($LrTag : RoutingTag @# ty);
-                "data" ::= SignExtendTruncLsb Rlen (SignExtendTruncMsb ReservationSz #addr)
+                "tag"
+                  ::= IF #val @% "isLr"
+                        then ($LrTag : RoutingTag @# ty)
+                        else ($MemAddrTag : RoutingTag @# ty);
+                "data" ::= SignExtendTruncLsb Rlen #addr
               };
          LETC fullException
            :  Exception
@@ -92,13 +89,7 @@ Section Mem.
                 else $LoadAddrMisaligned;
          LETC valret
            :  ExecUpdPkt
-           <- (noUpdPkt ty)
-                @%["val1" <- (Valid #val1)]
-                @%["val2"
-                  <- STRUCT {
-                       "valid" ::= #val @% "isLr";
-                       "data"  ::= #val2
-                     } : Maybe RoutedReg @# ty];
+           <- (noUpdPkt ty)@%["val2" <- (Valid #val2)];
          RetE (STRUCT {
            "fst" ::= #valret ;
            "snd"
@@ -145,14 +136,14 @@ Section Mem.
          LETC val1
            :  RoutedReg
            <- STRUCT {
-                "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
-                "data" ::= SignExtendTruncLsb Rlen #addr
+                "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
+                "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
               };
          LETC val2
            :  RoutedReg
            <- STRUCT {
-                "tag" ::= Const ty (natToWord RoutingTagSz MemDataTag);
-                "data" ::= SignExtendTruncLsb Rlen (#data @% "data")
+                "tag" ::= Const ty (natToWord RoutingTagSz MemAddrTag);
+                "data" ::= SignExtendTruncLsb Rlen #addr
               };
          LETC fullException
            :  Exception
@@ -175,7 +166,6 @@ Section Mem.
                             "valid" ::= #mayWrite;
                             "data"  ::= #val2
                           } : Maybe RoutedReg @# ty]
-                   @%["memBitMask" <- #data @% "mask"]
                    @%["isSc" <- #val @% "isSc"]
                    @%["reservationValid" <- #val @% "reservationValid"];
          RetE (STRUCT {

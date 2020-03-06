@@ -126,7 +126,9 @@ Section mret.
                          fieldVal instSizeField ('b"11")
                        ];
 
-                  inputXform := fun _ _ _ => RetE $$(getDefaultConst Void);
+                  inputXform 
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
+                         => RetE ((cfg_pkt @% "debug_hart_state" @% "debug") : Bool @# ty);
                   outputXform 
                     := fun ty (_ : Void ## ty)
                          => RetE (STRUCT {
