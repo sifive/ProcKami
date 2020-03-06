@@ -42,10 +42,10 @@ Section DeviceIfc.
 
   Definition Req tagK
     := STRUCT_TYPE {
-         "tag"   :: tagK;
-         "memOp" :: MemOpCode;
-         "addr"  :: PAddr;
-         "data"  :: Data
+         "tag"    :: tagK;
+         "memOp"  :: MemOpCode;
+         "offset" :: PAddr;
+         "data"   :: Data
        }.
 
   Definition Res tagK
@@ -199,7 +199,7 @@ Section DeviceIfc.
       := Read busy : Bool <- deviceBusyRegName regNames;
          Write (deviceBusyRegName regNames) : Bool <- $$true;
          If !#busy
-           then deviceRead (#req @% "memOp") (#req @% "addr");
+           then deviceRead (#req @% "memOp") (#req @% "offset");
          Read currReq
            :  Maybe (Req tagK)
            <- deviceReqRegName regNames;
@@ -258,7 +258,7 @@ Section DeviceIfc.
                <- deviceWriteMask (#req @% "data" @% "memOp");
              LETA writeSucceeded
                :  Bool
-               <- deviceWrite (#req @% "data" @% "addr") #writeMask #writeData;
+               <- deviceWrite (#req @% "data" @% "offset") #writeMask #writeData;
              LETA regData
                :  Maybe Data
                <- deviceRegValue (#req @% "data" @% "memOp") (#memData @% "data");
