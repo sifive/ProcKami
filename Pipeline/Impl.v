@@ -2,14 +2,13 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.MemInterface.Ifc.
+Require Import ProcKami.MemInterface.Impl.
 
 Require Import ProcKami.Pipeline.Ifc.
 Require Import ProcKami.Pipeline.Decoder.
 Require Import ProcKami.Pipeline.RegReader.
 Require Import ProcKami.Pipeline.InputXform.
 Require Import ProcKami.Pipeline.Executer.
-Require Import ProcKami.Pipeline.Mem.
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Pipeline.ConfigReader.
 
