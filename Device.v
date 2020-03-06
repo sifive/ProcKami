@@ -24,7 +24,6 @@ Section DeviceIfc.
         pma_writeable : bool;
         pma_executable : bool;
         pma_misaligned : bool;
-        pma_lrsc : bool;
         pma_amo : PMAAmoClass
       }.
 
@@ -37,7 +36,6 @@ Section DeviceIfc.
               pma_writeable  := true;
               pma_executable := true;
               pma_misaligned := true;
-              pma_lrsc       := true;
               pma_amo        := AMOArith
             |})
          [0; 1; 2; 3].

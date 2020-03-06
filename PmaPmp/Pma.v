@@ -13,8 +13,7 @@ Section Pma.
     := STRUCT_TYPE {
          "width"      :: Bool;
          "pma"        :: Bool;
-         "misaligned" :: Bool;
-         "lrsc"       :: Bool
+         "misaligned" :: Bool
        }.
 
   Local Open Scope kami_expr.
@@ -45,7 +44,6 @@ Section Pma.
     (offset : FU.Offset @# ty)
     (req_len : MemRqLgSize @# ty)
     (access_type : AccessType @# ty)
-    (lrsc : Bool @# ty)
     :  ActionT ty PmaSuccessPkt 
     := @mem_device_apply ty
          (@ProcKami.Device.devices _ deviceTree)
@@ -72,11 +70,7 @@ Section Pma.
                          (fun pma
                            => width_match pma &&
                               (isAligned offset req_len || 
-                               $$(pma_misaligned pma)));
-                  "lrsc"
-                    ::= acc_pmas
-                          (fun pma
-                            => width_match pma && ($$(pma_lrsc pma) || !lrsc))
+                               $$(pma_misaligned pma)))
                 } : PmaSuccessPkt @# ty)).
 
 End Pma.

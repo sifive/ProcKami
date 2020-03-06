@@ -96,7 +96,6 @@ Section device.
                     pma_writeable  := true;
                     pma_executable := false;
                     pma_misaligned := true;
-                    pma_lrsc       := false;
                     pma_amo        := AMONone
                   |})
                (seq 0 4));

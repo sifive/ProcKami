@@ -745,26 +745,16 @@ Section Params.
              "pmp"        :: Bool; (* request failed pmp check *)
              "width"      :: Bool; (* unsupported access width *)
              "pma"        :: Bool; (* failed device pma check *)
-             "misaligned" :: Bool; (* address misaligned and misaligned access not supported by device *)
-             "lrsc"       :: Bool  (* does not support lrsc operations *) 
+             "misaligned" :: Bool  (* address misaligned and misaligned access not supported by device *)
            }.
 
-    (* the immediate response from the memory system. *)
-(*
-    Definition RouterImmRes
-      := STRUCT_TYPE {
-           "ready" :: Bool; (* true iff the device accepted this request and a response callback is pending. *)
-           "info"  :: MemErrorPkt
-         }.
-*)
     Local Open Scope kami_expr.
 
     Definition mem_error (err_pkt : MemErrorPkt @# ty) : Bool @# ty
       := err_pkt @% "pmp" ||
          err_pkt @% "width" ||
          err_pkt @% "pma" ||
-         err_pkt @% "misaligned" ||
-         err_pkt @% "lrsc".
+         err_pkt @% "misaligned".
 
     Definition getMemErrorException
       (access_type : AccessType @# ty)
