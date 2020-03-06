@@ -73,23 +73,17 @@ Section Fpu.
                                   "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
                                   "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
                                });
-         LETC fstVal <- (STRUCT {
-                       "val1" ::= Valid #val1;
-                       "val2"
-                         ::= ITE (#result @% "fflags" @% "valid")
-                               (Valid #val2)
-                               Invalid;
-                       "taken?"     ::= $$false;
-                       "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "fence.i"    ::= $$false;
-                       "isSc"       ::= $$false;
-                       "reservationValid" ::= $$false
-                     } : ExecUpdPkt @# ty);
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2"
+                    <- IF #result @% "fflags" @% "valid"
+                         then Valid #val2
+                         else Invalid : Maybe RoutedReg @# ty];
          RetE
            (STRUCT {
-              "fst"
-                ::= #fstVal;
+              "fst" ::= #fstVal;
               "snd" ::= Invalid
             } : PktWithException ExecUpdPkt @# ty).
 
