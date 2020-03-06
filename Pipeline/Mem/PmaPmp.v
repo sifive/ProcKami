@@ -10,13 +10,13 @@ Require Import ProcKami.Pipeline.Mem.Pmp.
 
 Section PmaPmp.
   Context {procParams: ProcParams}.
-  Context {deviceTree : @DeviceTree procParams}.
+
+  Context (deviceTree : @DeviceTree procParams).
+  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices deviceTree))).
   
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Definition DeviceTag := Bit (Nat.log2_up (length (Device.devices deviceTree))).
-  
   Local Definition PmaSuccessPkt
     := STRUCT_TYPE {
          "width"      :: Bool;

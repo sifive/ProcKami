@@ -12,14 +12,6 @@ Section pmp.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Definition PmpCfg := STRUCT_TYPE {
-                           "L" :: Bool ;
-                           "reserved" :: Bit 2 ;
-                           "A" :: Bit 2 ;
-                           "X" :: Bool ;
-                           "W" :: Bool ;
-                           "R" :: Bool }.
-
   Local Definition PmpEntryPkt
     := STRUCT_TYPE {
          "cfg" :: PmpCfg ;

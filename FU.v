@@ -12,6 +12,9 @@ Definition Inst := (Bit InstSz).
 Definition CompInstSz := 16.
 Definition CompInst := (Bit CompInstSz).
 
+Definition isInstCompressed ty sz (bit_string : Bit sz @# ty)
+  := (ZeroExtendTruncLsb 2 bit_string != $$(('b"11") : word 2))%kami_expr.
+
 Definition FieldRange := {x: (nat * nat) & word (fst x + 1 - snd x)}.
 Definition UniqId := (list FieldRange)%type.
 Definition fieldVal range value :=
@@ -736,6 +739,14 @@ Section Params.
     Definition MemUpdateCodeNone := 0.
     Definition MemUpdateCodeTime := 1.
     Definition MemUpdateCodeTimeCmp := 2.
+
+    Definition PmpCfg := STRUCT_TYPE {
+                             "L" :: Bool ;
+                             "reserved" :: Bit 2 ;
+                             "A" :: Bit 2 ;
+                             "X" :: Bool ;
+                             "W" :: Bool ;
+                             "R" :: Bool }.
 
     Definition pmp_reg_width : nat := if Nat.eqb Xlen_over_8 4 then 32 else 54.
 

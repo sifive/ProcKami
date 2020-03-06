@@ -13,9 +13,9 @@ Require Import StdLibKami.Fetcher.Ifc.
 
 Require Import ProcKami.Pipeline.Mem.Impl.
 
-(* Section Ifc. *)
-(*   Context {procParams: ProcParams}. *)
-
+Section Ifc.
+  Context {procParams: ProcParams}.
+  
 (*   Record MemInterface *)
 (*     := { *)
 (*          (* Prefetcher stuff *) *)
@@ -49,4 +49,4 @@ Require Import ProcKami.Pipeline.Mem.Impl.
 (*          allRegs: list RegInitT; *)
 (*          allRegFiles : list RegFileBase *)
 (*        }. *)
-(* End Ifc. *)
+End Ifc.

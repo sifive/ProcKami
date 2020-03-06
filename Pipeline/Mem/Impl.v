@@ -40,6 +40,8 @@ Require Import StdLibKami.Router.Impl.
 
 Require Import ProcKami.Pipeline.Decoder.
 
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
+
 Section Impl.
   Context {procParams : ProcParams}.
   Context {deviceTree : @DeviceTree procParams}.
@@ -88,7 +90,7 @@ Section Impl.
       Fetcher.Ifc.finalErrK  := Bool;
       Fetcher.Ifc.isCompressed
       := fun ty (inst : Bit FU.CompInstSz @# ty)
-         => Decoder.isInstCompressed inst;
+         => isInstCompressed inst;
       Fetcher.Ifc.isImmErr := (fun _ _ => $$false);
       Fetcher.Ifc.isFinalErr := (fun ty (finalErr: Bool @# ty) => finalErr)
     |}.

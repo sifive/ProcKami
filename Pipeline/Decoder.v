@@ -159,9 +159,6 @@ Section decoder.
                     "inst"        ::= raw_inst
                   } : DecoderPkt func_units @# ty)).
 
-  Local Definition isInstCompressed sz (bit_string : Bit sz @# ty)
-    := ZeroExtendTruncLsb 2 bit_string != $$(('b"11") : word 2).
-
   (*
     Accepts a 32 bit string that represents either a 16 bit
     compressed instruction or an 32 bit uncompressed instruction
