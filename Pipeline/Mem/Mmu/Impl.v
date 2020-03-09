@@ -409,7 +409,7 @@ Section Impl.
     (access_type : AccessType @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
     (mode: PrivMode @# ty)
-    (satp_ppn: Bit 44 @# ty)
+    (satp_ppn: SatpPpn @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe TlbEntry)
     := System [

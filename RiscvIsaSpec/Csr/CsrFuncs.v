@@ -279,6 +279,22 @@ Section CsrInterface.
          csrFieldValue := csrFieldValueConst default
        |}.
 
+ Definition csrFieldRegAny
+   (name : string)
+   (k : Kind)
+   (reg_kind : Kind)
+   (init : option (ConstT reg_kind))
+   :  CsrFieldRegister k
+   := {|
+        csrFieldRegisterName := @^name;
+        csrFieldRegisterKind := reg_kind;
+        csrFieldRegisterValue := init;
+        csrFieldRegisterReadXform
+          := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
+        csrFieldRegisterWriteXform
+          := fun _ _ _ value => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack value));
+      |}.
+
   Definition csrFieldAny
     (name : string)
     (k : Kind)
@@ -286,18 +302,9 @@ Section CsrInterface.
     (init : option (ConstT reg_kind))
     :  CsrField
     := {|
-         csrFieldName := name;
-         csrFieldKind := k;
-         csrFieldValue
-           := csrFieldValueReg {|
-                  csrFieldRegisterName := @^name;
-                  csrFieldRegisterKind := reg_kind;
-                  csrFieldRegisterValue := init;
-                  csrFieldRegisterReadXform
-                    := fun _ _ value => unpack k (ZeroExtendTruncLsb (size k) (pack value));
-                  csrFieldRegisterWriteXform
-                    := fun _ _ _ value => unpack reg_kind (ZeroExtendTruncLsb (size reg_kind) (pack value));
-                |}
+         csrFieldName  := name;
+         csrFieldKind  := k;
+         csrFieldValue := csrFieldValueReg (@csrFieldRegAny name k reg_kind init)
       |}.
 
   Definition misa: CsrField
@@ -452,6 +459,46 @@ Section CsrInterface.
                  csrViewWriteXform := writeXform
                |} :: repeatCsrView k readXform writeXform)
          end.
+
+  Definition satpCsrView
+    (xlen : nat)
+    :  CsrView
+    := let fields
+         := [
+              let k := if Nat.eqb xlen 32 then 1 else SatpModeWidth in
+              {|
+                csrFieldName := "satp_mode";
+                csrFieldKind := Bit k;
+                csrFieldValue
+                  := if hasVirtualMem
+                       then csrFieldValueReg (@csrFieldRegAny "satp_mode" (Bit k) SatpMode (Some (ConstBit (wzero SatpModeWidth))))
+                       else @csrFieldValueConst (Bit k) (ConstBit (wzero k))
+              |};
+              let k := if Nat.eqb xlen 32 then 9 else 16 in
+              {|
+                csrFieldName := "satp_asid";
+                csrFieldKind := Bit k;
+                csrFieldValue
+                  := if hasVirtualMem
+                       then csrFieldValueReg (@csrFieldRegAny "satp_asid" (Bit k) (Bit 16) (Some (ConstBit (wzero 16))))
+                       else @csrFieldValueConst (Bit k) (ConstBit (wzero k))
+              |};
+              let k := if Nat.eqb xlen 32 then Bit 22 else SatpPpn in
+              {|
+                csrFieldName := "satp_ppn";
+                csrFieldKind := k;
+                csrFieldValue
+                  := if hasVirtualMem
+                       then csrFieldValueReg (@csrFieldRegAny "satp_ppn" k SatpPpn None)
+                       else @csrFieldValueConst k (getDefaultConst k)
+              |}
+            ] in
+       {|
+         csrViewContext := fun ty => if Nat.eqb xlen 32 then $1 else $2;
+         csrViewFields  := fields;
+         csrViewReadXform  := @csrViewDefaultReadXform fields;
+         csrViewWriteXform := @csrViewDefaultWriteXform fields
+       |}.
 
   Definition nilCsr
     (name : string)

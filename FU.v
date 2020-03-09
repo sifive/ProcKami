@@ -157,12 +157,6 @@ Definition falseHints :=
      isCsr       := false ;
      writeMem    := false |}.
 
-Definition SatpModeWidth := 4.
-Definition SatpModeBare := 0.
-Definition SatpModeSv32 := 1.
-Definition SatpModeSv39 := 8.
-Definition SatpModeSv48 := 9.
-
 Record SupportedExt :=
   { ext_name : string ;
     ext_init : bool ;
@@ -182,6 +176,7 @@ Class ProcParams :=
     debug_buffer_sz : nat;
     debug_impebreak : bool;
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
+    hasVirtualMem : bool
   }.
 
 Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
@@ -262,6 +257,18 @@ Section ParamDefinitions.
   Definition sigWidthMinus1 := sigWidthMinus2 + 1.
   Definition sigWidth := sigWidthMinus1 + 1.
   Definition fpu_len := expWidth + sigWidth.
+
+  Definition SatpModeWidth := if hasVirtualMem then 4 else 0.
+  Definition SatpMode := Bit SatpModeWidth.
+
+  Definition SatpModeBare := 0.
+  Definition SatpModeSv32 := 1.
+  Definition SatpModeSv39 := 8.
+  Definition SatpModeSv48 := 9.
+
+  Definition SatpPpnWidth := if hasVirtualMem then 44 else 0.
+  Definition SatpPpn := Bit SatpPpnWidth.
+
 End ParamDefinitions.
 
 Section Params.
@@ -425,7 +432,8 @@ Section Params.
   Definition ContextCfgPkt :=
     STRUCT_TYPE {
         "xlen"             :: XlenValue; (* First read during inputXlate *)
-        "satp_mode"        :: Bit SatpModeWidth; (* First read during vpc translation in fetch *)
+        "satp_mode"        :: SatpMode; (* First read during vpc translation in fetch *)
+
         (* "debug_hart_state" :: debug_hart_state; *)
         "mode"             :: PrivMode; (* First read during vpc translation in fetch *)
         "tsr"              :: Bool; (* Move MRet to commit and remove this *)
@@ -438,7 +446,7 @@ Section Params.
         "sum"              :: Bool; (* First read during vpc translation in fetch *)
         "mprv"             :: Bool; (* First read during vpc translation in fetch *)
         "mpp"              :: PrivMode; (* First read during vpc translation in fetch *)
-        "satp_ppn"         :: Bit 44 (* First read during vpc translation in fetch *)
+        "satp_ppn"         :: SatpPpn (* First read during vpc translation in fetch *)
 (*
         "mcounteren"       :: CounterEnType;
         "scounteren"       :: CounterEnType;
@@ -614,6 +622,31 @@ Section Params.
   Section ty.
     Variable ty: Kind -> Type.
 
+    Local Open Scope kami_expr.
+    Local Open Scope kami_action.
+
+    Definition readSatpMode
+      :  ActionT ty SatpMode
+      := if hasVirtualMem
+           then
+             Read satp_mode : SatpMode <- @^"satp_mode";
+             Ret #satp_mode
+           else
+             Ret ($SatpModeBare : SatpMode @# ty).
+
+    Definition readSatpPpn
+      :  ActionT ty SatpPpn
+      := if hasVirtualMem
+           then
+             Read satp_ppn : SatpPpn <- @^"satp_ppn";
+             Ret #satp_ppn
+           else
+             Ret ($0 : SatpPpn @# ty).
+
+
+    Local Close Scope kami_action.
+    Local Close Scope kami_expr.
+
     Definition LgPageSz := 12.
 
     (* virtual memory translation params.*)
@@ -694,15 +727,16 @@ Section Params.
                           ::= ($SAmoAddrMisaligned : Exception @# ty)
                         }.
 
-    Definition satp_select (satp_mode : Bit SatpModeWidth @# ty) k (f: VmMode -> k @# ty): k @# ty :=
+    Definition satp_select (satp_mode : SatpMode @# ty) k (f: VmMode -> k @# ty): k @# ty :=
       Switch satp_mode Retn k With {
-               ($SatpModeSv32 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv32;
-               ($SatpModeSv39 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv39;
-               ($SatpModeSv48 : Bit SatpModeWidth @# ty)
-               ::= f vm_mode_sv48
-             }.
+        ($SatpModeSv32 : SatpMode @# ty)
+          ::= f vm_mode_sv32;
+        ($SatpModeSv39 : SatpMode @# ty)
+          ::= f vm_mode_sv39;
+        ($SatpModeSv48 : SatpMode @# ty)
+          ::= f vm_mode_sv48
+      }.
+
 
     Definition bindException
                (input_kind output_kind : Kind)
