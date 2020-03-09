@@ -92,6 +92,8 @@ Section Params.
          Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
          Register @^"pc"               : VAddr <- ConstBit pc_init with
          Register @^"reservation"      : Maybe Reservation <- getDefaultConst (Maybe Reservation) with
+         Register @^"isWfi"            : Bool <- ConstBool false with
+
          Registers (@csr_regs procParams Csrs) with
          Registers (@debug_internal_regs procParams) with
          Registers (@devicesRegs procParams (@devices procParams devicesIfc)) with

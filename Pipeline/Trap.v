@@ -120,6 +120,10 @@ Section trap.
        (* section 3.1.22 *)
        Write @^(prefix ++ "tval") : Bit Xlen <- #final_exception_value;
        Write @^"mode" : PrivMode <- modeFix #extensions next_mode;
+       If intrpt
+         then
+           Write @^"isWfi" : Bool <- $$false;
+           Retv;
        System [
          DispString _ "[Register Writer.trapAction]\n";
          DispString _ ("  mode: " ++ prefix ++ "\n");
