@@ -24,7 +24,7 @@ Section devsIfc.
   Local Definition devicesInst
     :  list Device
     := [
-         debugDevice;
+         @debugDevice _;
          @bootRomDevice _;
          @msipDevice _;
          @mtimecmpDevice _;
@@ -85,10 +85,10 @@ Section devsIfc.
   Definition procMemInterfaceSizeParams
     :  MemInterfaceSizeParams
     := {|
-         prefetcherFifoLogLen := 3;
+         prefetcherFifoLogLen        := 3;
          completionBufferLogNumReqId := 5; 
-         tlbNumEntries        := 16; (* 1; *)
-         memUnitTagSz         := 7; (* 0 *)
+         tlbNumEntries               := 16; (* 1; *)
+         memUnitTagSz                := 0; (* 0 *)
        |}.
 
 End devsIfc.

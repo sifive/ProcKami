@@ -24,13 +24,13 @@ Section Impl.
   Context {procParams: ProcParams}.
   Context (func_units : list FUEntry).
   Context (deviceTree: @DeviceTree procParams).
-  Context (memIfcParams: @Mem.Ifc.Params).
+  Context (memParams: @Mem.Ifc.Params).
 
-  Definition CommitPkt := (STRUCT_TYPE {
-                         "completePc" :: Maybe FU.VAddr ;
-                         "execCxt"    :: ExecContextPkt ;
-                         "execUpd"    :: ExecUpdPkt ;
-                         "exception"  :: Maybe Exception })%kami_expr.
+  Local Definition CommitPkt := (STRUCT_TYPE {
+                                     "completePc" :: Maybe FU.VAddr ;
+                                     "execCxt"    :: ExecContextPkt ;
+                                     "execUpd"    :: ExecUpdPkt ;
+                                     "exception"  :: Maybe Exception })%kami_expr.
 
   Local Instance tokenFifoParams
     :  Fifo.Ifc.Params
@@ -88,8 +88,8 @@ Section Impl.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
 
-    Definition memCallback ty
-               (res: ty (@MemResp _ memIfcParams))
+    Local Definition memCallback ty
+               (res: ty (@MemResp _ memParams))
       :  ActionT ty Void
       := System [
            DispString _ "[memCallback] res: ";
@@ -127,7 +127,7 @@ Section Impl.
     Local Close Scope kami_action.
   End memInterfaceSizeParams.
   
-  Definition mem := @Mem.Impl.impl  _ deviceTree _ memCallback.
+  Local Definition mem := @Mem.Impl.impl  _ deviceTree _ memCallback.
 
   Section ty.
     Variable ty: Kind -> Type.
@@ -362,12 +362,16 @@ Section Impl.
     Local Close Scope kami_action.
   End ty.
 
+  Definition ArbiterTag := @Mem.Impl.ArbiterTag _ deviceTree _ memCallback.
+  
   Definition impl
     :  Ifc
     := {|
          Pipeline.Ifc.regs
            := [
-                (@^"initReg", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))))
+                (@^"initReg", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
+                (@^"pc", existT RegInitValT (SyntaxKind (Bit Xlen)) (Some (SyntaxConst (ConstBit pc_init))));
+                (@^"isWfi", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))))
               ] ++
               @Fifo.Ifc.regs _ tokenFifo ++
               @Fifo.Ifc.regs _ fetchAddrExceptionFifo ++

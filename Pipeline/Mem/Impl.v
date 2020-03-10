@@ -46,9 +46,9 @@ Require Import ProcKami.Device.
 Section Impl.
   Context {procParams : ProcParams}.
   Context (deviceTree : @DeviceTree procParams).
-  Context {memIfcParams: Mem.Ifc.Params}.
+  Context {memParams: Mem.Ifc.Params}.
   
-  Context (memCallback: forall ty, ty (@MemResp _ memIfcParams) -> ActionT ty Void).
+  Context (memCallback: forall ty, ty (@MemResp _ memParams) -> ActionT ty Void).
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -56,7 +56,7 @@ Section Impl.
   Local Definition fetcherParams :=
     {|
       Fetcher.Ifc.name       := @^"fetcher";
-      Fetcher.Ifc.size       := Nat.pow 2 (@fetcherLgSize memIfcParams);
+      Fetcher.Ifc.size       := Nat.pow 2 (@fetcherLgSize memParams);
       Fetcher.Ifc.memReqK    := PAddrDevOffset deviceTree;
       Fetcher.Ifc.vAddrSz    := Xlen;
       Fetcher.Ifc.compInstSz := FU.CompInstSz;
@@ -82,7 +82,7 @@ Section Impl.
   Local Definition completionBufferParams :=
     {|
       CompletionBuffer.Ifc.name      := @^"completionBuffer";
-      CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize memIfcParams);
+      CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize memParams);
       CompletionBuffer.Ifc.inReqK    := PAddrDevOffsetVAddr deviceTree;
       CompletionBuffer.Ifc.outReqK   := PAddrDevOffset deviceTree;
       CompletionBuffer.Ifc.storeReqK := FU.VAddr;
@@ -118,7 +118,7 @@ Section Impl.
     @Mmu.Impl.impl _ deviceTree @^"tlb"
                    {| Mmu.Impl.lgPageSz := LgPageSz;
                       Mmu.Impl.cam := @Cam.Impl.impl _ {|
-                                                       Cam.Impl.size      := @tlbSize memIfcParams;
+                                                       Cam.Impl.size      := @tlbSize memParams;
                                                        Cam.Impl.policy    := ReplacementPolicy.PseudoLru.impl
                                                      |}
                    |}.
@@ -136,7 +136,7 @@ Section Impl.
          clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
                                     @Mmu.Ifc.callback _ deviceTree mmu _ res)%kami_action |};
       (* Fetch Client *)                                                                                 
-      {| clientTagSz := @completionBufferLgSize memIfcParams;
+      {| clientTagSz := @completionBufferLgSize memParams;
          clientHandleRes ty
                          (res: ty (STRUCT_TYPE { "tag" :: Bit _;
                                                  "res" :: Maybe Data }))
@@ -164,7 +164,7 @@ Section Impl.
     :  @Arbiter.Ifc.Ifc _ {| clientList := arbiterClients |}
     := @Arbiter.Impl.impl arbiterParams _.
 
-  Local Definition ArbiterTag := Arbiter.Ifc.Tag {| clientList :=  arbiterClients |}.
+  Definition ArbiterTag := Arbiter.Ifc.Tag {| clientList :=  arbiterClients |}.
 
   Local Definition deviceIfcs := map (fun d => deviceIfc d ArbiterTag) (ProcKami.Device.devices deviceTree).
 
@@ -180,7 +180,7 @@ Section Impl.
                                                   "req" :: @MemReq _ deviceTree }.
 
   Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
-    @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize memIfcParams) @# ty.
+    @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize memParams) @# ty.
   refine (
     let req := (inReq @% "outReq") in
     let reqStruct := STRUCT { "dtag" ::= req @% "dtag" ;

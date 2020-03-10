@@ -9,8 +9,6 @@ Require Import StdLibKami.Router.Ifc.
 Import ListNotations.
 
 Section mmregs.
-  Context (Tag: Kind).
-  
   Local Definition mmregs_lgGranuleLgSz := Nat.log2_up 3.
   Local Definition mmregs_lgMaskSz := Nat.log2_up 8.
 
@@ -108,7 +106,7 @@ Section mmregs.
       Section deviceName.
         Variable deviceName : string.
 
-        Local Definition regDeviceRegs
+        Local Definition regDeviceRegs Tag
           :  list RegInitT
           := createRegs Tag deviceName.
 
@@ -199,7 +197,7 @@ Section mmregs.
              |}
            ] msipDeviceName false.
 
-    Definition msipDeviceRegs
+    Definition msipDeviceRegs Tag
       := createRegs Tag msipDeviceName.
 
     Local Definition mtimeDeviceName := "mtime".
@@ -215,7 +213,7 @@ Section mmregs.
              |}
            ] mtimeDeviceName false.
 
-    Definition mtimeDeviceRegs
+    Definition mtimeDeviceRegs Tag
       := createRegs Tag mtimeDeviceName.
 
     Local Definition mtimecmpDeviceName := "mtimecmp".
@@ -231,7 +229,7 @@ Section mmregs.
              |}
            ] mtimecmpDeviceName false.
 
-    Definition mtimecmpDeviceRegs
+    Definition mtimecmpDeviceRegs Tag
       := createRegs Tag mtimecmpDeviceName.
 
     Local Close Scope kami_action.

@@ -7,7 +7,6 @@ Require Import StdLibKami.Router.Ifc.
 
 Section device.
   Context (procParams: ProcParams).
-  Context (Tag: Kind).
 
   Local Definition lgMemSz := 12.
 
@@ -44,7 +43,7 @@ Section device.
               Ret (Valid (pack #readData) : Maybe Data @# ty);
   |}.
 
-  Local Definition bootRomDeviceRegs
+  Local Definition bootRomDeviceRegs Tag
     :  list RegInitT
     := createRegs Tag bootRomDeviceName.
 
