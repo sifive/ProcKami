@@ -178,7 +178,8 @@ Section exts.
           FU.misaligned_access := misaligned_access;
           FU.debug_buffer_sz := debug_buffer_sz;
           FU.debug_impebreak := debug_impebreak;
-          FU.lgGranularity := 3 |}.
+          FU.lgGranularity := 3;
+          FU.hasVirtualMem := true |}.
 
   Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
   Proof. cbv; reflexivity. Qed.

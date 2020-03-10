@@ -25,7 +25,8 @@ Section config_reader.
 
   Definition readConfig
     :  ActionT ty ContextCfgPkt
-    := Read satp_mode : Bit SatpModeWidth <- @^"satp_mode";
+    := LETA satp_mode : SatpMode <- readSatpMode ty;
+       LETA satp_ppn : SatpPpn <- readSatpPpn ty;
        Read modeRaw : PrivMode <- @^"mode";
        Read extensionsReg
          :  ExtensionsReg
@@ -44,7 +45,6 @@ Section config_reader.
        Read sum : Bool <- @^"sum";
        Read mprv : Bool <- @^"mprv";
        Read mpp : PrivMode <- @^"mpp";
-       Read satp_ppn : Bit 44 <- @^"satp_ppn";
        System
          [
            DispString _ "Start\n";
