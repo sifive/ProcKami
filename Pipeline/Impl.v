@@ -376,11 +376,13 @@ Section Impl.
               @Fifo.Ifc.regs _ tokenFifo ++
               @Fifo.Ifc.regs _ fetchAddrExceptionFifo ++
               @Fifo.Ifc.regs _ fetchInstExceptionFifo ++
+              @Fifo.Ifc.regs _ decExecFifo ++
               @Mem.Ifc.regs _ _ _ mem;
          Pipeline.Ifc.regFiles
            := @Fifo.Ifc.regFiles _ tokenFifo ++
               @Fifo.Ifc.regFiles _ fetchAddrExceptionFifo ++
               @Fifo.Ifc.regFiles _ fetchInstExceptionFifo ++
+              @Fifo.Ifc.regFiles _ decExecFifo ++
               @Mem.Ifc.regFiles _ _ _ mem;
          Pipeline.Ifc.tokenStartRule                := tokenStartRule;
          Pipeline.Ifc.mmuSendReqRule                := Mem.Ifc.mmuSendReqRule mem;
