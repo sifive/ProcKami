@@ -151,8 +151,9 @@ Section Impl.
     Local Definition sendPcRule: ActionT ty Void :=
       LETA cxtCfg: ContextCfgPkt <- readConfig _;
       LETA isEmpty <- @Fifo.Ifc.isEmpty _ tokenFifo _;
+      LETA isFull <- @fetcherIsFull procParams deviceTree _ mem ty;
       Read pc : FU.VAddr <- @^"pc";
-      If !#isEmpty
+      If !#isEmpty && !#isFull
       then (
         System [
           DispString _ "[sendPcRule]\n"
