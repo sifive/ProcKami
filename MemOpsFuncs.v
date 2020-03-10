@@ -32,11 +32,6 @@ Section memOpsFuncs.
        | _ => false
        end.
 
-  Inductive MemReservation : Set
-    := memReservationSet
-    |  memReservationClear
-    |  memReservationNone.
-
   Record MemOp := {
     memOpName : MemOpName;
     memOpCode : nat;
