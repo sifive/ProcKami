@@ -26,7 +26,7 @@ Section mem_devices.
   Local Definition pMemDeviceParams := {|
     regNames := pDevRegNames;
 
-    read
+    readReq
       := fun ty addr
            => ReadReqRf pMemDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
               Retv;

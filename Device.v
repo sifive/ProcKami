@@ -89,7 +89,7 @@ Section DeviceIfc.
   Class BaseDevice := {
     regNames : RegNames;
 
-    read  : forall ty, PAddr @# ty -> ActionT ty Void;
+    readReq  : forall ty, PAddr @# ty -> ActionT ty Void;
     write : forall ty, MemWrite @# ty -> ActionT ty Bool;
 
     (* Returns the value retrieved by the last read request. *)
@@ -127,7 +127,7 @@ Section DeviceIfc.
       :  ActionT ty Void
       := LETA isRead : Bool <- deviceIsRead code;
          If #isRead
-           then read addr;
+           then readReq addr;
          Retv.
 
     Local Definition deviceWriteValue

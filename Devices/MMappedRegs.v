@@ -115,7 +115,7 @@ Section mmregs.
         Local Definition regDeviceParams := {|
           regNames := createRegNames deviceName;
 
-          read
+          readReq
             := fun ty addr
                  => LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
                     Write (deviceResRegName regDeviceRegNames)

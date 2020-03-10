@@ -34,7 +34,7 @@ Section device.
   Local Definition uartDeviceParams := {|
     regNames := createRegNames uartDeviceName;
 
-    read
+    readReq
       := fun ty addr
            => LET readRq
                 :  UARTRead

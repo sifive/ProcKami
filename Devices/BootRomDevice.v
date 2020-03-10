@@ -22,7 +22,7 @@ Section device.
   Local Definition bootRomDeviceParams := {|
     regNames := createRegNames bootRomDeviceName;
 
-    read
+    readReq
       := fun ty addr
            => ReadReqRf bootRomDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
               Retv;
