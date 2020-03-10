@@ -92,7 +92,7 @@ Section memOpsFuncs.
            Ret (#result @% "data").
 
       (* stores excluding AMOs that do not generate write backs. *)
-      Definition memOpIsStoreOnly
+      Definition memOpHasLoad
         :  MemOpCode @# ty -> ActionT ty Bool
         := applyMemOp
              (fun memOp => Ret $$(isMemRegValueFn (memOpRegValue memOp))).
