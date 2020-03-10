@@ -306,9 +306,16 @@ Section Impl.
                   DispHex #accepted;
                   DispString _ "\n"
                 ];
-                If #accepted (* Requrest accepted *)
+                If #accepted (* Request accepted *)
                 then (
-                  LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+                  LETA isStoreOnly
+                    :  Bool
+                    <- memOpIsStoreOnly memOps (#execContextPkt @% "fst" @% "memHints" @% "data" @% "memOp");
+                  If #isStoreOnly
+                    then
+                      (* signal to the commitRule that it should process the instruction - no callback is pending. *)
+                      LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+                      Retv;
                   LETA _ <- @Fifo.Ifc.deq _ fetchInstExceptionFifo _ ;
                   LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
                   Retv ) ;

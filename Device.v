@@ -262,6 +262,9 @@ Section DeviceIfc.
              LETA regData
                :  Maybe Data
                <- deviceRegValue (#req @% "data" @% "memOp") (#memData @% "data");
+             LETA isStoreOnly
+               :  Bool
+               <- memOpIsStoreOnly memOps (#req @% "data" @% "memOp");
              Write (deviceReqRegName regNames)
                :  Maybe (Req tagK)
                <- Invalid;
@@ -275,7 +278,7 @@ Section DeviceIfc.
                     "res" ::= #regData
                   } : (Res tagK) @# ty;
              Ret
-               (IF #writeSucceeded
+               (IF #writeSucceeded && !#isStoreOnly
                  then ((Valid #result) : Maybe (Res tagK) @# ty)
                  else (Invalid : Maybe (Res tagK) @# ty))
            else

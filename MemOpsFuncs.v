@@ -17,7 +17,7 @@ Section memOpsFuncs.
   Definition isMemRegValueFn (x : MemRegValue) : bool
     := match x with
        | memRegValueFn _ => true
-       | _ => false
+       | _ => false (* stores *)
        end.
 
   (* specifies the value written to memory by a memory operation. *)
@@ -90,6 +90,12 @@ Section memOpsFuncs.
                          Ret #result)
                     memOps);
            Ret (#result @% "data").
+
+      (* stores excluding AMOs that do not generate write backs. *)
+      Definition memOpIsStoreOnly
+        :  MemOpCode @# ty -> ActionT ty Bool
+        := applyMemOp
+             (fun memOp => Ret $$(isMemRegValueFn (memOpRegValue memOp))).
 
       Local Close Scope kami_action.
 
