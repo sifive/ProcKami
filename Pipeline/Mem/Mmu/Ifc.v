@@ -8,7 +8,7 @@ Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Section Ifc.
   Context {procParams: ProcParams}.
-  Context {deviceTree : @DeviceTree procParams}.
+  Context (deviceTree : @DeviceTree procParams).
 
   Definition MemReq := STRUCT_TYPE {
                            "dtag" :: @DeviceTag _ deviceTree;
@@ -16,6 +16,12 @@ Section Ifc.
                            "paddr" :: PAddr ;
                            "memOp" :: MemOpCode;
                            "data" :: Data }.
+
+  Definition PAddrDevOffset := STRUCT_TYPE {
+                                   "dtag" :: @DeviceTag _ deviceTree;
+                                   "offset" :: Offset ;
+                                   "paddr" :: PAddr 
+                                 }.
   
   Record Ifc
     := {
@@ -37,8 +43,7 @@ Section Ifc.
                       (accessType : AccessType @# ty)
                       (memOp: MemOpCode @# ty)
                       (vaddr : FU.VAddr @# ty)
-                      (data: FU.Data @# ty)
-         : ActionT ty (Maybe (PktWithException MemReq));
+         : ActionT ty (Maybe (PktWithException PAddrDevOffset));
          
          callback 
            : forall ty, ty (Maybe Data) -> ActionT ty Void

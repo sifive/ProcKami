@@ -5,48 +5,109 @@
 *)
 Require Import Kami.AllNotations.
 
-Require Import ProcKami.FU.
-
 Require Import StdLibKami.Arbiter.Ifc.
 
 Require Import StdLibKami.Fetcher.Ifc.
 
-Require Import ProcKami.Pipeline.Mem.Impl.
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
+
+Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
+
+Require Import ProcKami.FU.
+Require Import ProcKami.Device.
 
 Section Ifc.
   Context {procParams: ProcParams}.
+  Context (deviceTree : @DeviceTree procParams).
+
+  Class Params
+    := {
+        fetcherLgSize : nat;
+        completionBufferLgSize : nat;
+        tlbSize : nat;
+        memUnitTagLgSize : nat
+      }.
+
+  Context {params: Params}.
+
+  Definition MemReq := STRUCT_TYPE {
+                           "dtag" :: DeviceTag deviceTree;
+                           "offset" :: Offset;
+                           "paddr" :: PAddr;
+                           "memOp" :: MemOpCode;
+                           "data" :: Data
+                         }.
   
-(*   Record MemInterface *)
-(*     := { *)
-(*          (* Prefetcher stuff *) *)
-(*          prefetcherIsFull : forall ty : Kind -> Type, ActionT ty Bool; *)
-(*          doPrefetch : forall ty : Kind -> Type, ty (@Fetcher.Ifc.Req fetcherParams) -> ActionT ty Bool; *)
+  Definition MemResp := STRUCT_TYPE {
+                            "tag" :: Bit memUnitTagLgSize;
+                            "res" :: Maybe Data
+                          }.
+
+  Definition MemUnitMemReq := STRUCT_TYPE {
+                               "tag" :: Bit memUnitTagLgSize;
+                               "req" :: MemReq }.
+
+                                
+  Definition PAddrDevOffset := STRUCT_TYPE {
+                                   "dtag"   :: @DeviceTag _ deviceTree;
+                                   "offset" :: Offset;
+                                   "paddr"  :: PAddr
+                                 }.
+
+  Definition PAddrDevOffsetVAddr := STRUCT_TYPE { "memReq" :: PAddrDevOffset;
+                                                  "vaddr"  :: FU.VAddr }.
+
+  Definition FetchOutput := STRUCT_TYPE {
+                                "notComplete?" :: Bool ;
+                                "vaddr" :: FU.VAddr ;
+                                "immRes" :: Void ;
+                                "error" :: Bool ;
+                                "compressed?" :: Bool ;
+                                "errUpper?" :: Bool ;
+                                "inst" :: FU.Inst }.
+  
+  Record Ifc
+    := {
+         regs: list RegInitT;
+         regFiles : list RegFileBase;
          
-(*          deqFetchInstruction : forall ty : Kind -> Type, ActionT ty (Maybe (@Fetcher.Ifc.OutRes fetcherParams)); *)
-(*          firstFetchInstruction : forall ty : Kind -> Type, ActionT ty (Maybe (@Fetcher.Ifc.OutRes fetcherParams)); *)
-(*          prefetcherClearTop : forall ty : Kind -> Type, ActionT ty Void; *)
-(*          prefetcherNotCompleteDeqRule : forall ty : Kind -> Type, ActionT ty Void; *)
-(*          prefetcherTransferRule : forall ty : Kind -> Type, ActionT ty Void; *)
-
-(*          (* CompletionBuffer stuff *) *)
-(*          responseToPrefetcherRule: forall ty, ActionT ty Void; *)
-
-(*          (* TLB stuff *) *)
-(*          tlbGetPAddr: forall ty, ty Tlb.Ifc.Req -> ActionT ty (Maybe (PktWithException FU.PAddr)); *)
-(*          tlbReadException: forall ty, ActionT ty (Maybe (Pair FU.VAddr Exception)); *)
-(*          tlbClearException: forall ty, ActionT ty Void; *)
-(*          tlbSendMemReqRule: forall ty, ActionT ty Void; *)
+         (* Prefetcher stuff *)
+         fetcherIsFull : forall ty : Kind -> Type, ActionT ty Bool;
+         fetcherSendAddr : forall ty : Kind -> Type, ty (STRUCT_TYPE { "inReq" :: PAddrDevOffsetVAddr;
+                                                                       "sendReq?" :: Bool }) -> ActionT ty Bool;
          
-(*          (* TODO: LLEE a function that accepts a request from the MemUnit and sends the request to the devices through the Arbiter and Router. *) *)
-(*          sendMemUnitMemReq : forall ty, ty (clientReqK (nth_Fin procArbiterClients memUnitArbiterClientId)) -> ActionT ty (Maybe MemErrorPkt); *)
+         fetcherDeq : forall ty : Kind -> Type, ActionT ty Bool;
+         fetcherFirst : forall ty : Kind -> Type, ActionT ty (Maybe FetchOutput);
+         
+         fetcherClearTop : forall ty : Kind -> Type, ActionT ty Void;
+         fetcherClear : forall ty : Kind -> Type, ActionT ty Void;
+         
+         fetcherNotCompleteDeqRule : forall ty : Kind -> Type, ActionT ty Void;
+         fetcherTransferRule : forall ty : Kind -> Type, ActionT ty Void;
 
-(*          (* Arbiter regs and rules *) *)
-(*          arbiterRule: forall ty, ActionT ty Void; *)
+         (* CompletionBuffer stuff *)
+         responseToFetcherRule: forall ty, ActionT ty Void;
 
-(*          (* Router regs and rules *) *)
-(*          devRouterPollRules : list (forall {ty}, ActionT ty Void); *)
+         (* MMU stuff *)
+         memTranslate ty
+                      (context : ContextCfgPkt @# ty)
+                      (accessType : AccessType @# ty)
+                      (memOp: MemOpCode @# ty)
+                      (vaddr : FU.VAddr @# ty)
+         : ActionT ty (Maybe (PktWithException PAddrDevOffset));
+         
+         mmuReadException : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
+         mmuClearException : forall ty, ActionT ty Void;
 
-(*          allRegs: list RegInitT; *)
-(*          allRegFiles : list RegFileBase *)
-(*        }. *)
+         mmuSendReqRule : forall ty, ActionT ty Void;
+
+         (* MemUnit stuff *)
+         sendMemUnitMemReq : forall ty, ty MemUnitMemReq -> ActionT ty Bool;
+
+         (* Arbiter regs and rules *)
+         arbiterResetRule: forall ty, ActionT ty Void;
+
+         (* Router regs and rules *)
+         routerPollRules : list (forall {ty}, ActionT ty Void);
+       }.
 End Ifc.

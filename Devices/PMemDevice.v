@@ -7,7 +7,6 @@ Require Import StdLibKami.Router.Ifc.
 
 Section mem_devices.
   Context (procParams: ProcParams).
-  Context (Tag: Kind).
 
   Local Definition lgMemSz := 20.
 
@@ -18,7 +17,7 @@ Section mem_devices.
   Local Definition pMemDeviceSendReqName := @^(pMemDeviceName ++ "SendReadReq").
   Local Definition pMemDeviceGetResName := @^(pMemDeviceName ++ "GetReadRes").
 
-  Local Definition pMemDeviceRegs
+  Local Definition pMemDeviceRegs Tag
     :  list RegInitT
     := createRegs Tag pMemDeviceName.
 

@@ -15,16 +15,18 @@ Require Import ProcKami.Devices.PMemDevice.
 Require Import ProcKami.Devices.MMappedRegs.
 Require Import ProcKami.Devices.UARTDevice.
 
+Require Import ProcKami.Pipeline.Mem.Ifc.
+
 Import BinNat.
 
-Section devsIfc.
+Section DeviceTree.
   Context {procParams : ProcParams}.
   Context {func_units : list FUEntry}.
 
   Local Definition devicesInst
     :  list Device
     := [
-         debugDevice;
+         @debugDevice _;
          @bootRomDevice _;
          @msipDevice _;
          @mtimecmpDevice _;
@@ -73,22 +75,21 @@ Section devsIfc.
          |}
       ].
 
-  Definition procDevicesIfc
-    :  DevicesIfc
+  Definition deviceTree
+    :  DeviceTree
     := {|
          devices  := devicesInst;
          memTable := memTableInst;
          memTableIsValid   := ltac:(discriminate)
        |}.
 
-  (* Note: for optimal perf make completionBufferLogNumReqId equal to prefetcherFifoLogLen. *)
-  Definition procMemInterfaceSizeParams
-    :  MemInterfaceSizeParams
+  Definition memParams
+    :  Mem.Ifc.Params
     := {|
-         prefetcherFifoLogLen := 3;
-         completionBufferLogNumReqId := 5; 
-         tlbNumEntries        := 16; (* 1; *)
-         memUnitTagSz         := 7; (* 0 *)
+         fetcherLgSize          := 4;
+         completionBufferLgSize := 4; 
+         tlbSize                := 16;
+         memUnitTagLgSize       := 0;
        |}.
 
-End devsIfc.
+End DeviceTree.

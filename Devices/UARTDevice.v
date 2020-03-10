@@ -7,7 +7,6 @@ Require Import StdLibKami.Router.Ifc.
 
 Section device.
   Context (procParams: ProcParams).
-  Context (Tag: Kind).
 
   Local Definition lgMemSz := 8.
   Local Definition uartDeviceName := "uart_device".
@@ -26,7 +25,7 @@ Section device.
          "data" :: Data (* every UART interface register is one byte wide *)
        }.
 
-  Local Definition uartDeviceRegs
+  Local Definition uartDeviceRegs Tag
     :  list RegInitT
     := createRegs Tag uartDeviceName.
 

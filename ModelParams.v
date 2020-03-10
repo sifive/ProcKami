@@ -159,31 +159,27 @@ Section exts.
   Local Definition PAddrSz_over_8 : nat := 8.
   Local Definition PAddrSz : nat := 64.
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
-  Local Definition arbiterNumTransactions := 6.
 
   Variable pc_init_val: word (Xlen_over_8 * 8).
   Variable debug_buffer_sz : nat.
   Variable debug_impebreak : bool.
 
-  Local Definition procNumMemOps := 6.
-  Local Definition lgGranularity := 3. (* log2 (log2 (min size of a reservation region)). *)
-  Local Definition hasVirtualMem := true.
-
   Local Instance procParams
     :  ProcParams
-    := Build_ProcParams name Xlen_over_8 Flen_over_8
-         procNumMemOps
-         (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
-         supported_xlens
-         supported_exts
-         allow_misaligned
-         allow_inst_misaligned
-         misaligned_access
-         debug_buffer_sz
-         debug_impebreak
-         arbiterNumTransactions
-         lgGranularity
-         hasVirtualMem.
+    := {| FU.procName := name ;
+          FU.Xlen_over_8 := Xlen_over_8;
+          FU.Flen_over_8 := Flen_over_8;
+          FU.MemOpCodeSz := 6;
+          FU.pcInit := (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)));
+          FU.supported_xlens := supported_xlens;
+          FU.supported_exts := supported_exts;
+          FU.allow_misaligned := allow_misaligned;
+          FU.allow_inst_misaligned := allow_inst_misaligned;
+          FU.misaligned_access := misaligned_access;
+          FU.debug_buffer_sz := debug_buffer_sz;
+          FU.debug_impebreak := debug_impebreak;
+          FU.lgGranularity := 3;
+          FU.hasVirtualMem := true |}.
 
   Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
   Proof. cbv; reflexivity. Qed.
@@ -309,9 +305,9 @@ Section exts.
   Definition generate_model
     := @processor
          procParams
-         procMemInterfaceSizeParams
          param_func_units
-         procDevicesIfc.
+         deviceTree
+         memParams.
   
   Local Close Scope kami_expr.
 End exts.

@@ -1,7 +1,3 @@
-(*
-  This module integrates the processor components defined in FU.v
-  into a single pipeline processor model.
-*)
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.Debug.Debug.
@@ -16,159 +12,102 @@ Require Import ProcKami.Devices.UARTDevice.
 Require Import ProcKami.FU.
 
 Require Import ProcKami.Pipeline.Mem.Ifc.
-Require Import ProcKami.Pipeline.Mem.Impl.
 
+Require Import ProcKami.Pipeline.Ifc.
 Require Import ProcKami.Pipeline.Impl.
 
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 
-Require Import StdLibKami.Fifo.Ifc.
-Require Import StdLibKami.Fifo.Impl.
-
 Import ListNotations.
 
 Section Params.
   Context {procParams: ProcParams}.
-  Context {memInterfaceSizeParams : MemInterfaceSizeParams}.
-  Context (func_units : list FUEntry).
-  Context (devicesIfc : DevicesIfc).
+  Context (func_units: list FUEntry).
+  Context (deviceTree: DeviceTree).
+  Context (memParams: Mem.Ifc.Params).
 
-  Local Instance tokenFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"tokenFifo";
-         StdLibKami.Fifo.Ifc.k := Void;
-       |}.
-
-  Local Instance fetchAddrExFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"fetchAddrExFifo";
-         StdLibKami.Fifo.Ifc.k := Maybe Exception;
-       |}.
-
-  Local Instance fetchInstExFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"fetchInstExFifo";
-         StdLibKami.Fifo.Ifc.k := Maybe Exception;
-       |}.
-
-  Local Instance decExecFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"decExecFifo";
-         StdLibKami.Fifo.Ifc.k := CommitPkt;
-       |}.
-
-  Local Definition tokenFifo
-    := @Fifo.RegList.regListFifo tokenFifoParams 0.
-
-  Local Definition fetchAddrExFifo
-    := @Fifo.RegList.regListFifo fetchAddrExFifoParams 0.
-
-  Local Definition fetchInstExFifo := @Fifo.RegList.regListFifo fetchInstExFifoParams (S prefetcherFifoLogLen).
-
-  Local Definition decExecFifo := @Fifo.RegList.regListFifo decExecFifoParams 0.
-
-  Local Definition procMemInterfaceParams
-    := {|
-         memInterfaceSizes := memInterfaceSizeParams;
-         memHandleRes
-           := handleMemRes tokenFifo decExecFifo memInterfaceSizeParams
-       |}.
-
-  Local Definition procMem: MemInterface := @MemInterface.Impl.procMemInterface procParams procMemInterfaceParams devicesIfc.
-
-  Local Definition procPipeline := @Pipeline.Impl.procPipeline procParams func_units tokenFifo fetchAddrExFifo fetchInstExFifo decExecFifo procMemInterfaceParams procMem.
+  Local Definition pipeline := @Pipeline.Impl.impl procParams func_units deviceTree memParams.
 
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
+  Definition Tag := @ArbiterTag _ deviceTree memParams.
+  
   Definition processorCore 
     :  BaseModule
     := MODULE {
-         Register @^"mode"             : PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
-         Register @^"pc"               : VAddr <- ConstBit pc_init with
-         Register @^"reservation"      : Maybe Reservation <- getDefaultConst (Maybe Reservation) with
-         Register @^"isWfi"            : Bool <- ConstBool false with
+         Register @^"mode": PrivMode <- ConstBit (natToWord PrivModeWidth MachineMode) with
 
          Registers (@csr_regs procParams Csrs) with
          Registers (@debug_internal_regs procParams) with
-         Registers (@devicesRegs procParams (@devices procParams devicesIfc)) with
-         Registers (@MemInterface.Ifc.allRegs procParams procMemInterfaceParams procMem) with
-         Registers (@Pipeline.Ifc.regs procPipeline) with
+         Registers (@Device.regs procParams (@devices procParams deviceTree)) with
+         Registers (@Pipeline.Ifc.regs pipeline) with
 
-         Registers (@Fifo.Ifc.regs _ tokenFifo) with
-         Registers (@Fifo.Ifc.regs _ fetchAddrExFifo) with
-         Registers (@Fifo.Ifc.regs _ fetchInstExFifo) with
-         Registers (@Fifo.Ifc.regs _ decExecFifo) with
+         Registers (@BootRomDevice.bootRomDeviceRegs procParams Tag) with
+         Registers (@MMappedRegs.msipDeviceRegs procParams Tag) with
+         Registers (@MMappedRegs.mtimeDeviceRegs procParams Tag) with
+         Registers (@MMappedRegs.mtimecmpDeviceRegs procParams Tag) with
+         Registers (@PMemDevice.pMemDeviceRegs procParams Tag) with
+         Registers (@UARTDevice.uartDeviceRegs procParams Tag) with
+         Registers (@DebugDevice.debugDeviceRegs procParams Tag) with
 
-         Registers (@DebugDevice.debugDeviceRegs procParams) with
-         Registers (@BootRomDevice.bootRomDeviceRegs procParams) with
-         Registers (@MMappedRegs.msipDeviceRegs procParams) with
-         Registers (@MMappedRegs.mtimeDeviceRegs procParams) with
-         Registers (@MMappedRegs.mtimecmpDeviceRegs procParams) with
-         Registers (@PMemDevice.pMemDeviceRegs procParams) with
-         Registers (@UARTDevice.uartDeviceRegs procParams) with
-
-         Rule @^"tokenStart"
+         Rule @^"arbiterReset"
            := System [
-                DispString _ "[Pipeline.tokenStart]\n"
+                DispString _ "[Pipeline.arbiterReset]\n"
               ];
-              Pipeline.Ifc.tokenStartRule procPipeline with
+              Pipeline.Ifc.arbiterResetRule pipeline with
          Rule @^"commit"
            := System [
-                DispString _ "[Pipeline.commit]\n"
+                DispString _ "[pipeline.commit]\n"
               ];
-              Pipeline.Ifc.commitRule procPipeline with
+              Pipeline.Ifc.commitRule pipeline with
          Rule @^"decodeExec"
            := System [
-                DispString _ "[Pipeline.decodeExec]\n"
+                DispString _ "[pipeline.decodeExec]\n"
               ];
-              Pipeline.Ifc.decodeExecRule procPipeline with
-         Rule @^"fetchInst"
+              Pipeline.Ifc.decodeExecRule pipeline with
+         Rule @^"fetcherNotCompleteDeq"
            := System [
-                DispString _ "[Pipeline.fetchInst]\n"
+                DispString _ "[pipeline.fetcherNotCompleteDeq]\n"
               ];
-              Pipeline.Ifc.fetchInstRule procPipeline with
-         Rule @^"prefetcherNotCompleteDeq"
+              Pipeline.Ifc.fetcherNotCompleteDeqRule pipeline with
+         Rule @^"fetcherTransfer"
            := System [
-                DispString _ "[Pipeline.prefetcherNotCompleteDeq]\n"
+                DispString _ "[pipeline.fetcherTransfer]\n"
               ];
-              Pipeline.Ifc.prefetcherNotCompleteDeqRule procPipeline with
-         Rule @^"prefetcherTransfer"
+              Pipeline.Ifc.fetcherTransferRule pipeline with
+         Rule @^"responseToFetcher"
            := System [
-                DispString _ "[Pipeline.prefetcherTransfer]\n"
+                DispString _ "[pipeline.responseToFetcher]\n"
               ];
-              Pipeline.Ifc.prefetcherTransferRule procPipeline with
-         Rule @^"responseToPrefetcher"
-           := System [
-                DispString _ "[Pipeline.responseToPrefetcher]\n"
-              ];
-              Pipeline.Ifc.responseToPrefetcherRule procPipeline with
+              Pipeline.Ifc.responseToFetcherRule pipeline with
          map
            (fun ruleAction : nat * (forall ty, ActionT ty Void)
              => MERule
-                  (@^("devRouterPoll" ++ nat_decimal_string (fst ruleAction)),
+                  (@^("routerPoll" ++ nat_decimal_string (fst ruleAction)),
                    (fun ty => (snd ruleAction) ty)))
-           (tag (Pipeline.Ifc.devRouterPollRules procPipeline)) with
-         Rule @^"tlbSendMemReq"
+           (tag (Pipeline.Ifc.routerPollRules pipeline)) with
+         Rule @^"transferMmuFetchExceptionRule"
            := System [
-                DispString _ "[Pipeline.tlbSendMemReq]\n"
+                DispString _ "[pipeline.transferMmuFetchExceptionRule]\n"
               ];
-              Pipeline.Ifc.tlbSendMemReqRule procPipeline with
+              Pipeline.Ifc.transferMmuFetchExceptionRule pipeline with
          Rule @^"sendPc"
            := System [
-                DispString _ "[Pipeline.sendPc]\n"
+                DispString _ "[pipeline.sendPc]\n"
               ];
-              Pipeline.Ifc.sendPcRule procPipeline with
-         Rule @^"arbiter"
+              Pipeline.Ifc.sendPcRule pipeline with
+         Rule @^"mmuSendReq"
            := System [
-                DispString _ "[Pipeline.arbiter]\n"
+                DispString _ "[pipeline.mmuSendReq]\n"
               ];
-              Pipeline.Ifc.arbiterRule procPipeline with
+              Pipeline.Ifc.mmuSendReqRule pipeline with
+         Rule @^"tokenStart"
+           := System [
+                DispString _ "[pipeline.tokenStart]\n"
+              ];
+              Pipeline.Ifc.tokenStartRule pipeline with
          Rule @^"pipeline"
            := System [
                 DispString _ "==================================================\n"
@@ -212,9 +151,8 @@ Section Params.
                    intRegFile;
                    floatRegFile
                  ] ++
-                 (@Pipeline.Ifc.regFiles procPipeline) ++
-                 (@MemInterface.Ifc.allRegFiles procParams procMemInterfaceParams procMem) ++
-                 (@devicesFiles procParams (@devices procParams devicesIfc)))) in
+                 (@Pipeline.Ifc.regFiles pipeline) ++
+                 (@Device.regFiles procParams (@devices procParams deviceTree)))) in
        (createHideMod md (map fst (getAllMethods md))).
 
   Local Close Scope kami_expr.

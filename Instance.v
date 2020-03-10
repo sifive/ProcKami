@@ -72,7 +72,7 @@ Definition procParams (xlens : list nat) : ProcParams
 
 Definition meths (xlens : list nat) := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
-  ("proc_core_readUART", (@UARTRead (procParams xlens), Data));
+  ("proc_core_readUART", (UARTRead, Data));
   ("proc_core_writeUART", (@UARTWrite (procParams xlens), Bit 0))
 ].
 
