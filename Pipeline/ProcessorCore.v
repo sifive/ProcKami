@@ -1,7 +1,3 @@
-(*
-  This module integrates the processor components defined in FU.v
-  into a single pipeline processor model.
-*)
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.Debug.Debug.
@@ -33,44 +29,6 @@ Section Params.
   Context {memInterfaceSizeParams : MemInterfaceSizeParams}.
   Context (func_units : list FUEntry).
   Context (devicesIfc : DevicesIfc).
-
-  Local Instance tokenFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"tokenFifo";
-         StdLibKami.Fifo.Ifc.k := Void;
-       |}.
-
-  Local Instance fetchAddrExFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"fetchAddrExFifo";
-         StdLibKami.Fifo.Ifc.k := Maybe Exception;
-       |}.
-
-  Local Instance fetchInstExFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"fetchInstExFifo";
-         StdLibKami.Fifo.Ifc.k := Maybe Exception;
-       |}.
-
-  Local Instance decExecFifoParams
-    :  FifoParams
-    := {|
-         StdLibKami.Fifo.Ifc.name := @^"decExecFifo";
-         StdLibKami.Fifo.Ifc.k := CommitPkt;
-       |}.
-
-  Local Definition tokenFifo
-    := @Fifo.RegList.regListFifo tokenFifoParams 0.
-
-  Local Definition fetchAddrExFifo
-    := @Fifo.RegList.regListFifo fetchAddrExFifoParams 0.
-
-  Local Definition fetchInstExFifo := @Fifo.RegList.regListFifo fetchInstExFifoParams (S prefetcherFifoLogLen).
-
-  Local Definition decExecFifo := @Fifo.RegList.regListFifo decExecFifoParams 0.
 
   Local Definition procMemInterfaceParams
     := {|

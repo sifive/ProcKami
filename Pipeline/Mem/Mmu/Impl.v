@@ -724,8 +724,7 @@ Section Impl.
       (accessType : AccessType @# ty)
       (memOp: MemOpCode @# ty)
       (vaddr : FU.VAddr @# ty)
-      (data: FU.Data @# ty)
-      :  ActionT ty (Maybe (PktWithException (MemReq deviceTree)))
+      :  ActionT ty (Maybe (PktWithException (PAddrDevOffset deviceTree)))
       := LET effective_mode : FU.PrivMode
            <- IF context @% "mprv"
                 then context @% "mpp" else context @% "mode";
@@ -752,14 +751,11 @@ Section Impl.
                                                   else (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                                                         then misalignedException accessType
                                                         else accessException accessType)) };
-         LET memReq : MemReq deviceTree <-
+         LET memReq : PAddrDevOffset deviceTree <-
                       STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
                                "offset" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "offset" ;
-                               "paddr" ::= #paddrException @% "data" @% "fst" ;
-                               "memOp" ::= memOp;
-                               "data" ::= data
-                             };
-         LET result: Maybe (PktWithException (MemReq deviceTree)) <-
+                               "paddr" ::= #paddrException @% "data" @% "fst"  };
+         LET result: Maybe (PktWithException (PAddrDevOffset deviceTree)) <-
                      STRUCT {"valid" ::= #paddrException @% "valid" ;
                              "data" ::= STRUCT { "fst" ::= #memReq ;
                                                  "snd" ::= #finalException } };

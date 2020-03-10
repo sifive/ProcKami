@@ -88,19 +88,18 @@ Section Ifc.
          (* CompletionBuffer stuff *)
          responseToFetcherRule: forall ty, ActionT ty Void;
 
-         (* TLB stuff *)
+         (* MMU stuff *)
          memTranslate ty
                       (context : ContextCfgPkt @# ty)
                       (accessType : AccessType @# ty)
                       (memOp: MemOpCode @# ty)
                       (vaddr : FU.VAddr @# ty)
-                      (data: FU.Data @# ty)
-         : ActionT ty (Maybe (PktWithException MemReq));
+         : ActionT ty (Maybe (PktWithException PAddrDevOffset));
          
-         tlbReadException : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
-         tlbClearException : forall ty, ActionT ty Void;
+         mmuReadException : forall ty, ActionT ty (Maybe (Pair VAddr Exception));
+         mmuClearException : forall ty, ActionT ty Void;
 
-         tlbSendReqRule : forall ty, ActionT ty Void;
+         mmuSendReqRule : forall ty, ActionT ty Void;
 
          (* MemUnit stuff *)
          sendMemUnitMemReq : forall ty, ty MemUnitMemReq -> ActionT ty Bool;

@@ -241,9 +241,7 @@ Section Impl.
                                                                                                                              "error" ::= !(#resp @% "res" @% "valid") ;
                                                                                                                              "inst" ::= #resp @% "res" @% "data" };
                                                              @Fetcher.Ifc.callback _ fetcher _ fetcherResp) ty.
-  Axiom cheat: forall t, t.
-
-  Definition mem
+  Definition impl
     :  Mem.Ifc.Ifc deviceTree
     := {| Mem.Ifc.regs :=
             ((Fetcher.Ifc.regs fetcher)
@@ -274,10 +272,10 @@ Section Impl.
 
           memTranslate := Mmu.Ifc.memTranslate mmu;
 
-          tlbReadException := Mmu.Ifc.readException mmu;
-          tlbClearException := Mmu.Ifc.clearException mmu;
+          mmuReadException := Mmu.Ifc.readException mmu;
+          mmuClearException := Mmu.Ifc.clearException mmu;
 
-          tlbSendReqRule := mmuSendReqRule;
+          Mem.Ifc.mmuSendReqRule := mmuSendReqRule;
 
           sendMemUnitMemReq := memSendReq;
 
