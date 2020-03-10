@@ -21,7 +21,7 @@ Require Import ProcKami.Pipeline.Mem.Mmu.Ifc.
 
 Section Impl.
   Context {procParams: ProcParams}.
-  Context {deviceTree: @DeviceTree procParams}.
+  Context (deviceTree: @DeviceTree procParams).
   Context (name: string).
 
   Local Open Scope kami_expr.
@@ -725,7 +725,7 @@ Section Impl.
       (memOp: MemOpCode @# ty)
       (vaddr : FU.VAddr @# ty)
       (data: FU.Data @# ty)
-      :  ActionT ty (Maybe (PktWithException MemReq))
+      :  ActionT ty (Maybe (PktWithException (MemReq deviceTree)))
       := LET effective_mode : FU.PrivMode
            <- IF context @% "mprv"
                 then context @% "mpp" else context @% "mode";
@@ -752,20 +752,20 @@ Section Impl.
                                                   else (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                                                         then misalignedException accessType
                                                         else accessException accessType)) };
-         LET memReq : MemReq <-
+         LET memReq : MemReq deviceTree <-
                       STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
                                "offset" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "offset" ;
                                "paddr" ::= #paddrException @% "data" @% "fst" ;
                                "memOp" ::= memOp;
                                "data" ::= data
                              };
-         LET result: Maybe (PktWithException MemReq) <-
+         LET result: Maybe (PktWithException (MemReq deviceTree)) <-
                      STRUCT {"valid" ::= #paddrException @% "valid" ;
                              "data" ::= STRUCT { "fst" ::= #memReq ;
                                                  "snd" ::= #finalException } };
          Ret #result.
 
-  Definition impl : Ifc
+  Definition impl : Ifc deviceTree
     := {|
           Mmu.Ifc.regs := regs;
           Mmu.Ifc.regFiles := Cam.Ifc.regFiles cam;

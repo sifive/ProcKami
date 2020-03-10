@@ -8,7 +8,7 @@ Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Section Ifc.
   Context {procParams: ProcParams}.
-  Context {deviceTree : @DeviceTree procParams}.
+  Context (deviceTree : @DeviceTree procParams).
 
   Definition MemReq := STRUCT_TYPE {
                            "dtag" :: @DeviceTag _ deviceTree;
