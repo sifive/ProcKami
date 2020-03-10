@@ -370,7 +370,7 @@ Section Impl.
          Pipeline.Ifc.regs
            := [
                 (@^"initReg", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
-                (@^"pc", existT RegInitValT (SyntaxKind (Bit Xlen)) (Some (SyntaxConst (ConstBit pc_init))));
+                (@^"pc", existT RegInitValT (SyntaxKind (Bit Xlen)) (Some (SyntaxConst (ConstBit pcInit))));
                 (@^"isWfi", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))))
               ] ++
               @Fifo.Ifc.regs _ tokenFifo ++

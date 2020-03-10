@@ -169,11 +169,11 @@ Record SupportedExt :=
     ext_edit : bool }.
 
 Class ProcParams :=
-  { proc_name : string ;
+  { procName : string ;
     Xlen_over_8: nat ;
     Flen_over_8: nat ;
     MemOpCodeSz: nat ;
-    pc_init: word (Xlen_over_8 * 8) ;
+    pcInit: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
     allow_misaligned: bool;
@@ -184,7 +184,7 @@ Class ProcParams :=
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
   }.
 
-Notation "@^ x" := (proc_name ++ "_" ++ x)%string (at level 0).
+Notation "@^ x" := (procName ++ "_" ++ x)%string (at level 0).
 
 Class FpuParams
   := {

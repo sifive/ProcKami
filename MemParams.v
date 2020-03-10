@@ -75,7 +75,7 @@ Section DeviceTree.
          |}
       ].
 
-  Local Definition devicesTree
+  Definition deviceTree
     :  DeviceTree
     := {|
          devices  := devicesInst;
