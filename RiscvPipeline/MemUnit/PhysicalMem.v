@@ -203,7 +203,7 @@ Section pmem.
       :  ActionT ty PmaSuccessPkt 
       := mem_device_apply dtag
            (fun device
-             => let acc_pmas f := CABool Or (map f memDevicePmas) in
+             => let acc_pmas f := (@Kor _ Bool) (map f memDevicePmas) in
                 let width_match pma := req_len == $(pma_width pma) in
                 Ret (STRUCT {
                     "width" ::= acc_pmas width_match;

@@ -378,7 +378,7 @@ Section CsrInterface.
                   csrFieldRegisterReadXform := fun _ _ => ZeroExtendTruncLsb XlenWidth;
                   csrFieldRegisterWriteXform
                     := fun _ _ curr_value input_value
-                         => IF CABool Or (map (fun xlen => input_value == $xlen) ImplXlens)
+                         => IF (@Kor _ Bool) (map (fun xlen => input_value == $xlen) ImplXlens)
                               then input_value
                               else curr_value
                 |}

@@ -8,7 +8,7 @@ Require Import Classical.
 Require Import Coq.Logic.ClassicalFacts.
 
 Require Import Kami.AllNotations.
-Require Import Kami.Notations_rewrites.
+(* Require Import Kami.Notations_rewrites. *)
 Require Import Kami.WfMod_Helper.
 Require Import Kami.Properties.
 Require Import Kami.PProperties.
