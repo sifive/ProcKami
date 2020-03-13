@@ -159,7 +159,7 @@ Section pmp.
                      :  pmp_addr_acc_kind
                      <- STRUCT {
                           "any_matched"
-                            ::= CABool Or
+                            ::= (@Kor _ Bool)
                                   (map
                                     (fun result : Maybe Bool @# ty
                                       => result @% "valid" && result @% "data")

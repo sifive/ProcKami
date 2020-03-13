@@ -382,7 +382,7 @@ Section Params.
       find (fun j => misa_extReg_match j i) (getFins 26).
 
     Definition extRegToMisa ty (exts: ExtensionsReg @# ty): Array 26 Bool @# ty :=
-      BuildArray (fun i => CABool Or (@map _ (Bool @# ty) (fun j => ReadStruct exts j)
+      BuildArray (fun i => (@Kor _ Bool) (@map _ (Bool @# ty) (fun j => ReadStruct exts j)
                                            (misaToExtRegFind i))).
 
     Definition misaToExtReg ty (arr: Array 26 Bool @# ty): ExtensionsReg @# ty :=
@@ -476,14 +476,16 @@ Section Params.
       match goal with
       | |- context [if ?P then _ else _] => destruct P eqn: G
       end.
-      - rewrite fold_left_orb_exists in G.
+      - unfold evalKorOp, evalKorOpBin in G.
+        rewrite fold_left_orb_exists in G.
         rewrite Exists_exists in G.
         dest.
         repeat (rewrite in_map_iff in *; dest); subst.
         simpl in *.
         exists x0; repeat constructor; auto.
         destruct (weq (evalExpr xlen) $x0); simpl in *; congruence.
-      - rewrite fold_left_orb_exists_false in G.
+      - unfold evalKorOp, evalKorOpBin in G.
+        rewrite fold_left_orb_exists_false in G.
         rewrite Forall_forall in G.
         repeat (rewrite in_map_iff in *; dest); subst.
         exists maxXlen.
@@ -500,6 +502,7 @@ Section Params.
       match goal with
       | |- context [if ?P then _ else _] => destruct P eqn: G
       end; auto.
+      unfold evalKorOp, evalKorOpBin in G.
       rewrite fold_left_orb_exists_false in G.
       rewrite Forall_forall in *.
       rewrite in_map_iff in H; dest.
