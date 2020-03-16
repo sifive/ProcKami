@@ -288,7 +288,21 @@ Section trap_handling.
     (update_pkt : ExecUpdPkt @# ty)
     (exception : Maybe Exception @# ty)
     :  ActionT ty VAddr
-    := Read dpc : Bit Xlen <- @^"dpc";
+    := System [
+         DispString _ "[commit] cfg_pkt: ";
+         DispHex cfg_pkt;
+         DispString _ "\n";
+         DispString _ "[commit] exec_context_pkt: ";
+         DispHex exec_context_pkt;
+         DispString _ "\n";
+         DispString _ "[commit] update_pkt: ";
+         DispHex update_pkt;
+         DispString _ "\n";
+         DispString _ "[commit] exception: ";
+         DispHex exception;
+         DispString _ "\n"
+       ];
+       Read dpc : Bit Xlen <- @^"dpc";
        Read prv : PrivMode <- @^"prv";
        LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
        LETA mcounteren : CounterEnType <- read_counteren _ @^"mcounteren";
@@ -325,7 +339,8 @@ Section trap_handling.
            trapException
              (cfg_pkt @% "xlen")
              (#debugHartState @% "debug")
-             (cfg_pkt @% "mode") (exec_context_pkt @% "pc")
+             (cfg_pkt @% "mode")
+             (exec_context_pkt @% "pc")
              (#commitException @% "data")
              (exec_context_pkt @% "inst")
              update_pkt #nextPc (exec_context_pkt @% "exceptionUpper")

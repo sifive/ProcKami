@@ -531,8 +531,10 @@ Section Impl.
            LET memOp <- (IF #satpMode == $SatpModeSv32
                          then (getMemOpCode memOps _ Lw)
                          else (getMemOpCode memOps _ Ld));
-           LETA dTagOffsetPmaPmpError <- @getDTagOffsetPmaPmpError _ deviceTree _
-                                                                   (#tlbContext @% "access_type") #memOp (#tlbContext @% "mode") #paddr;
+           LETA dTagOffsetPmaPmpError
+             :  Pair (Maybe (PmaPmp.DTagOffset deviceTree)) MemErrorPkt
+             <- @getDTagOffsetPmaPmpError _ deviceTree _
+                  (#tlbContext @% "access_type") #memOp (#tlbContext @% "mode") #paddr;
            Read context : TlbContext <- ^"context";
            Read vaddr : VAddr <- ^"vaddr";
            Read oldException : Maybe Exception <- ^"exception";
@@ -540,10 +542,24 @@ Section Impl.
            LET newException
              :  Maybe Exception
              <- STRUCT {
-                  "valid" ::= #dTagOffsetPmaPmpError @% "fst" @% "valid" && !mem_error (#dTagOffsetPmaPmpError @% "snd") ;
+                  "valid" ::= #dTagOffsetPmaPmpError @% "fst" @% "valid" && mem_error (#dTagOffsetPmaPmpError @% "snd") ;
                   "data"  ::= (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                                then misalignedException (#context @% "access_type")
                                else accessException (#context @% "access_type")) };
+           System [
+             DispString _ "[tlb.sendReq] dTagOffsetPmaPmpError: ";
+             DispHex #dTagOffsetPmaPmpError;
+             DispString _ "\n";
+             DispString _ "[tlb.sendReq] oldException (device access fault): ";
+             DispHex #oldException;
+             DispString _ "\n";
+             DispString _ "[tlb.sendReq] oldExceptionVpn (device access fault): ";
+             DispHex #exceptionVpn;
+             DispString _ "\n";
+             DispString _ "[tlb.sendReq] newException (pma/pmp): ";
+             DispHex #newException;
+             DispString _ "\n"
+           ];
            If !(#newException @% "valid")
            then (
              LET finalReq <- STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
@@ -561,6 +577,9 @@ Section Impl.
              Write ^"sendReq" : Bool <- !#accepted;
              Retv )
            else (
+             System [
+               DispString _ "[tlb.sendReq] pma pmp access exception detected. Not sending request.\n"
+             ];
              Write ^"busy" : Bool <- $$ false;
              Retv );
          Retv;
@@ -667,7 +686,9 @@ Section Impl.
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe (PktWithException PAddr))
     := System [
-         DispString _ "[getPAddr]\n"
+         DispString _ "[getPAddr] vaddr: ";
+         DispHex vaddr;
+         DispString _ "\n"
        ];
        LETA mentry
          :  Maybe TlbEntry
@@ -677,12 +698,23 @@ Section Impl.
                    (context @% "mode")
                    (context @% "satp_ppn")
                    vaddr;
+       System [
+         DispString _ "[getPAddr] mentry: ";
+         DispHex #mentry;
+         DispString _ "\n"
+       ];
        LETA paddr : PAddr <-
            convertLetExprSyntax_ActionT
              (tlbEntryVAddrPAddr lgPageSz
                (context @% "satp_mode")
                (#mentry @% "data")
                vaddr);
+       System [
+         DispString _ "[getPAddr] paddr: ";
+         DispHex #mentry;
+         DispString _ "\n"
+       ];
+       (* exceptions about pte grants *)
        LET newException: Maybe Exception
          <- STRUCT { "valid" ::=
                        !(pte_grant
@@ -692,10 +724,26 @@ Section Impl.
                            accessType
                            (#mentry @% "data" @% "pte"));
                      "data" ::= faultException accessType };
+       System [
+         DispString _ "[getPAddr] newException: ";
+         DispHex #newException;
+         DispString _ "\n"
+       ];
        Read exceptionVpn: Vpn <- ^"exceptionVpn";
+       (* exceptions about access faults *)
        Read oldException: Maybe Exception <- ^"exception";
+       System [
+         DispString _ "[getPAddr] oldException: ";
+         DispHex #oldException;
+         DispString _ "\n"
+       ];
        LET isVpnMatch <- vpnMatch vaddr #exceptionVpn;  
        LET finalException <- getException vaddr #exceptionVpn #oldException #newException;
+       System [
+         DispString _ "[getPAddr] finalException: ";
+         DispHex #finalException;
+         DispString _ "\n"
+       ];
        LET retval: PktWithException PAddr
                    <- STRUCT { "fst" ::= #paddr ;
                                "snd" ::= #finalException };
@@ -703,6 +751,11 @@ Section Impl.
        LET result: Maybe (PktWithException PAddr)
          <- ((STRUCT { "valid" ::= (#mentry @% "valid" || (#isVpnMatch && #oldException @% "valid")) ;
                        "data" ::= #retval }): Maybe (PktWithException PAddr) @# ty);
+       System [
+         DispString _ "[getPAddr] result: ";
+         DispHex #result;
+         DispString _ "\n"
+       ];
        Ret #result.
 
   Local Definition memTranslate ty
@@ -711,13 +764,27 @@ Section Impl.
       (memOp: MemOpCode @# ty)
       (vaddr : FU.VAddr @# ty)
       :  ActionT ty (Maybe (PktWithException (PAddrDevOffset deviceTree)))
-      := LET effective_mode : FU.PrivMode
+      := System [
+           DispString _ "[memTranslate] context: ";
+           DispHex context;
+           DispString _ "\n";
+           DispString _ "[memTranslate] vaddr: ";
+           DispHex vaddr;
+           DispString _ "\n"
+         ];
+         LET effective_mode : FU.PrivMode
            <- IF context @% "mprv"
                 then context @% "mpp" else context @% "mode";
          If #effective_mode != $MachineMode && (context @% "satp_mode") != $SatpModeBare
            then
+             System [
+               DispString _ "[memTranslate] using tlb.\n"
+             ];
              getPAddr context accessType memOp vaddr
            else
+             System [
+               DispString _ "[memTranslate] not using tlb.\n"
+             ];
              Ret (Valid (STRUCT {
                "fst" ::= SignExtendTruncLsb FU.PAddrSz vaddr;
                "snd" ::= Invalid
@@ -744,6 +811,11 @@ Section Impl.
                      STRUCT {"valid" ::= #paddrException @% "valid" ;
                              "data" ::= STRUCT { "fst" ::= #memReq ;
                                                  "snd" ::= #finalException } };
+         System [
+           DispString _ "[memTranslate] result: ";
+           DispHex #result;
+           DispString _ "\n"
+         ];
          Ret #result.
 
   Definition impl : Ifc deviceTree

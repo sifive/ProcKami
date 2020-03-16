@@ -232,10 +232,16 @@ Section Impl.
                                                "data"  ::= #fetchInst @% "data" @% "vaddr"};
         If (#incompPc @% "valid" || #optInstException @% "data" @% "valid") (* I.A. fetch incomplete or exception. we need to fetch again. *)
         then (
-          LET enqVal : CommitPkt <- STRUCT { "incompletePc" ::= #incompPc ;
-                                             "execCxt"    ::= $$(getDefaultConst ExecContextPkt) ;
-                                             "execUpd"    ::= $$(getDefaultConst ExecUpdPkt);
-                                             "exception"  ::= (#optInstException @% "data": Maybe Exception @# ty) };
+          LET enqVal
+            :  CommitPkt
+            <- STRUCT {
+                 "incompletePc" ::= #incompPc ;
+                 "execCxt"
+                   ::= $$(getDefaultConst ExecContextPkt)
+                         @%["pc" <- #fetchInst @% "data" @% "vaddr"];
+                 "execUpd" ::= $$(getDefaultConst ExecUpdPkt);
+                 "exception" ::= (#optInstException @% "data": Maybe Exception @# ty)
+               };
           System [
             DispString _ "[decodeExecRule] Incomplete\n"
             ];
