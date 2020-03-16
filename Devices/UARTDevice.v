@@ -1,53 +1,61 @@
-Require Import Kami.All.
+Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
+Require Import ProcKami.Device.
+
+Require Import StdLibKami.Router.Ifc.
 
 Section device.
-  Context `{procParams: ProcParams}.
+  Context (procParams: ProcParams).
 
   Local Definition lgMemSz := 8.
+  Local Definition uartDeviceName := "uart_device".
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
   Definition UARTRead
     := STRUCT_TYPE {
-         "addr" :: Bit lgMemSz;
-         "size" :: MemRqLgSize
+         "addr" :: Bit lgMemSz
        }.
 
   Definition UARTWrite
     := STRUCT_TYPE {
          "addr" :: Bit lgMemSz;
-         "data" :: Data; (* every UART interface register is one byte wide *)
-         "size" :: MemRqLgSize
+         "data" :: Data (* every UART interface register is one byte wide *)
        }.
 
-  Local Definition uartDeviceParams := {|
-    memDeviceParamsRead
-      := fun ty
-           => List.repeat
-                (fun addr size
-                  => LET readRq
-                       :  UARTRead
-                       <- (STRUCT {
-                            "addr" ::= SignExtendTruncLsb lgMemSz addr;
-                            "size" ::= size
-                          } : UARTRead @# ty);
-                     Call result
-                       :  Bit 64
-                       <- @^"readUART" (#readRq : UARTRead);
-                     Ret (Valid (ZeroExtendTruncLsb Rlen #result): Maybe Data @# ty))
-                numClientRqs;
+  Local Definition uartDeviceRegs Tag
+    :  list RegInitT
+    := createRegs Tag uartDeviceName.
 
-    memDeviceParamsWrite
+  Local Definition uartDeviceRegNames := createRegNames uartDeviceName.
+
+  Local Definition uartDeviceParams := {|
+    regNames := createRegNames uartDeviceName;
+
+    readReq
+      := fun ty addr
+           => LET readRq
+                :  UARTRead
+                <- (STRUCT {
+                     "addr" ::= SignExtendTruncLsb lgMemSz addr
+                   } : UARTRead @# ty);
+              Call memData
+                :  Bit 64
+                <- @^"readUART" (#readRq : UARTRead);
+              Write (deviceResRegName uartDeviceRegNames)
+                :  Maybe Data
+                <- Valid (ZeroExtendTruncLsb Rlen #memData): Maybe Data @# ty;
+              Retv;
+
+    write
       := fun ty req
            => LET writeRq
                 :  UARTWrite
                 <- (STRUCT {
                      "addr" ::= SignExtendTruncLsb lgMemSz (req @% "addr");
-                     "data" ::= req @% "data";
-                     "size" ::= req @% "size"
+                     "data" ::= pack (req @% "data")
                    } : UARTWrite @# ty);
               Call @^"writeUART" (#writeRq : _);
               System [
@@ -60,37 +68,48 @@ Section device.
               ];
               Ret $$true;
 
-    memDeviceParamsReadReservation
-      := fun ty _ _ => Ret $$(getDefaultConst Reservation);
-
-    memDeviceParamsWriteReservation
-      := fun ty _ _ _ _ => Retv
+    readRes
+      := fun ty
+           => Read memData
+                :  Maybe Data
+                <- deviceResRegName (uartDeviceRegNames);
+              System [
+                 DispString _ "[UARTDevice.readRes] memData:\n";
+                 DispHex #memData;
+                 DispString _ "\n"
+              ];
+              Ret #memData;
   |}.
 
   Definition uartDevice
-    :  MemDevice
+    :  Device
     := {|
-         memDeviceName := "uart device";
-         memDeviceIO := true;
-         memDevicePmas
-           := (map
-                (fun width
-                  => {|
-                       pma_width      := width;
-                       pma_readable   := true;
-                       pma_writeable  := true;
-                       pma_executable := false;
-                       pma_misaligned := true;
-                       pma_lrsc       := false;
-                       pma_amo        := AMONone
-                     |})
-                (seq 0 4));
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest uartDeviceParams index req;
-         memDeviceFile := None
+         Device.name := uartDeviceName;
+         io := true;
+         pmas
+         := (map
+               (fun width
+                => {|
+                    pma_width      := width;
+                    pma_readable   := true;
+                    pma_writeable  := true;
+                    pma_executable := false;
+                    pma_misaligned := true;
+                    pma_amo        := AMONone
+                  |})
+               (seq 0 4));
+         deviceFiles := nil;
+         deviceRegs := nil;
+         deviceIfc Tag
+           := {|
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams uartDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams uartDeviceParams ty Tag
+              |}
        |}.
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End device.

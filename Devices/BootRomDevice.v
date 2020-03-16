@@ -1,73 +1,96 @@
-Require Import Kami.All.
+Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
+Require Import ProcKami.Device.
+
+Require Import StdLibKami.Router.Ifc.
 
 Section device.
-  Context `{procParams: ProcParams}.
+  Context (procParams: ProcParams).
 
   Local Definition lgMemSz := 12.
 
-  Local Definition read_name (index : nat) : string := @^"readROM" ++ natToHexStr index.
+  Local Definition bootRomDeviceName := "boot_rom".
+  Local Definition bootRomDeviceSendReqName := @^(bootRomDeviceName ++ "SendReadReq").
+  Local Definition bootRomDeviceGetResName := @^(bootRomDeviceName ++ "GetReadRes").
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
+
+  Local Definition bootRomDeviceRegNames := createRegNames bootRomDeviceName.
 
   Local Definition bootRomDeviceParams := {|
-    memDeviceParamsRead
-      := fun ty
-           => map
-                (fun index addr size
-                  => Call result
-                       :  Array Rlen_over_8 (Bit 8)
-                       <- (read_name index) (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                     Ret (Valid (pack #result): Maybe Data @# ty))
-                (seq 0 numClientRqs);
+    regNames := createRegNames bootRomDeviceName;
 
-    memDeviceParamsWrite
+    readReq
+      := fun ty addr
+           => ReadReqRf bootRomDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
+              Retv;
+
+    write
       := fun _ _ => Ret $$false;
 
-    memDeviceParamsReadReservation
-      := fun ty _ _ => Ret $$(getDefaultConst Reservation);
-
-    memDeviceParamsWriteReservation
-      := fun ty _ _ _ _ => Retv
+    readRes
+      := fun ty
+           => Call readData
+                :  Array Rlen_over_8 (Bit 8)
+                <- bootRomDeviceGetResName ();
+              System [
+                 DispString _ "[BootRom.readRes] readData:\n";
+                 DispHex (pack #readData : Data @# ty);
+                 DispString _ "\n"
+              ];
+              Ret (Valid (pack #readData) : Maybe Data @# ty);
   |}.
 
+  Local Definition bootRomDeviceRegs Tag
+    :  list RegInitT
+    := createRegs Tag bootRomDeviceName.
+
   Definition bootRomDevice
-    :  MemDevice
+    :  Device
     := {|
-         memDeviceName := "boot rom";
-         memDeviceIO := true;
-         memDevicePmas
+         Device.name := bootRomDeviceName;
+         io := true;
+         pmas
            := map
                 (fun width
-                  => {|
-                       pma_width      := width;
-                       pma_readable   := true;
-                       pma_writeable  := false;
-                       pma_executable := true;
-                       pma_misaligned := true;
-                       pma_lrsc       := false;
-                       pma_amo        := AMONone
-                     |})
+                 => {|
+                     pma_width      := width;
+                     pma_readable   := true;
+                     pma_writeable  := false;
+                     pma_executable := true;
+                     pma_misaligned := true;
+                     pma_amo        := AMONone
+                   |})
                 (seq 0 4);
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest bootRomDeviceParams index req;
-         memDeviceFile
-           := Some
-                (inl [
-                  @Build_RegFileBase
+         deviceFiles
+           := [   @Build_RegFileBase
                     true
                     Rlen_over_8
                     (@^"rom_rom_file")
-                    (Async (map read_name (seq 0 12)))
+                    (Sync
+                       true
+                       [{|
+                           readReqName := bootRomDeviceSendReqName;
+                           readResName := bootRomDeviceGetResName;
+                           readRegName := deviceResRegName bootRomDeviceRegNames
+                         |}])
                     (@^"writeROM0") (* never used *)
                     (Nat.pow 2 lgMemSz)
                     (Bit 8)
-                    (RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))])
-       |}.
+                    (RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
+         deviceRegs := nil;
+         deviceIfc Tag
+           := {|
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams bootRomDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams bootRomDeviceParams ty Tag
+              |}
+      |}.
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End device.

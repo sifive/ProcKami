@@ -6,7 +6,7 @@
  *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import List.
+
 Import ListNotations.
 
 Section database.
@@ -19,36 +19,36 @@ Section database.
   Definition comp_inst_funct3_field := (15, 13).
 
   (* compressed register instruction field ranges. *)
-  Definition comp_inst_cr_rs2_field := (6, 2).
-  Definition comp_inst_cr_rs1_field := (7, 11).
-  Definition comp_inst_cr_funct4_field := (15, 12).
+  Local Definition comp_inst_cr_rs2_field := (6, 2).
+  Local Definition comp_inst_cr_rs1_field := (7, 11).
+  Local Definition comp_inst_cr_funct4_field := (15, 12).
 
   (* compressed store stack instruction field ranges. *)
-  Definition comp_inst_css_rs2_field := (6, 2).
-  Definition comp_inst_css_imm_field := (7, 12).
+  Local Definition comp_inst_css_rs2_field := (6, 2).
+  Local Definition comp_inst_css_imm_field := (7, 12).
 
   (* compressed wide immediate instruction field ranges. *)
-  Definition comp_inst_ciw_rd_field  := (4, 2).
-  Definition comp_inst_ciw_imm_field := (12, 5).
+  Local Definition comp_inst_ciw_rd_field  := (4, 2).
+  Local Definition comp_inst_ciw_imm_field := (12, 5).
 
   (* compressed load instruction field ranges. *)
-  Definition comp_inst_cl_rd_field := (4, 2).
-  Definition comp_inst_cl_rs_field := (9, 7).
+  Local Definition comp_inst_cl_rd_field := (4, 2).
+  Local Definition comp_inst_cl_rs_field := (9, 7).
 
   (* compressed store instruction field ranges. *)
-  Definition comp_inst_cs_rs2_field := (4, 2).
-  Definition comp_inst_cs_rs1_field := (9, 7).
+  Local Definition comp_inst_cs_rs2_field := (4, 2).
+  Local Definition comp_inst_cs_rs1_field := (9, 7).
 
   (* compressed arithmetic instruction field ranges. *)
-  Definition comp_inst_ca_rs2_field := (4, 2).
-  Definition comp_inst_ca_rs1_field := (9, 7). (* also rd *)
-  Definition comp_inst_ca_funct6_field := (15, 10).
+  Local Definition comp_inst_ca_rs2_field := (4, 2).
+  Local Definition comp_inst_ca_rs1_field := (9, 7). (* also rd *)
+  Local Definition comp_inst_ca_funct6_field := (15, 10).
 
   (* compressed branch instruction field ranges. *)
-  Definition comp_inst_cb_rs1_field := (9, 7).
+  Local Definition comp_inst_cb_rs1_field := (9, 7).
 
   (* compressed jump instruction field ranges. *)
-  Definition comp_inst_cj_target_field := (12, 2).
+  Local Definition comp_inst_cj_target_field := (12, 2).
 
   (* TODO: verify *)
   Definition uncomp_inst_reg (xn : nat) : Bit 5 @# ty := $(xn).

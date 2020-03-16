@@ -1,12 +1,14 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.Decoder.
+
+
 
 Section Executor.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
+  Variable (func_units : list FUEntry).
+  
   Variable ty: Kind -> Type.
-
-  Variable func_units : list FUEntry.
 
   Local Open Scope kami_expr.
 
@@ -38,8 +40,6 @@ Section Executor.
            "snd" ::= #exception
          } : PktWithException ExecUpdPkt @# ty).
 
-  Local Open Scope kami_action.
-
   Definition execWithException
     (trans_pkt : PktWithException (InputTransPkt func_units) @# ty)
     :  ActionT ty (PktWithException ExecUpdPkt)
@@ -49,8 +49,6 @@ Section Executor.
          (fun trans_pkt : InputTransPkt func_units @# ty
            => convertLetExprSyntax_ActionT
                 (exec trans_pkt)).
-
-  Close Scope kami_action.
 
   Local Close Scope kami_expr.
 End Executor.

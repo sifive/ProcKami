@@ -3,9 +3,10 @@
   RISC-V processor core model into Haskell, which is the first step
   in generating the model's Verilog.
 *)
+
 Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.UnverifiedIncompleteCompiler.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.ProcessorCore.
+Require Import ProcKami.Pipeline.ProcessorCore.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.ModelParams.
@@ -70,7 +71,7 @@ Definition procParams (xlens : list nat) : ProcParams
 
 Definition meths (xlens : list nat) := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
-  ("proc_core_readUART", (@UARTRead (procParams xlens), Data));
+  ("proc_core_readUART", (UARTRead, Data));
   ("proc_core_writeUART", (@UARTWrite (procParams xlens), Bit 0))
 ].
 
@@ -82,7 +83,10 @@ Definition coqSim_32
   (env : E)
   (args : list (string * string))
   (timeout : nat)
-
+  (*:  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit *)
   := let '(_,(rfbs,bm)) := separateModRemove (model xlens32) in
        @eval_BaseMod E _ env args rfbs timeout (meths xlens32) bm cheat.
 
@@ -92,7 +96,10 @@ Definition coqSim_64
   (env : E)
   (args : list (string * string))
   (timeout : nat)
-
+  (* :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
+     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
+     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
+     IO unit *)
   := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
        @eval_BaseMod E _ env args rfbs timeout (meths xlens64) bm cheat.
 

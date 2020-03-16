@@ -83,17 +83,11 @@ Section Fpu.
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                                      });
-                             LETC fstVal <- (STRUCT {
-                                           "val1"
-                                             ::= (Valid #val1 : Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid #val2 : Maybe RoutedReg @# ty);
-                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                           "taken?"     ::= $$false;
-                                           "aq"         ::= $$false;
-                                           "rl"         ::= $$false;
-                                           "fence.i"    ::= $$false
-                                         } : ExecUpdPkt @# ty);
+                             LETC fstVal
+                               :  ExecUpdPkt
+                               <- (noUpdPkt ty)
+                                    @%["val1" <- (Valid #val1)]
+                                    @%["val2" <- (Valid #val2)];
                              RetE
                                (STRUCT {
                                   "fst"
@@ -155,17 +149,11 @@ Section Fpu.
                                                     "tag"  ::= (Const ty (natToWord RoutingTagSz FflagsTag) : RoutingTag @# ty);
                                                     "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : Bit Rlen @# ty)
                                           });
-                             LETC fstVal <- (STRUCT {
-                                           "val1"
-                                             ::= (Valid #val1: Maybe RoutedReg @# ty);
-                                           "val2"
-                                             ::= (Valid #val2: Maybe RoutedReg @# ty);
-                                           "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                           "taken?" ::= $$false;
-                                           "aq" ::= $$false;
-                                           "rl" ::= $$false;
-                                           "fence.i" ::= $$false
-                                         } : ExecUpdPkt @# ty);
+                             LETC fstVal
+                               :  ExecUpdPkt
+                               <- (noUpdPkt ty)
+                                    @%["val1" <- (Valid #val1)]
+                                    @%["val2" <- (Valid #val2)];
                              RetE
                                (STRUCT {
                                   "fst"

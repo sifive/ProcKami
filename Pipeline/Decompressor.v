@@ -1,13 +1,15 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
 
 Section Decompressor.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
+  
   Variable ty: Kind -> Type.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
-  Definition compressed_inst_match_enabled_exts
+  Local Definition compressed_inst_match_enabled_exts
              (exts: list string)
              (exts_pkt : Extensions @# ty)
     :  Bool ## ty
@@ -60,6 +62,6 @@ Section Decompressor.
          (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End Decompressor.

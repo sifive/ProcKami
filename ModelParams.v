@@ -3,16 +3,13 @@
   a list of processor extensions to enable and returns a Kami module
   that represents the procesor model.
 *)
-Require Import Kami.All.
+Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
-Require Import ProcKami.GenericPipeline.ProcessorCore.
-Require Import Vector.
-Import VectorNotations.
-Require Import List.
-Import ListNotations.
-Require Import BinNums.
-Require Import BinNat.
+Require Import ProcKami.MemParams.
+
+Require Import ProcKami.Pipeline.ProcessorCore.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Add.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Logical.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Branch.
@@ -20,11 +17,13 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Shift.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Jump.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Mult.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.DivRem.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LdS.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Amo32.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.Amo64.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LrSc32.
 Require Import ProcKami.RiscvIsaSpec.Insts.Mem.LrSc64.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FMac.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FMinMax.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FSgn.
@@ -34,20 +33,20 @@ Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FCmp.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FClass.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FDivSqrt.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FRound.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.Zicsr.
+
 Require Import ProcKami.RiscvIsaSpec.Insts.MRet.
-Require Import ProcKami.RiscvPipeline.MemUnit.PhysicalMem.
-Require Import ProcKami.Devices.BootRomDevice.
-Require Import ProcKami.Devices.PMemDevice.
-Require Import ProcKami.Devices.MMappedRegs.
-Require Import ProcKami.Devices.UARTDevice.
-Require Import ProcKami.Debug.DebugDevice.
+
+Require Import ProcKami.MemParams.
+
+Require Import ProcKami.MemOps.
 
 (* I. device parameters *)
 
 (* II. configuration parameters. *)
 
-Definition fpu_params_single
+Local Definition fpu_params_single
   := {|
        expWidthMinus2     := 6;
        sigWidthMinus2     := 22;
@@ -61,7 +60,7 @@ Definition fpu_params_single
        fpu_exts_64        := ["F"]
      |}.
 
-Definition fpu_params_double
+Local Definition fpu_params_double
   := {|
        expWidthMinus2     := 9;
        sigWidthMinus2     := 51;
@@ -159,28 +158,36 @@ Section exts.
   (* TODO: determine the correct way to specify the physical address size. *)
   Local Definition PAddrSz_over_8 : nat := 8.
   Local Definition PAddrSz : nat := 64.
-
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
   Variable pc_init_val: word (Xlen_over_8 * 8).
   Variable debug_buffer_sz : nat.
   Variable debug_impebreak : bool.
 
-  Local Definition procParams
-    := Build_ProcParams name Xlen_over_8 Flen_over_8
-         (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)))
-         supported_xlens
-         supported_exts
-         allow_misaligned
-         allow_inst_misaligned
-         misaligned_access
-         debug_buffer_sz
-         debug_impebreak.
+  Local Instance procParams
+    :  ProcParams
+    := {| FU.procName := name ;
+          FU.Xlen_over_8 := Xlen_over_8;
+          FU.Flen_over_8 := Flen_over_8;
+          FU.MemOpCodeSz := 6;
+          FU.pcInit := (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)));
+          FU.supported_xlens := supported_xlens;
+          FU.supported_exts := supported_exts;
+          FU.allow_misaligned := allow_misaligned;
+          FU.allow_inst_misaligned := allow_inst_misaligned;
+          FU.misaligned_access := misaligned_access;
+          FU.debug_buffer_sz := debug_buffer_sz;
+          FU.debug_impebreak := debug_impebreak;
+          FU.lgGranularity := 3;
+          FU.hasVirtualMem := true |}.
+
+  Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
+  Proof. cbv; reflexivity. Qed.
 
   Section ty.
     Variable ty : Kind -> Type.
 
-    Open Scope kami_expr.
+    Local Open Scope kami_expr.
 
     (* IV. Select and tailor function units. *)
     Section func_units.
@@ -194,7 +201,7 @@ Section exts.
              EBreak ;
              Wfi    ;
 
-             (* RVI logical instructions. *)
+             (* (* RVI logical instructions. *) *)
              Add     ;
              Logical ;
              Shift   ;
@@ -203,7 +210,7 @@ Section exts.
              Mult    ;
              DivRem  ;
 
-             (* RVI memory instructions. *)
+             (* (* RVI memory instructions. *) *)
              Mem     ;
              Amo32   ;
              Amo64   ;
@@ -285,7 +292,7 @@ Section exts.
         :  list (@FUEntry procParams) -> list (@FUEntry procParams)
         := filter (fun func_unit => negb (emptyb (fuInsts func_unit))).
 
-      Definition param_func_units
+      Local Definition param_func_units
         :  list (@FUEntry procParams)
         := param_filter_func_units (map param_filter_func_unit func_units).
 
@@ -293,77 +300,14 @@ Section exts.
 
   End ty.
 
-  Definition mem_devices
-    :  list (@MemDevice procParams)
-    := [
-         debugDevice   ;
-         bootRomDevice ;
-         msipDevice    ;
-         mtimecmpDevice;
-         mtimeDevice   ;
-         pMemDevice    ;
-         uartDevice    
-       ].
-
-  (* nat_lt n m : n < m *)
-  Ltac nat_lt := repeat (try (apply le_n); apply le_S).
-
-  Local Definition nat_deviceTag n := @of_nat_lt n (length mem_devices).
-
-  Definition mem_table
-    :  list (MemTableEntry mem_devices)
-    := [
-         {|
-           mtbl_entry_addr := hex"0";
-           mtbl_entry_width := hex"1000";
-           mtbl_entry_device := (@nat_deviceTag 0 ltac:(nat_lt)) (* debug device *)
-         |};
-         {|
-           mtbl_entry_addr := hex"1000";
-           mtbl_entry_width := hex"1000";
-           mtbl_entry_device := (@nat_deviceTag 1 ltac:(nat_lt)) (* boot rom *)
-         |};
-         {|
-           mtbl_entry_addr := hex"2000000";
-           mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 2 ltac:(nat_lt)) (* msip *) 
-         |};
-         {|
-           mtbl_entry_addr := hex"2004000";
-           mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 3 ltac:(nat_lt)) (* mtimecmp *)
-         |};
-         {|
-           mtbl_entry_addr := hex"200bff8";
-           mtbl_entry_width := hex"8";
-           mtbl_entry_device := (@nat_deviceTag 4 ltac:(nat_lt)) (* mtime *)
-         |};
-         {|
-           mtbl_entry_addr := hex"80000000";
-           mtbl_entry_width := hex"100000";
-           mtbl_entry_device := (@nat_deviceTag 5 ltac:(nat_lt))
-         |};
-         {|
-           mtbl_entry_addr := hex"C0000000";
-           mtbl_entry_width := hex"80";
-           mtbl_entry_device := (@nat_deviceTag 6 ltac:(nat_lt))
-         |}
-      ].
-
-  (* verify tha the memory table is valid *)
-  Goal (mem_regions mem_table) <> [].
-  Proof.
-    unfold mem_regions, mem_table.
-    discriminate.
-  Qed.
-
   (* V. the model generator. *)
-
+  (* TODO: Fix this *)
   Definition generate_model
-    := processor
+    := @processor
+         procParams
          param_func_units
-         mem_table.
-
-  Close Scope kami_expr.
-
+         deviceTree
+         memParams.
+  
+  Local Close Scope kami_expr.
 End exts.

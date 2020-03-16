@@ -60,6 +60,33 @@ Section Fpu.
               "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"));
               "max"    ::= max
             } : FMinMaxInputType @# ty).
+
+    Definition FMinMaxOutput
+      (resultExpr : FMinMaxOutputType ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE result <- resultExpr;
+         LETC val1: RoutedReg <- (STRUCT {
+                               "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
+                               "data" ::= OneExtendTruncLsb Rlen (#result @% "result")
+                                 });
+         LETC val2: RoutedReg <- (STRUCT {
+                                  "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                  "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                               });
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2"
+                    <- IF #result @% "fflags" @% "valid"
+                         then Valid #val2
+                         else Invalid : Maybe RoutedReg @# ty];
+         RetE
+           (STRUCT {
+              "fst" ::= #fstVal;
+              "snd" ::= Invalid
+            } : PktWithException ExecUpdPkt @# ty).
+
   End ty.
 
   Definition FMinMax
@@ -113,33 +140,7 @@ Section Fpu.
                                                 (NFToBit (#sem_in_pkt @% "arg2"))
                                                 (NFToBit (#sem_in_pkt @% "arg1"))))))
                      } : FMinMaxOutputType @# ty;
-                   LETC val1: RoutedReg <- (STRUCT {
-                                         "tag"  ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                         "data" ::= OneExtendTruncLsb Rlen (#result @% "result")
-                                           });
-                   LETC val2: RoutedReg <- (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                         });
-                   LETC fstVal <- (STRUCT {
-                                 "val1"
-                                   ::= Valid #val1;
-                                 "val2"
-                                   ::= ITE (#result @% "fflags" @% "valid")
-                                         (Valid #val2)
-                                         Invalid;
-                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                 "taken?" ::= $$false;
-                                 "aq" ::= $$false;
-                                 "rl" ::= $$false;
-                                 "fence.i" ::= $$false
-                               } : ExecUpdPkt @# ty);
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= #fstVal;
-                        "snd" ::= Invalid
-                      } : PktWithException ExecUpdPkt @# ty);
+                   RetE #result;
          fuInsts
            := [
                 {|
@@ -156,7 +157,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00101")
                        ];
                   inputXform  := fun ty => FMinMaxInput (ty := ty) ($$false);
-                  outputXform := fun ty => id;
+                  outputXform := FMinMaxOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -174,7 +175,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00101")
                        ];
                   inputXform  := fun ty => FMinMaxInput (ty := ty) ($$true);
-                  outputXform := fun ty => id;
+                  outputXform := FMinMaxOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}

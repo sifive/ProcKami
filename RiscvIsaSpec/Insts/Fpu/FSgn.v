@@ -28,9 +28,11 @@ Section Fpu.
   Definition FSgnInputType
     :  Kind
     := STRUCT_TYPE {
-           "sign_bit" :: Bit 1;
-           "arg1"     :: Bit fpu_len
-         }.
+         "sign_bit" :: Bit 1;
+         "arg1"     :: Bit fpu_len
+       }.
+
+  Definition FSgnOutputType := FSgnInputType.
 
   Open Scope kami_expr.
 
@@ -61,40 +63,34 @@ Section Fpu.
                     };
               "arg1" ::= #reg1
             } : FSgnInputType @# ty).
+
+    Definition FSgnOutput
+      (resultExpr : FSgnOutputType ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE result <- resultExpr;
+         RetE (STRUCT {
+           "fst"
+             ::= (noUpdPkt ty)
+                   @%["val1"
+                       <- Valid (STRUCT {
+                            "tag" ::= $$(natToWord RoutingTagSz FloatRegTag);
+                            "data"
+                              ::= OneExtendTruncLsb Rlen
+                                    ({<
+                                       #result @% "sign_bit",
+                                       OneExtendTruncLsb (fpu_len - 1) (#result @% "arg1")
+                                     >})
+                          }) : Maybe RoutedReg @# ty];
+           "snd" ::= Invalid
+         } : PktWithException ExecUpdPkt @# ty).
+
   End ty.
 
   Definition FSgn
     :  FUEntry
     := {|
          fuName := append "fsgn" fpu_suffix;
-         fuFunc
-           := fun ty (sem_in_pkt_expr : FSgnInputType ## ty)
-                => LETE sem_in_pkt
-                     :  FSgnInputType
-                          <- sem_in_pkt_expr;
-         LETC val1 : RoutedReg <- (STRUCT {
-                                       "tag" ::= $$(natToWord RoutingTagSz FloatRegTag);
-                                       "data" ::=
-                                         OneExtendTruncLsb Rlen
-                                                           ({<
-                                                             (#sem_in_pkt @% "sign_bit"),
-                                                             (OneExtendTruncLsb (fpu_len - 1)
-                                                                                (#sem_in_pkt @% "arg1")) >})});
-         LETC fstVal : ExecUpdPkt <- STRUCT {
-                                    "val1"
-                                    ::= Valid (#val1);
-                                    "val2" ::= @Invalid ty RoutedReg;
-                                    "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                    "taken?" ::= $$false;
-                                    "aq" ::= $$false;
-                                    "rl" ::= $$false;
-                                    "fence.i" ::= $$false
-                                  };
-                   RetE
-                     (STRUCT {
-                        "fst" ::= #fstVal;
-                        "snd" ::= Invalid
-                      } : PktWithException ExecUpdPkt@# ty);
+         fuFunc := fun ty => id;
          fuInsts
            := [
                 {|
@@ -111,7 +107,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $0;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -129,7 +125,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $1;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |};
@@ -147,7 +143,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"00100")
                        ];
                   inputXform  := fun ty => FSgnInput (ty := ty) $2;
-                  outputXform := fun _ => id;
+                  outputXform := FSgnOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasFrd := true|> 
                 |}

@@ -1,94 +1,94 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
+Require Import ProcKami.Device.
+
+Require Import StdLibKami.Router.Ifc.
 
 Section mem_devices.
-  Context `{procParams: ProcParams}.
+  Context (procParams: ProcParams).
 
   Local Definition lgMemSz := 20.
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
+
+  Local Definition pMemDeviceName := "main_memory".
+  Local Definition pMemDeviceSendReqName := @^(pMemDeviceName ++ "SendReadReq").
+  Local Definition pMemDeviceGetResName := @^(pMemDeviceName ++ "GetReadRes").
+
+  Local Definition pMemDeviceRegs Tag
+    :  list RegInitT
+    := createRegs Tag pMemDeviceName.
+
+  Local Definition pDevRegNames := createRegNames pMemDeviceName.
 
   Local Definition pMemDeviceParams := {|
-    memDeviceParamsRead
-      := fun ty
-           => (map
-                (fun index
-                  => fun addr _
-                       => Call result
-                            :  Array Rlen_over_8 (Bit 8)
-                            <- (@^"readMem" ++ (natToHexStr index))
-                                 (SignExtendTruncLsb _ addr : Bit lgMemSz);
-                          Ret (Valid (pack #result) : Maybe Data @# ty))
-                (seq 0 numClientRqs));
+    regNames := pDevRegNames;
 
-    memDeviceParamsWrite
+    readReq
+      := fun ty addr
+           => ReadReqRf pMemDeviceSendReqName (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz);
+              Retv;
+
+    write
       := fun ty req
            => LET writeRq
                 :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
                 <- (STRUCT {
                       "addr" ::= SignExtendTruncLsb lgMemSz (req @% "addr");
-                      "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (req @% "data");
+                      "data" ::= req @% "data";
                       "mask" ::= req @% "mask"
                     } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
               Call @^"writeMem0" (#writeRq: _);
               Ret $$true;
 
-    memDeviceParamsReadReservation
-      := fun ty addr _
-           => Call reservation : Reservation
-                <- @^"readMemReservation" (SignExtendTruncLsb _ addr: Bit lgMemSz);
-              Ret #reservation;
-
-    memDeviceParamsWriteReservation
-      := fun ty addr mask reservation _
-           => LET writeRq
-                :  WriteRqMask lgMemSz Rlen_over_8 Bool
-                <- STRUCT {
-                     "addr" ::= SignExtendTruncLsb lgMemSz addr;
-                     "data" ::= reservation;
-                     "mask" ::= mask
-                   };
-              Call @^"writeMemReservation" (#writeRq: _);
-              Retv
+    readRes
+      := fun ty
+           => Call readData
+                :  Array Rlen_over_8 (Bit 8)
+                <- pMemDeviceGetResName ();
+              System [
+                 DispString _ "[PMemDevice.readRes] readData:\n";
+                 DispHex #readData;
+                 DispString _ "\n"
+              ];
+              Ret (Valid (pack #readData) : Maybe Data @# ty);
   |}.
-
+  
   Definition pMemDevice
-    :  MemDevice
+    :  Device
     := {|
-         memDeviceName := "main memory";
-         memDeviceIO := false;
-         memDevicePmas := pmas_default;
-         memDeviceRequestHandler
-           := fun _ index req => memDeviceHandleRequest pMemDeviceParams index req;
-         memDeviceFile
-           := Some
-                (inl [@Build_RegFileBase
-                  true
-                  Rlen_over_8
-                  (@^"mem_reg_file")
-                  (Async [
-                      @^"readMem0"; (* mem unit loads *)
-                      @^"readMem1"; (* fetch lower *)
-                      @^"readMem2"; (* fetch upper *)
-                      @^"readMem3"; (* mem unit page table walker read mem call *)
-                      @^"readMem4"; (* mem unit page table walker read mem call *)
-                      @^"readMem5"; (* mem unit page table walker read mem call *)
-                      @^"readMem6"; (* fetch lower page table walker read mem call *)
-                      @^"readMem7"; (* fetch lower page table walker read mem call *)
-                      @^"readMem8"; (* fetch lower page table walker read mem call *)
-                      @^"readMem9"; (* fetch upper page table walker read mem call *)
-                      @^"readMemA"; (* fetch upper page table walker read mem call *)
-                      @^"readMemB"  (* fetch upper page table walker read mem call *)
-                    ])
-                  (@^"writeMem0")
-                  (Nat.pow 2 lgMemSz) (* rfIdxNum: nat *)
-                  (Bit 8) (* rfData: Kind *)
-                  (RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))])
+         Device.name := pMemDeviceName;
+         io   := false;
+         pmas := pmas_default;
+         deviceFiles
+           := [   @Build_RegFileBase
+                    true
+                    Rlen_over_8
+                    (@^"mem_reg_file")
+                    (Sync
+                       true (* TODO: what does this arg represent? *) 
+                       [{|
+                           readReqName := pMemDeviceSendReqName;
+                           readResName := pMemDeviceGetResName;
+                           readRegName := deviceResRegName pDevRegNames
+                         |}])
+                    (@^"writeMem0")
+                    (Nat.pow 2 lgMemSz) (* rfIdxNum: nat *)
+                    (Bit 8) (* rfData: Kind *)
+                    (RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _))];
+         deviceRegs := nil;
+         deviceIfc Tag
+           := {|
+                deviceReq
+                  := fun {ty} req => @deviceSendReqFn procParams pMemDeviceParams ty Tag req;
+                devicePoll
+                  := fun {ty} => @deviceGetResFn procParams pMemDeviceParams ty Tag
+              |}
        |}.
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End mem_devices.
