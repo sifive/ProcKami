@@ -365,7 +365,6 @@ Section trap_handling.
                   (update_pkt @% "isSc")
                   (update_pkt @% "reservationValid");
            LETA _ <- commitIncCounters;
-           Write @^"pc" : VAddr <- #nextPc;
            Ret #nextPc
          as realNextPc;
        Read step : Bool <- @^"step";

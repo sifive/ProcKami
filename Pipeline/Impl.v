@@ -58,6 +58,11 @@ Section Impl.
     abstract auto.
   Defined.
 
+  Local Definition enqVoid {ty: Kind -> Type} :=
+    (LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
+     LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
+     Retv)%kami_action.
+
   Section memInterfaceSizeParams.
     Local Open Scope kami_action.
     Local Open Scope kami_expr.
@@ -77,25 +82,28 @@ Section Impl.
                                              else $IntRegTag);
                                  "data"  ::= #res @% "res" @% "data"
                                };
-         LET newUpdatePkt
-           :  ExecUpdPkt
-           <- IF #res @% "res" @% "valid"
-                then #oldOptCommit @% "data" @% "execUpd" @%["val1" <- Valid #wb]
-                else #oldOptCommit @% "data" @% "execUpd";
          LET commitPkt
            :  CommitPkt
-           <- #oldOptCommit @% "data" @%["execUpd" <- #newUpdatePkt];
+           <- #oldOptCommit @% "data"
+               @%["execUpd" <- #oldOptCommit @% "data" @% "execUpd" @%[ "val1" <- Valid #wb]]
+               @%["exception" <-
+                  STRUCT { "valid" ::= !(#res @% "res" @% "valid");
+                           "data" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isSAmo"
+                                       then ($VmAccessSAmo: Exception @# ty)
+                                       else $VmAccessLoad)
+                 }];
          LETA cxtCfg: ContextCfgPkt <- readConfig _;
          System [
            DispString _ "[memCallback] commit pkt: ";
            DispHex #commitPkt;
            DispString _ "\n"
          ];
-         LETA _ <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
+         LETA newPc <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
+         System [DispString _ "Load newPc: "; DispHex #newPc; DispString _ "\n"];
+         Write @^"pc" <- #newPc;
+         Write @^"realPc" <- #newPc;
          LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-         LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
-         LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
-         Retv.
+         enqVoid.
 
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
@@ -297,11 +305,6 @@ Section Impl.
         Retv );
       Retv.
 
-    Local Definition enqVoid :=
-      LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
-      LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
-      Retv.
-
     Local Definition commitRule: ActionT ty Void :=
       Read isWfi : Bool <- @^"isWfi";
       Read realPc: VAddr <- @^"realPc";
@@ -312,26 +315,40 @@ Section Impl.
         DispHex #optCommit;
         DispString _ "\n"
       ];
-      If #optCommit @% "valid" && !#isWfi 
+      If #optCommit @% "valid"
       then (
-        LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
-        If ((#optCommit @% "data" @% "exception" @% "valid") ||
-            !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad))
+        System [DispString _ "realPc "; DispHex #realPc; DispString _ "\n"];
+        If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
-          LETA newPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
-                               (#optCommit @% "data" @% "exception");
-          System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
-          Write @^"pc" <- #newPc;
+          Write @^"pc" <- #realPc;
+          Write @^"realPc" <- #realPc;
+          LETA _ <- Mem.Ifc.fetcherClear mem _;
           LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
           enqVoid )
         else (
-          If #optCommit @% "data" @% "incompletePc" @% "valid"
-          then (
-            System [DispString _ "incompletePc: "; DispHex (#optCommit @% "data" @% "incompletePc" @% "data");
-                   DispString _ "\n"];
-            Write @^"pc" <- (#optCommit @% "data" @% "incompletePc" @% "data");
-            LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-            enqVoid );
+          If !#isWfi
+          then (     
+            LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
+            If ((#optCommit @% "data" @% "exception" @% "valid") ||
+                !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad))
+            then (
+              LETA newPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
+                                   (#optCommit @% "data" @% "exception");
+              System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
+              Write @^"pc" <- #newPc;
+              Write @^"realPc" <- #newPc;
+              LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+              enqVoid )
+            else (
+              If #optCommit @% "data" @% "incompletePc" @% "valid"
+              then (
+                System [DispString _ "incompletePc: "; DispHex (#optCommit @% "data" @% "incompletePc" @% "data");
+                       DispString _ "\n"];
+                Write @^"pc" <- (#optCommit @% "data" @% "incompletePc" @% "data");
+                LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+                enqVoid );
+              Retv );
+            Retv );
           Retv );
         Retv );
       Retv.
