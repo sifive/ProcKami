@@ -69,12 +69,14 @@ Section Impl.
     Local Definition memCallback ty
                (res: ty (@MemResp _ memParams))
       :  ActionT ty Void
-      := System [
+      := LETA oldOptCommit : Maybe CommitPkt <- @Fifo.Ifc.first _ decExecFifo _;
+         System [
            DispString _ "[memCallback] res: ";
            DispHex #res;
+           DispString _ "\n oldOptCommit: ";
+           DispHex #oldOptCommit;
            DispString _ "\n"
          ];
-         LETA oldOptCommit : Maybe CommitPkt <- @Fifo.Ifc.first _ decExecFifo _;
          LET wb : RoutedReg <- STRUCT {
                                  "tag" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
                                              then $FloatRegTag
