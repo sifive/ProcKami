@@ -27,7 +27,6 @@ Section Impl.
   Context (memParams: @Mem.Ifc.Params).
 
   Local Definition CommitPkt := (STRUCT_TYPE {
-                                     "incompletePc" :: Maybe FU.VAddr ;
                                      "execCxt"    :: ExecContextPkt ;
                                      "execUpd"    :: ExecUpdPkt ;
                                      "exception"  :: Maybe Exception })%kami_expr.
@@ -181,125 +180,129 @@ Section Impl.
       If (!#isFull && #fetchInst @% "valid")
       then (
         LETA context: ContextCfgPkt <- readConfig _;
-        LET incompPc: Maybe FU.VAddr <- STRUCT { "valid" ::= #fetchInst @% "data" @% "notComplete?" ;
-                                               "data"  ::= #fetchInst @% "data" @% "vaddr"};
-        If (#incompPc @% "valid" || #fetchInst @% "data" @% "error" @% "valid") (* I.A. fetch incomplete or exception. we need to fetch again. *)
+        If (#fetchInst @% "data" @% "notComplete?")
         then (
-          LET enqVal
-            :  CommitPkt
-            <- STRUCT {
-                 "incompletePc" ::= #incompPc ;
-                 "execCxt"
-                   ::= $$(getDefaultConst ExecContextPkt)
-                         @%["pc" <- #fetchInst @% "data" @% "vaddr"]
-                         @%["inst" <- #fetchInst @% "data" @% "inst"]
-                         @%["compressed?" <- #fetchInst @% "data" @% "compressed?"];
-                 "execUpd" ::= $$(getDefaultConst ExecUpdPkt);
-                 "exception" ::= (#fetchInst @% "data" @% "error": Maybe Exception @# ty)
-               };
-          System [
-            DispString _ "[decodeExecRule] Incomplete or Exception: ";
-            DispHex #enqVal;
-            DispString _ "\n"
-            ];
-          LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
-          LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
-          Retv )
-        else ( (* I.B. fetch complete and no exception. *)
-          LET fetchPkt: FetchPkt <- STRUCT {
-                                        "pc"             ::= #fetchInst @% "data" @% "vaddr" ;
-                                        "inst"           ::= #fetchInst @% "data" @% "inst" ;
-                                        "compressed?"    ::= #fetchInst @% "data" @% "compressed?" ;
-                                        "exceptionUpper" ::= #fetchInst @% "data" @% "errUpper?" };
-          System [
-            DispString _ "[decodeExecRule] fetch pkt: ";
-            DispHex #fetchPkt;
-            DispString _ "\n"
-          ];
-          LETA decoderPkt <- decoderWithException #context (STRUCT { "fst" ::= #fetchPkt;
-                                                                     "snd" ::= #fetchInst @% "data" @% "error"});
-          System [
-            DispString _ "[decodeExecRule] decoder pkt: ";
-            DispHex #decoderPkt;
-            DispString _ "\n"
-          ];
-          LETA execContextPkt <-
-            readerWithException
-              (func_units := func_units) (#fetchInst @% "data" @% "vaddr") #context #decoderPkt (#fetchPkt @% "compressed?") (#fetchPkt @% "exceptionUpper");
-          System [
-            DispString _ "[decodeExecRule] execute context pkt: ";
-            DispHex #execContextPkt;
-            DispString _ "\n"
-          ];
-          LETA inputPkt <- inputXformWithException #context (#decoderPkt @% "fst") #execContextPkt;
-          System [
-            DispString _ "[decodeExecRule] input pkt: ";
-            DispHex #inputPkt;
-            DispString _ "\n"
-          ];
-          LETA execUpdPkt <- execWithException #inputPkt;
-          System [
-            DispString _ "[decodeExecRule] execute update pkt: ";
-            DispHex #execUpdPkt;
-            DispString _ "\n"
-          ];
-          LET enqVal: CommitPkt <- STRUCT { "incompletePc" ::= #incompPc ;
-                                            "execCxt"      ::= #execContextPkt @% "fst" ;
-                                            "execUpd"      ::= #execUpdPkt @% "fst";
-                                            "exception"    ::= #execUpdPkt @% "snd" };
-          If (#execContextPkt @% "fst" @% "memHints" @% "valid" (* Memory *)
-              && #execUpdPkt @% "fst" @% "val2" @% "valid" (* Not failed Store Conditional - could be other reasons *)
-              && !(#execUpdPkt @% "snd" @% "valid")) (* No Exception *)
+          System [DispString _ "incompletePc: "; DispHex (#fetchInst @% "data" @% "vaddr");
+                 DispString _ "\n"];
+          Write @^"pc" <- (#fetchInst @% "data" @% "vaddr");
+          enqVoid )
+        else (       
+          If (#fetchInst @% "data" @% "error" @% "valid") (* exception. we need to fetch again. *)
           then (
+            LET enqVal
+              :  CommitPkt
+              <- STRUCT {
+                   "execCxt"
+                     ::= $$(getDefaultConst ExecContextPkt)
+                           @%["pc" <- #fetchInst @% "data" @% "vaddr"]
+                           @%["inst" <- #fetchInst @% "data" @% "inst"]
+                           @%["compressed?" <- #fetchInst @% "data" @% "compressed?"];
+                   "execUpd" ::= $$(getDefaultConst ExecUpdPkt);
+                   "exception" ::= (#fetchInst @% "data" @% "error": Maybe Exception @# ty)
+                 };
             System [
-              DispString _ "[decodeExecRule] sending request to translate memory request addr.\n"
-            ];
-            LET vaddr: FU.VAddr <- xlen_sign_extend Xlen (#context @% "xlen") (#execUpdPkt @% "fst" @% "val2" @% "data" @% "data" : Bit Rlen @# ty);
-            LETA mmuResp: Maybe (PktWithException (PAddrDevOffset deviceTree)) <- @memTranslate _ _ _ mem _  #context
-                                                                                                (IF #execContextPkt @% "fst" @% "memHints" @% "data" @% "isSAmo"
-                                                                                                 then $VmAccessSAmo
-                                                                                                 else $VmAccessLoad)
-                                                                                                (#execContextPkt @% "fst" @% "memHints" @% "data" @% "memOp")
-                                                                                                #vaddr;
+              DispString _ "[decodeExecRule] Incomplete or Exception: ";
+              DispHex #enqVal;
+              DispString _ "\n"
+              ];
+            LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+            LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
+            Retv )
+          else ( (* fetch complete and no exception. *)
+            LET fetchPkt: FetchPkt <- STRUCT {
+                                          "pc"             ::= #fetchInst @% "data" @% "vaddr" ;
+                                          "inst"           ::= #fetchInst @% "data" @% "inst" ;
+                                          "compressed?"    ::= #fetchInst @% "data" @% "compressed?" ;
+                                          "exceptionUpper" ::= #fetchInst @% "data" @% "errUpper?" };
             System [
-              DispString _ "[decodeExecRule] memory request MMU res: ";
-              DispHex #mmuResp;
+              DispString _ "[decodeExecRule] fetch pkt: ";
+              DispHex #fetchPkt;
               DispString _ "\n"
             ];
-            If #mmuResp @% "valid" (* TLB Hit *)
+            LETA decoderPkt <- decoderWithException #context (STRUCT { "fst" ::= #fetchPkt;
+                                                                       "snd" ::= #fetchInst @% "data" @% "error"});
+            System [
+              DispString _ "[decodeExecRule] decoder pkt: ";
+              DispHex #decoderPkt;
+              DispString _ "\n"
+            ];
+            LETA execContextPkt <-
+              readerWithException
+                (func_units := func_units) (#fetchInst @% "data" @% "vaddr") #context #decoderPkt (#fetchPkt @% "compressed?") (#fetchPkt @% "exceptionUpper");
+            System [
+              DispString _ "[decodeExecRule] execute context pkt: ";
+              DispHex #execContextPkt;
+              DispString _ "\n"
+            ];
+            LETA inputPkt <- inputXformWithException #context (#decoderPkt @% "fst") #execContextPkt;
+            System [
+              DispString _ "[decodeExecRule] input pkt: ";
+              DispHex #inputPkt;
+              DispString _ "\n"
+            ];
+            LETA execUpdPkt <- execWithException #inputPkt;
+            System [
+              DispString _ "[decodeExecRule] execute update pkt: ";
+              DispHex #execUpdPkt;
+              DispString _ "\n"
+            ];
+            LET enqVal: CommitPkt <- STRUCT { "execCxt"      ::= #execContextPkt @% "fst" ;
+                                              "execUpd"      ::= #execUpdPkt @% "fst";
+                                              "exception"    ::= #execUpdPkt @% "snd" };
+            If (#execContextPkt @% "fst" @% "memHints" @% "valid" (* Memory *)
+                && #execUpdPkt @% "fst" @% "val2" @% "valid" (* Not failed Store Conditional - could be other reasons *)
+                && !(#execUpdPkt @% "snd" @% "valid")) (* No Exception *)
             then (
-              If #mmuResp @% "data" @% "snd" @% "valid" (* TLB exception *)
+              System [
+                DispString _ "[decodeExecRule] sending request to translate memory request addr.\n"
+              ];
+              LET vaddr: FU.VAddr <- xlen_sign_extend Xlen (#context @% "xlen") (#execUpdPkt @% "fst" @% "val2" @% "data" @% "data" : Bit Rlen @# ty);
+              LETA mmuResp: Maybe (PktWithException (PAddrDevOffset deviceTree)) <- @memTranslate _ _ _ mem _  #context
+                                                                                                  (IF #execContextPkt @% "fst" @% "memHints" @% "data" @% "isSAmo"
+                                                                                                   then $VmAccessSAmo
+                                                                                                   else $VmAccessLoad)
+                                                                                                  (#execContextPkt @% "fst" @% "memHints" @% "data" @% "memOp")
+                                                                                                  #vaddr;
+              System [
+                DispString _ "[decodeExecRule] memory request MMU res: ";
+                DispHex #mmuResp;
+                DispString _ "\n"
+              ];
+              If #mmuResp @% "valid" (* TLB Hit *)
               then (
-                LET newEnqVal <- #enqVal @%[ "exception" <- #mmuResp @% "data" @% "snd"];
-                LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ newEnqVal;
-                LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
-                Retv )
-              else ( (* TLB no exception *)
-                LET memReq: MemReq deviceTree <- STRUCT { "dtag" ::= #mmuResp @% "data" @% "fst" @% "dtag" ;
-                                                          "offset" ::= #mmuResp @% "data" @% "fst" @% "offset" ;
-                                                          "paddr" ::= #mmuResp @% "data" @% "fst" @% "paddr" ;
-                                                          "memOp" ::= #execContextPkt @% "fst" @% "memHints" @% "data" @% "memOp" ;
-                                                          "data" ::= #execUpdPkt @% "fst" @% "val1" @% "data" @% "data"};
-                LET memUnitMemReq: MemUnitMemReq deviceTree <- STRUCT { "tag" ::= $0;
-                                                                        "req" ::= #memReq };
-                LETA accepted: Bool <- @sendMemUnitMemReq _ _ _ mem _ memUnitMemReq;
-                System [
-                  DispString _ "[decodeExecRule] memory unit req accepted: ";
-                  DispHex #accepted;
-                  DispString _ "\n"
-                ];
-                If #accepted (* Request accepted *)
+                If #mmuResp @% "data" @% "snd" @% "valid" (* TLB exception *)
                 then (
-                  LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+                  LET newEnqVal <- #enqVal @%[ "exception" <- #mmuResp @% "data" @% "snd"];
+                  LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ newEnqVal;
                   LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
-                  Retv ) ;
+                  Retv )
+                else ( (* TLB no exception *)
+                  LET memReq: MemReq deviceTree <- STRUCT { "dtag" ::= #mmuResp @% "data" @% "fst" @% "dtag" ;
+                                                            "offset" ::= #mmuResp @% "data" @% "fst" @% "offset" ;
+                                                            "paddr" ::= #mmuResp @% "data" @% "fst" @% "paddr" ;
+                                                            "memOp" ::= #execContextPkt @% "fst" @% "memHints" @% "data" @% "memOp" ;
+                                                            "data" ::= #execUpdPkt @% "fst" @% "val1" @% "data" @% "data"};
+                  LET memUnitMemReq: MemUnitMemReq deviceTree <- STRUCT { "tag" ::= $0;
+                                                                          "req" ::= #memReq };
+                  LETA accepted: Bool <- @sendMemUnitMemReq _ _ _ mem _ memUnitMemReq;
+                  System [
+                    DispString _ "[decodeExecRule] memory unit req accepted: ";
+                    DispHex #accepted;
+                    DispString _ "\n"
+                  ];
+                  If #accepted (* Request accepted *)
+                  then (
+                    LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+                    LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
+                    Retv ) ;
+                  Retv );
                 Retv );
+              Retv )
+            else ( (* Not memory *)
+              LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
+              System [DispString _ "Performing Deq of Fetch Inst\n"];
+              LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
               Retv );
-            Retv )
-          else ( (* Not memory *)
-            LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
-            System [DispString _ "Performing Deq of Fetch Inst\n"];
-            LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
             Retv );
           Retv );
         Retv );
@@ -338,16 +341,7 @@ Section Impl.
               Write @^"pc" <- #newPc;
               Write @^"realPc" <- #newPc;
               LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-              enqVoid )
-            else (
-              If #optCommit @% "data" @% "incompletePc" @% "valid"
-              then (
-                System [DispString _ "incompletePc: "; DispHex (#optCommit @% "data" @% "incompletePc" @% "data");
-                       DispString _ "\n"];
-                Write @^"pc" <- (#optCommit @% "data" @% "incompletePc" @% "data");
-                LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-                enqVoid );
-              Retv );
+              enqVoid );
             Retv );
           Retv );
         Retv );
