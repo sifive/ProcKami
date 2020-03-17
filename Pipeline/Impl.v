@@ -39,20 +39,6 @@ Section Impl.
           Fifo.Ifc.size := 1;
        |}.
 
-  Local Instance fetchAddrExceptionFifoParams
-    :  Fifo.Ifc.Params
-    := {| Fifo.Ifc.name := @^"fetchAddrExceptionFifo";
-          Fifo.Ifc.k := Maybe Exception;
-          Fifo.Ifc.size := 1;
-       |}.
-
-  Local Instance fetchInstExceptionFifoParams
-    :  Fifo.Ifc.Params
-    := {| Fifo.Ifc.name := @^"fetchInstExceptionFifo";
-          Fifo.Ifc.k := Maybe Exception;
-          Fifo.Ifc.size := 2 ^ fetcherLgSize;
-       |}.
-
   Local Instance decExecFifoParams
     :  Fifo.Ifc.Params
     := {| Fifo.Ifc.name := @^"decExecFifo";
@@ -66,22 +52,10 @@ Section Impl.
     abstract auto.
   Defined.
 
-  Local Definition fetchAddrExceptionFifo: @Fifo.Ifc.Ifc fetchAddrExceptionFifoParams.
-    refine (@Fifo.Impl.impl _ {| Fifo.Impl.sizePow2 := _ ;
-                                 Fifo.Impl.regArray := @RegArray.Impl.impl _ |}).
-    abstract auto.
-  Defined.
-
   Local Definition decExecFifo: @Fifo.Ifc.Ifc decExecFifoParams.
     refine (@Fifo.Impl.impl _ {| Fifo.Impl.sizePow2 := _ ;
                                  Fifo.Impl.regArray := @RegArray.Impl.impl _ |}).
     abstract auto.
-  Defined.
-
-  Local Definition fetchInstExceptionFifo: @Fifo.Ifc.Ifc fetchInstExceptionFifoParams.
-    refine (@Fifo.Impl.impl _ {| Fifo.Impl.sizePow2 := _ ;
-                                 Fifo.Impl.regArray := @RegArray.Impl.impl _ |}).
-    abstract (simpl; rewrite Natlog2_up_pow2; auto).
   Defined.
 
   Section memInterfaceSizeParams.
@@ -154,11 +128,12 @@ Section Impl.
       LETA isFull <- @fetcherIsFull procParams deviceTree _ mem ty;
       Read pc : FU.VAddr <- @^"pc";
       System [
-        DispString _ "[sendPcRule] fifo is empty: ";
+        DispString _ "[sendPcRule] empty: ";
         DispHex #isEmpty;
-        DispString _ "\n";
-        DispString _ "[sendPcRule] fetcher is full: ";
+        DispString _ " full: ";
         DispHex #isFull;
+        DispString _ " pc: ";
+        DispHex #pc;
         DispString _ "\n"
       ];
       If !#isEmpty && !#isFull
@@ -173,64 +148,34 @@ Section Impl.
         ];
         If #optPAddrDevOffsetException @% "valid"
         then (
-          LET inReq : PAddrDevOffsetVAddr deviceTree <- STRUCT { "memReq" ::= #optPAddrDevOffsetException @% "data" @% "fst" ;
+          LET inReq : PAddrDevOffsetVAddr deviceTree <- STRUCT { "inReq" ::= #optPAddrDevOffsetException @% "data";
                                                                  "vaddr" ::= #pc } ;
-          LET req <- STRUCT { "inReq" ::= #inReq ;
-                              "sendReq?" ::= !(#optPAddrDevOffsetException @% "data" @% "snd" @% "valid") };
-          LETA accepted : Bool <- @Mem.Ifc.fetcherSendAddr _ _ _ mem ty req;
+          LETA accepted : Bool <- @Mem.Ifc.fetcherSendAddr _ _ _ mem ty inReq;
           If #accepted
           then (
-            LET val : Maybe Exception <- (#optPAddrDevOffsetException @% "data" @% "snd");
-            LETA _ <- @Fifo.Ifc.enq _ fetchAddrExceptionFifo _ val;
             LETA _ <- @Fifo.Ifc.deq _ tokenFifo _;
             Retv );
           Retv );
         Retv);
       Retv.
 
-    Local Definition transferMmuFetchExceptionRule: ActionT ty Void :=
-      LETA optPAddrException <- @Fifo.Ifc.first _ fetchAddrExceptionFifo _;
-      LETA isFull <- @Fifo.Ifc.isFull _ fetchInstExceptionFifo _;
-      System [
-        DispString _ "[transferMmuFetchExceptionRule] isFull: ";
-        DispHex #isFull;
-        DispString _ "\n";
-        DispString _ "[transferMmuFetchExceptionRule] optPAddrException: ";
-        DispHex #optPAddrException;
-        DispString _ "\n"
-      ];
-      If (!#isFull && #optPAddrException @% "valid")
-      then (
-        System [
-          DispString _ "[transferMmuFetchExceptionRule]\n"
-        ];
-        LETA _ <- @Fifo.Ifc.deq _ fetchAddrExceptionFifo _;
-        LET pAddrException <- #optPAddrException @% "data";    
-        @Fifo.Ifc.enq _ fetchInstExceptionFifo _ pAddrException
-      );
-      Retv.
-
     Local Definition decodeExecRule: ActionT ty Void :=
-      LETA optInstException : Maybe (Maybe Exception) <- @Fifo.Ifc.first _ fetchInstExceptionFifo _;
       LETA isFull <- @Fifo.Ifc.isFull _ decExecFifo _;
       LETA fetchInst: Maybe FetchOutput <- @Mem.Ifc.fetcherFirst _ _ _ mem _;
       System [
-        DispString _ "[decodeExecRule] FetchInst: \n";
+        DispString _ "[decodeExecRule] FetchInst: ";
         DispHex #fetchInst;
-        DispString _ "\n";
-        DispString _ "[decodeExecRule] Exception: ";
-        DispHex #optInstException;
         DispString _ "\n";
         DispString _ "[decodeExecRule] isFull: ";
         DispHex #isFull;
         DispString _ "\n"
         ];
-      If (!#isFull && #optInstException @% "valid" && #fetchInst @% "valid")
+      If (!#isFull && #fetchInst @% "valid")
       then (
         LETA context: ContextCfgPkt <- readConfig _;
         LET incompPc: Maybe FU.VAddr <- STRUCT { "valid" ::= #fetchInst @% "data" @% "notComplete?" ;
                                                "data"  ::= #fetchInst @% "data" @% "vaddr"};
-        If (#incompPc @% "valid" || #optInstException @% "data" @% "valid") (* I.A. fetch incomplete or exception. we need to fetch again. *)
+        If (#incompPc @% "valid" || #fetchInst @% "data" @% "error" @% "valid") (* I.A. fetch incomplete or exception. we need to fetch again. *)
         then (
           LET enqVal
             :  CommitPkt
@@ -238,15 +183,18 @@ Section Impl.
                  "incompletePc" ::= #incompPc ;
                  "execCxt"
                    ::= $$(getDefaultConst ExecContextPkt)
-                         @%["pc" <- #fetchInst @% "data" @% "vaddr"];
+                         @%["pc" <- #fetchInst @% "data" @% "vaddr"]
+                         @%["inst" <- #fetchInst @% "data" @% "inst"]
+                         @%["compressed?" <- #fetchInst @% "data" @% "compressed?"];
                  "execUpd" ::= $$(getDefaultConst ExecUpdPkt);
-                 "exception" ::= (#optInstException @% "data": Maybe Exception @# ty)
+                 "exception" ::= (#fetchInst @% "data" @% "error": Maybe Exception @# ty)
                };
           System [
-            DispString _ "[decodeExecRule] Incomplete\n"
+            DispString _ "[decodeExecRule] Incomplete or Exception: ";
+            DispHex #enqVal;
+            DispString _ "\n"
             ];
           LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
-          LETA _ <- @Fifo.Ifc.deq _ fetchInstExceptionFifo _;
           LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
           Retv )
         else ( (* I.B. fetch complete and no exception. *)
@@ -261,7 +209,7 @@ Section Impl.
             DispString _ "\n"
           ];
           LETA decoderPkt <- decoderWithException #context (STRUCT { "fst" ::= #fetchPkt;
-                                                                     "snd" ::= #optInstException @% "data"});
+                                                                     "snd" ::= #fetchInst @% "data" @% "error"});
           System [
             DispString _ "[decodeExecRule] decoder pkt: ";
             DispHex #decoderPkt;
@@ -316,7 +264,6 @@ Section Impl.
               then (
                 LET newEnqVal <- #enqVal @%[ "exception" <- #mmuResp @% "data" @% "snd"];
                 LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ newEnqVal;
-                LETA _ <- @Fifo.Ifc.deq _ fetchInstExceptionFifo _;
                 LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
                 Retv )
               else ( (* TLB no exception *)
@@ -336,7 +283,6 @@ Section Impl.
                 If #accepted (* Request accepted *)
                 then (
                   LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
-                  LETA _ <- @Fifo.Ifc.deq _ fetchInstExceptionFifo _ ;
                   LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
                   Retv ) ;
                 Retv );
@@ -344,14 +290,18 @@ Section Impl.
             Retv )
           else ( (* Not memory *)
             LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
-            LETA _ <- @Fifo.Ifc.deq _ fetchInstExceptionFifo _;
+            System [DispString _ "Performing Deq of Fetch Inst\n"];
             LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
             Retv );
           Retv );
         Retv );
       Retv.
 
-           (* Exceptions takes more preference *)
+    Local Definition enqVoid :=
+      LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
+      LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
+      Retv.
+
     Local Definition commitRule: ActionT ty Void :=
       Read isWfi : Bool <- @^"isWfi";
       LETA optCommit <- @Fifo.Ifc.first _ decExecFifo _;
@@ -366,22 +316,21 @@ Section Impl.
         LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
         If #optCommit @% "data" @% "incompletePc" @% "valid"
         then (
+          System [DispString _ "incompletePc: "; DispHex (#optCommit @% "data" @% "incompletePc" @% "data");
+                 DispString _ "\n"];
           Write @^"pc" <- (#optCommit @% "data" @% "incompletePc" @% "data");
           LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-          LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
-          LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
-          Retv )
+          enqVoid )
         else (
           If ((#optCommit @% "data" @% "exception" @% "valid") ||
               !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad))
           then (
             LETA newPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                  (#optCommit @% "data" @% "exception");
+            System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
             Write @^"pc" <- #newPc;
             LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-            LET  tokenFifoVal : Void <- $$(getDefaultConst Void);
-            LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
-            Retv );
+            enqVoid );
           Retv );
         Retv );
       Retv.
@@ -402,20 +351,15 @@ Section Impl.
                 (@^"isWfi", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))))
               ] ++
               @Fifo.Ifc.regs _ tokenFifo ++
-              @Fifo.Ifc.regs _ fetchAddrExceptionFifo ++
-              @Fifo.Ifc.regs _ fetchInstExceptionFifo ++
               @Fifo.Ifc.regs _ decExecFifo ++
               @Mem.Ifc.regs _ _ _ mem;
          Pipeline.Ifc.regFiles
            := @Fifo.Ifc.regFiles _ tokenFifo ++
-              @Fifo.Ifc.regFiles _ fetchAddrExceptionFifo ++
-              @Fifo.Ifc.regFiles _ fetchInstExceptionFifo ++
               @Fifo.Ifc.regFiles _ decExecFifo ++
               @Mem.Ifc.regFiles _ _ _ mem;
          Pipeline.Ifc.tokenStartRule                := tokenStartRule;
          Pipeline.Ifc.mmuSendReqRule                := Mem.Ifc.mmuSendReqRule mem;
          Pipeline.Ifc.sendPcRule                    := sendPcRule;
-         Pipeline.Ifc.transferMmuFetchExceptionRule := transferMmuFetchExceptionRule;
          Pipeline.Ifc.routerPollRules               := Mem.Ifc.routerPollRules mem;
          Pipeline.Ifc.responseToFetcherRule         := Mem.Ifc.responseToFetcherRule mem;
          Pipeline.Ifc.fetcherTransferRule           := Mem.Ifc.fetcherTransferRule mem;

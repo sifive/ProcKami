@@ -78,9 +78,6 @@ Section Params.
          Rule @^"mmuSendReq"
            := Pipeline.Ifc.mmuSendReqRule pipeline with
 
-         Rule @^"transferMmuFetchExceptionRule"
-           := Pipeline.Ifc.transferMmuFetchExceptionRule pipeline with
-
          map
            (fun ruleAction : nat * (forall ty, ActionT ty Void)
              => MERule

@@ -10,7 +10,6 @@ Section Ifc.
       tokenStartRule : forall {ty}, ActionT ty Void;      
       mmuSendReqRule: forall {ty}, ActionT ty Void;
       sendPcRule : forall {ty}, ActionT ty Void;
-      transferMmuFetchExceptionRule: forall {ty}, ActionT ty Void;
       routerPollRules: list (forall {ty}, ActionT ty Void);
       responseToFetcherRule: forall {ty}, ActionT ty Void;
       fetcherTransferRule: forall {ty}, ActionT ty Void;

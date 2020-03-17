@@ -57,16 +57,16 @@ Section Impl.
     {|
       Fetcher.Ifc.name       := @^"fetcher";
       Fetcher.Ifc.size       := Nat.pow 2 (@fetcherLgSize memParams);
-      Fetcher.Ifc.memReqK    := PAddrDevOffset deviceTree;
+      Fetcher.Ifc.inReqK     := PktWithException (PAddrDevOffset deviceTree);
       Fetcher.Ifc.vAddrSz    := Xlen;
       Fetcher.Ifc.compInstSz := FU.CompInstSz;
       Fetcher.Ifc.immResK    := Void;
-      Fetcher.Ifc.finalErrK  := Bool;
+      Fetcher.Ifc.finalErrK  := Maybe Exception;
       Fetcher.Ifc.isCompressed
       := fun ty (inst : Bit FU.CompInstSz @# ty)
          => isInstCompressed inst;
       Fetcher.Ifc.isImmErr := (fun _ _ => $$false);
-      Fetcher.Ifc.isFinalErr := (fun ty (finalErr: Bool @# ty) => finalErr)
+      Fetcher.Ifc.isFinalErr := (fun ty (finalErr: Maybe Exception @# ty) => finalErr @% "valid")
     |}.
 
   Local Definition fetcher
@@ -85,23 +85,22 @@ Section Impl.
       CompletionBuffer.Ifc.size      := Nat.pow 2 (@completionBufferLgSize memParams);
       CompletionBuffer.Ifc.inReqK    := PAddrDevOffsetVAddr deviceTree;
       CompletionBuffer.Ifc.outReqK   := PAddrDevOffset deviceTree;
-      CompletionBuffer.Ifc.storeReqK := FU.VAddr;
+      CompletionBuffer.Ifc.storeReqK := PktWithException FU.VAddr;
       CompletionBuffer.Ifc.immResK   := Void;
       CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
       CompletionBuffer.Ifc.inReqToOutReq
       := fun ty req
          => (STRUCT {
-                 "dtag" ::= req @% "memReq" @% "dtag";
-                 "offset" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "memReq" @% "offset"),
+                 "dtag" ::= req @% "inReq" @% "fst" @% "dtag";
+                 "offset" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "inReq" @% "fst" @% "offset"),
                                                            $$(natToWord 2 0) >});
-                 "paddr" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "memReq" @% "paddr"),
+                 "paddr" ::= ZeroExtendTruncLsb PAddrSz ({< ZeroExtendTruncMsb (PAddrSz - 2) (req @% "inReq" @% "fst" @% "paddr"),
                                                            $$(natToWord 2 0) >})
             })%kami_expr;
-      CompletionBuffer.Ifc.inReqToStoreReq
-      := fun ty req
-         => (req @% "vaddr")%kami_expr;
-      CompletionBuffer.Ifc.isError
-      := fun ty _ => $$false
+      CompletionBuffer.Ifc.inReqToStoreReq := fun ty req => (STRUCT { "fst" ::= req @% "vaddr";
+                                                                      "snd" ::= req @% "inReq" @% "snd"})%kami_expr;
+      CompletionBuffer.Ifc.isError := fun ty _ => $$false;
+      CompletionBuffer.Ifc.isSend := fun ty req => !(req @% "inReq" @% "snd" @% "valid")
     |}.
   
   Local Definition completionBuffer
@@ -218,8 +217,8 @@ Section Impl.
       _ fetcher
       (@CompletionBuffer.Ifc.sendReq
          _ completionBuffer
-         (fun ty inReq2 =>
-            LET inReqFinal <- cbReqToArbiterReq #inReq2;
+         (fun ty inReq =>
+            LET inReqFinal <- cbReqToArbiterReq #inReq;
             @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq (Fin.FS (Fin.FS Fin.F1)) ty inReqFinal)
       ) ty req.
 
@@ -237,12 +236,20 @@ Section Impl.
     Ret (#retVal @% "valid").
 
   Local Definition responseToFetcherRule ty: ActionT ty Void :=
-    @CompletionBuffer.Ifc.callbackRule _ completionBuffer (fun ty resp =>
-                                                             LET fetcherResp: (@Fetcher.Ifc.InRes fetcherParams) <- STRUCT { "vaddr" ::= #resp @% "storeReq" ;
-                                                                                                                             "immRes" ::= #resp @% "immRes" ;
-                                                                                                                             "error" ::= !(#resp @% "res" @% "valid") ;
-                                                                                                                             "inst" ::= #resp @% "res" @% "data" };
-                                                             @Fetcher.Ifc.callback _ fetcher _ fetcherResp) ty.
+    @CompletionBuffer.Ifc.callbackRule
+      _ completionBuffer
+      (fun ty resp =>
+         LET fetcherResp: (@Fetcher.Ifc.InRes fetcherParams) <-
+                          STRUCT { "vaddr" ::= #resp @% "storeReq" @% "fst" ;
+                                   "immRes" ::= #resp @% "immRes" ;
+                                   "error" ::=
+                                     (IF #resp @% "storeReq" @% "snd" @% "valid"
+                                      then #resp @% "storeReq" @% "snd"
+                                      else STRUCT { "valid" ::= !(#resp @% "res" @% "valid") ;
+                                                    "data"  ::= ($InstAccessFault : Exception @# ty) } );
+                                   "inst" ::= #resp @% "res" @% "data" };
+      @Fetcher.Ifc.callback _ fetcher _ fetcherResp) ty.
+
   Definition impl
     :  Mem.Ifc.Ifc deviceTree
     := {| Mem.Ifc.regs :=

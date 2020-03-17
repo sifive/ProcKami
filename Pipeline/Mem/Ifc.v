@@ -54,14 +54,14 @@ Section Ifc.
                                    "paddr"  :: PAddr
                                  }.
 
-  Definition PAddrDevOffsetVAddr := STRUCT_TYPE { "memReq" :: PAddrDevOffset;
-                                                  "vaddr"  :: FU.VAddr }.
+  Definition PAddrDevOffsetVAddr := STRUCT_TYPE { "inReq" :: PktWithException PAddrDevOffset;
+                                                  "vaddr" :: FU.VAddr }.
 
   Definition FetchOutput := STRUCT_TYPE {
                                 "notComplete?" :: Bool ;
                                 "vaddr" :: FU.VAddr ;
                                 "immRes" :: Void ;
-                                "error" :: Bool ;
+                                "error" :: Maybe Exception ;
                                 "compressed?" :: Bool ;
                                 "errUpper?" :: Bool ;
                                 "inst" :: FU.Inst }.
@@ -73,8 +73,7 @@ Section Ifc.
          
          (* Prefetcher stuff *)
          fetcherIsFull : forall ty : Kind -> Type, ActionT ty Bool;
-         fetcherSendAddr : forall ty : Kind -> Type, ty (STRUCT_TYPE { "inReq" :: PAddrDevOffsetVAddr;
-                                                                       "sendReq?" :: Bool }) -> ActionT ty Bool;
+         fetcherSendAddr : forall ty : Kind -> Type, ty PAddrDevOffsetVAddr -> ActionT ty Bool;
          
          fetcherDeq : forall ty : Kind -> Type, ActionT ty Bool;
          fetcherFirst : forall ty : Kind -> Type, ActionT ty (Maybe FetchOutput);
