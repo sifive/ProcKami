@@ -714,15 +714,22 @@ Section Impl.
          DispHex #mentry;
          DispString _ "\n"
        ];
+       LETA leafValid
+         :  Bool
+         <- convertLetExprSyntax_ActionT
+              (isLeafValid
+                accessType
+                (#mentry @% "data" @% "pte"));
        (* exceptions about pte grants *)
        LET newException: Maybe Exception
          <- STRUCT { "valid" ::=
-                       !(pte_grant
-                           (context @% "mxr")
-                           (context @% "sum")
-                           (context @% "mode")
-                           accessType
-                           (#mentry @% "data" @% "pte"));
+                       (#leafValid &&
+                        !(pte_grant
+                            (context @% "mxr")
+                            (context @% "sum")
+                            (context @% "mode")
+                            accessType
+                            (#mentry @% "data" @% "pte")));
                      "data" ::= faultException accessType };
        System [
          DispString _ "[getPAddr] newException: ";
