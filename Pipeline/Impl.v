@@ -99,7 +99,8 @@ Section Impl.
            DispHex #commitPkt;
            DispString _ "\n"
          ];
-         LETA newPc <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
+         LETA commitRes : Pair Bool VAddr <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
+         LET newPc <- #commitRes @% "snd";
          System [DispString _ "Load newPc: "; DispHex #newPc; DispString _ "\n"];
          Write @^"pc" <- #newPc;
          Write @^"realPc" <- #newPc;
@@ -337,8 +338,12 @@ Section Impl.
             If ((#optCommit @% "data" @% "exception" @% "valid") ||
                 !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad))
             then (
-              LETA newPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
+              LETA commitRes <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                    (#optCommit @% "data" @% "exception");
+              LET newPc <- #commitRes @% "snd";
+              If !(#commitRes @% "fst") &&
+                  (#optCommit @% "data" @% "execUpd" @% "val1" @% "data" @% "tag" == $SFenceTag)
+                then Mem.Ifc.mmuFlush mem _;
               System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
               Write @^"pc" <- #newPc;
               Write @^"realPc" <- #newPc;

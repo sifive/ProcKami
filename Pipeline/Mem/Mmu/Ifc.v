@@ -39,6 +39,8 @@ Section Ifc.
 
          clearException : forall ty, ActionT ty Void;
 
+         flush : forall ty, ActionT ty Void;
+
          sendReqRule
            (sendReq : forall ty, ty MemReq -> ActionT ty Bool)
            : forall ty, ActionT ty Void;

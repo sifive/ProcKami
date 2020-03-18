@@ -415,6 +415,36 @@ Section Impl.
      then old
      else new).
   
+  Local Definition dispException
+    (ty : Kind -> Type)
+    (prefix : string)
+    (vaddr : VAddr @# ty)
+    :  ActionT ty Void
+    := Read exception
+         :  Maybe Exception
+         <- ^"exception";
+       Read exceptionVpn
+         :  Vpn
+         <- ^"exceptionVpn";
+       LET isVpnMatch
+         :  Bool
+         <- vpnMatch vaddr #exceptionVpn;
+       System [
+         DispString _ ("[" ++ prefix ++ "] exception vpn: ");
+         DispHex #exceptionVpn;
+         DispString _ "\n";
+         DispString _ ("[" ++ prefix ++ "] exception: ");
+         DispHex #exception;
+         DispString _ "\n";
+         DispString _ ("[" ++ prefix ++ "] vaddr: ");
+         DispHex vaddr;
+         DispString _ "\n";
+         DispString _ ("[" ++ prefix ++ "] isVpnMatch: ");
+         DispHex #isVpnMatch;
+         DispString _ "\n"
+       ];
+       Retv.
+
   Local Definition getTlbEntry ty
     (access_type : AccessType @# ty)
     (satp_mode: Bit SatpModeWidth @# ty)
@@ -497,6 +527,7 @@ Section Impl.
            Write ^"paddr" : PAddr <- #pte_addr;
            Write ^"sendReq" : Bool <- $$true;
            Retv;
+       LETA _ <- dispException "getTlbEntry" vaddr;
        Ret #mentry.
 
   (*
@@ -546,6 +577,7 @@ Section Impl.
                   "data"  ::= (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                                then misalignedException (#context @% "access_type")
                                else accessException (#context @% "access_type")) };
+           LETA _ <- dispException "sendReqRule" #vaddr;
            System [
              DispString _ "[tlb.sendReq] dTagOffsetPmaPmpError: ";
              DispHex #dTagOffsetPmaPmpError;
@@ -733,11 +765,15 @@ Section Impl.
        (* exceptions about access faults *)
        Read oldException: Maybe Exception <- ^"exception";
        System [
+         DispString _ "[getPAddr] old exception vpn: ";
+         DispHex #exceptionVpn;
+         DispString _ "\n";
          DispString _ "[getPAddr] oldException: ";
          DispHex #oldException;
          DispString _ "\n"
        ];
        LET isVpnMatch <- vpnMatch vaddr #exceptionVpn;  
+       LETA _ <- dispException "getPAddr" vaddr;
        LET finalException <- getException vaddr #exceptionVpn #oldException #newException;
        System [
          DispString _ "[getPAddr] finalException: ";
@@ -811,6 +847,7 @@ Section Impl.
                      STRUCT {"valid" ::= #paddrException @% "valid" ;
                              "data" ::= STRUCT { "fst" ::= #memReq ;
                                                  "snd" ::= #finalException } };
+         LETA _ <- dispException "memTranslate" vaddr;
          System [
            DispString _ "[memTranslate] result: ";
            DispHex #result;
@@ -818,12 +855,15 @@ Section Impl.
          ];
          Ret #result.
 
+  Local Definition flush ty : ActionT ty Void := Cam.Ifc.flush cam ty.
+
   Definition impl : Ifc deviceTree
     := {|
           Mmu.Ifc.regs := regs;
           Mmu.Ifc.regFiles := Cam.Ifc.regFiles cam;
           Mmu.Ifc.readException := readException;
           Mmu.Ifc.clearException := clearException;
+          Mmu.Ifc.flush := flush;
           Mmu.Ifc.sendReqRule := sendReqRule;
           Mmu.Ifc.memTranslate := memTranslate;
           Mmu.Ifc.callback := callback

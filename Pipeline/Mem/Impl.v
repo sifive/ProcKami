@@ -285,6 +285,7 @@ Section Impl.
           mmuClearException := Mmu.Ifc.clearException mmu;
 
           Mem.Ifc.mmuSendReqRule := mmuSendReqRule;
+          mmuFlush := Mmu.Ifc.flush mmu;
 
           sendMemUnitMemReq := memSendReq;
 
