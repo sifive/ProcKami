@@ -206,7 +206,7 @@ Section Impl.
         (access_type : AccessType @# ty)
         (pte : PteEntry @# ty)
         :  Bool @# ty
-        := !(pte @% "flags" @% "A") || ((access_type == $VmAccessSAmo) && (!(pte @% "flags" @% "D"))).
+        := (pte @% "flags" @% "A") && ((access_type != $VmAccessSAmo) || (pte @% "flags" @% "D")).
   
       Local Definition pte_grant
         (mxr : Bool @# ty)
@@ -240,7 +240,7 @@ Section Impl.
         (access_type : AccessType @# ty)
         (pte : PteEntry @# ty)
         :  Bool ## ty
-        := RetE (!pte_access_dirty access_type pte).
+        := RetE (pte_access_dirty access_type pte).
   
       Local Definition translatePteLeaf
         (satp_mode : Bit SatpModeWidth @# ty)
@@ -714,22 +714,15 @@ Section Impl.
          DispHex #mentry;
          DispString _ "\n"
        ];
-       LETA leafValid
-         :  Bool
-         <- convertLetExprSyntax_ActionT
-              (isLeafValid
-                accessType
-                (#mentry @% "data" @% "pte"));
        (* exceptions about pte grants *)
        LET newException: Maybe Exception
          <- STRUCT { "valid" ::=
-                       (#leafValid &&
-                        !(pte_grant
-                            (context @% "mxr")
-                            (context @% "sum")
-                            (context @% "mode")
-                            accessType
-                            (#mentry @% "data" @% "pte")));
+                       !(pte_grant
+                           (context @% "mxr")
+                           (context @% "sum")
+                           (context @% "mode")
+                           accessType
+                           (#mentry @% "data" @% "pte"));
                      "data" ::= faultException accessType };
        System [
          DispString _ "[getPAddr] newException: ";
