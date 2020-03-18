@@ -18,6 +18,7 @@ Require Import Kami.Simulator.NativeTest.
 Require Import Kami.Simulator.CoqSim.Simulator.
 Require Import Kami.Simulator.CoqSim.HaskellTypes.
 Require Import Kami.Simulator.CoqSim.RegisterFile.
+Require Import Kami.WfActionT.
 Require Import ProcKami.Devices.UARTDevice.
 
 Definition supportedExts
@@ -57,6 +58,23 @@ Definition xlens64 := [Xlen32; Xlen64].
 
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
+
+(** neither of these tests currently pass. *)
+(** vm_compute should take ~40s *)
+
+(*
+Lemma model32_wf : WfMod_unit model32 = [].
+Proof.
+  vm_compute.
+  reflexivity.
+Qed.
+
+Lemma model64_wf : WfMod_unit model64 = [].
+Proof.
+  vm_compute.
+  reflexivity.
+Qed.
+*)
 
 Definition procParams (xlens : list nat) : ProcParams
   := ModelParams.procParams
