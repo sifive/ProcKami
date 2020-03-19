@@ -78,13 +78,6 @@ Section Params.
          Rule @^"mmuSendReq"
            := Pipeline.Ifc.mmuSendReqRule pipeline with
 
-         map
-           (fun ruleAction : nat * (forall ty, ActionT ty Void)
-             => MERule
-                  (@^("routerPoll" ++ nat_decimal_string (fst ruleAction)),
-                   (fun ty => (snd ruleAction) ty)))
-           (tag (Pipeline.Ifc.routerPollRules pipeline)) with
-
          Rule @^"responseToFetcher"
            := Pipeline.Ifc.responseToFetcherRule pipeline with
 
@@ -99,6 +92,13 @@ Section Params.
 
          Rule @^"commit"
            := Pipeline.Ifc.commitRule pipeline with
+
+         map
+           (fun ruleAction : nat * (forall ty, ActionT ty Void)
+             => MERule
+                  (@^("routerPoll" ++ nat_decimal_string (fst ruleAction)),
+                   (fun ty => (snd ruleAction) ty)))
+           (tag (Pipeline.Ifc.routerPollRules pipeline)) with
 
          Rule @^"arbiterReset"
            := Pipeline.Ifc.arbiterResetRule pipeline with
