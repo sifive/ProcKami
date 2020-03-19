@@ -99,6 +99,7 @@ Section Ifc.
          mmuClearException : forall ty, ActionT ty Void;
 
          mmuSendReqRule : forall ty, ActionT ty Void;
+         mmuFlush : forall ty, ActionT ty Void;
 
          (* MemUnit stuff *)
          sendMemUnitMemReq : forall ty, ty MemUnitMemReq -> ActionT ty Bool;

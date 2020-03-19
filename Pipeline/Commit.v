@@ -205,16 +205,14 @@ Section trap_handling.
          "valid"
            ::= (* Illegal SRet instruction *)
                ((update_pkt @% "val2" @% "data" @% "tag" == $SRetTag &&
-                 cfg_pkt @% "mode" == $SupervisorMode &&
-                 cfg_pkt @% "tsr") ||
+                 cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tsr") ||
                 (* Illegal SFence instruction *)
                 (update_pkt @% "val1" @% "data" @% "tag" == $SFenceTag &&
-                 cfg_pkt @% "tvm") ||
+                 cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tvm") ||
                 (* Illegal WFI instruction *)
                 (update_pkt @% "val1" @% "data" @% "tag" == $WfiTag &&
                  !(debugHartState @% "debug") &&
-                 cfg_pkt @% "tw" &&
-                 cfg_pkt @% "mode" != $MachineMode) ||
+                 cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode) ||
                 (* CSR write exception *)
                 (callIsWriteCsr &&
                  !csrAccessible 
@@ -287,7 +285,7 @@ Section trap_handling.
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
     (exception : Maybe Exception @# ty)
-    :  ActionT ty VAddr
+    :  ActionT ty (Pair Bool VAddr)
     := System [
          DispString _ "[commit] cfg_pkt: ";
          DispHex cfg_pkt;
@@ -373,7 +371,10 @@ Section trap_handling.
        System [
          DispString _ "[commit] done.\n"
        ];
-       Ret #realNextPc.
+       Ret (STRUCT {
+         "fst" ::= #commitException @% "valid";
+         "snd" ::= #realNextPc
+       } : Pair Bool VAddr @# ty).
 
   Local Close Scope kami_expr.
   Local Close Scope kami_action.
