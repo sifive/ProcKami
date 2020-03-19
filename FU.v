@@ -83,7 +83,6 @@ Definition MemDataTag := 2. (* 1 *)
 Definition CsrWriteTag := 3. (* 1 *)
 Definition CsrSetTag := 4. (* 1 *)
 Definition CsrClearTag := 5. (* 1 *)
-Definition SFenceTag := 6. (* 1 *)
 
 Definition PcTag := 0. (* 2 *)
 Definition MemAddrTag := 1. (* 2 *)
@@ -97,7 +96,8 @@ Definition ECallSTag := 8. (* 2 *)
 Definition ECallUTag := 9. (* 2 *)
 Definition EBreakTag := 10. (* 2 *)
 Definition WfiTag := 11. (* 2 *)
-Definition LrTag := 12. (* 2 *)
+Definition SFenceTag := 12. (* 2 *)
+Definition LrTag := 13. (* 2 *)
 
 Definition RetCodeU := 0.
 Definition RetCodeS := 8.

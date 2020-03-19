@@ -207,7 +207,7 @@ Section trap_handling.
                ((update_pkt @% "val2" @% "data" @% "tag" == $SRetTag &&
                  cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tsr") ||
                 (* Illegal SFence instruction *)
-                (update_pkt @% "val1" @% "data" @% "tag" == $SFenceTag &&
+                (update_pkt @% "val2" @% "data" @% "tag" == $SFenceTag &&
                  cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tvm") ||
                 (* Illegal WFI instruction *)
                 (update_pkt @% "val2" @% "data" @% "tag" == $WfiTag &&

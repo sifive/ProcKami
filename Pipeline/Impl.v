@@ -342,7 +342,7 @@ Section Impl.
                                    (#optCommit @% "data" @% "exception");
               LET newPc <- #commitRes @% "snd";
               If !(#commitRes @% "fst") &&
-                  (#optCommit @% "data" @% "execUpd" @% "val1" @% "data" @% "tag" == $SFenceTag)
+                  (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
                 then Mem.Ifc.mmuFlush mem _;
               System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
               Write @^"pc" <- #newPc;
