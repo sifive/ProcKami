@@ -363,7 +363,7 @@ Section mret.
                          => RetE (STRUCT {
                               "fst"
                                 ::= (noUpdPkt ty)
-                                      @%["val1"
+                                      @%["val2"
                                           <- Valid (STRUCT {
                                                "tag" ::= ($WfiTag : RoutingTag @# ty);
                                                "data" ::= ($0 : Data @# ty)

@@ -210,7 +210,7 @@ Section trap_handling.
                 (update_pkt @% "val1" @% "data" @% "tag" == $SFenceTag &&
                  cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tvm") ||
                 (* Illegal WFI instruction *)
-                (update_pkt @% "val1" @% "data" @% "tag" == $WfiTag &&
+                (update_pkt @% "val2" @% "data" @% "tag" == $WfiTag &&
                  !(debugHartState @% "debug") &&
                  cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode) ||
                 (* CSR write exception *)
