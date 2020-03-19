@@ -27,7 +27,7 @@ Section device.
 
   Local Definition uartDeviceRegs Tag
     :  list RegInitT
-    := createRegs Tag uartDeviceName.
+    := createRegs Tag uartDeviceName true.
 
   Local Definition uartDeviceRegNames := createRegNames uartDeviceName.
 

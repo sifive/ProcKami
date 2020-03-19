@@ -95,6 +95,8 @@ Section debug.
 
   Definition debug_internal_regs
     := [
+        (@^"busy", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
+
         (* request sent to hart to execute abstract command *)
         (@^"debug_executing", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
           (* Register @^"debug_executing" : Bool <- ConstBool false; *)

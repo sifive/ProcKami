@@ -45,7 +45,7 @@ Section device.
 
   Local Definition bootRomDeviceRegs Tag
     :  list RegInitT
-    := createRegs Tag bootRomDeviceName.
+    := createRegs Tag bootRomDeviceName false.
 
   Definition bootRomDevice
     :  Device

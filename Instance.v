@@ -62,19 +62,17 @@ Definition model64 : Mod := model [Xlen32; Xlen64].
 (** neither of these tests currently pass. *)
 (** vm_compute should take ~40s *)
 
-(*
-Lemma model32_wf : WfMod_unit model32 = [].
-Proof.
-  vm_compute.
-  reflexivity.
-Qed.
-
 Lemma model64_wf : WfMod_unit model64 = [].
 Proof.
   vm_compute.
   reflexivity.
 Qed.
-*)
+
+Lemma model32_wf : WfMod_unit model32 = [].
+Proof.
+  vm_compute.
+  reflexivity.
+Qed.
 
 Definition procParams (xlens : list nat) : ProcParams
   := ModelParams.procParams

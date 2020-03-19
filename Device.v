@@ -98,11 +98,15 @@ Section DeviceIfc.
 
   Definition createRegs tagK
     (name : string)
+    (includeResReg : bool)
     :  list RegInitT
     := let names : RegNames := createRegNames name in
-       makeModule_regs (Register (@deviceBusyRegName names): Bool <- Default ++
-                        Register (@deviceReqRegName names): Maybe (Req tagK) <- Default ++
-                        RegisterU (@deviceResRegName names): Maybe Data)%kami.
+       makeModule_regs
+        (Register (@deviceBusyRegName names): Bool <- Default ++
+         Register (@deviceReqRegName names): Maybe (Req tagK) <- Default ++
+         (if includeResReg
+            then RegisterU (@deviceResRegName names): Maybe Data
+            else []))%kami.
 
   Section ty.
     Context (baseDevice: BaseDevice).

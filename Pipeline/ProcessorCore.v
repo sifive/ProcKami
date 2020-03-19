@@ -42,9 +42,9 @@ Section Params.
 
          Registers (@csr_regs procParams Csrs) with
          Registers (@debug_internal_regs procParams) with
-         Registers (@Device.regs procParams (@devices procParams deviceTree)) with
          Registers (@Pipeline.Ifc.regs pipeline) with
 
+         Registers (@Device.regs procParams (@devices procParams deviceTree)) with
          Registers (@BootRomDevice.bootRomDeviceRegs procParams Tag) with
          Registers (@MMappedRegs.msipDeviceRegs procParams Tag) with
          Registers (@MMappedRegs.mtimeDeviceRegs procParams Tag) with

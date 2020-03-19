@@ -108,7 +108,7 @@ Section mmregs.
 
         Local Definition regDeviceRegs Tag
           :  list RegInitT
-          := createRegs Tag deviceName.
+          := createRegs Tag deviceName true.
 
         Local Definition regDeviceRegNames := createRegNames deviceName.
 
@@ -198,7 +198,7 @@ Section mmregs.
            ] msipDeviceName false.
 
     Definition msipDeviceRegs Tag
-      := createRegs Tag msipDeviceName.
+      := createRegs Tag msipDeviceName true.
 
     Local Definition mtimeDeviceName := "mtime".
 
@@ -214,7 +214,7 @@ Section mmregs.
            ] mtimeDeviceName false.
 
     Definition mtimeDeviceRegs Tag
-      := createRegs Tag mtimeDeviceName.
+      := createRegs Tag mtimeDeviceName true.
 
     Local Definition mtimecmpDeviceName := "mtimecmp".
 
@@ -230,7 +230,7 @@ Section mmregs.
            ] mtimecmpDeviceName false.
 
     Definition mtimecmpDeviceRegs Tag
-      := createRegs Tag mtimecmpDeviceName.
+      := createRegs Tag mtimecmpDeviceName true.
 
     Local Close Scope kami_action.
     Local Close Scope kami_expr.

@@ -19,7 +19,7 @@ Section mem_devices.
 
   Local Definition pMemDeviceRegs Tag
     :  list RegInitT
-    := createRegs Tag pMemDeviceName.
+    := createRegs Tag pMemDeviceName false.
 
   Local Definition pDevRegNames := createRegNames pMemDeviceName.
 
@@ -72,7 +72,7 @@ Section mem_devices.
                        [{|
                            readReqName := pMemDeviceSendReqName;
                            readResName := pMemDeviceGetResName;
-                           readRegName := deviceResRegName pDevRegNames
+                           readRegName := deviceResRegName pDevRegNames (* TODO: LLEE: does this create the reg? *)
                          |}])
                     (@^"writeMem0")
                     (Nat.pow 2 lgMemSz) (* rfIdxNum: nat *)

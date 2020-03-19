@@ -111,7 +111,7 @@ Section debug_device.
          "debug_device" false.
 
   Definition debugDeviceRegs
-    := createRegs Tag "debug_device".
+    := createRegs Tag "debug_device" true.
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.
