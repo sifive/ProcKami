@@ -19,7 +19,7 @@ Require Import Kami.Simulator.CoqSim.Simulator.
 Require Import Kami.Simulator.CoqSim.HaskellTypes.
 Require Import Kami.Simulator.CoqSim.RegisterFile.
 Require Import Kami.WfActionT.
-Require Import ProcKami.Devices.UARTDevice.
+Require Import ProcKami.Devices.Uart.
 
 Definition supportedExts
   :  list SupportedExt
@@ -59,7 +59,6 @@ Definition xlens64 := [Xlen32; Xlen64].
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
 
-(** neither of these tests currently pass. *)
 (** vm_compute should take ~40s *)
 
 Lemma model64_wf : WfMod_unit model64 = [].
@@ -87,8 +86,8 @@ Definition procParams (xlens : list nat) : ProcParams
 
 Definition meths (xlens : list nat) := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
-  ("proc_core_readUART", (UARTRead, Data));
-  ("proc_core_writeUART", (@UARTWrite (procParams xlens), Bit 0))
+  ("proc_core_readUART", (UartRead, Data));
+  ("proc_core_writeUART", (@UartWrite (procParams xlens), Bit 0))
 ].
 
 Axiom cheat : forall {X},X.

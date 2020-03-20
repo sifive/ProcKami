@@ -91,7 +91,6 @@ Section memOpsFuncs.
                     memOps);
            Ret (#result @% "data").
 
-      (* stores excluding AMOs that do not generate write backs. *)
       Definition memOpHasLoad
         :  MemOpCode @# ty -> ActionT ty Bool
         := applyMemOp

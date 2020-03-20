@@ -1,30 +1,29 @@
-(* Represents an abstract memory deviceice object *)
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
+
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
+
 Require Import ProcKami.MemRegion.
 
 Require Import StdLibKami.Router.Ifc.
 
 Import ListNotations.
 
-Import BinNat.
-
 Section DeviceIfc.
   Context {procParams : ProcParams}.
 
-  Inductive PMAAmoClass := AMONone | AMOSwap | AMOLogical | AMOArith.
+  Inductive PmaAmoClass := AmoNone | AmoSwap | AmoLogical | AmoArith.
 
-  Record PMA
+  Record Pma
     := {
         pma_width : nat; (* in bytes *)
         pma_readable : bool;
         pma_writeable : bool;
         pma_executable : bool;
         pma_misaligned : bool;
-        pma_amo : PMAAmoClass
+        pma_amo : PmaAmoClass
       }.
 
   Definition pmas_default
@@ -36,268 +35,185 @@ Section DeviceIfc.
               pma_writeable  := true;
               pma_executable := true;
               pma_misaligned := true;
-              pma_amo        := AMOArith
+              pma_amo        := AmoArith
             |})
          [0; 1; 2; 3].
 
-  Definition Req tagK
+  Local Definition Req tagK
     := STRUCT_TYPE {
          "tag"    :: tagK;
          "memOp"  :: MemOpCode;
-         "offset" :: PAddr;
+         "offset" :: Offset;
          "data"   :: Data
        }.
 
-  Definition Res tagK
+  Local Definition Res tagK
     := STRUCT_TYPE {
          "tag" :: tagK;
-         "res" :: Maybe Data
+         "res" :: Maybe Data (* Error *)
        }.
 
   Record Device
     := {
          name : string;
          io   : bool;
-         pmas : list PMA;
-         deviceFiles: list RegFileBase;
-         deviceRegs: list RegInitT;
+         pmas : list Pma;
+         regFiles: list RegFileBase;
+         regs: forall tagK: Kind, list RegInitT;
          deviceIfc : forall tagK, DeviceIfc (Req tagK) (Res tagK)
        }.
 
-  Definition regFiles (devices : list Device)
-    :  list RegFileBase
-    := concat (map deviceFiles devices).
+  Class BaseDevice := { baseName: string;
+                        baseIo: bool;
+                        basePmas: list Pma;
+                        baseRegFiles: list RegFileBase;
+                        baseRegs: list RegInitT;
+                        write : forall ty, MemWrite @# ty -> ActionT ty Bool; (* Error *)
+                        readReq  : forall ty, Offset @# ty -> ActionT ty Void;
+                        readRes : forall ty, ActionT ty (Maybe Data); (* Error *)
+                      }.
 
-  Definition regs (devices : list Device)
-    := concat (map deviceRegs devices).
-
-  Record RegNames := {
-    deviceBusyRegName : string;
-    deviceReqRegName : string;
-    deviceResRegName : string
-  }. 
-
-  Definition createRegNames
-    (name : string)
-    :  RegNames
-    := {|
-         deviceBusyRegName := @^name ++ "_busy";
-         deviceReqRegName := @^name ++ "_req";
-         deviceResRegName := @^name ++ "_res"
-       |}.
-
-  Class BaseDevice := {
-    regNames : RegNames;
-
-    readReq  : forall ty, PAddr @# ty -> ActionT ty Void;
-    write : forall ty, MemWrite @# ty -> ActionT ty Bool;
-
-    (* Returns the value retrieved by the last read request. *)
-    readRes : forall ty, ActionT ty (Maybe Data);
-  }.
-
-  Definition createRegs tagK
-    (name : string)
-    (includeResReg : bool)
-    :  list RegInitT
-    := let names : RegNames := createRegNames name in
-       makeModule_regs
-        (Register (@deviceBusyRegName names): Bool <- Default ++
-         Register (@deviceReqRegName names): Maybe (Req tagK) <- Default ++
-         (if includeResReg
-            then RegisterU (@deviceResRegName names): Maybe Data
-            else []))%kami.
-
-  Section ty.
+  Section BaseDevice.
     Context (baseDevice: BaseDevice).
-    Variable ty : Kind -> Type.
+    Local Notation "^ x" := (@^baseName ++ "." ++ x)%string (at level 0).
 
-    Local Open Scope kami_expr.
-    Local Open Scope kami_action.
-
-    Local Definition deviceIsRead
-      :  MemOpCode @# ty -> ActionT ty Bool
-      := applyMemOp
-           memOps
-           (fun memOp
-             => Ret
-                  $$(orb
-                    (isMemRegValueFn (memOpRegValue memOp))
-                    (isMemWriteValueFn (memOpWriteValue memOp)))).
-
-    Local Definition deviceRead
-      (code : MemOpCode @# ty)
-      (addr : PAddr @# ty)
-      :  ActionT ty Void
-      := LETA isRead : Bool <- deviceIsRead code;
-         If #isRead
-           then readReq addr;
-         Retv.
-
-    Local Definition deviceWriteValue
-      (code : MemOpCode @# ty)
-      (memData : Data @# ty)
-      (regData : Data @# ty)
-      :  ActionT ty (Maybe Data)
-      := applyMemOp
-           memOps
-           (fun memOp
-             => match memOpWriteValue memOp return ActionT ty (Maybe Data) with
-                | memWriteValueFn f
-                  => LETA result : Data
-                       <- convertLetExprSyntax_ActionT
-                            (f ty regData memData);
-                     Ret (Valid #result : Maybe Data @# ty)
-                | memWriteValueStore
-                  => Ret (Valid regData)
-                | memWriteValueNone
-                  => Ret (Invalid : Maybe Data @# ty)
-                end)
-           code.
-
-    Local Definition deviceWriteMask
-      :  MemOpCode @# ty -> ActionT ty DataMask
-      := applyMemOp
-           memOps
-           (fun memOp
-             => Ret (getMask (memOpSize memOp) ty)).
-
-    Local Definition deviceWrite
-      (addr : PAddr @# ty)
-      (writeMask : DataMask @# ty)
-      (writeData : Maybe Data @# ty)
-      :  ActionT ty Bool
-      := If writeData @% "valid"
-           then 
-             LET writeReq
-               :  MemWrite
-               <- STRUCT {
-                    "addr" ::= addr;
-                    "data" ::= unpack (Array Rlen_over_8 (Bit 8)) (writeData @% "data");
-                    "mask" ::= writeMask
-                  } : MemWrite @# ty;
-             write #writeReq
-           else Ret $$true
-           as result;
-         Ret #result.
-
-    Local Definition deviceRegValue
-      (code : MemOpCode @# ty)
-      (memData : Data @# ty)
-      :  ActionT ty (Maybe Data)
-      := applyMemOp
-           memOps
-           (fun memOp
-             => match memOpRegValue memOp return ActionT ty (Maybe Data) with
-                  | memRegValueFn f
-                    => LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
-                       Ret (Valid #result : Maybe Data @# ty)
-                  | memRegValueNone
-                    => Ret (Invalid : Maybe Data @# ty)
-                  end)
-           code.
-
-    Definition deviceSendReqFn tagK
-      (req : ty (Req tagK))
-      :  ActionT ty Bool
-      := Read busy : Bool <- deviceBusyRegName regNames;
-         Write (deviceBusyRegName regNames) : Bool <- $$true;
-         If !#busy
-           then deviceRead (#req @% "memOp") (#req @% "offset");
-         Read currReq
-           :  Maybe (Req tagK)
-           <- deviceReqRegName regNames;
-         Write (deviceReqRegName regNames)
-           :  Maybe (Req tagK)
-           <- IF #busy
-                then #currReq
-                else Valid #req;
-         System [
-           DispString _ "[Device.deviceSendReqFn] req accepted: ";
-           DispHex (!#busy);
-           DispString _ "\n";
-           DispString _ "[Device.deviceSendReqFn] req: ";
-           DispHex #req;
-           DispString _ "\n"
-         ];
-         Ret !#busy.
-
-    (*
-      Reads the value returned by the last read request sent to the
-      deviceice; computes a register result, and memory
-      write value, using the current deviceice request and most recent
-      memory read result; attempts to write the memory write value
-      to memory; and returns the computed register result value.
-
-      * Invalid - retry
-      * Valid Invalid - the memory operation succeeded, no
-        register update
-      * Valid Valid DATA - the memory operation succeeded, data
-        contains the register update value.
-    *)
-    Definition deviceGetResFn tagK
-      :  ActionT ty (Maybe (Res tagK))
-      := Read req : Maybe (Req tagK) <- deviceReqRegName regNames;
-         System [
-           DispString _ "[deviceGetResFn] request in buffer:";
-           DispHex #req;
-           DispString _ "\n"
-         ];
-         If #req @% "valid"
+    Section ty.
+      Variable tagK: Kind.
+      Variable ty : Kind -> Type.
+      
+      Local Open Scope kami_expr.
+      Local Open Scope kami_action.
+      
+      Local Definition memStoreValue
+            (code : MemOpCode @# ty)
+            (offset: Offset @# ty)
+            (regData : Data @# ty)
+        :  ActionT ty (Maybe MemWrite)
+        := applyMemOp
+             memOps
+             (fun memOp
+              => (match memOpWriteValue memOp return ActionT ty (Maybe MemWrite) with
+                  | memWriteValueFn f => Ret (Invalid : Maybe MemWrite @# ty)
+                  | memWriteValueStore
+                    => Ret (Valid (STRUCT { "addr" ::= offset;
+                                            "data" ::= unpack (Array Rlen_over_8 (Bit 8)) regData;
+                                            "mask" ::= (getMask (memOpSize memOp) ty) }): Maybe MemWrite @# ty)
+                  | memWriteValueNone => Ret (Invalid : Maybe MemWrite @# ty)
+                  end))
+             code.
+      
+      Local Definition memAmoValue
+            (code : MemOpCode @# ty)
+            (offset: Offset @# ty)
+            (regData : Data @# ty)
+            (memData : Data @# ty)
+        :  ActionT ty (Maybe MemWrite)
+        := applyMemOp
+             memOps
+             (fun memOp
+              => (match memOpWriteValue memOp return ActionT ty (Maybe MemWrite) with
+                  | memWriteValueFn f
+                    => (LETA result : Data <- convertLetExprSyntax_ActionT (f ty regData memData);
+                       Ret (Valid (STRUCT { "addr" ::= offset;
+                                            "data" ::= unpack (Array Rlen_over_8 (Bit 8)) #result;
+                                            "mask" ::= (getMask (memOpSize memOp) ty) })
+                                            : Maybe MemWrite @# ty))
+                 | memWriteValueStore => Ret (Invalid : Maybe MemWrite @# ty)
+                 | memWriteValueNone => Ret (Invalid : Maybe MemWrite @# ty)
+                  end))
+             code.
+      
+      Local Definition regValue
+            (code : MemOpCode @# ty)
+            (memData : Data @# ty)
+        :  ActionT ty Data
+        := applyMemOp
+             memOps
+             (fun memOp
+              => match memOpRegValue memOp return ActionT ty Data with
+                 | memRegValueFn f => (LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
+                                      Ret #result)
+                 | memRegValueNone => Ret memData
+                 end)
+             code.
+      
+      Local Definition sendReq
+                 (req : ty (Req tagK))
+        :  ActionT ty Bool (* accepted *)
+        := Read busy : Bool <- ^"busy";
+           If !#busy
+           then (
+             LETA writeData : Maybe MemWrite <- memStoreValue
+                                                  (#req @% "memOp")
+                                                  (#req @% "offset")
+                                                  (#req @% "data");
+             (* LETA hasLoad <- memOpHasLoad memOps (#req @% "memOp"); *)
+             If #writeData @% "valid" (* && !#hasLoad *)
+             then (
+               LETA _ <- write (#writeData @% "data");
+               Retv )
+             else (
+               Write ^"busy" : Bool <- $$true;
+               Write ^"req" : Req tagK <- #req;
+               readReq (#req @% "offset"));
+             Retv);
+           Ret !#busy.
+      
+      (*
+        * Invalid - unavailable
+        * Valid Invalid - available, error
+        * Valid Valid DATA - available, no error
+       *)
+      Local Definition getRes
+        :  ActionT ty (Maybe (Res tagK))
+        := Read req : Req tagK <- ^"req";
+           Read busy : Bool <- ^"busy";
+           If #busy
            then
-             System [
-               DispString _ "[deviceGetResFn] we have a valid request in buffer.\n"
-             ];
-             LETA memData : Maybe Data <- readRes ty;
-             System [
-               DispString _ "[Device.deviceGetResFn] memData: ";
-               DispHex #memData;
-               DispString _ "\n"
-             ];
-             LETA writeData
-               :  Maybe Data
-               <- deviceWriteValue (#req @% "data" @% "memOp") (#memData @% "data") (#req @% "data" @% "data");
-             LETA writeMask
-               :  DataMask
-               <- deviceWriteMask (#req @% "data" @% "memOp");
-             LETA writeSucceeded
-               :  Bool
-               <- deviceWrite (#req @% "data" @% "offset") #writeMask #writeData;
-             LETA regData
-               :  Maybe Data
-               <- deviceRegValue (#req @% "data" @% "memOp") (#memData @% "data");
-             LETA hasLoad
-               :  Bool
-               <- memOpHasLoad memOps (#req @% "data" @% "memOp");
-             Write (deviceReqRegName regNames)
-               :  Maybe (Req tagK)
-               <- Invalid;
-             Write deviceBusyRegName regNames
-               :  Bool
-               <- $$false;
-             LET result
-               :  (Res tagK)
-               <- STRUCT {
-                    "tag" ::= #req @% "data" @% "tag";
-                    "res" ::= #regData
-                  } : (Res tagK) @# ty;
-             Ret
-               (IF #writeSucceeded && #hasLoad
-                 then ((Valid #result) : Maybe (Res tagK) @# ty)
-                 else (Invalid : Maybe (Res tagK) @# ty))
+             LETA hasLoad : Bool <- memOpHasLoad memOps (#req @% "memOp");
+             LETA memData: Maybe Data <- readRes ty;
+             LETA writeData : Maybe MemWrite <- memAmoValue
+                                                  (#req @% "memOp")
+                                                  (#req @% "offset")
+                                                  (#req @% "data") (#memData @% "data");
+             If #writeData @% "valid"
+             then write (#writeData @% "data");
+      
+             LETA regData : Data <- regValue (#req @% "memOp") (#memData @% "data");
+             Write ^"busy": Bool <- $$ false;
+             LET result : (Res tagK) <- STRUCT { "tag" ::= #req @% "tag";
+                                                 "res" ::= STRUCT {"valid" ::= #memData @% "valid";
+                                                                   "data" ::= #regData} };
+             Ret #result
            else
-             Ret (Invalid : Maybe (Res tagK) @# ty)
-           as res;
-         System [
-           DispString _ "[Device.deviceGetResFn] res: ";
-           DispHex #res;
-           DispString _ "\n"
-         ];
-         Ret #res.
-
-    Local Close Scope kami_action.
-    Local Close Scope kami_expr.
-  End ty.
+             Ret $$(getDefaultConst (Res tagK)) as res;
+           System [
+             DispString _ "[Device.deviceGetResFn] res: ";
+             DispHex #res;
+             DispString _ "\n"
+           ];
+           Ret ((STRUCT {"valid" ::= #busy;
+                         "data" ::= #res }): Maybe (Res tagK) @# ty).
+      
+      Local Close Scope kami_action.
+      Local Close Scope kami_expr.
+    End ty.
+      
+    Definition createDevice :=
+      {| name := baseName;
+         io   := baseIo;
+         pmas := basePmas;
+         regFiles:= baseRegFiles;
+         regs := fun tagK =>
+                   makeModule_regs
+                     ((Register ^"busy": Bool <- Default)
+                        ++ Register ^"req": Req tagK <- Default)%kami
+                     ++ baseRegs;
+         deviceIfc := fun tagK =>
+                        {| deviceReq := sendReq tagK ;
+                           devicePoll := getRes tagK |};
+       |}.
+  End BaseDevice.
 
   Record DeviceTree
     := {

@@ -10,10 +10,10 @@ Require Import ProcKami.Debug.DebugDevice.
 Require Import ProcKami.Device.
 Require Import ProcKami.MemRegion.
 
-Require Import ProcKami.Devices.BootRomDevice.
-Require Import ProcKami.Devices.PMemDevice.
+Require Import ProcKami.Devices.BootRom.
+Require Import ProcKami.Devices.PMem.
 Require Import ProcKami.Devices.MMappedRegs.
-Require Import ProcKami.Devices.UARTDevice.
+Require Import ProcKami.Devices.Uart.
 
 Require Import ProcKami.Pipeline.Mem.Ifc.
 
@@ -27,12 +27,12 @@ Section DeviceTree.
     :  list Device
     := [
          @debugDevice _;
-         @bootRomDevice _;
-         @msipDevice _;
-         @mtimecmpDevice _;
-         @mtimeDevice _;
-         @pMemDevice _;
-         @uartDevice _
+         @bootRom _;
+         @msip _;
+         @mtimecmp _;
+         @mtime _;
+         @pMem _;
+         @uart _
        ].
 
   Local Definition memTableInst

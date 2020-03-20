@@ -4,10 +4,10 @@ Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.Debug.DebugDevice.
 
 Require Import ProcKami.Device.
-Require Import ProcKami.Devices.BootRomDevice.
+Require Import ProcKami.Devices.BootRom.
 Require Import ProcKami.Devices.MMappedRegs.
-Require Import ProcKami.Devices.PMemDevice.
-Require Import ProcKami.Devices.UARTDevice.
+Require Import ProcKami.Devices.PMem.
+Require Import ProcKami.Devices.Uart.
 
 Require Import ProcKami.FU.
 
@@ -44,14 +44,7 @@ Section Params.
          Registers (@debug_internal_regs procParams) with
          Registers (@Pipeline.Ifc.regs pipeline) with
 
-         Registers (@Device.regs procParams (@devices procParams deviceTree)) with
-         Registers (@BootRomDevice.bootRomDeviceRegs procParams Tag) with
-         Registers (@MMappedRegs.msipDeviceRegs procParams Tag) with
-         Registers (@MMappedRegs.mtimeDeviceRegs procParams Tag) with
-         Registers (@MMappedRegs.mtimecmpDeviceRegs procParams Tag) with
-         Registers (@PMemDevice.pMemDeviceRegs procParams Tag) with
-         Registers (@UARTDevice.uartDeviceRegs procParams Tag) with
-         Registers (@DebugDevice.debugDeviceRegs procParams Tag) with
+         Registers (concat (map (fun dev => @Device.regs procParams dev Tag) (@devices procParams deviceTree))) with
 
          (* Rule @^"trap_interrupt" *)
          (*   := LETA debug : Bool <- debug_hart_state_mode _; *)
@@ -147,7 +140,7 @@ Section Params.
                    floatRegFile
                  ] ++
                  (@Pipeline.Ifc.regFiles pipeline) ++
-                 (@Device.regFiles procParams (@devices procParams deviceTree)))) in
+                 (concat (map (fun dev => @Device.regFiles procParams dev) (@devices procParams deviceTree))))) in
        (createHideMod md (map fst (getAllMethods md))).
 
   Local Close Scope kami_expr.

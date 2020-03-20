@@ -112,7 +112,8 @@ Section debug.
                                          (Some (SyntaxConst (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
                                                              then (ConstBit debug_inst_ebreak)
                                                              else (ConstBit (wzero InstSz))))))
-         (* Register @^"debug_progbuf_end" *)
+
+      (* Register @^"debug_progbuf_end" *)
          (*   :  Bit InstSz *)
          (*   <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1) *)
          (*        then (ConstBit debug_inst_ebreak) *)
