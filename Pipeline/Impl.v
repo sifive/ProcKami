@@ -324,7 +324,8 @@ Section Impl.
       If #optCommit @% "valid"
       then (
         System [DispString _ "realPc "; DispHex #realPc; DispString _ "\n"];
-        If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
+        LETA canClear <- Mem.Ifc.fetcherCanClear mem _;
+        If #realPc != #optCommit @% "data" @% "execCxt" @% "pc" && #canClear
         then (
           Write @^"pc" <- #realPc;
           Write @^"realPc" <- #realPc;

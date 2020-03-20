@@ -271,7 +271,7 @@ Section Impl.
           fetcherDeq := @Fetcher.Ifc.deq _ fetcher;
           fetcherFirst := @Fetcher.Ifc.first _ fetcher;
 
-          fetcherClearTop := @Fetcher.Ifc.clearTop _ fetcher;
+          fetcherCanClear := @Fetcher.Ifc.canClear _ fetcher;
           fetcherClear := @Fetcher.Ifc.clear _ fetcher;
 
           fetcherNotCompleteDeqRule := @Fetcher.Ifc.notCompleteDeqRule _ fetcher;

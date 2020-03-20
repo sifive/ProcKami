@@ -78,7 +78,7 @@ Section Ifc.
          fetcherDeq : forall ty : Kind -> Type, ActionT ty Bool;
          fetcherFirst : forall ty : Kind -> Type, ActionT ty (Maybe FetchOutput);
          
-         fetcherClearTop : forall ty : Kind -> Type, ActionT ty Void;
+         fetcherCanClear : forall ty : Kind -> Type, ActionT ty Bool;
          fetcherClear : forall ty : Kind -> Type, ActionT ty Void;
          
          fetcherNotCompleteDeqRule : forall ty : Kind -> Type, ActionT ty Void;
