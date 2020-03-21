@@ -19,7 +19,7 @@ Section device.
        basePmas := pmas_default;
        baseRegFiles := {| rfIsWrMask := true;
                           rfNum := Rlen_over_8;
-                          rfDataArray := "pMemFile";
+                          rfDataArray := "proc_core_mem_reg_file";
                           rfRead := Sync false [{| readReqName := "pMemReadReq";
                                                    readResName := "pMemReadRes";
                                                    readRegName := "pMemReadReg" |}];

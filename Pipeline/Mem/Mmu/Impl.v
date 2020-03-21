@@ -559,7 +559,7 @@ Section Impl.
            LETA dTagOffsetPmaPmpError
              :  Pair (Maybe (PmaPmp.DTagOffset deviceTree)) MemErrorPkt
              <- @getDTagOffsetPmaPmpError _ deviceTree _
-                  ($VmAccessLoad (* #tlbContext @% "access_type"*)) #memOp (#tlbContext @% "mode") #paddr;
+                  (#tlbContext @% "access_type") #memOp (#tlbContext @% "mode") #paddr;
            Read context : TlbContext <- ^"context";
            Read vaddr : VAddr <- ^"vaddr";
            Read oldException : Maybe Exception <- ^"exception";
