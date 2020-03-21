@@ -124,7 +124,7 @@ Section memops.
       memOpCode := 15;
       memOpSize := 2;
       memOpRegValue := memRegValueFn (fun _ mem => RetE (sign_extend_trunc 32 Rlen mem));
-      memOpWriteValue := memWriteValueStore
+      memOpWriteValue := memWriteValueFn (fun _ reg _ => RetE (SignExtendTruncLsb Rlen ((unsafeTruncLsb 32 reg))))
     |};
     {|
       memOpName := AmoAddW;

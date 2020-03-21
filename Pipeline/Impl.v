@@ -99,11 +99,10 @@ Section Impl.
            DispHex #commitPkt;
            DispString _ "\n"
          ];
-         LETA commitRes : Pair Bool VAddr <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
-         LET newPc <- #commitRes @% "snd";
-         System [DispString _ "Load newPc: "; DispHex #newPc; DispString _ "\n"];
-         Write @^"pc" <- #newPc;
-         Write @^"realPc" <- #newPc;
+         LETA nextPc: VAddr <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
+         System [DispString _ "Load newPc: "; DispHex #nextPc; DispString _ "\n"];
+         Write @^"pc" <- #nextPc;
+         Write @^"realPc" <- #nextPc;
          LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
          enqVoid.
 
@@ -301,7 +300,7 @@ Section Impl.
                   Retv );
                 Retv );
               Retv )
-            else ( (* Not memory *)
+            else ( (* Not memory, maybe exception *)
               LETA _ <- @Fifo.Ifc.enq _ decExecFifo _ enqVal;
               System [DispString _ "Performing Deq of Fetch Inst\n"];
               LETA _ <- @Mem.Ifc.fetcherDeq _ _ _ mem _;
@@ -312,7 +311,8 @@ Section Impl.
       Retv.
 
     Local Definition commitRule: ActionT ty Void :=
-      Read isWfi : Bool <- @^"isWfi";
+      (* Read isWfi : Bool <- @^"isWfi"; *)
+      LET isWfi : Bool <- $$false;
       Read realPc: VAddr <- @^"realPc";
       LETA context: ContextCfgPkt <- readConfig _;
       LETA optCommit <- @Fifo.Ifc.first _ decExecFifo _;
@@ -325,31 +325,49 @@ Section Impl.
       then (
         System [DispString _ "realPc "; DispHex #realPc; DispString _ "\n"];
         LETA canClear <- Mem.Ifc.fetcherCanClear mem _;
-        If #realPc != #optCommit @% "data" @% "execCxt" @% "pc" && #canClear
+        (* LET canClear <- $$true; *)
+        If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
-          Write @^"pc" <- #realPc;
-          Write @^"realPc" <- #realPc;
-          LETA _ <- Mem.Ifc.fetcherClear mem _;
-          LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-          enqVoid )
+          If #canClear
+          then (    
+            LETA _ <- Mem.Ifc.fetcherClear mem _;
+            Write @^"pc" <- #realPc;
+            Write @^"realPc" <- #realPc;
+            LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+            enqVoid );
+          Retv)
         else (
           If !#isWfi
           then (     
-            LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
-            If ((#optCommit @% "data" @% "exception" @% "valid") ||
-                !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad))
+            LETA commitException <- isCommitException #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
+                                                      (#optCommit @% "data" @% "exception");
+            If (#commitException @% "valid")
             then (
-              LETA commitRes <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
-                                   (#optCommit @% "data" @% "exception");
-              LET newPc <- #commitRes @% "snd";
-              If !(#commitRes @% "fst") &&
-                  (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
+              If #canClear
+              then (
+                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
+                                      (#optCommit @% "data" @% "exception");
+                LETA _ <- Mem.Ifc.fetcherClear mem _;
+                Write @^"pc" <- #nextPc;
+                Write @^"realPc" <- #nextPc;
+                LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+                enqVoid );
+              Retv )
+            else (
+              LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
+              If !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad)
+              then (
+                If (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
                 then Mem.Ifc.mmuFlush mem _;
-              System [DispString _ "newPc: "; DispHex #newPc; DispString _ "\n"];
-              Write @^"pc" <- #newPc;
-              Write @^"realPc" <- #newPc;
-              LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-              enqVoid );
+                If (#optCommit @% "data" @% "execUpd" @% "fence.i")
+                then Mem.Ifc.fetcherClear mem _;
+                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
+                                      (#optCommit @% "data" @% "exception");
+                Write @^"pc" <- #nextPc;
+                Write @^"realPc" <- #nextPc;
+                LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+                enqVoid );
+              Retv );
             Retv );
           Retv );
         Retv );

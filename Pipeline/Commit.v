@@ -280,31 +280,38 @@ Section trap_handling.
                    then #eCallException
                    else #illegalInstException).
 
+
+  Definition isCommitException
+    (cfg_pkt : ContextCfgPkt @# ty)
+    (exec_context_pkt : ExecContextPkt @# ty)
+    (update_pkt : ExecUpdPkt @# ty)
+    (exception : Maybe Exception @# ty)
+    :  ActionT ty (Maybe Exception)
+    := LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
+       LETA mcounteren : CounterEnType <- read_counteren _ @^"mcounteren";
+       LETA scounteren : CounterEnType <- read_counteren _ @^"scounteren";
+       LET callIsWriteCsr
+         :  Bool
+         <- commitOpCallIsWriteCsr (update_pkt @% "val1");
+       convertLetExprSyntax_ActionT
+         (commitException
+           cfg_pkt exec_context_pkt update_pkt
+           #debugHartState #mcounteren #scounteren
+           #callIsWriteCsr exception).
+       
+
+           
   Definition commit
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
     (exception : Maybe Exception @# ty)
-    :  ActionT ty (Pair Bool VAddr)
-    := System [
-         DispString _ "[commit] cfg_pkt: ";
-         DispHex cfg_pkt;
-         DispString _ "\n";
-         DispString _ "[commit] exec_context_pkt: ";
-         DispHex exec_context_pkt;
-         DispString _ "\n";
-         DispString _ "[commit] update_pkt: ";
-         DispHex update_pkt;
-         DispString _ "\n";
-         DispString _ "[commit] exception: ";
-         DispHex exception;
-         DispString _ "\n"
-       ];
+    :  ActionT ty VAddr
+    := LETA commitException
+         :  Maybe Exception
+         <- isCommitException cfg_pkt exec_context_pkt update_pkt exception;
        Read dpc : Bit Xlen <- @^"dpc";
        Read prv : PrivMode <- @^"prv";
-       LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
-       LETA mcounteren : CounterEnType <- read_counteren _ @^"mcounteren";
-       LETA scounteren : CounterEnType <- read_counteren _ @^"scounteren";
        Read mepc_raw : VAddr <- @^"mepc";
        Read sepc_raw : VAddr <- @^"sepc";
        Read uepc_raw : VAddr <- @^"uepc";
@@ -325,13 +332,7 @@ Section trap_handling.
        LET callIsWriteCsr
          :  Bool
          <- commitOpCallIsWriteCsr (update_pkt @% "val1");
-       LETA commitException
-         :  Maybe Exception
-         <- convertLetExprSyntax_ActionT
-              (commitException
-                cfg_pkt exec_context_pkt update_pkt
-                #debugHartState #mcounteren #scounteren
-                #callIsWriteCsr exception);
+       LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
        If (#commitException @% "valid")
          then
            trapException
@@ -371,10 +372,7 @@ Section trap_handling.
        System [
          DispString _ "[commit] done.\n"
        ];
-       Ret (STRUCT {
-         "fst" ::= #commitException @% "valid";
-         "snd" ::= #realNextPc
-       } : Pair Bool VAddr @# ty).
+       Ret #realNextPc.
 
   Local Close Scope kami_expr.
   Local Close Scope kami_action.
