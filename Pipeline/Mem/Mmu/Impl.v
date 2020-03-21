@@ -202,12 +202,6 @@ Section Impl.
            RetE
              (lsb #width (pte @% "pointer") == $0).
   
-      Local Definition pte_access_dirty
-        (access_type : AccessType @# ty)
-        (pte : PteEntry @# ty)
-        :  Bool @# ty
-        := (pte @% "flags" @% "A") && ((access_type != $VmAccessSAmo) || (pte @% "flags" @% "D")).
-  
       Local Definition pte_grant
         (mxr : Bool @# ty)
         (sum : Bool @# ty)
@@ -239,8 +233,8 @@ Section Impl.
       Local Definition isLeafValid
         (access_type : AccessType @# ty)
         (pte : PteEntry @# ty)
-        :  Bool ## ty
-        := RetE (pte_access_dirty access_type pte).
+        :  Bool @# ty
+        := (pte @% "flags" @% "A") && ((access_type != $VmAccessSAmo) || (pte @% "flags" @% "D")).
   
       Local Definition translatePteLeaf
         (satp_mode : Bit SatpModeWidth @# ty)
@@ -249,7 +243,7 @@ Section Impl.
         (vaddr : VAddr @# ty)
         (pte : PteEntry @# ty)
         :  PktWithException PAddr ## ty
-        := LETE leafValid: Bool <- isLeafValid access_type pte;
+        := LETC leafValid: Bool <- isLeafValid access_type pte;
            LETE isCheckAlign: Bool <- checkAlign satp_mode level pte;
            LETE offset: PAddr <- getVAddrRest satp_mode level vaddr;
            LETC exception : Exception <- faultException access_type;
@@ -684,7 +678,7 @@ Section Impl.
          <- (IF #resp @% "valid"
              then #trans_result @% "snd" @% "snd"
              else Valid (accessException (#context @% "access_type")));
-       If #done && !(#exception @% "valid")
+       If (#done && !(#exception @% "valid"))
          then
            @Cam.Ifc.write _ cam _ #vpn #entry;
        Write ^"exceptionVpn" : Vpn <- ZeroExtendTruncMsb VpnWidthK #vaddr;
@@ -746,7 +740,7 @@ Section Impl.
          DispHex #mentry;
          DispString _ "\n"
        ];
-       (* exceptions about pte grants *)
+       (* exceptions about pte grants and access/dirty *)
        LET newException: Maybe Exception
          <- STRUCT { "valid" ::=
                        !(pte_grant
@@ -754,7 +748,7 @@ Section Impl.
                            (context @% "sum")
                            (context @% "mode")
                            accessType
-                           (#mentry @% "data" @% "pte"));
+                           (#mentry @% "data" @% "pte") && isLeafValid accessType (#mentry @% "data" @% "pte"));
                      "data" ::= faultException accessType };
        System [
          DispString _ "[getPAddr] newException: ";
@@ -809,18 +803,19 @@ Section Impl.
            DispString _ "\n"
          ];
          LET effective_mode : FU.PrivMode
-           <- IF context @% "mprv"
+           <- IF accessType != $VmAccessInst && context @% "mprv"
                 then context @% "mpp" else context @% "mode";
+         System [
+           DispString _ "[memTranslate] TLB : ";
+           DispHex accessType; DispString _ " "; DispHex (context @% "mprv"); DispString _ " ";
+           DispHex (context @% "mpp"); DispString _ " "; DispHex (context @% "mode"); DispString _ "\n"
+         ];
          If #effective_mode != $MachineMode && (context @% "satp_mode") != $SatpModeBare
            then
-             System [
-               DispString _ "[memTranslate] using tlb.\n"
-             ];
+             System [DispString _ "[memTranslate] TLB YES\n"];
              getPAddr context accessType memOp vaddr
            else
-             System [
-               DispString _ "[memTranslate] not using tlb.\n"
-             ];
+             System [DispString _ "[memTranslate] TLB NO\n"];
              Ret (Valid (STRUCT {
                "fst" ::= SignExtendTruncLsb FU.PAddrSz vaddr;
                "snd" ::= Invalid

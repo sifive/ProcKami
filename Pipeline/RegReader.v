@@ -5,8 +5,6 @@ Require Import ProcKami.FU.
 Require Import ProcKami.Pipeline.Decoder.
 
 
-Import ListNotations.
-
 Section reg_reader.
   Context {procParams: ProcParams}.
   Context (func_units : list FUEntry).
@@ -94,38 +92,28 @@ Section reg_reader.
        Read fflags_val : FflagsValue <- @^"fflags";
        Read frm_val : FrmValue <- @^"frm";
        Read reservation : Maybe Reservation <- @^"reservation";
-       LETA msg <- Sys [
-           DispString _ "Reg 1 selector: ";
-           DispHex (rs1 #raw_inst);
-           DispString _ "\n";
-           DispString _ "Reg 2 selector: ";
-           DispHex (rs2 #raw_inst);
-           DispString _ "\n";
-           DispString _ "Csr selector: ";
-           DispHex (imm #raw_inst);
-           DispString _ "\n";
-           DispString _ "has RS1: ";
-           DispBinary (reg_reader_has hasRs1 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS1: ";
-           DispBinary (reg_reader_has hasFrs1 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has RS2: ";
-           DispBinary (reg_reader_has hasRs2 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS2: ";
-           DispBinary (reg_reader_has hasFrs2 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS3: ";
-           DispBinary (reg_reader_has hasFrs3 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "Floating Point Control Status Register FFLAGS: ";
-           DispBinary (#fflags_val);
-           DispString _ "\n";
-           DispString _ "Floating Point Control Status Register FRM: ";
-           DispBinary (#frm_val);
-           DispString _ "\n"
-         ] Retv;
+       System [
+           DispString _ "Reg1: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #reg1_val;
+           DispString _ " "; DispHex (reg_reader_has hasRs1 decoder_pkt); DispString _ "\n";
+
+           DispString _ "Reg2: "; DispHex (rs2 #raw_inst); DispString _ " "; DispHex #reg2_val;
+           DispString _ " "; DispHex (reg_reader_has hasRs2 decoder_pkt); DispString _ "\n";
+
+           DispString _ "FReg1: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg1_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs1 decoder_pkt); DispString _ "\n";
+
+           DispString _ "FReg2: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg2_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs2 decoder_pkt); DispString _ "\n";
+         
+           DispString _ "FReg3: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg3_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs3 decoder_pkt); DispString _ "\n";
+
+           DispString _ "Fflags: "; DispBinary (#fflags_val); DispString _ "\n";
+
+           DispString _ "Frm: "; DispBinary (#frm_val); DispString _ "\n";
+
+           DispString _ "Reservation: "; DispHex #reservation; DispString _ "\n"
+         ];
        LETA mMemHints
          :  Maybe MemHintsPkt
          <- convertLetExprSyntax_ActionT (decodeMemHintsPkt decoder_pkt);

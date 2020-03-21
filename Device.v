@@ -187,11 +187,6 @@ Section DeviceIfc.
              Ret #result
            else
              Ret $$(getDefaultConst (Res tagK)) as res;
-           System [
-             DispString _ "[Device.deviceGetResFn] res: ";
-             DispHex #res;
-             DispString _ "\n"
-           ];
            Ret ((STRUCT {"valid" ::= #busy;
                          "data" ::= #res }): Maybe (Res tagK) @# ty).
       

@@ -45,20 +45,7 @@ Section config_reader.
        Read sum : Bool <- @^"sum";
        Read mprv : Bool <- @^"mprv";
        Read mpp : PrivMode <- @^"mpp";
-       System
-         [
-           DispString _ "Start\n";
-           DispString _ "Mode: ";
-           DispHex #mode;
-           DispString _ "\n";
-           DispString _ "XL: ";
-           DispHex #xlen;
-           DispString _ "\n";
-           DispString _ "Extensions: ";
-           DispBinary #extensions;
-           DispString _ "\n"
-         ];
-       Ret
+       LET retval <-
          (STRUCT {
             "xlen"             ::= #xlen;
             "satp_mode"        ::= #satp_mode;
@@ -77,7 +64,9 @@ Section config_reader.
             "mprv"             ::= #mprv;
             "mpp"              ::= #mpp;
             "satp_ppn"         ::= #satp_ppn
-          } : ContextCfgPkt @# ty).
+            } : ContextCfgPkt @# ty);
+       System [DispString _ "Config: "; DispHex #retval; DispString _ "\n"];
+       Ret #retval.
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.

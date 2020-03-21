@@ -341,6 +341,7 @@ Section Impl.
           then (     
             LETA commitException <- isCommitException #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                                       (#optCommit @% "data" @% "exception");
+            System [DispString _ "Exception: "; DispHex #commitException; DispString _ "\n" ];
             If (#commitException @% "valid")
             then (
               If #canClear

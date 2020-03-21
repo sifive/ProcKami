@@ -94,8 +94,7 @@ Section CsrInterface.
     := System [
          DispString _ "[csrViewReadWrite] req: \n";
          DispHex req;
-         DispString _ "\n";
-         DispString _ "[csrViewReadWrite] upd pkt: \n";
+         DispString _ " ";
          DispHex upd_pkt;
          DispString _ "\n"
        ];
@@ -109,7 +108,7 @@ Section CsrInterface.
                                      | csrFieldValueAct act => act ty
                                      end);
        System [
-         DispString _ "[csrViewReadWrite] csr value: \n";
+         DispString _ "[csrViewReadWrite] csr value: ";
          DispHex #csr_value;
          DispString _ "\n"
        ];
@@ -122,7 +121,7 @@ Section CsrInterface.
              :  csrKind (csrViewFields view)
              <- csrViewWriteXform view upd_pkt #csr_value (req @% "data");
            System [
-             DispString _ "[csrViewReadWrite] input value\n";
+             DispString _ "[csrViewReadWrite] input value: ";
              DispHex #input_value;
              DispString _ "\n"
            ];
@@ -141,11 +140,10 @@ Section CsrInterface.
                            :  get_kind fieldIndex
                            <- ReadStruct #input_value fieldIndex;
                          System [
-                           DispString _ ("[csrViewReadWrite] writing to register " ++ csrFieldRegisterName interface ++ "\n");
-                           DispString _ "[csrViewReadWrite] curr value: ";
+                           DispString _ ("[csrViewReadWrite] writing to register: " ++ csrFieldRegisterName interface);
+                           DispString _ " curr value: ";
                            DispHex #curr_value;
-                           DispString _ "\n";
-                           DispString _ "[csrViewReadWrite] write value: ";
+                           DispString _ " write value: ";
                            DispHex #write_value;
                            DispString _ "\n"
                          ];
@@ -159,7 +157,6 @@ Section CsrInterface.
                (getFins (length (csrViewFields view))))
              as discard;
            Retv;
-       System [DispString _ "[csrViewReadWrite] done\n"];
        Ret (csrViewReadXform view upd_pkt #csr_value).
 
   Definition satpCsrName : string := @^"satp".
@@ -178,7 +175,6 @@ Section CsrInterface.
     (req : LocationReadWriteInputT 0 CsrIdWidth XlenWidth CsrValue @# ty)
     :  ActionT ty (Maybe CsrValue)
     := System [
-         DispString _ "[csrReadWrite]\n";
          DispString _ "[csrReadWrite] request:\n";
          DispHex req;
          DispString _ "\n"
@@ -196,14 +192,13 @@ Section CsrInterface.
                          If #entry_match
                            then
                              System [
-                               DispString _ "[csrReadWrite]\n";
-                               DispString _ "  csr name: ";
+                               DispString _ "[csrReadWrite] csr name: ";
                                DispString _ (csrName csr_entry);
                                DispString _ "\n"
                              ];
                              LETA result : CsrValue <- csrViewReadWrite view_entry upd_pkt req;
                              System [
-                               DispString _ "[csrReadWrite] result: \n";
+                               DispString _ "[csrReadWrite] result: ";
                                DispBinary #result;
                                DispString _ "\n"
                              ];
