@@ -46,22 +46,6 @@ Section Params.
 
          Registers (concat (map (fun dev => @Device.regs procParams dev Tag) (@devices procParams deviceTree))) with
 
-         (* Rule @^"trap_interrupt" *)
-         (*   := LETA debug : Bool <- debug_hart_state_mode _; *)
-         (*      If !#debug *)
-         (*        then *)
-         (*          Read modeRaw : PrivMode <- @^"mode"; *)
-         (*          Read extRegs: ExtensionsReg <- @^"extRegs"; *)
-         (*          LET ext: Extensions <- ExtRegToExt #extRegs; *)
-         (*          LET mode: PrivMode <- modeFix #ext #modeRaw; *)
-         (*          Read pc : VAddr <- @^"pc"; *)
-         (*          LETA xlen : XlenValue <- readXlen #mode; *)
-         (*          System [DispString _ "[trap_interrupt]\n"]; *)
-         (*          LETA newPc <- interruptAction #xlen #debug #mode #pc; *)
-         (*          Write @^"pc" <- IF #newPc @% "valid" then #newPc @% "data" else #pc; *)
-         (*          Retv; *)
-         (*       Retv with *)
-
          Rule @^"tokenStart"
            := Pipeline.Ifc.tokenStartRule pipeline with
 
@@ -85,6 +69,9 @@ Section Params.
 
          Rule @^"commit"
            := Pipeline.Ifc.commitRule pipeline with
+
+         Rule @^"trapInterrupt"
+           := Pipeline.Ifc.trapInterruptRule pipeline with
 
          map
            (fun ruleAction : nat * (forall ty, ActionT ty Void)

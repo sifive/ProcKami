@@ -16,6 +16,7 @@ Section Ifc.
       fetcherNotCompleteDeqRule: forall {ty}, ActionT ty Void;
       decodeExecRule : forall {ty}, ActionT ty Void;
       commitRule: forall {ty}, ActionT ty Void;
+      trapInterruptRule: forall {ty}, ActionT ty Void;
       arbiterResetRule: forall {ty}, ActionT ty Void;
     }.
 End Ifc.

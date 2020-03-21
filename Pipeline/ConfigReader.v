@@ -12,7 +12,7 @@ Section config_reader.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Local Definition readXlen
+  Definition readXlen
     (mode : PrivMode @# ty)
     :  ActionT ty XlenValue
     := Read mxl : XlenValue <- @^"mxl";

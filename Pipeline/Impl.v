@@ -12,6 +12,9 @@ Require Import ProcKami.Pipeline.Executer.
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Pipeline.ConfigReader.
 
+Require Import ProcKami.Debug.Debug.
+Require Import ProcKami.Pipeline.Trap.
+
 Require Import ProcKami.Pipeline.Ifc.
 
 Require Import ProcKami.MemOps.
@@ -325,9 +328,10 @@ Section Impl.
       then (
         System [DispString _ "realPc "; DispHex #realPc; DispString _ "\n"];
         LETA canClear <- Mem.Ifc.fetcherCanClear mem _;
-        (* LET canClear <- $$true; *)
         If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
+          System [DispString _ "Incoming PC not matching: "; DispHex #realPc; DispString _ " ";
+                 DispHex (#optCommit @% "data" @% "execCxt" @% "pc"); DispString _ "\n"];
           If #canClear
           then (    
             LETA _ <- Mem.Ifc.fetcherClear mem _;
@@ -349,6 +353,7 @@ Section Impl.
                 LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                       (#optCommit @% "data" @% "exception");
                 LETA _ <- Mem.Ifc.fetcherClear mem _;
+                System [DispString _ "Commit Exception: "; DispHex #nextPc; DispString _ "\n"];
                 Write @^"pc" <- #nextPc;
                 Write @^"realPc" <- #nextPc;
                 LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
@@ -364,6 +369,7 @@ Section Impl.
                 then Mem.Ifc.fetcherClear mem _;
                 LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                       (#optCommit @% "data" @% "exception");
+                System [DispString _ "Commit Normal: "; DispHex #nextPc; DispString _ "\n"];
                 Write @^"pc" <- #nextPc;
                 Write @^"realPc" <- #nextPc;
                 LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
@@ -374,6 +380,26 @@ Section Impl.
         Retv );
       Retv.
 
+    Local Definition trapInterruptRule :=
+      LETA debugVal : debug_hart_state <- debug_hart_state_read _;
+      If !(#debugVal @% "debug")
+      then (
+        Read modeRaw : PrivMode <- @^"mode";
+        Read extRegs: ExtensionsReg <- @^"extRegs";
+        LET ext: Extensions <- ExtRegToExt #extRegs;
+        LET mode: PrivMode <- modeFix #ext #modeRaw;
+        Read pc : VAddr <- @^"pc";
+        LETA xlen : XlenValue <- readXlen #mode;
+        System [DispString _ "[trap_interrupt]\n"];
+        LETA nextPc <- interruptAction #xlen (#debugVal @% "debug") #mode #pc;
+        If #nextPc @% "valid"
+        then (
+          Write @^"pc" <- #nextPc @% "data";
+          Write @^"realPc" <- #nextPc @% "data";
+          enqVoid );
+        Retv);
+      Retv.
+           
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
   End ty.
@@ -407,6 +433,7 @@ Section Impl.
          Pipeline.Ifc.decodeExecRule                := decodeExecRule;
          Pipeline.Ifc.commitRule                    := commitRule;
          Pipeline.Ifc.arbiterResetRule              := Mem.Ifc.arbiterResetRule mem;
+         Pipeline.Ifc.trapInterruptRule             := trapInterruptRule;
        |}.
 
 End Impl.

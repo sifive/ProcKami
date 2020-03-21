@@ -333,6 +333,7 @@ Section trap_handling.
          :  Bool
          <- commitOpCallIsWriteCsr (update_pkt @% "val1");
        LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
+       System [DispString _ "CommitException: "; DispHex #commitException; DispString _ "\n" ];
        If (#commitException @% "valid")
          then
            trapException
