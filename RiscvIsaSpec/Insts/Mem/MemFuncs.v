@@ -178,12 +178,6 @@ Section Mem.
 
     Definition storeTag := storeTagGeneric allow_misaligned false.
 
-    Local Definition reservationValid
-      (reservation : Reservation @# ty)
-      (vaddr : VAddr @# ty)
-      :  Bool @# ty
-      := reservation == ZeroExtendTruncMsb ReservationSz vaddr.
-
     Definition amoInput
       (sz : nat)
       (isLr : bool)
@@ -213,16 +207,16 @@ Section Mem.
            "isSc"     ::= $$isSc;
            "reservationValid"
              ::= (#gcp @% "reservation" @% "valid") &&
-                 (reservationValid (#gcp @% "reservation" @% "data" : Reservation @# ty) #addr)
+                 (#gcp @% "reservation" @% "data" == ZeroExtendTruncMsb ReservationSz #addr)
          } : MemInputAddrType @# ty).
 
     Definition amoTag := storeTagGeneric allow_misaligned false.
 
-    Definition lrInput := amoInput.
+    Definition lrInput sz := amoInput sz true false.
 
-    Definition LrTag := loadTag.
+    Definition lrTag := loadTag.
 
-    Definition scInput := amoInput.
+    Definition scInput sz := amoInput sz false true.
 
     Definition scTag := storeTagGeneric allow_misaligned false.
 

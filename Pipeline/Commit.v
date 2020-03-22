@@ -51,12 +51,17 @@ Section trap_handling.
        Retv.
 
   Local Definition commitOpSetReservation
-    (reservation : Reservation @# ty)
+        (vaddr: Data @# ty)
     :  ActionT ty Void
-    := Write @^"reservation" : Maybe Reservation <- Valid reservation;
+    := Write @^"reservation" : Maybe Reservation <-
+                               Valid (ZeroExtendTruncMsb ReservationSz
+                                                         (ZeroExtendTruncMsb Xlen vaddr));
        System [
          DispString _ "[commitOpSetReservation] reservation: ";
-         DispHex reservation;
+         DispHex vaddr;
+         DispString _ " ";
+         DispHex (ZeroExtendTruncMsb ReservationSz
+                                     (ZeroExtendTruncMsb Xlen vaddr));
          DispString _ "\n"
        ];
        Retv.
@@ -129,7 +134,7 @@ Section trap_handling.
               commitOp @% "data" @% "tag" == $DRetTag
              then exitDebugMode dpc prv;
            If commitOp @% "data" @% "tag" == $LrTag
-             then commitOpSetReservation (SignExtendTruncMsb ReservationSz (commitOp @% "data" @% "data"));
+             then commitOpSetReservation (commitOp @% "data" @% "data");
            Retv;
        Retv.
 
