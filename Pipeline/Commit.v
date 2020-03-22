@@ -53,15 +53,15 @@ Section trap_handling.
   Local Definition commitOpSetReservation
         (vaddr: Data @# ty)
     :  ActionT ty Void
-    := Write @^"reservation" : Maybe Reservation <-
-                               Valid (ZeroExtendTruncMsb ReservationSz
-                                                         (ZeroExtendTruncMsb Xlen vaddr));
+    := LET newReservation: Reservation <- (ZeroExtendTruncMsb ReservationSz
+                                                         (ZeroExtendTruncLsb Xlen vaddr));
+       Write @^"reservation" : Maybe Reservation <-
+                               Valid #newReservation;
        System [
          DispString _ "[commitOpSetReservation] reservation: ";
          DispHex vaddr;
          DispString _ " ";
-         DispHex (ZeroExtendTruncMsb ReservationSz
-                                     (ZeroExtendTruncMsb Xlen vaddr));
+         DispHex #newReservation;
          DispString _ "\n"
        ];
        Retv.
