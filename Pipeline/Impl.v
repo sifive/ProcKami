@@ -102,6 +102,11 @@ Section Impl.
            DispHex #commitPkt;
            DispString _ "\n"
          ];
+         Read realPc: VAddr <- @^"realPc";
+         System [DispString _ "memCallback eq: "; DispHex (#oldOptCommit @% "data" @% "execCxt" @% "pc");
+                DispString _ " "; DispHex #realPc; DispString _ "_";
+                DispHex ((#oldOptCommit @% "data" @% "execCxt" @% "pc") == #realPc); DispString _ "\n"];
+         System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
          LETA nextPc: VAddr <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
          System [DispString _ "Load newPc: "; DispHex #nextPc; DispString _ "\n"];
          Write @^"pc" <- #nextPc;
@@ -192,7 +197,7 @@ Section Impl.
           Write @^"pc" <- (#fetchInst @% "data" @% "vaddr");
           enqVoid )
         else (       
-          If (#fetchInst @% "data" @% "error" @% "valid") (* exception. we need to fetch again. *)
+          If (#fetchInst @% "data" @% "error" @% "valid")
           then (
             LET enqVal
               :  CommitPkt
@@ -201,12 +206,13 @@ Section Impl.
                      ::= $$(getDefaultConst ExecContextPkt)
                            @%["pc" <- #fetchInst @% "data" @% "vaddr"]
                            @%["inst" <- #fetchInst @% "data" @% "inst"]
-                           @%["compressed?" <- #fetchInst @% "data" @% "compressed?"];
+                           @%["compressed?" <- #fetchInst @% "data" @% "compressed?"]
+                           @%["exceptionUpper" <- #fetchInst @% "data" @% "errUpper?"];
                    "execUpd" ::= $$(getDefaultConst ExecUpdPkt);
                    "exception" ::= (#fetchInst @% "data" @% "error": Maybe Exception @# ty)
                  };
             System [
-              DispString _ "[decodeExecRule] Incomplete or Exception: ";
+              DispString _ "[decodeExecRule] Exception: ";
               DispHex #enqVal;
               DispString _ "\n"
               ];
@@ -326,14 +332,14 @@ Section Impl.
       ];
       If #optCommit @% "valid"
       then (
-        System [DispString _ "realPc "; DispHex #realPc; DispString _ "\n"];
         LETA canClear <- Mem.Ifc.fetcherCanClear mem _;
+        System [DispString _ "realPc "; DispHex #realPc; DispString _ " "; DispHex #canClear; DispString _ "\n"];
         If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
-          System [DispString _ "Incoming PC not matching: "; DispHex #realPc; DispString _ " ";
-                 DispHex (#optCommit @% "data" @% "execCxt" @% "pc"); DispString _ "\n"];
           If #canClear
           then (    
+            System [DispString _ "Incoming PC not matching: "; DispHex #realPc; DispString _ " ";
+                   DispHex (#optCommit @% "data" @% "execCxt" @% "pc"); DispString _ "\n"];
             LETA _ <- Mem.Ifc.fetcherClear mem _;
             Write @^"pc" <- #realPc;
             Write @^"realPc" <- #realPc;
@@ -342,7 +348,7 @@ Section Impl.
           Retv)
         else (
           If !#isWfi
-          then (     
+          then (
             LETA commitException <- isCommitException #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                                       (#optCommit @% "data" @% "exception");
             System [DispString _ "Exception: "; DispHex #commitException; DispString _ "\n" ];
@@ -350,6 +356,8 @@ Section Impl.
             then (
               If #canClear
               then (
+                System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
+                System [DispString _ "Exception\n"];
                 LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
                                       (#optCommit @% "data" @% "exception");
                 LETA _ <- Mem.Ifc.fetcherClear mem _;
@@ -363,6 +371,7 @@ Section Impl.
               LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
               If !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad)
               then (
+                System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
                 If (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
                 then Mem.Ifc.mmuFlush mem _;
                 If (#optCommit @% "data" @% "execUpd" @% "fence.i")

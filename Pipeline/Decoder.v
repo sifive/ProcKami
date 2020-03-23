@@ -184,10 +184,10 @@ Section decoder.
        LET isCompressed: Bool <- fetch_pkt @% "fst" @% "compressed?";
        LETA uncompressed_inst: Maybe Inst <- convertLetExprSyntax_ActionT (decompress (CompInstDb _) cfg_pkt #comp_inst);
        LETA decoded_inst: Maybe (DecoderPkt func_units) <-
-                                convertLetExprSyntax_ActionT (
-                                  decode cfg_pkt (IF #isCompressed
-                                                                  then #uncompressed_inst @% "data"
-                                                                  else fetch_pkt @% "fst" @% "inst"));
+                          convertLetExprSyntax_ActionT (
+                              decode cfg_pkt (IF #isCompressed
+                                              then #uncompressed_inst @% "data"
+                                              else fetch_pkt @% "fst" @% "inst"));
 
        LET decoded_inst_valid: Bool <- (!#isCompressed || #uncompressed_inst @% "valid") && #decoded_inst @% "valid";
        LET decoded_full_exception: Exception <- $IllegalInst;
