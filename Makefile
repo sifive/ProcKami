@@ -15,6 +15,8 @@ clean:: Makefile.coq.all
 	find . -type f -name '*.v.d' -exec rm {} \;
 	find . -type f -name '*.glob' -exec rm {} \;
 	find . -type f -name '*.vo' -exec rm {} \;
+	find . -type f -name '*.vok' -exec rm {} \;
+	find . -type f -name '*.vos' -exec rm {} \;
 	find . -type f -name '*.~' -exec rm {} \;
 	find . -type f -name '*.hi' -exec rm {} \;
 	find . -type f -name '*.o' -exec rm {} \;

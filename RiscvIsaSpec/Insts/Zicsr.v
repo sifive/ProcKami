@@ -18,7 +18,7 @@ Section zicsr.
   Definition zicsrOpSet   := 1.
   Definition zicsrOpClear := 2.
 
-  Definition ZicsrInput
+  Local Definition ZicsrInput
     := STRUCT_TYPE {
            "op" :: ZicsrOpType;
            "mask_value"  :: Maybe CsrValue
@@ -26,46 +26,41 @@ Section zicsr.
 
   Local Open Scope kami_expr.
 
+  Local Definition ZicsrOutputXform
+    (ty : Kind -> Type)
+    (resultExpr : ZicsrInput ## ty)
+    :  PktWithException ExecUpdPkt ## ty
+    := LETE result <- resultExpr;
+       LETC commitOpCode
+         :  RoutedReg
+         <- STRUCT {
+              "tag"
+                ::= Switch #result @% "op" Of ZicsrOpType Retn RoutingTag With {
+                      ($zicsrOpWrite : ZicsrOpType @# ty)
+                        ::= ($CsrWriteTag : RoutingTag @# ty);
+                      ($zicsrOpSet : ZicsrOpType @# ty)
+                        ::= ($CsrSetTag : RoutingTag @# ty);
+                      ($zicsrOpClear : ZicsrOpType @# ty)
+                        ::= ($CsrClearTag : RoutingTag @# ty)
+                    };
+              "data"
+                ::= ZeroExtendTruncLsb Rlen
+                      (#result @% "mask_value" @% "data")
+            } : RoutedReg @# ty;
+       RetE (STRUCT {
+         "fst"
+           ::= (noUpdPkt ty)
+                 @%["val1"
+                     <- IF #result @% "mask_value" @% "valid"
+                          then Valid #commitOpCode
+                          else Invalid];
+         "snd" ::= Invalid
+       } : PktWithException ExecUpdPkt @# ty).
+               
   Definition Zicsr : FUEntry
     := {|
         fuName := "zicsr";
-        fuFunc
-        := fun ty (sem_in_pkt_expr : ZicsrInput ## ty)
-           => LETE sem_in_pkt
-              :  ZicsrInput
-                   <- sem_in_pkt_expr;
-        LETC val1 <- (STRUCT {
-                                   "tag"
-                                     ::= Switch #sem_in_pkt @% "op"
-                                           Of ZicsrOpType Retn RoutingTag With {
-                                             ($zicsrOpWrite : ZicsrOpType @# ty) ::= ($CsrWriteTag : RoutingTag @# ty);
-                                             ($zicsrOpSet : ZicsrOpType @# ty)   ::= ($CsrSetTag : RoutingTag @# ty);
-                                             ($zicsrOpClear : ZicsrOpType @# ty) ::= ($CsrClearTag : RoutingTag @# ty)
-                                           };
-                                   "data"
-                                     ::= ZeroExtendTruncLsb Rlen
-                                         (#sem_in_pkt @% "mask_value" @% "data")
-                        } : RoutedReg @# ty);
-        LETC fstVal <- (STRUCT {
-                       "val1" (* writes to the Csr *)
-                       ::= ITE
-                             (#sem_in_pkt @% "mask_value" @% "valid")
-                             (Valid #val1)
-                             (@Invalid ty (RoutedReg));
-                       "val2" (* writes to RD *)
-                       ::= @Invalid ty RoutedReg;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?"     ::= $$false;
-                       "aq"         ::= $$false;
-                       "rl"         ::= $$false;
-                       "fence.i"    ::= $$false
-                     } : ExecUpdPkt @# ty);
-        RetE
-          ((STRUCT {
-              "fst"
-                ::= #fstVal;
-              "snd" ::= Invalid
-           }): PktWithException ExecUpdPkt @# ty);
+        fuFunc := fun ty => id;
         fuInsts
         := [
             {|
@@ -92,7 +87,7 @@ Section zicsr.
                              (ZeroExtendTruncLsb CsrValueWidth
                                 (#exec_context_pkt @% "reg1"))
                    } : ZicsrInput @# ty);
-              outputXform := fun ty => id;
+              outputXform := ZicsrOutputXform;
               optMemParams := None;
               instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
             |};
@@ -120,7 +115,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
-                outputXform := fun ty => id;
+                outputXform := ZicsrOutputXform;
                 optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
@@ -148,7 +143,7 @@ Section zicsr.
                                (ZeroExtendTruncLsb CsrValueWidth
                                  (#exec_context_pkt @% "reg1")))
                      } : ZicsrInput @# ty);
-                outputXform := fun ty => id;
+                outputXform := ZicsrOutputXform;
                 optMemParams := None;
                 instHints   := falseHints<|hasRs1 := true|><|hasRd := true|><|isCsr := true|>
               |};
@@ -176,7 +171,7 @@ Section zicsr.
                              (ZeroExtendTruncLsb CsrValueWidth
                                (rs1 (#exec_context_pkt @% "inst")))
                      } : ZicsrInput @# ty);
-                outputXform := fun ty => id;
+                outputXform := ZicsrOutputXform;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
@@ -204,7 +199,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
-                outputXform := fun ty => id;
+                outputXform := ZicsrOutputXform;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |};
@@ -232,7 +227,7 @@ Section zicsr.
                                 (ZeroExtendTruncLsb CsrValueWidth
                                   (rs1 (#exec_context_pkt @% "inst"))))
                      } : ZicsrInput @# ty);
-                outputXform := fun ty => id;
+                outputXform := ZicsrOutputXform;
                 optMemParams := None;
                 instHints   := falseHints<|hasRd := true|><|isCsr := true|>
               |}

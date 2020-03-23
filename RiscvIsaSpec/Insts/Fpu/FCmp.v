@@ -87,6 +87,32 @@ Section Fpu.
               "arg2"   ::= bitToNF (fp_get_float Flen (#context_pkt @% "reg2"))
             } : FCmpInputType @# ty).
 
+    Definition FCmpOutput
+      (resultExpr : FCmpOutputType ## ty)
+      :  PktWithException ExecUpdPkt ## ty
+      := LETE result <- resultExpr;
+         LETC val1 <- (STRUCT {
+                               "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
+                               "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
+                         } : RoutedReg @# ty);
+         LETC val2 <- (STRUCT {
+                                  "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
+                                  "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
+                         } : RoutedReg @# ty);
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2"
+                    <- IF #result @% "fflags" @% "valid"
+                         then Valid #val2
+                         else Invalid : Maybe RoutedReg @# ty];
+         RetE
+           (STRUCT {
+              "fst" ::= #fstVal;
+              "snd" ::= @Invalid ty _
+            } : PktWithException ExecUpdPkt @# ty).
+
     Close Scope kami_expr.
 
   End ty.
@@ -133,33 +159,7 @@ Section Fpu.
                                    cmp_cond_get (#sem_in_pkt @% "cond1") #cmp_result)
                                   $1 $0)
                      } : FCmpOutputType @# ty;
-                   LETC val1 <- (STRUCT {
-                                         "tag"  ::= $$(natToWord RoutingTagSz IntRegTag);
-                                         "data" ::= SignExtendTruncLsb Rlen (#result @% "result")
-                                   } : RoutedReg @# ty);
-                   LETC val2 <- (STRUCT {
-                                            "tag"  ::= $$(natToWord RoutingTagSz FflagsTag);
-                                            "data" ::= ZeroExtendTruncLsb Rlen (#result @% "fflags" @% "data")
-                                   } : RoutedReg @# ty);
-                   LETC fstVal <- (STRUCT {
-                                 "val1"
-                                   ::= Valid #val1;
-                                 "val2"
-                                   ::= ITE
-                                         (#result @% "fflags" @% "valid")
-                                         (Valid #val2)
-                                         (@Invalid ty _);
-                                 "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                                 "taken?" ::= $$false;
-                                 "aq" ::= $$false;
-                                 "rl" ::= $$false;
-                                 "fence.i" ::= $$false
-                               } :  ExecUpdPkt @# ty);
-                   RetE
-                     (STRUCT {
-                        "fst" ::= #fstVal;
-                        "snd" ::= @Invalid ty _
-                      } : PktWithException ExecUpdPkt @# ty);
+                   RetE #result;
          fuInsts
            := [
                 {|
@@ -176,7 +176,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$false) (cmp_cond_eq ty) (cmp_cond_not_used ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -194,7 +194,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_not_used ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |};
@@ -212,7 +212,7 @@ Section Fpu.
                          fieldVal rs3Field      ('b"10100")
                        ];
                   inputXform  := fun ty => FCmpInput (ty := ty) ($$true) (cmp_cond_lt ty) (cmp_cond_eq ty);
-                  outputXform := fun _ => id;
+                  outputXform := FCmpOutput;
                   optMemParams := None;
                   instHints   := falseHints<|hasFrs1 := true|><|hasFrs2 := true|><|hasRd := true|> 
                 |}

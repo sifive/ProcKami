@@ -1,13 +1,15 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
 
 Section Decompressor.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
+  
   Variable ty: Kind -> Type.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
-  Definition compressed_inst_match_enabled_exts
+  Local Definition compressed_inst_match_enabled_exts
              (exts: list string)
              (exts_pkt : Extensions @# ty)
     :  Bool ## ty
@@ -40,26 +42,10 @@ Section Decompressor.
                  <- compressed_inst_match_enabled_exts
                       ("C" :: req_exts comp_inst_entry)
                       (ctxt @% "extensions");
-               (* SystemE (
-                 DispString _ ("[decompress] ===== ") ::
-                 DispString _ ("[decompress] inst match: ") ::
-                 DispBinary #inst_match ::
-                 DispString _ "\n" ::
-                 DispString _ ("[decompress] xlens match: ") ::
-                 DispBinary #xlens_match ::
-                 DispString _ "\n" ::
-                 DispString _ ("[decompress] exts match: ") ::
-                 DispBinary #exts_match ::
-                 DispString _ "\n" ::
-                 DispString _ ("[decompress] result: ") ::
-                 DispBinary (#inst_match && #xlens_match && #exts_match) ::
-                 DispString _ "\n" ::
-                 nil
-               ); *)
                RetE (#inst_match && #xlens_match && #exts_match && raw_comp_inst != $0))
          (fun (comp_inst_entry : CompInstEntry ty)
             => decompressFn comp_inst_entry raw_comp_inst).
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End Decompressor.

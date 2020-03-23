@@ -3,34 +3,30 @@
 *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
-Require Import ProcKami.GenericPipeline.Decoder.
+
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-Require Import ProcKami.GenericPipeline.RegWriter.
-Require Import ProcKami.RiscvPipeline.MemUnit.MemUnitFuncs.
+
 Require Import ProcKami.Debug.DebugDevice.
-Require Import List.
+
 Import ListNotations.
 
 Section debug.
-  Context `{procParams: ProcParams}.
-  Variable mem_devices : list MemDevice.
-  Variable mem_table : list (MemTableEntry mem_devices).
+  Context {procParams: ProcParams}.
 
   Local Definition debug_num_harts := 1.
   Local Definition debug_hart_indexSz := Nat.log2_up debug_num_harts.
   Local Definition debug_hart_index := Bit debug_hart_indexSz.
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
-  Open Scope kami_scope.
+  Local Open Scope kami_scope.
 
   (* *. Auxiliary Definitions *)
 
   Local Definition debug_data_addr : word PAddrSz := debug_device_addr. 
 
-  Open Scope word_scope.
+  Local Open Scope word_scope.
 
   (* the address of the abstract command region. *)
   Local Definition debug_abstract_addr : word PAddrSz
@@ -56,7 +52,7 @@ Section debug.
          (7'b"1110011")
        >}.
 
-  Close Scope word_scope.
+  Local Close Scope word_scope.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -99,6 +95,8 @@ Section debug.
 
   Definition debug_internal_regs
     := [
+        (@^"busy", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
+
         (* request sent to hart to execute abstract command *)
         (@^"debug_executing", existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst (ConstBool false))));
           (* Register @^"debug_executing" : Bool <- ConstBool false; *)
@@ -114,7 +112,8 @@ Section debug.
                                          (Some (SyntaxConst (if orb debug_impebreak (Nat.eqb debug_buffer_sz 1)
                                                              then (ConstBit debug_inst_ebreak)
                                                              else (ConstBit (wzero InstSz))))))
-         (* Register @^"debug_progbuf_end" *)
+
+      (* Register @^"debug_progbuf_end" *)
          (*   :  Bit InstSz *)
          (*   <- if orb debug_impebreak (Nat.eqb debug_buffer_sz 1) *)
          (*        then (ConstBit debug_inst_ebreak) *)
@@ -123,7 +122,7 @@ Section debug.
 
   (* II. Debug CSR Registers *)
 
-  Local Definition debug_csr_view (fields : list CsrField) : list CsrView
+  Local Definition debug_csr_view (fields : list (@CsrField procParams)) : list CsrView
     := [{|
          csrViewContext    := fun ty => $0;
          csrViewFields     := fields;
@@ -134,7 +133,7 @@ Section debug.
   Local Definition debug_csr
     (name : string)
     (addr : word CsrIdWidth)
-    (fields : list CsrField)
+    (fields : list (@CsrField procParams))
     :  Csr
     := {|
          csrName := name;
@@ -208,7 +207,7 @@ Section debug.
                     @csrFieldAny _ "ackhavereset" Bool Bool (Some (ConstBool false));
                     @csrFieldNoReg _ "reserved0" Bool (getDefaultConst _);
                     @csrFieldAny _ "hasel" Bool Bool (Some (ConstBool false));
-                    @csrFieldAny _ "hartsel" (Array debug_num_harts Bool) (Array debug_num_harts Bool) (Some (ConstArray (fun _ => false)));
+                    @csrFieldAny _ "hartsel" (Array 20 Bool) (Bit 20) (Some (ConstBit (wzero 20)));
                     @csrFieldNoReg _ "reserved1" (Bit 4) (getDefaultConst _);
                     @csrFieldAny _ "ndmreset" Bool Bool (Some (ConstBool false));
                     @csrFieldAny _ "dmactive" Bool Bool (Some (ConstBool false))
@@ -325,7 +324,7 @@ Section debug.
          |}
        ] ++ debug_csrs_progbuf).
 
-  Close Scope kami_scope.
+  Local Close Scope kami_scope.
 
   Section ty.
     Variable ty : Kind -> Type.
@@ -350,17 +349,17 @@ Section debug.
            <- #states@[#hart <- struct_set_field_default (#states@[#hart]) name value];
          Retv.
 
-    Definition debug_hart_state_mode
+    Local Definition debug_hart_state_mode
       :  ActionT ty Bool
       := LETA state <- debug_hart_state_read;
          Ret (#state @% "debug").
 
-    Definition debug_hart_state_halted
+    Local Definition debug_hart_state_halted
       :  ActionT ty Bool
       := LETA state <- debug_hart_state_read;
          Ret (#state @% "halted").
 
-    Definition debug_hart_state_command
+    Local Definition debug_hart_state_command
       :  ActionT ty Bool
       := LETA state <- debug_hart_state_read;
          Ret (#state @% "command").
@@ -400,7 +399,7 @@ Section debug.
 
       Note: called by a rule in ProcessorCore.v.
     *)
-    Definition debug_hart_resume
+    Local Definition debug_hart_resume
       :  ActionT ty Void
       := LETA state : debug_hart_state <- debug_hart_state_read;
          If #state@%"resumereq" && #state@%"halted"
@@ -441,7 +440,7 @@ Section debug.
          Retv.
 
     (* send pending halt request to the selected harts. *)
-    Definition debug_harts_send_halt_req
+    Local Definition debug_harts_send_halt_req
       :  ActionT ty Void
       := Read haltreq : Bool <- @^"haltreq";
          If #haltreq
@@ -449,7 +448,7 @@ Section debug.
          Retv.
 
     (* send pending resume request to the selected harts. *)
-    Definition debug_harts_send_resume_req
+    Local Definition debug_harts_send_resume_req
       :  ActionT ty Void
       := Read resumereq : Bool <- @^"resumereq";
          If #resumereq
@@ -473,7 +472,7 @@ Section debug.
     Local Definition debug_access_mem_cmd := 2.
 
     (* execute the pending abstract command. *)
-    Definition debug_command_exec
+    Local Definition debug_command_exec
       (exts : Extensions @# ty)
       (satp_mode : Bit SatpModeWidth @# ty)
       :  ActionT ty Void
@@ -555,6 +554,6 @@ Section debug.
          Retv.
   End ty.
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 End debug.

@@ -53,17 +53,11 @@ Section Fpu.
                                "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                                "data" ::= (csr (#sem_out_pkt @% "flags") : (Bit Rlen @# ty))
                                  });
-         LETC fstVal: ExecUpdPkt <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
-                       "val2"
-                         ::= Valid #val2;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
-                     });
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2" <- (Valid #val2)];
          RetE
            (STRUCT {
               "fst"
@@ -88,21 +82,14 @@ Section Fpu.
                                "tag"  ::= Const ty (natToWord RoutingTagSz FflagsTag);
                                "data" ::= (csr (#sem_out_pkt @% "exceptionFlags") : (Bit Rlen @# ty)) 
                                  });
-         LETC fstVal <- (STRUCT {
-                       "val1"
-                         ::= Valid #val1;
-                       "val2"
-                         ::= Valid #val2;
-                       "memBitMask" ::= $$(getDefaultConst (Array Rlen_over_8 Bool));
-                       "taken?" ::= $$false;
-                       "aq" ::= $$false;
-                       "rl" ::= $$false;
-                       "fence.i" ::= $$false
-                     } : ExecUpdPkt @# ty);
+         LETC fstVal
+           :  ExecUpdPkt
+           <- (noUpdPkt ty)
+                @%["val1" <- (Valid #val1)]
+                @%["val2" <- (Valid #val2)];
          RetE
            (STRUCT {
-              "fst"
-                ::= #fstVal;
+              "fst" ::= #fstVal;
               "snd" ::= Invalid
             } : PktWithException ExecUpdPkt @# ty).
 

@@ -1,18 +1,20 @@
 (* Defines the memory mapped registers that represent the program buffer. *)
-Require Import Kami.All.
+Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.RegWriter.
+
+Require Import ProcKami.Device.
 Require Import ProcKami.Devices.MMappedRegs.
-Require Import StdLibKami.RegStruct.
+
 Require Import StdLibKami.RegMapper.
-Require Import List.
+
 Import ListNotations.
 
 Section debug_device.
   Context `{procParams: ProcParams}.
+  Context (Tag: Kind).
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
   Record debug_device_reg
     := {
@@ -91,12 +93,12 @@ Section debug_device.
 
   Definition debug_device_arg0_addr := 0.
 
-  Definition debug_device_arg1_addr := (debug_device_arg0_addr + Xlen)%nat.
+  Local Definition debug_device_arg1_addr := (debug_device_arg0_addr + Xlen)%nat.
 
-  Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
+  Local Definition debug_device_progbuf_end_addr := (debug_device_regs_size - Xlen)%nat.
 
   Definition debugDevice
-    := @gen_reg_device procParams 
+    := @mmDev procParams 
          (Nat.log2_up debug_device_regs_size)
          (map
            (fun x
@@ -108,7 +110,7 @@ Section debug_device.
            (tag debug_device_regs))
          "debug_device" false.
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 
 End debug_device.

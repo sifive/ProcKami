@@ -12,27 +12,33 @@ Section mret.
 
   Local Open Scope kami_expr.
 
-  Definition MRet : FUEntry
+  Local Definition mRetInputXform
+    (ty : Kind -> Type) 
+    (_ : ContextCfgPkt @# ty)
+    (_ : ExecContextPkt ## ty)
+    :  Void ## ty
+    := RetE $$(getDefaultConst Void).
+
+  Local Definition mRetOutputXform
+    (retTag : nat)
+    (ty : Kind -> Type)
+    (resultExpr : Void ## ty)
+    :  PktWithException ExecUpdPkt ## ty
+    := RetE (STRUCT {
+         "fst"
+           ::= (noUpdPkt ty)
+                 @%["val2"
+                     <- Valid (STRUCT {
+                          "tag"  ::= ($retTag : RoutingTag @# ty);
+                          "data" ::= $$(getDefaultConst Data)
+                        })];
+         "snd" ::= Invalid (* Note: exceptions are detected by the Commit Unit. *)
+       }).
+
+  Definition MRet : @FUEntry procParams
     := {|
          fuName := "mret";
-         fuFunc
-           := fun ty (in_pkt_expr : Pair Inst Bool ## ty)
-                => LETE in_pkt : Pair Inst Bool <- in_pkt_expr;
-                   RetE
-                     (STRUCT {
-                        "fst"
-                          ::= ((noUpdPkt ty)
-                                @%["val2"
-                                    <- (Valid (STRUCT {
-                                         "tag"  ::= Const ty (natToWord RoutingTagSz RetTag);
-                                         "data" ::= ZeroExtendTruncLsb Rlen (funct7 (#in_pkt @% "fst"))
-                                        }))]);
-                        "snd"
-                          ::= IF #in_pkt @% "snd"
-                                then
-                                  Valid ($IllegalInst: Exception @# ty)
-                                else Invalid
-                      } : PktWithException ExecUpdPkt @# ty);
+         fuFunc := fun ty (_ : Void ## ty) => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -50,17 +56,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty _ context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= $$false
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform MRetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |};
                 {|
                   instName   := "sret";
@@ -77,17 +76,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty cfg_pkt context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= (cfg_pkt @% "mode" == $SupervisorMode) && cfg_pkt @% "tsr"
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform SRetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |};
                 {|
                   instName   := "uret";
@@ -104,17 +96,10 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty _ context_pkt_expr
-                         => LETE context_pkt <- context_pkt_expr;
-                            RetE
-                              (STRUCT {
-                                 "fst" ::= #context_pkt @% "inst";
-                                 "snd" ::= $$false
-                               } : Pair Inst Bool @# ty);
-                  outputXform := fun ty => id;
+                  inputXform   := mRetInputXform;
+                  outputXform  := mRetOutputXform URetTag;
                   optMemParams := None;
-                  instHints   := falseHints
+                  instHints    := falseHints
                 |}
               ]
        |}.
@@ -122,18 +107,7 @@ Section mret.
   Definition DRet : FUEntry
     := {|
          fuName := "dret";
-         fuFunc
-           := fun ty (in_pkt_expr : Bool ## ty)
-                => RetE (STRUCT {
-                       "fst"
-                         ::= (noUpdPkt ty)
-                               @%["val2"
-                                    <- Valid (STRUCT {
-                                         "tag"  ::= $DRetTag;
-                                         "data" ::= $0
-                                       } : RoutedReg @# ty)];
-                       "snd" ::= Invalid
-                     } : PktWithException ExecUpdPkt @# ty);
+         fuFunc := fun ty _ => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -153,34 +127,47 @@ Section mret.
                        ];
 
                   inputXform 
-                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE ((cfg_pkt @% "debug_hart_state" @% "debug") : Bool @# ty);
-                  outputXform  := fun ty => id;
+                    := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform 
+                    := fun ty (_ : Void ## ty)
+                         => RetE (STRUCT {
+                              "fst"
+                                ::= (noUpdPkt ty)
+                                      @%["val2"
+                                           <- Valid (STRUCT {
+                                                "tag"  ::= $DRetTag;
+                                                "data" ::= $0
+                                              } : RoutedReg @# ty)];
+                              "snd" ::= Invalid
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints    := falseHints
                 |}
               ]
        |}.
 
+  Local Definition ECallMCode := 0.
+  Local Definition ECallSCode := 1.
+  Local Definition ECallUCode := 2.
+  Local Definition ECallCodeSz := 2.
+  Local Definition ECallCode := Bit ECallCodeSz.
+
   Definition ECall : FUEntry
     := {|
          fuName := "ecall";
          fuFunc
-           := (fun ty (mode_pkt : PrivMode ## ty)
-               => LETE mode : PrivMode <- mode_pkt;
-                    LETC sndVal <- Switch #mode Retn Exception With {
-                                         Const ty (natToWord PrivModeWidth MachineMode)
-                                           ::= Const ty (natToWord 4 ECallM);
-                                         Const ty (natToWord PrivModeWidth SupervisorMode)
-                                           ::= Const ty (natToWord 4 ECallS);
-                                         Const ty (natToWord PrivModeWidth UserMode)
-                                           ::= Const ty (natToWord 4 ECallU)};
-                   RetE
-                     (STRUCT {
-                        "fst" ::= noUpdPkt ty;
-                        "snd"
-                          ::= Valid #sndVal
-                      } : PktWithException ExecUpdPkt @# ty));
+           := fun ty (mode_pkt : PrivMode ## ty)
+                => LETE mode : PrivMode <- mode_pkt;
+                   LETC code : ECallCode
+                     <- Switch #mode Retn ECallCode With {
+                          ($MachineMode : PrivMode @# ty)
+                            ::= ($ECallMCode : ECallCode @# ty);
+                          ($SupervisorMode : PrivMode @# ty)
+                            ::= ($ECallSCode : ECallCode @# ty);
+                          ($UserMode : PrivMode @# ty)
+                            ::= ($ECallUCode : ECallCode @# ty)
+                        };
+                   RetE #code;
          fuInsts
            := [
                 {|
@@ -197,8 +184,32 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun ty (cfg_pkt : ContextCfgPkt @# ty) _ => RetE (cfg_pkt @% "mode");
-                  outputXform := fun ty => id;
+                  inputXform
+                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
+                         => RetE (cfg_pkt @% "mode");
+                  outputXform
+                    := fun ty (codeExpr : ECallCode ## ty)
+                         => LETE code <- codeExpr;
+                            LETC commitOpCode
+                              :  RoutingTag
+                              <- Switch #code Retn RoutingTag With {
+                                   ($ECallMCode : ECallCode @# ty)
+                                     ::= ($ECallMTag : RoutingTag @# ty);
+                                   ($ECallSCode : ECallCode @# ty)
+                                     ::= ($ECallSTag : RoutingTag @# ty);
+                                   ($ECallUCode : ECallCode @# ty)
+                                     ::= ($ECallUTag : RoutingTag @# ty)
+                                 };
+                            RetE (STRUCT {
+                              "fst"
+                                ::= (noUpdPkt ty)
+                                      @%["val2"
+                                          <- Valid (STRUCT {
+                                               "tag" ::= #commitOpCode;
+                                               "data" ::= ($0 : Data @# ty)
+                                             }) : Maybe RoutedReg @# ty];
+                              "snd" ::= Invalid
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |}
@@ -208,18 +219,7 @@ Section mret.
   Definition Fence : FUEntry
     := {|
          fuName := "fence";
-         fuFunc
-           := fun ty (in_pkt : Maybe Inst ## ty)
-                => LETE inst : Maybe Inst <- in_pkt;
-                   RetE
-                     (STRUCT {
-                        "fst" ::= noUpdPkt ty;
-                        "snd"
-                          ::= IF #inst @% "valid"
-                                then
-                                  Valid ($IllegalInst: Exception @# ty)
-                                else Invalid
-                      } : PktWithException ExecUpdPkt @# ty);
+         fuFunc := fun ty _ => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -233,10 +233,13 @@ Section mret.
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun ty _ _ => RetE (Invalid : Maybe Inst @# ty);
-                  outputXform := fun ty (upkt: PktWithException ExecUpdPkt ## ty) =>
-                                   LETE u: (PktWithException ExecUpdPkt) <- upkt;
-                                   RetE (#u @%["fst" <- ((#u @% "fst") @%["fence.i" <- $$ true])]);
+                  inputXform  := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform
+                    := fun ty _
+                         => RetE (STRUCT {
+                              "fst" ::= (noUpdPkt ty)@%["fence.i" <- $$true];
+                              "snd" ::= Invalid
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |};
@@ -251,8 +254,13 @@ Section mret.
                          fieldVal opcodeField ('b"00011");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform  := fun ty _ _ => RetE (Invalid : Maybe Inst @# ty);
-                  outputXform := fun ty => id;
+                  inputXform  := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform
+                    := fun ty _
+                         => RetE (STRUCT {
+                              "fst" ::= noUpdPkt ty;
+                              "snd" ::= Invalid
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |};
@@ -269,15 +277,19 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform
-                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) (gcpin : ExecContextPkt ## ty)
-                         => LETE gcp : ExecContextPkt <- gcpin;
-                            (RetE
-                              (IF cfg_pkt @% "tvm"
-                                then Valid (#gcp @% "inst")
-                                else @Invalid ty Inst
-                                ) :  Maybe Inst ## ty);
-                  outputXform := fun ty => id;
+                  inputXform := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform
+                    := fun (ty : Kind -> Type) (_ : Void ## ty)
+                         => RetE (STRUCT {
+                              "fst"
+                                ::= (noUpdPkt ty)
+                                      @%["val2"
+                                          <- Valid (STRUCT {
+                                               "tag" ::= ($SFenceTag : RoutingTag @# ty);
+                                               "data" ::= ($0 : Data @# ty)
+                                             }) : Maybe RoutedReg @# ty];
+                              "snd" ::= Invalid (* Note: exception detected and thrown in the Commit Unit. *)
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |}
@@ -287,17 +299,7 @@ Section mret.
   Definition EBreak : FUEntry
     := {|
          fuName := "ebreak";
-         fuFunc
-           := (fun ty (in_pkt : Inst ## ty)
-               => LETE inst : Inst <- in_pkt;
-                  LETC exception
-                    <- Valid ($Breakpoint: Exception @# ty);
-(* TODO: only throw an exception if ebreak mode (like ebreaku) matches current mode and dcsr enables it. See 4.8.1 *)
-                  RetE
-                    (STRUCT {
-                       "fst" ::= noUpdPkt ty;
-                       "snd" ::= #exception
-                     } : PktWithException ExecUpdPkt @# ty));
+         fuFunc := fun ty _ => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -315,11 +317,19 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform 
-                    := fun ty _ (gcpin : ExecContextPkt ## ty)
-                         => LETE gcp : ExecContextPkt <- gcpin;
-                            RetE (#gcp @% "inst");
-                  outputXform := fun ty => id;
+                  inputXform := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform
+                    := fun ty _
+                         => RetE (STRUCT {
+                              "fst"
+                                ::= (noUpdPkt ty)
+                                      @%["val2"
+                                          <- Valid (STRUCT {
+                                               "tag" ::= ($EBreakTag : RoutingTag @# ty);
+                                               "data" ::= ($0 : Data @# ty)
+                                             }) : Maybe RoutedReg @# ty];
+                              "snd" ::= Invalid (* NOTE: we let the Commit Unit detect and throw the ebreak exception. *)
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |}
@@ -329,23 +339,7 @@ Section mret.
   Definition Wfi : FUEntry
     := {|
          fuName := "wfi";
-         fuFunc
-           := fun ty (trap_expr : Bool ## ty)
-                => LETE trap : Bool <- trap_expr;
-                   SystemE [
-                     DispString _ "[wfi]\n"
-                   ];
-                   LETC exception
-                     :  Maybe Exception
-                     <- Valid ($IllegalInst: Exception @# ty);
-                   RetE
-                     (STRUCT {
-                        "fst" ::= noUpdPkt ty;
-                        "snd"
-                          ::= IF #trap
-                                then #exception
-                                else Invalid
-                      } : PktWithException ExecUpdPkt @# ty);
+         fuFunc := fun ty _ => RetE $$(getDefaultConst Void);
          fuInsts
            := [
                 {|
@@ -363,10 +357,19 @@ Section mret.
                          fieldVal opcodeField ('b"11100");
                          fieldVal instSizeField ('b"11")
                        ];
-                  inputXform
-                    := fun ty (cfg_pkt : ContextCfgPkt @# ty) _
-                         => RetE ((!(cfg_pkt @% "debug_hart_state" @% "debug")) && cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode);
-                  outputXform := fun ty => id; 
+                  inputXform := fun ty _ _ => RetE $$(getDefaultConst Void);
+                  outputXform
+                    := fun (ty : Kind -> Type) (_ : Void ## ty)
+                         => RetE (STRUCT {
+                              "fst"
+                                ::= (noUpdPkt ty)
+                                      @%["val2"
+                                          <- Valid (STRUCT {
+                                               "tag" ::= ($WfiTag : RoutingTag @# ty);
+                                               "data" ::= ($0 : Data @# ty)
+                                             }) : Maybe RoutedReg @# ty];
+                              "snd" ::= Invalid (* Note: exception detected and thrown in the Commit Unit. *)
+                            } : PktWithException ExecUpdPkt @# ty);
                   optMemParams := None;
                   instHints   := falseHints
                 |}

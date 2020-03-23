@@ -9,19 +9,20 @@ Section Mem.
 
   Definition LrSc32: FUEntry :=
     {| fuName := "lrsc32" ;
-       fuFunc := (fun ty i => LETE x: MemInputAddrType <- i;
-                             LETC addr : VAddr <- (#x @% "base") + (#x @% "offset") ;
-                             LETC ret: MemOutputAddrType
-                                         <-
-                                         STRUCT {
-                                           "addr" ::= #addr ;
-                                           "data" ::= #x @% "data" ;
-                                           "aq" ::= #x @% "aq" ;
-                                           "rl" ::= #x @% "rl" ;
-                                           "misalignedException?" ::=
-                                             !(checkAligned #addr (#x @% "numZeros"))
-                                         } ;
-                             RetE #ret ) ;
+       fuFunc
+         := fun ty i
+              => LETE x: MemInputAddrType <- i;
+                 RetE (STRUCT {
+                   "addr" ::= #x @% "addr";
+                   "data" ::= #x @% "data";
+                   "aq"   ::= #x @% "aq";
+                   "rl"   ::= #x @% "rl";
+                   "isLr" ::= #x @% "isLr";
+                   "isSc" ::= #x @% "isSc";
+                   "reservationValid" ::= #x @% "reservationValid";
+                   "misalignedException?"
+                     ::= !checkAligned (#x @% "addr") (#x @% "numZeros")
+                 } : MemOutputAddrType @# ty);
        fuInsts :=
          {| instName     := "lr.w" ;
             xlens        := xlens_all;

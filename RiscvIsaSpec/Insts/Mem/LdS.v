@@ -12,18 +12,17 @@ Section Mem.
        fuFunc
          := fun ty i
               => LETE x: MemInputAddrType <- i;
-                 LETC addr : VAddr <- (#x @% "base") + (#x @% "offset");
-                 LETC ret
-                   :  MemOutputAddrType
-                   <- STRUCT {
-                          "addr" ::= #addr;
-                          "data" ::= #x @% "data";
-                          "aq"   ::= #x @% "aq";
-                          "rl"   ::= #x @% "rl";
-                          "misalignedException?"
-                            ::= !checkAligned #addr (#x @% "numZeros")
-                        };
-                 RetE #ret;
+                 RetE (STRUCT {
+                   "addr" ::= #x @% "addr";
+                   "data" ::= #x @% "data";
+                   "aq"   ::= #x @% "aq";
+                   "rl"   ::= #x @% "rl";
+                   "isLr" ::= #x @% "isLr";
+                   "isSc" ::= #x @% "isSc";
+                   "reservationValid" ::= #x @% "reservationValid";
+                   "misalignedException?"
+                     ::= !checkAligned (#x @% "addr") (#x @% "numZeros")
+                 } : MemOutputAddrType @# ty);
        fuInsts :=
          {| instName     := "lb" ;
             xlens        := xlens_all;

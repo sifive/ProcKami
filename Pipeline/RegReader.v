@@ -1,20 +1,20 @@
 Require Import Kami.AllNotations.
+
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.Decoder.
-Require Import List.
-Import ListNotations.
+
+Require Import ProcKami.Pipeline.Decoder.
+
 
 Section reg_reader.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
+  Context (func_units : list FUEntry).
+    
   Variable ty: Kind -> Type.
 
-  Variable func_units : list FUEntry.
-  Variable instMisalignedException memMisalignedException accessException: Bool @# ty.
-    
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Local Open Scope kami_expr.
+  Local Open Scope kami_action.
 
-  Definition reg_reader_insts_match
+  Local Definition reg_reader_insts_match
              (sem_input_kind sem_output_kind : Kind)
              (inst_id : InstId func_units @# ty)
              (insts : list (nat * InstEntry sem_input_kind sem_output_kind))
@@ -25,7 +25,7 @@ Section reg_reader.
     Returns true iff the instruction referenced by [decoder_pkt]
     satisfies [p].
    *)
-  Definition reg_reader_match
+  Local Definition reg_reader_match
              (p : forall sem_input_kind sem_output_kind : Kind,
                  InstEntry sem_input_kind sem_output_kind ->
                  bool)
@@ -50,7 +50,7 @@ Section reg_reader.
   Local Definition reg_reader_has (which: InstHints -> bool) pkt :=
     (reg_reader_match (fun ik ok pkt => which (instHints pkt))) pkt.
 
-  Definition reg_reader_read_reg
+  Local Definition reg_reader_read_reg
     (n : nat)
     (xlen : XlenValue @# ty)
     (reg_id : RegId @# ty)
@@ -63,7 +63,7 @@ Section reg_reader.
             then $0
             else xlen_sign_extend Rlen xlen #reg_val).
 
-  Definition reg_reader_read_freg
+  Local Definition reg_reader_read_freg
     (n : nat)
     (freg_id : RegId @# ty)
     :  ActionT ty Data
@@ -72,11 +72,12 @@ Section reg_reader.
          <- (@^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
        Ret (flen_one_extend Rlen #freg_val).
 
-  Definition reg_reader
+  Local Definition reg_reader
     (pc: VAddr @# ty)
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : DecoderPkt func_units @# ty)
     (compressed : Bool @# ty)
+    (exceptionUpper : Bool @# ty)
     :  ActionT ty ExecContextPkt
     := LET raw_inst
          :  Inst
@@ -90,50 +91,47 @@ Section reg_reader.
        LETA freg3_val : Data <- reg_reader_read_freg 3 (rs3 #raw_inst);
        Read fflags_val : FflagsValue <- @^"fflags";
        Read frm_val : FrmValue <- @^"frm";
-       LETA msg <- Sys [
-           DispString _ "Reg 1 selector: ";
-           DispHex (rs1 #raw_inst);
-           DispString _ "\n";
-           DispString _ "Reg 2 selector: ";
-           DispHex (rs2 #raw_inst);
-           DispString _ "\n";
-           DispString _ "Csr selector: ";
-           DispHex (imm #raw_inst);
-           DispString _ "\n";
-           DispString _ "has RS1: ";
-           DispBinary (reg_reader_has hasRs1 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS1: ";
-           DispBinary (reg_reader_has hasFrs1 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has RS2: ";
-           DispBinary (reg_reader_has hasRs2 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS2: ";
-           DispBinary (reg_reader_has hasFrs2 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "has FRS3: ";
-           DispBinary (reg_reader_has hasFrs3 decoder_pkt);
-           DispString _ "\n";
-           DispString _ "Floating Point Control Status Register FFLAGS: ";
-           DispBinary (#fflags_val);
-           DispString _ "\n";
-           DispString _ "Floating Point Control Status Register FRM: ";
-           DispBinary (#frm_val);
-           DispString _ "\n"
-         ] Retv;
+       Read reservation : Maybe Reservation <- @^"reservation";
+       System [
+           DispString _ "Reg1: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #reg1_val;
+           DispString _ " "; DispHex (reg_reader_has hasRs1 decoder_pkt); DispString _ "\n";
+
+           DispString _ "Reg2: "; DispHex (rs2 #raw_inst); DispString _ " "; DispHex #reg2_val;
+           DispString _ " "; DispHex (reg_reader_has hasRs2 decoder_pkt); DispString _ "\n";
+
+           DispString _ "FReg1: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg1_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs1 decoder_pkt); DispString _ "\n";
+
+           DispString _ "FReg2: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg2_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs2 decoder_pkt); DispString _ "\n";
+         
+           DispString _ "FReg3: "; DispHex (rs1 #raw_inst); DispString _ " "; DispHex #freg3_val;
+           DispString _ " "; DispHex (reg_reader_has hasFrs3 decoder_pkt); DispString _ "\n";
+
+           DispString _ "Fflags: "; DispBinary (#fflags_val); DispString _ "\n";
+
+           DispString _ "Frm: "; DispBinary (#frm_val); DispString _ "\n";
+
+           DispString _ "Reservation: "; DispHex #reservation; DispString _ "\n"
+         ];
+       LETA mMemHints
+         :  Maybe MemHintsPkt
+         <- convertLetExprSyntax_ActionT (decodeMemHintsPkt decoder_pkt);
        Ret
          (STRUCT {
-              "pc"          ::= pc;
-              "reg1"        ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) .|
-                                 (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
-              "reg2"        ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) .|
-                                 (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
-              "reg3"        ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
-              "fflags"      ::= #fflags_val;
-              "frm"         ::= #frm_val;
-              "inst"        ::= #raw_inst;
-              "compressed?" ::= compressed
+              "pc"             ::= pc;
+              "reg1"           ::= ((ITE (reg_reader_has hasRs1 decoder_pkt) (#reg1_val) $0) .|
+                                    (ITE (reg_reader_has hasFrs1 decoder_pkt) (#freg1_val) $0));
+              "reg2"           ::= ((ITE (reg_reader_has hasRs2 decoder_pkt) (#reg2_val) $0) .|
+                                    (ITE (reg_reader_has hasFrs2 decoder_pkt) (#freg2_val) $0));
+              "reg3"           ::= ITE (reg_reader_has hasFrs3 decoder_pkt) (#freg3_val) $0;
+              "fflags"         ::= #fflags_val;
+              "frm"            ::= #frm_val;
+              "inst"           ::= #raw_inst;
+              "compressed?"    ::= compressed;
+              "exceptionUpper" ::= exceptionUpper;
+              "memHints"       ::= #mMemHints;
+              "reservation"    ::= #reservation
             } : ExecContextPkt @# ty).
 
   Definition readerWithException
@@ -141,6 +139,7 @@ Section reg_reader.
     (cfg_pkt : ContextCfgPkt @# ty)
     (decoder_pkt : PktWithException (DecoderPkt func_units) @# ty)
     (compressed : Bool @# ty)
+    (exceptionUpper: Bool @# ty)
     :  ActionT ty (PktWithException ExecContextPkt)
     := bindException
          (decoder_pkt @% "fst")
@@ -148,12 +147,12 @@ Section reg_reader.
          (fun decoder_pkt : DecoderPkt func_units @# ty
            => LETA exec_context_pkt
                 :  ExecContextPkt
-                <- reg_reader pc cfg_pkt decoder_pkt compressed;
+                <- reg_reader pc cfg_pkt decoder_pkt compressed exceptionUpper;
               Ret (STRUCT {
                   "fst" ::= #exec_context_pkt;
                   "snd" ::= Invalid
                 } : PktWithException ExecContextPkt @# ty)).
 
-  Close Scope kami_action.
-  Close Scope kami_expr.
+  Local Close Scope kami_action.
+  Local Close Scope kami_expr.
 End reg_reader.

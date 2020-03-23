@@ -1,20 +1,24 @@
-(* This module defines the memory mapped register interface. *)
-Require Import Kami.All.
-Require Import ProcKami.FU.
-Require Import ProcKami.Devices.MemDevice.
-Require Import ProcKami.GenericPipeline.RegWriter.
-Require Import StdLibKami.RegStruct.
+Require Import Kami.AllNotations.
+
 Require Import StdLibKami.RegMapper.
-Require Import List.
+
+Require Import StdLibKami.Router.Ifc.
+
+Require Import ProcKami.Device.
+
+Require Import ProcKami.FU.
+
 Import ListNotations.
 
-Section mmapped.
-  Context `{procParams: ProcParams}.
+Section mmregs.
+  Local Definition lgGranuleLgSz := Nat.log2_up 3.
+  Local Definition lgMaskSz := Nat.log2_up 8.
 
-  Open Scope kami_expr.
-  Open Scope kami_action.
+  Section procParams.
+    Context (procParams: ProcParams).
 
-  Section params.
+    Local Open Scope kami_expr.
+    Local Open Scope kami_action.
 
     (*
       granule = 1 byte.
@@ -22,175 +26,95 @@ Section mmapped.
       mask size = 1 bit per granule.
       real address size = number of registers
     *)
-    Variable mmregs_realAddrSz : nat.
+    Section mmregs.
+      Variable realAddrSz: nat.
 
-    Local Notation GroupReg := (GroupReg mmregs_lgMaskSz mmregs_realAddrSz).
-    Local Notation RegMapT := (RegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
-    Local Notation FullRegMapT := (FullRegMapT mmregs_lgGranuleLgSz mmregs_lgMaskSz mmregs_realAddrSz).
-    Local Notation maskSz := (Nat.pow 2 mmregs_lgMaskSz).
-    Local Notation granuleSz := (Nat.pow 2 mmregs_lgGranuleLgSz).
-    Local Notation dataSz := (maskSz * granuleSz)%nat.
+      Local Notation GroupReg := (GroupReg lgMaskSz realAddrSz).
+      Local Notation RegMapT := (RegMapT lgGranuleLgSz lgMaskSz realAddrSz).
+      Local Notation FullRegMapT := (FullRegMapT lgGranuleLgSz lgMaskSz realAddrSz).
+      Local Notation maskSz := (Nat.pow 2 lgMaskSz).
+      Local Notation granuleSz := (Nat.pow 2 lgGranuleLgSz).
+      Local Notation dataSz := (maskSz * granuleSz)%nat.
+      Local Notation GroupReg_Gen ty := (GroupReg_Gen ty lgMaskSz realAddrSz).
 
-    Variable mmregs : list GroupReg.
+      Variable mmRegs : list GroupReg.
 
-    Section ty.
+      Variable name : string.
+      Variable genReg: bool.
 
-      Variable ty : Kind -> Type.
+      Local Notation "^ x" := (name ++ "." ++ x)%string (at level 0).
 
-      Local Notation GroupReg_Gen := (GroupReg_Gen ty mmregs_lgMaskSz mmregs_realAddrSz).
-
-      Local Definition MmReq
-        := STRUCT_TYPE {
-             "isRd" :: Bool;
-             "addr" :: Bit mmregs_realAddrSz;
-             "data" :: Bit dataSz
-           }.
-
-      Local Definition readWriteMmReg
-        (request : MmReq @# ty)
+      Local Definition mmReq ty
+            (addr: Bit realAddrSz @# ty)
+            (data: Bit dataSz @# ty)
+            (isRd: Bool @# ty)
         :  ActionT ty (Bit 64)
         := LET rq_info
              :  RegMapT
              <- STRUCT {
-                  "addr" ::= request @% "addr";
+                  "addr" ::= addr;
                   "mask" ::= $$(wones maskSz);
-                  "data" ::= request @% "data"
+                  "data" ::= data
                 } : RegMapT @# ty;
            LET rq
              :  FullRegMapT
              <- STRUCT {
-                  "isRd" ::= request @% "isRd";
+                  "isRd" ::= isRd;
                   "info" ::= #rq_info
                 } : FullRegMapT @# ty;
            LETA result
-             <- readWriteGranules_GroupReg (Valid #rq) mmregs;
+             <- readWriteGranules_GroupReg (Valid #rq) mmRegs;
            Ret (ZeroExtendTruncLsb 64 #result).
 
-      Local Definition mm_read
-        (addr : Bit mmregs_realAddrSz @# ty) 
-        :  ActionT ty (Bit 64)
-        := readWriteMmReg
-             (STRUCT {
-                "isRd" ::= $$true;
-                "addr" ::= addr;
-                "data" ::= $0
-              }).
 
-      Local Definition mm_write
-        (addr : Bit mmregs_realAddrSz @# ty)
-        (data : Bit dataSz @# ty)
-        :  ActionT ty (Bit 64)
-        := readWriteMmReg
-             (STRUCT {
-                "isRd" ::= $$false;
-                "addr" ::= addr;
-                "data" ::= data
-              }).
+      Definition mmDev := createDevice
+        {| baseName := name;
+           baseIo := true;
+           basePmas := map
+                         (fun width
+                          => {|
+                              pma_width      := width;
+                              pma_readable   := true;
+                              pma_writeable  := true;
+                              pma_executable := true;
+                              pma_misaligned := true;
+                              pma_amo        := AmoNone
+                            |})
+                         [0;1;2;3];
+           baseRegFiles := nil;
+           baseRegs := (if genReg
+                        then map (fun mmReg =>
+                                    (gr_name mmReg, existT RegInitValT (SyntaxKind (gr_kind mmReg))
+                                                           (Some (SyntaxConst (getDefaultConst (gr_kind mmReg)))))) mmRegs
+                        else nil) ++ makeModule_regs(Register ^"response" : Maybe Data <- Default)%kami
+;
+           write := (fun ty req =>
+                       LET addr : Bit realAddrSz <- unsafeTruncLsb realAddrSz (req @% "addr");
+                       LETA _ <- mmReq #addr (ZeroExtendTruncLsb dataSz (pack (req @% "data"))) ($$false);
+                       Ret $$true);
+           readReq := (fun ty addr =>
+                         LETA result : Bit 64 <- mmReq (unsafeTruncLsb realAddrSz addr) $0 ($$true);
+                         Write ^"response": Maybe Data <- Valid (ZeroExtendTruncLsb Rlen #result);
+                         Retv);
+           readRes := (fun ty =>
+                         Read memData : Maybe Data <- ^"response";
+                         Ret #memData); |}.
+    End mmregs.
 
-    End ty.
+    Definition msip := @mmDev 0 [{| gr_addr := $0%word;
+                                    gr_kind := Bit 64;
+                                    gr_name := @^"msip" |}] "msip" false.
 
-    Local Definition regDeviceParams := {|
-      memDeviceParamsRead
-        := fun ty 
-             => List.repeat
-                  (fun addr _
-                    => System [
-                         DispString _ "[gen_reg_device] reading mem mapped reg device.\n"
-                       ];
-                       LETA result : Bit 64 <- mm_read (unsafeTruncLsb mmregs_realAddrSz addr);
-                       Ret (STRUCT {
-                         "valid" ::= $$true;
-                         "data" ::= ZeroExtendTruncLsb Rlen #result
-                       } : Maybe (Bit Rlen) @# _))
-                  numClientRqs;
+    Definition mtime := @mmDev 0 [{| gr_addr := $0%word;
+                                     gr_kind := Bit 64;
+                                     gr_name := @^"mtime" |}] "mtime" false.
+    
+    Definition mtimecmp := @mmDev 0 [{| gr_addr := $0%word;
+                                        gr_kind := Bit 64;
+                                        gr_name := @^"mtimecmp" |}] "mtimecmp" false.
 
-      memDeviceParamsWrite
-        := fun ty req
-             => LET addr
-                  :  Bit mmregs_realAddrSz
-                  <- unsafeTruncLsb mmregs_realAddrSz (req @% "addr");
-                LETA _
-                  <- mm_write #addr
-                       (ZeroExtendTruncLsb dataSz (req @% "data"));
-                Ret $$true;
+    Local Close Scope kami_action.
+    Local Close Scope kami_expr.
 
-      memDeviceParamsReadReservation
-        := fun ty _ _ => Ret $$(getDefaultConst Reservation);
-
-      memDeviceParamsWriteReservation
-        := fun ty _ _ _ _ => Retv
-    |}.
-
-    Definition gen_reg_device
-      (device_name : string)
-      (gen_regs : bool)
-      :  MemDevice
-      := {|
-           memDeviceName := device_name;
-           memDeviceIO := true;
-           memDevicePmas
-             := map
-                  (fun width
-                    => {|
-                         pma_width      := width;
-                         pma_readable   := true;
-                         pma_writeable  := true;
-                         pma_executable := true;
-                         pma_misaligned := true;
-                         pma_lrsc       := false;
-                         pma_amo        := AMONone
-                       |})
-                  (seq 0 4);
-           memDeviceRequestHandler
-             := fun _ index req => memDeviceHandleRequest regDeviceParams index req;
-           memDeviceFile
-             := if gen_regs
-                  then
-                    Some
-                      (inr
-                        {|
-                          mmregs_dev_lgNumRegs := mmregs_realAddrSz;
-                          mmregs_dev_regs      := mmregs
-                        |})
-                  else None
-         |}.
-
-  End params.
-
-  Definition msipDevice
-    := @gen_reg_device
-         (Nat.log2_up 1)
-         [
-           {|
-             gr_addr := $0%word;
-             gr_kind := Bit 64;
-             gr_name := @^"msip"
-           |}
-         ] "msip" false.
-
-  Definition mtimeDevice
-    := @gen_reg_device
-         (Nat.log2_up 1)
-         [
-           {|
-             gr_addr := $0%word;
-             gr_kind := Bit 64;
-             gr_name := @^"mtime"
-           |}
-         ] "mtime" false.
-
-  Definition mtimecmpDevice
-    := @gen_reg_device
-         (Nat.log2_up 1)
-         [
-           {|
-             gr_addr := $0%word;
-             gr_kind := Bit 64;
-             gr_name := @^"mtimecmp"
-           |}
-         ] "mtimecmp" false.
-
-  Close Scope kami_action.
-  Close Scope kami_expr.
-
-End mmapped.
+  End procParams.
+End mmregs.

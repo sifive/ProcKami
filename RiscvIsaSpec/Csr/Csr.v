@@ -3,18 +3,18 @@ Require Import Vector.
 Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-Require Import ProcKami.GenericPipeline.RegWriter.
-Require Import StdLibKami.RegStruct.
-Require Import StdLibKami.RegMapper.
+
+
+
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-Require Import List.
+
 Import ListNotations.
 
 Section csrs.
-  Context `{procParams: ProcParams}.
+  Context {procParams: ProcParams}.
   Variable ty: Kind -> Type.
 
-  Open Scope kami_expr.
+  Local Open Scope kami_expr.
 
   Definition Csrs
     :  list Csr
@@ -1073,35 +1073,9 @@ Section csrs.
            csrAccess := accessSMode
          |};
          {|
-           csrName := satpCsrName;
-           csrAddr := CsrIdWidth 'h"180";
-           csrViews
-             := [
-                  let fields
-                    := [
-                         @csrFieldAny _ "satp_mode" (Bit 1) (Bit 4) (Some (ConstBit (wzero 4)));
-                         @csrFieldAny _ "satp_asid" (Bit 9) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 22) (Bit 44) None
-                       ] in
-                  {|
-                    csrViewContext := fun ty => $1;
-                    csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
-                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
-                  |};
-                  let fields
-                    := [
-                         @csrFieldAny _ "satp_mode" (Bit 4) (Bit 4) (Some (ConstBit (wzero 4)));
-                         @csrFieldAny _ "satp_asid" (Bit 16) (Bit 16) (Some (ConstBit (wzero 16)));
-                         @csrFieldAny _ "satp_ppn" (Bit 44) (Bit 44) None
-                       ] in
-                  {|
-                    csrViewContext := fun ty => $2;
-                    csrViewFields  := fields;
-                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
-                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
-                  |}
-                ];
+           csrName  := satpCsrName;
+           csrAddr  := CsrIdWidth 'h"180";
+           csrViews := [satpCsrView 32; satpCsrView 64];
            csrAccess
              := fun ty context
                   => context @% "mode" == $MachineMode ||
@@ -1316,6 +1290,6 @@ Section csrs.
          simpleCsr "dpc" (CsrIdWidth 'h"7b1") (width := Xlen) None accessDMode
        ].
 
-  Close Scope kami_expr.
+  Local Close Scope kami_expr.
 
 End csrs.
