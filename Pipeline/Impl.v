@@ -343,7 +343,7 @@ Section Impl.
             LETA _ <- Mem.Ifc.fetcherClear mem _;
             Write @^"pc" <- #realPc;
             Write @^"realPc" <- #realPc;
-            LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+            LETA _ <- @Fifo.Ifc.flush _ decExecFifo _;
             enqVoid );
           Retv)
         else (
@@ -364,7 +364,7 @@ Section Impl.
                 System [DispString _ "Commit Exception: "; DispHex #nextPc; DispString _ "\n"];
                 Write @^"pc" <- #nextPc;
                 Write @^"realPc" <- #nextPc;
-                LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
+                LETA _ <- @Fifo.Ifc.flush _ decExecFifo _;
                 enqVoid );
               Retv )
             else (
