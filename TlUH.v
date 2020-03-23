@@ -7,6 +7,7 @@
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
+Require Import ProcKami.MemOpsFuncs.
 
 Section tluh.
   Context {procParams : ProcParams}.
@@ -14,9 +15,12 @@ Section tluh.
   Local Definition tlOpcodeSz := 3.
   Local Definition TlOpcode := Bit tlOpcodeSz.
 
-  Local Definition tlOpcodeGet := 4.
+  Local Definition tlOpcodeAccessAck := 0.
   Local Definition tlOpcodePutPartialData := 1.
   Local Definition tlOpcodeAccessAckData := 1.
+  Local Definition tlOpcodeArithmeticData := 2.
+  Local Definition tlOpcodeLogicalData := 3.
+  Local Definition tlOpcodeGet := 4.
 
   Local Definition tlParamSz := 3.
   Local Definition TlParam := Bit tlParamSz.
@@ -149,6 +153,25 @@ Section tluh.
                      "data"  ::= (ZeroExtendTruncLsb Rlen (res @% "d_data"))
                    }
            }.
+
+      Definition toAccessAck
+        (res : Bool @# ty)
+        :  ChannelDRes @# ty
+        := STRUCT {
+             "d_opcode"  ::= $tlOpcodeAccessAck;
+             "d_param"   ::= $0;
+             "d_size"    ::= $(Nat.log2_up Rlen_over_8); (* TODO: LLEE: this should contain the size of the associated request. *)
+             "d_source"  ::= $tlMasterId; (* TODO: LLEE: should this be the source of the associated request? If so should this be passed as an arg? *)
+             "d_sink"    ::= $$(getDefaultConst (Bit tlLinkI));
+             "d_denied"  ::= (!res); (* TODO: LLEE *)
+             "d_corrupt" ::= $$false;
+             "d_data"    ::= $$(getDefaultConst (Bit tlDataSz))
+           }.
+
+      Definition fromAccessAck
+        (res : ChannelDRes @# ty)
+        :  Bool @# ty
+        := !(res @% "d_denied").
 
       Local Close Scope kami_expr.
     End ty.  
