@@ -1,9 +1,3 @@
-(*
-  This file defines the TileLink Message Adaptors and the TileLink
-  opcode generator function.
-
-  TODO: LLEE: talk with Murali about uses of pack and unpack - he's trying to phase these out.
-*)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
@@ -12,54 +6,47 @@ Require Import ProcKami.MemOpsFuncs.
 Section tluh.
   Context {procParams : ProcParams}.
 
-  Local Definition tlOpcodeSz := 3.
-  Local Definition TlOpcode := Bit tlOpcodeSz.
+  (* TODO: LLEE: move all constants to FU.v *)
+  Local Definition TlOpcodeSz := 3.
 
-  Local Definition tlOpcodeAccessAck := 0.
-  Local Definition tlOpcodePutPartialData := 1.
-  Local Definition tlOpcodeAccessAckData := 1.
-  Local Definition tlOpcodeArithmeticData := 2.
-  Local Definition tlOpcodeLogicalData := 3.
-  Local Definition tlOpcodeGet := 4.
+  (* TODO: LLEE: remove opcode from the following constants. *)
+  Local Definition TlOpcodeAccessAck := 0.
+  Local Definition TlOpcodePutPartialData := 1.
+  Local Definition TlOpcodeAccessAckData := 1.
+  Local Definition TlOpcodeArithmeticData := 2.
+  Local Definition TlOpcodeLogicalData := 3.
+  Local Definition TlOpcodeGet := 4.
 
-  Local Definition tlParamSz := 3.
-  Local Definition TlParam := Bit tlParamSz.
+  Local Definition TlParamSz := 3.
 
-  Class TlLinkParams := {
-    tlMasterId : nat; (* the "master source identifier" *)
-    tlLinkW : nat; (* Width of the data bus in bytes. Must be a power of two. *)
-    tlLinkA : nat; (* Width of each address *)
-    tlLinkZ : nat; (* Width of each size *)
-    tlLinkO : nat; (* Number of bits needed to disambiguate per-link master sources *)
-    tlLinkI : nat  (* Number of bits needed to disambiguate per-link slave sinks. *)
-  }.
+  Local Definition TlSizeSz := Nat.log2_up Rlen_over_8.
+
+  Local Definition TlFullOpcodeSz := TlOpcodeSz + TlParamSz + TlSizeSz.
+  Local Definition TlFullOpcode := Bit TlFullOpcodeSz.
 
   Section tlLink.
-    Context {tlLinkParams : TlLinkParams}.
+    Context (tagK : Kind).
 
-    Definition tlDataSz := (8 * tlLinkW)%nat.
-    Definition TlData := Bit tlDataSz.
-
+    (* TODO: break the a_opcode_param_size field into three subfields. *)
+    (* TODO: use bit ranges to select for opcode, param, and size field. *)
     Definition ChannelAReq := STRUCT_TYPE {
-      "a_opcode"  :: TlOpcode;
-      "a_param"   :: TlParam;
-      "a_size"    :: Bit tlLinkZ;
-      "a_source"  :: Bit tlLinkO;
-      "a_address" :: Bit tlLinkA;
-      "a_mask"    :: Bit tlLinkW;
+      "a_opcode_param_size" :: TlFullOpcode;
+      "a_source"  :: Bit (size tagK);
+      "a_address" :: PAddr;
+      "a_mask"    :: DataMask;
       "a_corrupt" :: Bool;
-      "a_data"    :: TlData
+      "a_data"    :: Data
     }.
 
+    (* TODO: break the d_opcode_param_size field into three subfields. *)
+    (* Note: opcode is always Ack, param is always 0, and size is always the encoding of Rlen. *)
     Definition ChannelDRes := STRUCT_TYPE {
-      "d_opcode"  :: TlOpcode;
-      "d_param"   :: TlParam;
-      "d_size"    :: Bit tlLinkZ;
-      "d_source"  :: Bit tlLinkO;
-      "d_sink"    :: Bit tlLinkI;
+      "d_opcode_param_size" :: TlFullOpcode;
+      "d_source"  :: Bit (size tagK);
+      "d_sink"    :: Void;
       "d_denied"  :: Bool;
       "d_corrupt" :: Bool;
-      "d_data"    :: TlData
+      "d_data"    :: Data
     }.
 
     Section ty.
@@ -67,111 +54,127 @@ Section tluh.
 
       Local Open Scope kami_expr.
 
-      Definition toGet
-        (lgSz : nat)
-        (addr : Bit lgSz @# ty)
+      Local Definition memOpNameToOpcode (name : MemOpName) : nat
+        := match name with
+           | Lb  => TlOpcodeGet
+           | Lh  => TlOpcodeGet
+           | Lw  => TlOpcodeGet
+           | Lbu => TlOpcodeGet
+           | Lhu => TlOpcodeGet
+           | Lwu => TlOpcodeGet
+           | Ld  => TlOpcodeGet
+           | Sb  => TlOpcodePutPartialData
+           | _ => 0 
+           end.
+
+      (* TODO: LLEE: double check this table. *)
+      Local Definition memOpNameToParam (name : MemOpName) : nat
+        := match name with
+           | AmoAddW  => 4
+           | AmoMinW  => 0
+           | AmoMaxW  => 1
+           | AmoMinuW => 2
+           | AmoMaxuW => 3
+           | AmoMinD  => 0
+           | AmoMaxD  => 1
+           | AmoMinuD => 0
+           | AmoMaxuD => 1
+           | AmoSwapW => 3
+           | AmoXorW  => 0
+           | AmoAndW  => 2
+           | AmoOrW   => 1
+           | AmoSwapD => 3
+           | AmoXorD  => 0
+           | AmoAndD  => 2
+           | AmoOrD   => 1
+           | _ => 0
+           end.
+
+      (*
+        TODO: change memOpCode to N in MemOps and test before pushing
+        this file. Make the memOpCode change a separate PR. *)
+      Local Definition toMemOpCodeNat (name : MemOpName) (sz : nat) : N
+        := (N_of_nat (memOpNameToOpcode name)) * (N.pow 2 (N_of_nat (TlParamSz + TlSizeSz))) +
+           (N_of_nat (memOpNameToParam  name)) * (N.pow 2 (N_of_nat TlSizeSz)) +
+           (N_of_nat sz).
+
+      (*
+        TODO: determine if TileLink uses the mask as a bytle level
+        data mask and determine if this information is redundant
+        w.r.t the size and address params. *)
+      (* TODO: find pre-existing function that Murali wrote. *)
+      (* TODO: this function needs the address as well. If the address is 64 bit aligned shift the mask by 0, if 32 bit aligned shift so that the second half of the data word. Shift by 4.  *)
+      (* TODO: Move this an aux functions to MemOps.v *)
+(*
+  mask out the bits that your skipping over when writing into the 64 bit word.
+
+Switch () With {
+  64 := no shift
+  32 and not 64 := shift mask left by 4 bits
+  16 and not above := shift mask left by 6 bits or by 2 bits depending on whether or not the next bit is 0.
+  8 and not above := shift mask by 1 bit based on the next two bits.
+}
+*)
+      Local Definition memOpCodeToMask
+        (code : MemOpCode @# ty)
+        :  DataMask @# ty
+        := (utila_find_pkt
+             (map
+               (fun sz : nat
+                 => STRUCT {
+                      "valid" ::= ($sz == ZeroExtendTruncLsb TlSizeSz code);
+                      "data"  ::= getMask sz ty
+                    } : Maybe DataMask @# ty)
+               (seq 0 (Nat.pow 2 TlSizeSz)))) @% "data".
+
+      Definition fromKamiReq
+        (req : Device.Req tagK @# ty)
         :  ChannelAReq @# ty
         := STRUCT {
-             "a_opcode"  ::= $tlOpcodeGet;
-             "a_param"   ::= $0; (* reserved *)
-             "a_size"    ::= $lgSz;
-             "a_source"  ::= $tlMasterId;
-             "a_address" ::= SignExtendTruncLsb tlLinkA addr;
-             "a_mask"    ::= $$(wones tlLinkW); (* TODO: LLEE *)
-             "a_corrupt" ::= $$false; (* reserved. *)
-             "a_data"    ::= $$(getDefaultConst TlData)
-           }.
-
-      Definition fromGet
-        (lgMemSz : nat)
-        (req : ChannelAReq @# ty)
-        :  Bit lgMemSz @# ty
-        := ZeroExtendTruncLsb lgMemSz (req @% "a_address").
-
-      Definition toPutPartialData
-        (lgIdxNum : nat)
-        (num : nat)
-        (Data : Kind)
-        (req : WriteRqMask lgIdxNum num Data @# ty)
-        :  ChannelAReq @# ty
-        := STRUCT {
-             "a_opcode"  ::= $tlOpcodePutPartialData;
-             "a_param"   ::= $0; (* reserved *)
-             "a_size"    ::= $(Nat.log2_up num); (* TODO: LLEE *)
-             "a_source"  ::= $tlMasterId;
-             "a_address" ::= SignExtendTruncLsb tlLinkA (req @% "addr");
-             "a_mask"    ::= ZeroExtendTruncLsb tlLinkW (pack (req @% "mask")); (* TODO: LLEE *)
+             "a_opcode_param_size" ::= ZeroExtendTruncLsb TlFullOpcodeSz (req @% "memOp");
+             "a_source"  ::= pack (req @% "tag");
+             "a_address" ::= (req @% "offset");
+             "a_mask"    ::= memOpCodeToMask (req @% "memOp");
              "a_corrupt" ::= $$false;
-             "a_data"    ::= ZeroExtendTruncLsb tlDataSz (pack (req @% "data"))
+             "a_data"    ::= req @% "data"
            }.
 
-      Definition fromPutPartialData
-        (lgIdxNum : nat)
-        (num : nat)
-        (Data : Kind)
+      Definition toKamiReq
         (req : ChannelAReq @# ty)
-        :  WriteRqMask lgIdxNum num Data @# ty
+        :  Device.Req tagK @# ty
         := STRUCT {
-             "addr" ::= SignExtendTruncLsb lgIdxNum (req @% "a_address");
-             "data"
-               ::= unpack (Array num Data)
-                     (ZeroExtendTruncLsb
-                       (size (Array num Data)) 
-                       (req @% "a_data"));
-             "mask"
-               ::= unpack (Array num Bool)
-                     (ZeroExtendTruncLsb
-                       (size (Array num Bool))
-                       (req @% "a_mask"))
+             "tag"    ::= unpack tagK (req @% "a_source");
+             "memOp"  ::= ZeroExtendTruncLsb MemOpCodeSz (req @% "a_opcode_param_size");
+             "offset" ::= req @% "a_address";
+             "data"   ::= req @% "a_data"
            }.
 
-      Definition toAccessAckData
-        (tagK : Kind)
+      (* TODO: LLEE: size must equal Rlen. *)
+      (* TODO: LLEE: d_denied and d_corrupt will always indicate message is fine. Murali is getting rid of the valid bit in the Device.Res. *)
+      Definition fromKamiRes
         (res : Device.Res tagK @# ty)
         :  ChannelDRes @# ty
         := STRUCT {
-             "d_opcode"  ::= $tlOpcodeAccessAckData;
-             "d_param"   ::= $0;
-             "d_size"    ::= $(Nat.log2_up Rlen_over_8);
-             "d_source"  ::= ZeroExtendTruncLsb tlLinkO (pack (res @% "tag")); (* TODO: LLEE: should this be tlMasterId or the res tag? *)
-             "d_sink"    ::= $$(getDefaultConst (Bit tlLinkI));
-             "d_denied"  ::= (!(res @% "res" @% "valid")); (* TODO: LLEE *)
-             "d_corrupt" ::= $$false;
-             "d_data"    ::= ZeroExtendTruncLsb tlDataSz (res @% "res" @% "data")
+             "d_opcode_param_size" ::= $TlOpcodeAccessAckData;
+             "d_source"  ::= pack (res @% "tag");
+             "d_sink"    ::= $$(getDefaultConst Void);
+             "d_denied"  ::= !(res @% "res" @% "valid");
+             "d_corrupt" ::= !(res @% "res" @% "valid");
+             "d_data"    ::= res @% "res" @% "data"
            }.
 
-      Definition fromAccessAckData
-        (tagK : Kind)
-        (tag : tagK @# ty)
+      (* TODO: LLEE: change valid to true. d_denied and d_corrupt will always indicate message is fine. Murali is getting rid of the valid bit in the Device.Res. *)
+      Definition toKamiRes
         (res : ChannelDRes @# ty)
         :  Device.Res tagK @# ty
         := STRUCT {
-             "tag" ::= tag; (* TODO: LLEE: should this be the d_source field? *)
-             "res"  (* TODO: LLEE: Murali doesn't want nested structs. Convert to let expressions? Talk to Murali first. *)
+             "tag" ::= unpack tagK (res @% "d_source");
+             "res"
                ::= STRUCT {
-                     "valid" ::= (!(res @% "d_denied")); (* TODO: LLEE *)
-                     "data"  ::= (ZeroExtendTruncLsb Rlen (res @% "d_data"))
+                     "valid" ::= $$true;
+                     "data"  ::= res @% "d_data"
                    }
            }.
-
-      Definition toAccessAck
-        (res : Bool @# ty)
-        :  ChannelDRes @# ty
-        := STRUCT {
-             "d_opcode"  ::= $tlOpcodeAccessAck;
-             "d_param"   ::= $0;
-             "d_size"    ::= $(Nat.log2_up Rlen_over_8); (* TODO: LLEE: this should contain the size of the associated request. *)
-             "d_source"  ::= $tlMasterId; (* TODO: LLEE: should this be the source of the associated request? If so should this be passed as an arg? *)
-             "d_sink"    ::= $$(getDefaultConst (Bit tlLinkI));
-             "d_denied"  ::= (!res); (* TODO: LLEE *)
-             "d_corrupt" ::= $$false;
-             "d_data"    ::= $$(getDefaultConst (Bit tlDataSz))
-           }.
-
-      Definition fromAccessAck
-        (res : ChannelDRes @# ty)
-        :  Bool @# ty
-        := !(res @% "d_denied").
 
       Local Close Scope kami_expr.
     End ty.  
