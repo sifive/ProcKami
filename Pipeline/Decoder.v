@@ -69,7 +69,7 @@ Section decoder.
     :  MemOpCode ## ty
     := applyMemInst
          memOps
-         (fun _ _ _ memOp => RetE $(memOpCode memOp))
+         (fun _ _ _ memOp => RetE $(N.to_nat (memOpCode memOp)))
          (decoderPkt @% "funcUnitTag")
          (decoderPkt @% "instTag").
 

@@ -34,7 +34,7 @@ Section memOpsFuncs.
 
   Record MemOp := {
     memOpName : MemOpName;
-    memOpCode : nat;
+    memOpCode : N;
     memOpSize : nat;
     memOpRegValue : MemRegValue;
     memOpWriteValue : MemWriteValue
@@ -65,7 +65,7 @@ Section memOpsFuncs.
       Definition getMemOpCode
         :  MemOpName -> MemOpCode @# ty
         := applyMemOpByName
-             (fun memOp => $(memOpCode memOp) : MemOpCode @# ty)
+             (fun memOp => $(N.to_nat (memOpCode memOp)) : MemOpCode @# ty)
              $0.
 
       Local Open Scope kami_action.
@@ -80,7 +80,7 @@ Section memOpsFuncs.
              <- utila_acts_find_pkt
                   (map
                     (fun memOp
-                      => If code == $(memOpCode memOp)
+                      => If code == $(N.to_nat (memOpCode memOp))
                            then
                              LETA result : k <- f memOp;
                              Ret (Valid #result : Maybe k @# ty)
