@@ -9,6 +9,9 @@ Require Import ProcKami.Devices.MMappedRegs.
 Require Import ProcKami.Devices.PMem.
 Require Import ProcKami.Devices.Uart.
 
+Require Import StdLibKami.RegArray.Ifc.
+Require Import StdLibKami.RegArray.Impl.
+
 Require Import ProcKami.FU.
 
 Require Import ProcKami.Pipeline.Mem.Ifc.
@@ -88,46 +91,51 @@ Section Params.
                 DispString _ "==================================================\n"
               ];
               Retv
-       }.
+         }.
 
-  Definition intRegFile
-    :  RegFileBase
-    := @Build_RegFileBase
-         false
-         1
-         (@^"int_data_reg")
-         (Async [(@^"read_reg_1"); (@^"read_reg_2")])
-         (@^"regWrite")
-         32
-         (Bit Xlen)
-         (RFNonFile _ None).
+  Definition intRegArray := @RegArray.Impl.impl
+                              {| name := @^"intRegs";
+                                 k := Bit Xlen;
+                                 size := Nat.pow 2 RegIdWidth;
+                                 init := None
+                              |}.
+  
+  Definition floatRegArray := @RegArray.Impl.impl
+                                {| name := @^"flatRegs";
+                                   k := Bit Flen;
+                                   size := Nat.pow 2 RegIdWidth;
+                                   init := None
+                                |}.
+  
+  Definition intRegFile :=
+    (MODULE {
+         Registers (RegArray.Ifc.regs intRegArray) with
+         Method @^"regRead1"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
+         Method @^"regRead2"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
+         Method @^"regWrite"(req: WriteRq RegIdWidth (Bit Xlen)): Void :=
+           RegArray.Ifc.write intRegArray _ req
+      })%kami.
 
-  Definition floatRegFile
-    :  RegFileBase
-    := @Build_RegFileBase 
-         false
-         1
-         (@^"float_reg_file")
-         (Async [(@^"read_freg_1"); (@^"read_freg_2"); (@^"read_freg_3")])
-         (@^"fregWrite")
-         32
-         (Bit Flen)
-         (RFNonFile _ None).
+  Definition floatRegFile :=
+    (MODULE {
+         Registers (RegArray.Ifc.regs floatRegArray) with
+         Method @^"fregRead1"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregRead2"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregRead3"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregWrite"(req: WriteRq RegIdWidth (Bit Flen)): Void :=
+           RegArray.Ifc.write floatRegArray _ req
+      })%kami.
 
   Definition processor
     :  Mod 
     := let md
-         := fold_right
-              ConcatMod
-              processorCore
-              (map
-                (fun m => Base (BaseRegFile m)) 
-                ([   
-                   intRegFile;
-                   floatRegFile
-                 ] ++
-                 (@Pipeline.Ifc.regFiles pipeline) ++
-                 (concat (map (fun dev => @Device.regFiles procParams dev) (@devices procParams deviceTree))))) in
+           := fold_right
+                ConcatMod
+                (ConcatMod processorCore (ConcatMod intRegFile floatRegFile))
+                (map
+                   (fun m => Base (BaseRegFile m)) 
+                   ((@Pipeline.Ifc.regFiles pipeline)
+                      ++ (concat (map (fun dev => @Device.regFiles procParams dev) (@devices procParams deviceTree))))) in
        (createHideMod md (map fst (getAllMethods md))).
 
   Local Close Scope kami_expr.
