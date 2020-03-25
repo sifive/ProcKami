@@ -169,7 +169,6 @@ Section exts.
     := {| FU.procName := name ;
           FU.Xlen_over_8 := Xlen_over_8;
           FU.Flen_over_8 := Flen_over_8;
-          FU.MemOpCodeSz := 6;
           FU.pcInit := (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)));
           FU.supported_xlens := supported_xlens;
           FU.supported_exts := supported_exts;
@@ -180,9 +179,6 @@ Section exts.
           FU.debug_impebreak := debug_impebreak;
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true |}.
-
-  Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
-  Proof. cbv; reflexivity. Qed.
 
   Section ty.
     Variable ty : Kind -> Type.

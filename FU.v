@@ -166,7 +166,6 @@ Class ProcParams :=
   { procName : string ;
     Xlen_over_8: nat ;
     Flen_over_8: nat ;
-    MemOpCodeSz: nat ;
     pcInit: word (Xlen_over_8 * 8) ;
     supported_xlens: list nat;
     supported_exts: list SupportedExt;
@@ -239,7 +238,26 @@ Section ParamDefinitions.
   Definition VmAccessLoad := 1.
   Definition VmAccessSAmo := 2.
 
-  Definition MemOpCode := Bit MemOpCodeSz.
+  Definition TlOpcodeSz := 3.
+  Definition TlOpcode := Bit TlOpcodeSz.
+
+  Definition TlAccessAck := 0.
+  Definition TlPutPartialData := 1.
+  Definition TlAccessAckData := 1.
+  Definition TlArithmeticData := 2.
+  Definition TlLogicalData := 3.
+  Definition TlGet := 4.
+
+  Definition TlParamSz := 3.
+  Definition TlParam := Bit TlParamSz.
+
+  Definition TlSizeSz := Nat.log2_up Rlen_over_8.
+  Definition TlSize := Bit TlSizeSz.
+
+  Definition TlFullSz := TlOpcodeSz + TlParamSz + TlSizeSz.
+  Definition TlFull := Bit TlFullSz.
+
+  Definition MemOpCode := TlFull.
 
   Definition initXlen
     := ConstBit
