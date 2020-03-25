@@ -7,6 +7,7 @@
 Require Import Kami.All Kami.Compiler.Compiler Kami.Compiler.Rtl Kami.Compiler.UnverifiedIncompleteCompiler.
 Require Import ProcKami.FU.
 Require Import ProcKami.Pipeline.ProcessorCore.
+Require Import ProcKami.MemOps.
 Require Import List.
 Import ListNotations.
 Require Import ProcKami.ModelParams.
@@ -53,11 +54,33 @@ Definition model (xlens : list nat) : Mod
        debug_buffer_sz
        debug_impebreak.
 
+Definition modelParams (xlens : list nat) : ProcParams
+  := modelProcParams
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access 
+       (_ 'h"1000")
+       debug_buffer_sz
+       debug_impebreak.
+
 Definition xlens32 := [Xlen32].
 Definition xlens64 := [Xlen32; Xlen64].
 
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
+
+Definition model32Params := modelParams xlens32.
+Definition model64Params := modelParams xlens64.
+
+(* verify that the 32 bit model is compatible with TileLink. *)
+Goal Nat.log2_up (length (@memOps model32Params)) <= (@TlFullSz model32Params).
+Proof. cbv; lia. Qed.
+
+(* verify that the 64 bit model is compatible with TileLink. *)
+Goal Nat.log2_up (length (@memOps model64Params)) <= (@TlFullSz model64Params).
+Proof. cbv; lia. Qed.
 
 (** vm_compute should take ~40s *)
 
@@ -73,21 +96,10 @@ Proof.
   reflexivity.
 Qed.
 
-Definition procParams (xlens : list nat) : ProcParams
-  := ModelParams.procParams
-       xlens
-       supportedExts
-       allow_misaligned
-       allow_inst_misaligned
-       misaligned_access
-       (_ 'h"1000")
-       debug_buffer_sz
-       debug_impebreak.
-
 Definition meths (xlens : list nat) := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
   ("proc_core_readUART", (UartRead, Data));
-  ("proc_core_writeUART", (@UartWrite (procParams xlens), Bit 0))
+  ("proc_core_writeUART", (@UartWrite (modelParams xlens), Bit 0))
 ].
 
 Axiom cheat : forall {X},X.
