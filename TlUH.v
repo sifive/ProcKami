@@ -38,13 +38,44 @@ Section tluh.
 
       Local Open Scope kami_expr.
 
+      (*
+        TODO: determine if TileLink uses the mask as a bytle level
+        data mask and determine if this information is redundant
+        w.r.t the size and address params. *)
+      Local Definition memOpCodeToMaskAux
+        (sz : TlSize @# ty)
+        :  Bit (size DataMask) @# ty
+        := pack
+             ((utila_find_pkt
+               (map
+                 (fun n : nat
+                   => STRUCT {
+                        "valid" ::= (sz == $n);
+                        "data"  ::= getMask n ty
+                      } : Maybe DataMask @# ty)
+                 (seq 0 (Nat.pow 2 TlSizeSz)))) @% "data").
+
+      Local Definition memOpCodeToMask
+        (code : MemOpCode @# ty)
+        (address : PAddr @# ty)
+        :  Bit (size DataMask) @# ty
+        := let size := ZeroExtendTruncLsb TlSizeSz code in
+           let which : Bit 3 @# ty := (ZeroExtendTruncLsb 3 address) >> size in
+           ((memOpCodeToMaskAux size) << which).
+
       Definition fromKamiReq
         (req : Device.Req tagK @# ty)
         :  ChannelAReq @# ty
         := STRUCT {
-             "a_opcode"  ::= ZeroExtendTruncMsb TlOpcodeSz (ZeroExtendTruncLsb TlFullSz (req @% "memOp"));
-             "a_param"   ::= ZeroExtendTruncMsb TlParamSz (ZeroExtendTruncLsb (TlParamSz + TlSizeSz) (req @% "memOp"));
-             "a_size"    ::= ZeroExtendTruncLsb TlSizeSz (req @% "memOp");
+             "a_opcode"  ::= UniBit (TruncMsb _ TlOpcodeSz) (req @% "memOp");
+             "a_param"
+               ::= UniBit (TruncMsb (0 + TlSizeSz) TlParamSz)
+                     (UniBit (TruncLsb (0 + TlSizeSz + TlParamSz) TlOpcodeSz)
+                       (req @% "memOp"));
+             "a_size"
+               ::= UniBit (TruncLsb (0 + TlSizeSz) TlParamSz)
+                     (UniBit (TruncLsb (0 + TlSizeSz + TlParamSz) TlOpcodeSz)
+                       (req @% "memOp"));
              "a_source"  ::= pack (req @% "tag");
              "a_address" ::= (req @% "offset");
              "a_mask"    ::= memOpCodeToMask (req @% "memOp") (req @% "offset");
@@ -58,7 +89,7 @@ Section tluh.
         := STRUCT {
              "tag"    ::= unpack tagK (req @% "a_source");
              "memOp"
-               ::= ZeroExtendTruncLsb TlFullSz
+               ::= 
                      ({< req @% "a_opcode", req @% "a_param", req @% "a_size" >});
              "offset" ::= req @% "a_address";
              "data"   ::= req @% "a_data"

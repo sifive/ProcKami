@@ -254,10 +254,9 @@ Section ParamDefinitions.
   Definition TlSizeSz := Nat.log2_up Rlen_over_8.
   Definition TlSize := Bit TlSizeSz.
 
-  Definition TlFullSz := TlOpcodeSz + TlParamSz + TlSizeSz.
-  Definition TlFull := Bit TlFullSz.
+  Definition TlFullSz := 0 + TlSizeSz + TlParamSz + TlOpcodeSz.
 
-  Definition MemOpCode := TlFull.
+  Definition MemOpCode := Bit TlFullSz.
 
   Definition initXlen
     := ConstBit

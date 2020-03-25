@@ -338,41 +338,10 @@ Section memops.
        | _ => 0
        end.
 
-  Definition toMemOpCodeNat (name : MemOpName) (sz : nat) : N
+  Local Definition toMemOpCodeNat (name : MemOpName) (sz : nat) : N
     := (N_of_nat (memOpNameToOpcode name)) * (N.pow 2 (N_of_nat (TlParamSz + TlSizeSz))) +
        (N_of_nat (memOpNameToParam  name)) * (N.pow 2 (N_of_nat TlSizeSz)) +
        (N_of_nat sz).
-
-  Section ty.
-    Variable ty : Kind -> Type.
-
-    (*
-      TODO: determine if TileLink uses the mask as a bytle level
-      data mask and determine if this information is redundant
-      w.r.t the size and address params. *)
-    (* TODO: find pre-existing function that Murali wrote. *)
-    (* TODO: Move this an aux functions to MemOps.v *)
-    Local Definition memOpCodeToMaskAux
-      (sz : TlSize @# ty)
-      :  Bit (size DataMask) @# ty
-      := pack
-           ((utila_find_pkt
-             (map
-               (fun n : nat
-                 => STRUCT {
-                      "valid" ::= (sz == $n);
-                      "data"  ::= getMask n ty
-                    } : Maybe DataMask @# ty)
-               (seq 0 (Nat.pow 2 TlSizeSz)))) @% "data").
-
-    Definition memOpCodeToMask
-      (code : MemOpCode @# ty)
-      (address : PAddr @# ty)
-      :  Bit (size DataMask) @# ty
-      := let size := ZeroExtendTruncLsb TlSizeSz code in
-         let which : Bit 3 @# ty := (ZeroExtendTruncLsb 3 address) >> size in
-         ((memOpCodeToMaskAux size) << which).
-  End ty.
 
   Local Close Scope kami_expr.
 End memops.
