@@ -277,18 +277,45 @@ Section memops.
 
   Local Definition memOpNameToOpcode (name : MemOpName) : nat
     := match name with
-       | Lb  => TlGet
-       | Lh  => TlGet
-       | Lw  => TlGet
-       | Lbu => TlGet
-       | Lhu => TlGet
-       | Lwu => TlGet
-       | Ld  => TlGet
-       | Sb  => TlPutPartialData
-       | _ => 0 
+       | Lb       => TlGet
+       | Lh       => TlGet
+       | Lw       => TlGet
+       | Lbu      => TlGet
+       | Lhu      => TlGet
+       | Lwu      => TlGet
+       | Ld       => TlGet
+       | Sb       => TlPutPartialData
+       | Sh       => TlPutPartialData
+       | Sw       => TlPutPartialData
+       | Sd       => TlPutPartialData
+       | Flw      => TlGet
+       | Fld      => TlGet
+       | Fsw      => TlPutPartialData
+       | Fsd      => TlPutPartialData
+       | AmoSwapW => TlLogicalData
+       | AmoAddW  => TlArithmeticData
+       | AmoXorW  => TlLogicalData
+       | AmoAndW  => TlLogicalData
+       | AmoOrW   => TlLogicalData
+       | AmoMinW  => TlArithmeticData
+       | AmoMaxW  => TlArithmeticData
+       | AmoMinuW => TlArithmeticData
+       | AmoMaxuW => TlArithmeticData
+       | AmoSwapD => TlLogicalData
+       | AmoAddD  => TlArithmeticData
+       | AmoXorD  => TlLogicalData
+       | AmoAndD  => TlLogicalData
+       | AmoOrD   => TlLogicalData
+       | AmoMinD  => TlArithmeticData
+       | AmoMaxD  => TlArithmeticData
+       | AmoMinuD => TlArithmeticData
+       | AmoMaxuD => TlArithmeticData
+       | LrW      => TlGet
+       | ScW      => TlPutPartialData
+       | LrD      => TlGet
+       | ScD      => TlPutPartialData
        end.
 
-  (* TODO: LLEE: double check this table. *)
   Local Definition memOpNameToParam (name : MemOpName) : nat
     := match name with
        | AmoAddW  => 4
@@ -298,8 +325,8 @@ Section memops.
        | AmoMaxuW => 3
        | AmoMinD  => 0
        | AmoMaxD  => 1
-       | AmoMinuD => 0
-       | AmoMaxuD => 1
+       | AmoMinuD => 2
+       | AmoMaxuD => 3
        | AmoSwapW => 3
        | AmoXorW  => 0
        | AmoAndW  => 2
