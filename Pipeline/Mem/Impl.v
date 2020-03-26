@@ -82,7 +82,7 @@ Section Impl.
       CompletionBuffer.Ifc.outReqK   := PAddrDevOffset deviceTree;
       CompletionBuffer.Ifc.storeReqK := PktWithException FU.VAddr;
       CompletionBuffer.Ifc.immResK   := Void;
-      CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
+      CompletionBuffer.Ifc.resK      := FU.Inst;
       CompletionBuffer.Ifc.inReqToOutReq
       := fun ty req
          => (STRUCT {
@@ -120,7 +120,7 @@ Section Impl.
                                    |}).
 
   Local Definition arbiterClients
-    :  list (Client (Maybe Data)) :=
+    :  list (Client Data) :=
   [
     {| clientTagSz := memUnitTagLgSize |};
     {| clientTagSz := 0 |};
@@ -202,11 +202,11 @@ Section Impl.
     LETA res <- arbiterGetResps (Fin.FS (Fin.FS Fin.F1)) _;
     If #res @% "valid"
     then (
-      LET inst: Maybe FU.Inst <- Valid (ZeroExtendTruncLsb FU.InstSz (#res @% "data" @% "res" @% "data"));
+      LET inst: FU.Inst <- ZeroExtendTruncLsb FU.InstSz (#res @% "data" @% "res");
       LET fullRes <- STRUCT { "tag" ::= castBits _ (#res @% "data" @% "tag");
                               "res" ::= #inst };
       CompletionBuffer.Ifc.callback completionBuffer fullRes );
-         Retv).
+    Retv).
   abstract (simpl; rewrite Natlog2_up_pow2; auto).
   Defined.
          
@@ -228,12 +228,8 @@ Section Impl.
          LET fetcherResp: (@Fetcher.Ifc.InRes fetcherParams) <-
                           STRUCT { "vaddr" ::= #resp @% "storeReq" @% "fst" ;
                                    "immRes" ::= #resp @% "immRes" ;
-                                   "error" ::=
-                                     (IF #resp @% "storeReq" @% "snd" @% "valid"
-                                      then #resp @% "storeReq" @% "snd"
-                                      else STRUCT { "valid" ::= !(#resp @% "res" @% "valid") ;
-                                                    "data"  ::= ($InstAccessFault : Exception @# ty) } );
-                                   "inst" ::= #resp @% "res" @% "data" };
+                                   "error" ::= #resp @% "storeReq" @% "snd" ;
+                                   "inst" ::= #resp @% "res" };
       @Fetcher.Ifc.callback _ fetcher _ fetcherResp) ty.
 
   Definition impl

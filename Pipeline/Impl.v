@@ -328,24 +328,17 @@ Section Impl.
                                               "tag" ::= (IF #optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
                                                          then $FloatRegTag
                                                          else $IntRegTag);
-                                              "data"  ::= #res @% "res" @% "data"
+                                              "data"  ::= #res @% "res"
                                             };
                 LET finalUpd <- (IF #hasLoad
                                  then #optCommit @% "data" @% "execUpd" @%[ "val1" <- Valid #loadWb]
                                  else #optCommit @% "data" @% "execUpd");
-                LET finalException <- (IF #hasLoad
-                                       then 
-                                         STRUCT { "valid" ::= !(#res @% "res" @% "valid");
-                                                  "data" ::= (IF #optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isSAmo"
-                                                              then ($VmAccessSAmo: Exception @# ty)
-                                                              else $VmAccessLoad) }
-                                       else #optCommit @% "data" @% "exception");
 
                 If (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
                 then Mem.Ifc.mmuFlush mem _;
                 If (#optCommit @% "data" @% "execUpd" @% "fence.i")
                 then Mem.Ifc.fetcherClear mem _;
-                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") #finalUpd #finalException;
+                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") #finalUpd (#optCommit @% "data" @% "exception");
                 System [DispString _ "Commit Normal: "; DispHex #nextPc; DispString _ "\n"];
                 Write @^"pc" <- #nextPc;
                 Write @^"realPc" <- #nextPc;

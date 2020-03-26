@@ -90,29 +90,6 @@ Section Impl.
            LETC result
              :  Bit PAddrSz
              <- (SignExtendTruncLsb PAddrSz (lsb #width vaddr));
-           (* SystemE [
-             DispString _ "[getVAddrRest] satp_mode: ";
-             DispHex satp_mode;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] level: ";
-             DispHex index;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] vaddr: ";
-             DispHex vaddr;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] vpn_field_size: ";
-             DispHex #vpn_field_size;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] num_vpn_fields: ";
-             DispHex #num_vpn_fields;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] width: ";
-             DispHex #width;
-             DispString _ "\n";
-             DispString _ "[getVAddrRest] result: ";
-             DispHex #result;
-             DispString _ "\n"
-           ]; *)
            RetE #result.
    
       Local Definition ppnToPAddr sz (x: Bit sz @# ty)
@@ -141,32 +118,6 @@ Section Impl.
              <- satp_select satp_mode
                   (fun mode
                     => #vpn_field << wordOfShiftAmt (vm_mode_shift_num mode));
-           (* SystemE [
-             DispString _ "[getVpnOffset] satp_mode: ";
-             DispHex satp_mode;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] level: ";
-             DispHex level;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] vpn: ";
-             DispHex vpn;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] vpn_field_size: ";
-             DispHex #vpn_field_size;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] num_vpn_fields: ";
-             DispHex #num_vpn_fields;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] vpn_width: ";
-             DispHex #vpn_width;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] vpn_field: ";
-             DispHex #vpn_field;
-             DispString _ "\n";
-             DispString _ "[getVpnOffset] result: ";
-             DispHex #result;
-             DispString _ "\n"
-           ]; *)
            RetE #result.
   
       Local Definition isLeaf (pte : PteEntry @# ty) : Bool ## ty
@@ -285,29 +236,6 @@ Section Impl.
                   "fst" ::= ((!#validEntry) || #leaf) ;
                   "snd" ::= #retVal
                 };
-           (* SystemE [
-             DispString _ "[translatePte] satp_mode: ";
-             DispHex satp_mode;
-             DispString _ "\n";
-             DispString _ "[translatePte] access_type: ";
-             DispHex access_type;
-             DispString _ "\n";
-             DispString _ "[translatePte] level: ";
-             DispHex level;
-             DispString _ "\n";
-             DispString _ "[translatePte] pte: ";
-             DispHex pte;
-             DispString _ "\n";
-             DispString _ "[translatePte] vaddr: ";
-             DispHex vaddr;
-             DispString _ "\n";
-             DispString _ "[translatePte] validEntry: ";
-             DispHex #validEntry;
-             DispString _ "\n";
-             DispString _ "[translatePte] finalVal: ";
-             DispHex #finalVal;
-             DispString _ "\n"
-           ]; *)
            RetE #finalVal.
           
       Local Definition tlbEntryVAddrPAddr
@@ -321,20 +249,6 @@ Section Impl.
                   vaddr;
            LETC result : PAddr
              <- (ppnToPAddr (entry @% "pte" @% "pointer")) + #offset;
-           (* SystemE [
-             DispString _ "[tlbEntryVAddrPAddr] entry: ";
-             DispHex entry;
-             DispString _ "\n";
-             DispString _ "[tlbEntryVAddrPAddr] vaddr: ";
-             DispHex vaddr;
-             DispString _ "\n";
-             DispString _ "[tlbEntryVAddrPAddr] offset: ";
-             DispHex #offset;
-             DispString _ "\n";
-             DispString _ "[tlbEntryVAddrPAddr] result: ";
-             DispHex #result;
-             DispString _ "\n"
-           ]; *)
            RetE #result.
       
       (*
@@ -396,7 +310,7 @@ Section Impl.
          ++ (RegisterU ^"context" : TlbContext)
          ++ (Register ^"level" : PtLevel <- Default)
          ++ (Register ^"busy" : Bool <- ConstBool false)
-         ++ (Register ^"sendReq" : Bool <- ConstBool false)
+         ++ (Register ^"waitRes" : Bool <- ConstBool false)
          ++ (RegisterU ^"paddr" : PAddr)
          ++ (Register ^"exception" : Maybe Exception <- Default)
          ++ (RegisterU ^"exceptionVpn": Vpn )))%kami.
@@ -424,7 +338,7 @@ Section Impl.
          :  Bool
          <- vpnMatch vaddr #exceptionVpn;
        System [
-         DispString _ ("[" ++ prefix ++ "] exception vpn: ");
+         DispString _ ("[" ++ prefix ++ "] exceptionVpn: ");
          DispHex #exceptionVpn;
          DispString _ "\n";
          DispString _ ("[" ++ prefix ++ "] exception: ");
@@ -446,124 +360,62 @@ Section Impl.
     (satp_ppn: SatpPpn @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe TlbEntry)
-    := System [
-(*
-         DispString _ "[getTlbEntry] satp_mode: ";
-         DispHex satp_mode;
-         DispString _ "\n";
-         DispString _ "[getTlbEntry] mode: ";
-         DispHex mode;
-         DispString _ "\n";
-         DispString _ "[getTlbEntry] satp_ppn: ";
-         DispHex satp_ppn;
-         DispString _ "\n";
-*)
-         DispString _ "[getTlbEntry] vaddr: ";
-         DispHex vaddr;
-         DispString _ "\n"
-       ];
-       LET tag : (Bit (VpnWidth lgPageSz))
-         <- ZeroExtendTruncMsb (VpnWidth lgPageSz) (ZeroExtendTruncLsb (VpnWidth lgPageSz + lgPageSz) vaddr);
-       LETA mentry : Maybe TlbEntry
-         <- @Cam.Ifc.read _ cam _ #tag satp_mode;
+    := LET vpn <- ZeroExtendTruncMsb VpnWidthK vaddr;
+       LETA mentry : Maybe TlbEntry <- @Cam.Ifc.read _ cam _ #vpn satp_mode;
        Read busy : Bool <- ^"busy";
        System [
-         DispString _ "[getTlbEntry] cached mentry: ";
+         DispString _ "[getTlbEntry] vaddr: ";
+         DispHex vaddr;
+         DispString _ " tlbEntry: ";
          DispHex #mentry;
-         DispString _ "\n";
-         DispString _ "[getTlbEntry] busy: ";
+         DispString _ " busy: ";
          DispHex #busy;
          DispString _ "\n"
        ];
-       Read exception
-         :  Maybe Exception
-         <- ^"exception";
+       Read exception : Maybe Exception <- ^"exception";
        If !(#mentry @% "valid") && !#busy && !(#exception @% "valid")
          then 
-           LETA vpnOffset
-             :  Bit (VpnWidth lgPageSz)
-             <- convertLetExprSyntax_ActionT
-                  (getVpnOffset lgPageSz satp_mode $0
-                    (ZeroExtendTruncMsb (VpnWidth lgPageSz) vaddr));
-           LET pte_addr
-             :  PAddr
-             <- (ppnToPAddr lgPageSz satp_ppn) +
-                (SignExtendTruncLsb PAddrSz #vpnOffset);
-           LET context
-             :  TlbContext
-             <- STRUCT {
-                  "access_type" ::= access_type;
-                  "satp_mode" ::= satp_mode;
-                  "mode" ::= mode
-                } : TlbContext @# ty;
+           LETA vpnOffset <- convertLetExprSyntax_ActionT
+                               (getVpnOffset lgPageSz satp_mode $0 (ZeroExtendTruncMsb VpnWidthK vaddr));
+           LET pte_addr <- (ppnToPAddr lgPageSz satp_ppn) + (SignExtendTruncLsb PAddrSz #vpnOffset);
+           LET context : TlbContext <- STRUCT {
+                                           "access_type" ::= access_type;
+                                           "satp_mode" ::= satp_mode;
+                                           "mode" ::= mode
+                                         };
            System [
-(*
-             DispString _ "[getTlbEntry] context: ";
-             DispHex #context;
-             DispString _ "\n";
-*)
-             DispString _ "[getTlbEntry] marking the TLB as busy\n"
-(*
-             DispString _ "[getTlbEntry] level: ";
-             @DispHex _ PtLevel ($(tlbMaxPageLevels - 2));
-             DispString _ "\n";
-             DispString _ "[getTlbEntry] vpnOffset: ";
-             DispHex #vpnOffset;
-             DispString _ "\n";
-             DispString _ "[getTlbEntry] pte_addr: ";
-             DispHex #pte_addr;
-             DispString _ "\n" *)
+             DispString _ "[getTlbEntry] TLB walk started\n"
            ];
            Write ^"vaddr" : VAddr <- vaddr;
            Write ^"busy" : Bool <- $$true;
            Write ^"level" : PtLevel <- $(tlbMaxPageLevels - 2);
            Write ^"context" : TlbContext <- #context;
            Write ^"paddr" : PAddr <- #pte_addr;
-           Write ^"sendReq" : Bool <- $$true;
+           Write ^"waitRes" : Bool <- $$true;
            Retv;
        LETA _ <- dispException "getTlbEntry" vaddr;
        Ret #mentry.
 
-  (*
-    wrap in a rule.
-
-    Accepts one argument: memSendReq, a function that sends a
-    read request to the Arbiter and returns an arbiter response;
-    and sends a pending TLB memory read request to the Arbiter.
-  *)
   Local Definition sendReqRule
-    (memSendReq
-      : forall ty, ty (@MemReq _ deviceTree) ->
-        ActionT ty Bool) ty
+        (memSendReq : forall ty, ty (@MemReq _ deviceTree) -> ActionT ty Bool)
+        ty
     : ActionT ty Void
-    := System [
-         DispString _ "[tlb.sendReq]\n"
-       ];
-       Read isSendReq : Bool <- ^"sendReq";
+    := Read isSendReq : Bool <- ^"waitRes";
        If #isSendReq
          then
-           System [
-             DispString _ "[tlb.sendReq]\n"
-           ];
            Read paddr : PAddr <- ^"paddr";
-           System [
-             DispString _ "[tlb.sendReq] paddr: ";
-             DispHex #paddr;
-             DispString _ "\n"
-           ];
            Read tlbContext : TlbContext <- ^"context";
+         System [ DispString _ "[tlb.sendReq] paddr: "; DispHex #paddr; DispString _ " context: ";
+                DispHex #tlbContext; DispString _ "\n" ];
+         
            LET satpMode: Bit SatpModeWidth <- satp_select (#tlbContext @% "satp_mode") (fun satpMode => $$(vm_mode_mode satpMode));
            LET memOp <- (IF #satpMode == $SatpModeSv32
                          then (getMemOpCode memOps _ Lw)
                          else (getMemOpCode memOps _ Ld));
-           LETA dTagOffsetPmaPmpError
-             :  Pair (Maybe (PmaPmp.DTagOffset deviceTree)) MemErrorPkt
-             <- @getDTagOffsetPmaPmpError _ deviceTree _
-                  (#tlbContext @% "access_type") #memOp (#tlbContext @% "mode") #paddr;
+           LETA dTagOffsetPmaPmpError <- getDTagOffsetPmaPmpError deviceTree (#tlbContext @% "access_type") #memOp
+                                                                  (#tlbContext @% "mode") #paddr;
            Read context : TlbContext <- ^"context";
            Read vaddr : VAddr <- ^"vaddr";
-           Read oldException : Maybe Exception <- ^"exception";
-           Read exceptionVpn : Vpn <- ^"exceptionVpn";
            LET newException
              :  Maybe Exception
              <- STRUCT {
@@ -571,21 +423,7 @@ Section Impl.
                   "data"  ::= (IF #dTagOffsetPmaPmpError @% "snd" @% "misaligned"
                                then misalignedException (#context @% "access_type")
                                else accessException (#context @% "access_type")) };
-           LETA _ <- dispException "sendReqRule" #vaddr;
-           System [
-             DispString _ "[tlb.sendReq] dTagOffsetPmaPmpError: ";
-             DispHex #dTagOffsetPmaPmpError;
-             DispString _ "\n";
-             DispString _ "[tlb.sendReq] oldException (device access fault): ";
-             DispHex #oldException;
-             DispString _ "\n";
-             DispString _ "[tlb.sendReq] oldExceptionVpn (device access fault): ";
-             DispHex #exceptionVpn;
-             DispString _ "\n";
-             DispString _ "[tlb.sendReq] newException (pma/pmp): ";
-             DispHex #newException;
-             DispString _ "\n"
-           ];
+           System [DispString _ "Tlb exception: "; DispHex #newException; DispString _ "\n"];
            If !(#newException @% "valid")
            then (
              LET finalReq <- STRUCT { "dtag" ::= #dTagOffsetPmaPmpError @% "fst" @% "data" @% "dtag" ;
@@ -595,98 +433,54 @@ Section Impl.
                                       "data" ::= $0
                                     };
              LETA accepted <- memSendReq ty finalReq;
-             System [
-               DispString _ "[tlb.sendReq] accepted: ";
-               DispHex #accepted;
-               DispString _ "\n"
-             ];
-             Write ^"sendReq" : Bool <- !#accepted;
+             System [DispString _ "[tlb.sendReq] accepted: "; DispHex #accepted; DispString _ "\n"];
+             Write ^"waitRes" : Bool <- !#accepted;
              Retv )
            else (
-             System [
-               DispString _ "[tlb.sendReq] pma pmp access exception detected. Not sending request.\n"
-             ];
-             Write ^"busy" : Bool <- $$ false;
+             Write ^"exception": Maybe Exception <- #newException;
+             Write ^"exceptionVpn": Vpn <- ZeroExtendTruncMsb VpnWidthK #vaddr;
+             Write ^"waitRes": Bool <- $$false;
+             Write ^"busy" : Bool <- $$false;
              Retv );
          Retv;
        Retv.
 
   (* method called by mem when response is ready. *)
   Local Definition callback ty
-    (resp : ty (Maybe FU.Data))
+    (resp : ty FU.Data)
     :  ActionT ty Void
-    := System [
-         DispString _ "[tlbHandleMemRes]\n"
-       ];
-       Read busy : Bool <- ^"busy";
-       Read level: PtLevel <- ^"level";
+    := Read level: PtLevel <- ^"level";
        Read vaddr : VAddr <- ^"vaddr";
        Read context : TlbContext <- ^"context";
-       LET pte
-         : PteEntry
-         <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) (#resp @% "data"));
-       LET index
-         :  PtLevel
-         <- $(tlbMaxPageLevels - 1) - #level;
-       LETA trans_result
-         :  Pair Bool (PktWithException PAddr)
-         <- convertLetExprSyntax_ActionT
-              (translatePte lgPageSz
-                (#context @% "satp_mode")
-                (#context @% "access_type")
-                #index
-                #vaddr
-                #pte);
-       LET vpn_field_size
-         :  Bit (Nat.log2_up maxVpnSz)
-         <- satp_select (#context @% "satp_mode") (fun mode => $(vm_mode_vpn_size mode));
-       LET num_vpn_fields
-         :  PtLevel
-         <- satp_select (#context @% "satp_mode") (fun mode => $(length (vm_mode_sizes mode)));
-       LET num_spanned_vpn_fields
-         :  PtLevel
-         <- $((tlbMaxPageLevels - 1)%nat) - #level;
-       LET vpn_fields_size
-         :  Bit (Nat.log2_up (VpnWidth lgPageSz))
-         <- (ZeroExtendTruncLsb (Nat.log2_up (VpnWidth lgPageSz)) #num_vpn_fields) *
-            (ZeroExtendTruncLsb (Nat.log2_up (VpnWidth lgPageSz)) #vpn_field_size);
-       LET vpn_spanned_fields_size
-         :  Bit (Nat.log2_up (VpnWidth lgPageSz))
-         <- (ZeroExtendTruncLsb (Nat.log2_up (VpnWidth lgPageSz)) #num_spanned_vpn_fields) *
-            (ZeroExtendTruncLsb (Nat.log2_up (VpnWidth lgPageSz)) #vpn_field_size);
-       LET vpn_value
-         <- slice
-              ($lgPageSz : Bit (Nat.log2_up lgPageSz) @# ty)
-              #vpn_spanned_fields_size
-              #vaddr;
-       LET entry
-         :  TlbEntry
-         <- STRUCT {
-              "pte" ::= #pte;
-              "level" ::= #level
-            } : TlbEntry @# ty;
-       LET vpn <- (ZeroExtendTruncMsb (VpnWidth lgPageSz) (ZeroExtendTruncLsb (VpnWidth lgPageSz + lgPageSz) #vaddr));
-       LET result
-         :  PktWithException TlbEntry
-         <- STRUCT {
-              "fst" ::= #entry;
-              "snd" ::= #trans_result @% "snd" @% "snd"
-            } : PktWithException TlbEntry @# ty;
+       LET pte <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) #resp);
+       LET index <- $(tlbMaxPageLevels - 1) - #level;
+       LETA trans_result<- convertLetExprSyntax_ActionT (translatePte lgPageSz
+                                                                      (#context @% "satp_mode")
+                                                                      (#context @% "access_type")
+                                                                      #index
+                                                                      #vaddr
+                                                                      #pte);
+       LET vpn_field_size : Bit (Nat.log2_up maxVpnSz) <-
+                            satp_select (#context @% "satp_mode") (fun mode => $(vm_mode_vpn_size mode));
+       LET num_vpn_fields : PtLevel <- satp_select (#context @% "satp_mode") (fun mode => $(length (vm_mode_sizes mode)));
+       LET vpn_fields_size <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidthK) #num_vpn_fields) * (ZeroExtendTruncLsb _ #vpn_field_size);
+       LET vpn_spanned_fields_size <- (ZeroExtendTruncLsb (Nat.log2_up VpnWidthK) #index) * (ZeroExtendTruncLsb _ #vpn_field_size);
+       LET vpn_value <- slice ($lgPageSz : Bit (Nat.log2_up lgPageSz) @# ty) #vpn_spanned_fields_size #vaddr;
+       LET entry : TlbEntry <- STRUCT { "pte" ::= #pte;
+                                        "level" ::= #level };
+       LET vpn : Vpn <- ZeroExtendTruncMsb VpnWidthK #vaddr;
+       LET exception :  Maybe Exception <- #trans_result @% "snd" @% "snd";
+       LET result :  PktWithException TlbEntry <- STRUCT { "fst" ::= #entry;
+                                                           "snd" ::= #exception };
        LET done <- #trans_result @% "fst";
-       LET exception
-         :  Maybe Exception
-         <- (IF #resp @% "valid"
-             then #trans_result @% "snd" @% "snd"
-             else Valid (accessException (#context @% "access_type")));
        If (#done && !(#exception @% "valid"))
-         then
-           @Cam.Ifc.write _ cam _ #vpn #entry;
-       Write ^"exceptionVpn" : Vpn <- ZeroExtendTruncMsb VpnWidthK #vaddr;
+       then @Cam.Ifc.write _ cam _ #vpn #entry;
+       Write ^"exceptionVpn" : Vpn <- #vpn;
        Write ^"exception": Maybe Exception <- #exception;  
        Write ^"level" : PtLevel <- #level - $1;
        Write ^"paddr" : PAddr <- #trans_result @% "snd" @% "fst";
-       Write ^"sendReq" : Bool <- !#done && !(#exception @% "valid");
-       Write ^"busy" : Bool <- !#done && !(#exception @% "valid");
+       Write ^"waitRes" : Bool <- !(#done || (#exception @% "valid"));
+       Write ^"busy" : Bool <- !(#done || (#exception @% "valid"));
        Retv.
 
   (*
@@ -711,35 +505,14 @@ Section Impl.
     (memOp: MemOpCode @# ty)
     (vaddr : VAddr @# ty)
     :  ActionT ty (Maybe (PktWithException PAddr))
-    := System [
-         DispString _ "[getPAddr] vaddr: ";
-         DispHex vaddr;
-         DispString _ "\n"
-       ];
-       LETA mentry
-         :  Maybe TlbEntry
-              <- getTlbEntry
-                   accessType
-                   (context @% "satp_mode")
-                   (context @% "mode")
-                   (context @% "satp_ppn")
-                   vaddr;
-       System [
-         DispString _ "[getPAddr] mentry: ";
-         DispHex #mentry;
-         DispString _ "\n"
-       ];
-       LETA paddr : PAddr <-
-           convertLetExprSyntax_ActionT
-             (tlbEntryVAddrPAddr lgPageSz
-               (context @% "satp_mode")
-               (#mentry @% "data")
-               vaddr);
-       System [
-         DispString _ "[getPAddr] paddr: ";
-         DispHex #mentry;
-         DispString _ "\n"
-       ];
+    := LETA mentry :  Maybe TlbEntry <- getTlbEntry
+                                          accessType
+                                          (context @% "satp_mode")
+                                          (context @% "mode")
+                                          (context @% "satp_ppn")
+                                          vaddr;
+       LETA paddr <- convertLetExprSyntax_ActionT (tlbEntryVAddrPAddr lgPageSz (context @% "satp_mode") (#mentry @% "data") vaddr);
+       System [ DispString _ "[getPAddr] mentry: "; DispHex #mentry; DispString _ "\n" ];
        (* exceptions about pte grants and access/dirty *)
        LET newException: Maybe Exception
          <- STRUCT { "valid" ::=
@@ -750,42 +523,21 @@ Section Impl.
                            accessType
                            (#mentry @% "data" @% "pte") && isLeafValid accessType (#mentry @% "data" @% "pte"));
                      "data" ::= faultException accessType };
-       System [
-         DispString _ "[getPAddr] newException: ";
-         DispHex #newException;
-         DispString _ "\n"
-       ];
+       System [ DispString _ "[getPAddr] newException: "; DispHex #newException; DispString _ "\n"];
        Read exceptionVpn: Vpn <- ^"exceptionVpn";
        (* exceptions about access faults *)
-       Read oldException: Maybe Exception <- ^"exception";
-       System [
-         DispString _ "[getPAddr] old exception vpn: ";
-         DispHex #exceptionVpn;
-         DispString _ "\n";
-         DispString _ "[getPAddr] oldException: ";
-         DispHex #oldException;
-         DispString _ "\n"
-       ];
-       LET isVpnMatch <- vpnMatch vaddr #exceptionVpn;  
        LETA _ <- dispException "getPAddr" vaddr;
+       Read oldException: Maybe Exception <- ^"exception";
+       LET isVpnMatch <- vpnMatch vaddr #exceptionVpn;  
        LET finalException <- getException vaddr #exceptionVpn #oldException #newException;
-       System [
-         DispString _ "[getPAddr] finalException: ";
-         DispHex #finalException;
-         DispString _ "\n"
-       ];
-       LET retval: PktWithException PAddr
-                   <- STRUCT { "fst" ::= #paddr ;
-                               "snd" ::= #finalException };
+       System [ DispString _ "[getPAddr] finalException: "; DispHex #finalException; DispString _ "\n"];
+       LET retval: PktWithException PAddr <- STRUCT { "fst" ::= #paddr ;
+                                                      "snd" ::= #finalException };
        Write ^"exception" <- (IF #isVpnMatch then Invalid else #oldException);
        LET result: Maybe (PktWithException PAddr)
          <- ((STRUCT { "valid" ::= (#mentry @% "valid" || (#isVpnMatch && #oldException @% "valid")) ;
                        "data" ::= #retval }): Maybe (PktWithException PAddr) @# ty);
-       System [
-         DispString _ "[getPAddr] result: ";
-         DispHex #result;
-         DispString _ "\n"
-       ];
+       System [ DispString _ "[getPAddr] result: "; DispHex #result; DispString _ "\n"];
        Ret #result.
 
   Local Definition memTranslate ty
@@ -794,22 +546,16 @@ Section Impl.
       (memOp: MemOpCode @# ty)
       (vaddr : FU.VAddr @# ty)
       :  ActionT ty (Maybe (PktWithException (PAddrDevOffset deviceTree)))
-      := System [
-           DispString _ "[memTranslate] context: ";
-           DispHex context;
-           DispString _ "\n";
-           DispString _ "[memTranslate] vaddr: ";
-           DispHex vaddr;
-           DispString _ "\n"
-         ];
-         LET effective_mode : FU.PrivMode
+      := LET effective_mode : FU.PrivMode
            <- IF accessType != $VmAccessInst && context @% "mprv"
                 then context @% "mpp" else context @% "mode";
          System [
-           DispString _ "[memTranslate] TLB : ";
+           DispString _ "[memTranslate] : ";
+           DispHex vaddr; DispString _ " ";
            DispHex accessType; DispString _ " "; DispHex (context @% "mprv"); DispString _ " ";
            DispHex (context @% "mpp"); DispString _ " "; DispHex (context @% "mode"); DispString _ "\n"
          ];
+         LETA _ <- dispException "memTranslate" vaddr;
          If #effective_mode != $MachineMode && (context @% "satp_mode") != $SatpModeBare
            then
              System [DispString _ "[memTranslate] TLB YES\n"];
@@ -842,7 +588,6 @@ Section Impl.
                      STRUCT {"valid" ::= #paddrException @% "valid" ;
                              "data" ::= STRUCT { "fst" ::= #memReq ;
                                                  "snd" ::= #finalException } };
-         LETA _ <- dispException "memTranslate" vaddr;
          System [
            DispString _ "[memTranslate] result: ";
            DispHex #result;

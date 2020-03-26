@@ -48,7 +48,7 @@ Section DeviceIfc.
   Local Definition Res tagK
     := STRUCT_TYPE {
          "tag" :: tagK;
-         "res" :: Maybe Data (* Error *)
+         "res" :: Data
        }.
 
   Record Device
@@ -180,8 +180,7 @@ Section DeviceIfc.
              LETA regData : Data <- regValue (#req @% "memOp") (#memData @% "data");
              Write ^"busy": Bool <- $$ false;
              LET result : (Res tagK) <- STRUCT { "tag" ::= #req @% "tag";
-                                                 "res" ::= STRUCT {"valid" ::= #memData @% "valid";
-                                                                   "data" ::= #regData} };
+                                                 "res" ::= #regData };
              Ret #result
            else
              Ret $$(getDefaultConst (Res tagK)) as res;

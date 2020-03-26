@@ -110,7 +110,7 @@ Section tluh.
              "d_sink"    ::= $$(getDefaultConst Void);
              "d_denied"  ::= $$false;
              "d_corrupt" ::= $$false;
-             "d_data"    ::= res @% "res" @% "data"
+             "d_data"    ::= res @% "res"
            }.
 
       (*
@@ -122,11 +122,7 @@ Section tluh.
         :  Device.Res tagK @# ty
         := STRUCT {
              "tag" ::= unpack tagK (res @% "d_source");
-             "res"
-               ::= STRUCT {
-                     "valid" ::= $$true;
-                     "data"  ::= res @% "d_data"
-                   }
+             "res" ::= res @% "d_data"
            }.
 
       Local Close Scope kami_expr.

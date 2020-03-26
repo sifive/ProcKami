@@ -40,7 +40,7 @@ Section Ifc.
   
   Definition MemResp := STRUCT_TYPE {
                             "tag" :: Bit memUnitTagLgSize;
-                            "res" :: Maybe Data
+                            "res" :: Data
                           }.
 
   Definition MemUnitMemReq := STRUCT_TYPE {
