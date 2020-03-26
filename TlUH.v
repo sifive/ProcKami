@@ -38,22 +38,11 @@ Section tluh.
 
       Local Open Scope kami_expr.
 
-      Local Definition memOpCodeToMaskAux
-        (sz : TlSize @# ty)
-        :  Bit (size DataMask) @# ty
-        := ($1 << (($1 : Bit (S (Nat.log2_up Rlen_over_8)) @# ty) << sz)) - $1.
-
-      Local Definition memOpCodeShiftAmt
-        (sz : TlSize @# ty)
-        (address : PAddr @# ty)
-        :  Bit 3 @# ty
-        := ((ZeroExtendTruncLsb 3 address) >> sz) << sz.
-
       Local Definition memOpCodeToMask
         (sz : TlSize @# ty)
         (address : PAddr @# ty)
         :  Bit (size DataMask) @# ty
-        := memOpCodeToMaskAux sz << (memOpCodeShiftAmt sz address).
+        := getMaskExpr sz << (getMaskShiftAmt sz address).
 
       Definition fromKamiReq
         (req : Device.Req tagK @# ty)
@@ -138,7 +127,7 @@ Section test.
           FU.hasVirtualMem := true |}.
 
   Definition testMask (sz : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeToMaskAux (Const type (natToWord (TlSizeSz) sz)))))).
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord (TlSizeSz) sz)))))).
 
   Compute (testMask 3).
   Compute (testMask 2).
@@ -146,7 +135,7 @@ Section test.
   Compute (testMask 0).
 
   Definition shiftAmt (sz addr : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
 
   Compute (shiftAmt 3 0).
   Compute (shiftAmt 2 0).
