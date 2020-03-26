@@ -38,47 +38,40 @@ Section tluh.
 
       Local Open Scope kami_expr.
 
-      (*
-        TODO: determine if TileLink uses the mask as a bytle level
-        data mask and determine if this information is redundant
-        w.r.t the size and address params. *)
       Local Definition memOpCodeToMaskAux
         (sz : TlSize @# ty)
         :  Bit (size DataMask) @# ty
-        := pack
-             ((utila_find_pkt
-               (map
-                 (fun n : nat
-                   => STRUCT {
-                        "valid" ::= (sz == $n);
-                        "data"  ::= getMask n ty
-                      } : Maybe DataMask @# ty)
-                 (seq 0 (Nat.pow 2 TlSizeSz)))) @% "data").
+        := ($1 << (($1 : Bit (S (Nat.log2_up Rlen_over_8)) @# ty) << sz)) - $1.
+
+      Local Definition memOpCodeShiftAmt
+        (sz : TlSize @# ty)
+        (address : PAddr @# ty)
+        :  Bit 3 @# ty
+        := ((ZeroExtendTruncLsb 3 address) >> sz) << sz.
 
       Local Definition memOpCodeToMask
-        (code : MemOpCode @# ty)
+        (sz : TlSize @# ty)
         (address : PAddr @# ty)
         :  Bit (size DataMask) @# ty
-        := let size := ZeroExtendTruncLsb TlSizeSz code in
-           let which : Bit 3 @# ty := (ZeroExtendTruncLsb 3 address) >> size in
-           ((memOpCodeToMaskAux size) << which).
+        := memOpCodeToMaskAux sz << (memOpCodeShiftAmt sz address).
 
       Definition fromKamiReq
         (req : Device.Req tagK @# ty)
         :  ChannelAReq @# ty
-        := STRUCT {
+        := let sz : TlSize @# ty
+             := UniBit (TruncLsb (0 + TlSizeSz) TlParamSz)
+                  (UniBit (TruncLsb (0 + TlSizeSz + TlParamSz) TlOpcodeSz)
+                    (req @% "memOp")) in
+           STRUCT {
              "a_opcode"  ::= UniBit (TruncMsb _ TlOpcodeSz) (req @% "memOp");
              "a_param"
                ::= UniBit (TruncMsb (0 + TlSizeSz) TlParamSz)
                      (UniBit (TruncLsb (0 + TlSizeSz + TlParamSz) TlOpcodeSz)
                        (req @% "memOp"));
-             "a_size"
-               ::= UniBit (TruncLsb (0 + TlSizeSz) TlParamSz)
-                     (UniBit (TruncLsb (0 + TlSizeSz + TlParamSz) TlOpcodeSz)
-                       (req @% "memOp"));
+             "a_size"    ::= sz;
              "a_source"  ::= pack (req @% "tag");
              "a_address" ::= (req @% "offset");
-             "a_mask"    ::= memOpCodeToMask (req @% "memOp") (req @% "offset");
+             "a_mask"    ::= memOpCodeToMask sz (req @% "offset");
              "a_corrupt" ::= $$false;
              "a_data"    ::= req @% "data"
            }.
@@ -88,9 +81,7 @@ Section tluh.
         :  Device.Req tagK @# ty
         := STRUCT {
              "tag"    ::= unpack tagK (req @% "a_source");
-             "memOp"
-               ::= 
-                     ({< req @% "a_opcode", req @% "a_param", req @% "a_size" >});
+             "memOp"  ::= ({< req @% "a_opcode", req @% "a_param", req @% "a_size" >});
              "offset" ::= req @% "a_address";
              "data"   ::= req @% "a_data"
            }.
@@ -129,3 +120,67 @@ Section tluh.
     End ty.  
   End tlLink.
 End tluh.
+
+Section test.
+  Instance testParams : ProcParams
+    := {| FU.procName := "blah" ;
+          FU.Xlen_over_8 := 8;
+          FU.Flen_over_8 := 8;
+          FU.pcInit := ($0)%word;
+          FU.supported_xlens := [];
+          FU.supported_exts := [];
+          FU.allow_misaligned := false;
+          FU.allow_inst_misaligned := false;
+          FU.misaligned_access := false;
+          FU.debug_buffer_sz := 0;
+          FU.debug_impebreak := false;
+          FU.lgGranularity := 3;
+          FU.hasVirtualMem := true |}.
+
+  Definition testMask (sz : nat) : string
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeToMaskAux (Const type (natToWord (TlSizeSz) sz)))))).
+
+  Compute (testMask 3).
+  Compute (testMask 2).
+  Compute (testMask 1).
+  Compute (testMask 0).
+
+  Definition shiftAmt (sz addr : nat) : string
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+
+  Compute (shiftAmt 3 0).
+  Compute (shiftAmt 2 0).
+  Compute (shiftAmt 2 4).
+  Compute (shiftAmt 1 0).
+  Compute (shiftAmt 1 2).
+  Compute (shiftAmt 1 4).
+  Compute (shiftAmt 1 6).
+  Compute (shiftAmt 0 0).
+  Compute (shiftAmt 0 1).
+  Compute (shiftAmt 0 2).
+  Compute (shiftAmt 0 3).
+  Compute (shiftAmt 0 4).
+  Compute (shiftAmt 0 5).
+  Compute (shiftAmt 0 6).
+  Compute (shiftAmt 0 7).
+
+  Definition mask (sz addr : nat) : string
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeToMask (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+
+  Compute (mask 3 0).
+  Compute (mask 2 0).
+  Compute (mask 2 4).
+  Compute (mask 1 0).
+  Compute (mask 1 2).
+  Compute (mask 1 4).
+  Compute (mask 1 6).
+  Compute (mask 0 0).
+  Compute (mask 0 1).
+  Compute (mask 0 2).
+  Compute (mask 0 3).
+  Compute (mask 0 4).
+  Compute (mask 0 5).
+  Compute (mask 0 6).
+  Compute (mask 0 7).
+
+End test.
