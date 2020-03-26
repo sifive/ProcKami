@@ -45,12 +45,12 @@ Section memOpsFuncs.
     := unpack DataMask
          ($(Nat.pow 2 (Nat.pow 2 size) - 1)).
 
-  Definition getMaskExpr
+  Definition getMaskExpr ty
     (sz : TlSize @# ty)
     :  Bit (size DataMask) @# ty
     := ($1 << (($1 : Bit (S (Nat.log2_up Rlen_over_8)) @# ty) << sz)) - $1.
 
-  Definition getMaskShiftAmt
+  Definition getMaskShiftAmt ty
     (sz : TlSize @# ty)
     (address : PAddr @# ty)
     :  Bit 3 @# ty
