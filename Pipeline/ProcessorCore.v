@@ -4,10 +4,7 @@ Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.Debug.DebugDevice.
 
 Require Import ProcKami.Device.
-Require Import ProcKami.Devices.BootRom.
-Require Import ProcKami.Devices.MMappedRegs.
-Require Import ProcKami.Devices.PMem.
-Require Import ProcKami.Devices.Uart.
+Require Import ProcKami.DeviceMod.
 
 Require Import StdLibKami.RegArray.Ifc.
 Require Import StdLibKami.RegArray.Impl.
@@ -35,8 +32,6 @@ Section Params.
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
-  Definition Tag := @ArbiterTag _ deviceTree memParams.
-  
   Definition processorCore 
     :  BaseModule
     := MODULE {
@@ -47,8 +42,6 @@ Section Params.
          Registers (@debug_internal_regs procParams) with
          Registers (@Pipeline.Ifc.regs pipeline) with
 
-         Registers (concat (map (fun dev => @Device.regs procParams dev Tag) (@devices procParams deviceTree))) with
-
          Rule @^"tokenStart"
            := Pipeline.Ifc.tokenStartRule pipeline with
 
@@ -58,8 +51,14 @@ Section Params.
          Rule @^"mmuSendReq"
            := Pipeline.Ifc.mmuSendReqRule pipeline with
 
-         Rule @^"responseToFetcher"
-           := Pipeline.Ifc.responseToFetcherRule pipeline with
+         Rule @^"mmuRes"
+           := Pipeline.Ifc.mmuResRule pipeline with
+
+         Rule @^"completionBufferFetcherComplete"
+           := Pipeline.Ifc.completionBufferFetcherCompleteRule pipeline with
+
+         Rule @^"completionBufferFetcherRes"
+           := Pipeline.Ifc.completionBufferFetcherResRule pipeline with
 
          Rule @^"fetcherTransfer"
            := Pipeline.Ifc.fetcherTransferRule pipeline with
@@ -75,13 +74,6 @@ Section Params.
 
          Rule @^"trapInterrupt"
            := Pipeline.Ifc.trapInterruptRule pipeline with
-
-         map
-           (fun ruleAction : nat * (forall ty, ActionT ty Void)
-             => MERule
-                  (@^("routerPoll" ++ nat_decimal_string (fst ruleAction)),
-                   (fun ty => (snd ruleAction) ty)))
-           (tag (Pipeline.Ifc.routerPollRules pipeline)) with
 
          Rule @^"arbiterReset"
            := Pipeline.Ifc.arbiterResetRule pipeline with
@@ -126,17 +118,11 @@ Section Params.
            RegArray.Ifc.write floatRegArray _ req
       })%kami.
 
-  Definition processor
-    :  Mod 
-    := let md
-           := fold_right
-                ConcatMod
-                (ConcatMod processorCore (ConcatMod intRegFile floatRegFile))
-                (map
-                   (fun m => Base (BaseRegFile m)) 
-                   ((@Pipeline.Ifc.regFiles pipeline)
-                      ++ (concat (map (fun dev => @Device.regFiles procParams dev) (@devices procParams deviceTree))))) in
-       (createHideMod md (map fst (getAllMethods md))).
+  Definition processorPipeline := ConcatMod processorCore (ConcatMod intRegFile floatRegFile).
+
+  Definition processor := let md := ConcatMod processorPipeline (deviceMod deviceTree (Pipeline.Ifc.ArbiterTag pipeline)) in
+                          (createHideMod md (map fst (getAllMethods md))).
+
 
   Local Close Scope kami_expr.
   Local Close Scope kami_action.

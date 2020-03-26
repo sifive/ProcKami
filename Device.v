@@ -9,8 +9,6 @@ Require Import ProcKami.MemRegion.
 
 Require Import StdLibKami.Router.Ifc.
 
-Import ListNotations.
-
 Section DeviceIfc.
   Context {procParams : ProcParams}.
 

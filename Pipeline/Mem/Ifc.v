@@ -85,7 +85,8 @@ Section Ifc.
          fetcherTransferRule : forall ty : Kind -> Type, ActionT ty Void;
 
          (* CompletionBuffer stuff *)
-         responseToFetcherRule: forall ty, ActionT ty Void;
+         completionBufferFetcherCompleteRule: forall ty, ActionT ty Void;
+         completionBufferFetcherResRule: forall ty, ActionT ty Void;
 
          (* MMU stuff *)
          memTranslate ty
@@ -99,15 +100,18 @@ Section Ifc.
          mmuClearException : forall ty, ActionT ty Void;
 
          mmuSendReqRule : forall ty, ActionT ty Void;
+         mmuResRule: forall ty, ActionT ty Void;
+
          mmuFlush : forall ty, ActionT ty Void;
 
          (* MemUnit stuff *)
          sendMemUnitMemReq : forall ty, ty MemUnitMemReq -> ActionT ty Bool;
+         hasMemUnitMemRes : forall ty, ActionT ty Bool;
+         getMemUnitMemRes : forall ty, ActionT ty (Maybe MemResp);
 
          (* Arbiter regs and rules *)
          arbiterResetRule: forall ty, ActionT ty Void;
 
-         (* Router regs and rules *)
-         routerPollRules : list (forall {ty}, ActionT ty Void);
+         Tag : Kind;
        }.
 End Ifc.
