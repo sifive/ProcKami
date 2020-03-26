@@ -134,42 +134,42 @@ Section test.
   Goal (testMask 1 = "3"). reflexivity. Qed.
   Goal (testMask 0 = "1"). reflexivity. Qed.
 
-  Definition shiftAmt (sz addr : nat)
-    := (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+  Definition shiftAmt (sz : nat) (addr : PAddr @# type)
+    := (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) addr)))).
 
-  Compute (shiftAmt 3 0).
-  Compute (shiftAmt 2 0).
-  Compute (shiftAmt 2 4).
-  Compute (shiftAmt 1 0).
-  Compute (shiftAmt 1 2).
-  Compute (shiftAmt 1 4).
-  Compute (shiftAmt 1 6).
-  Compute (shiftAmt 0 0).
-  Compute (shiftAmt 0 1).
-  Compute (shiftAmt 0 2).
-  Compute (shiftAmt 0 3).
-  Compute (shiftAmt 0 4).
-  Compute (shiftAmt 0 5).
-  Compute (shiftAmt 0 6).
-  Compute (shiftAmt 0 7).
+  Goal (shiftAmt 3 (Const type ($0%word)) = 0). reflexivity. Qed.
+  Goal (shiftAmt 2 (Const type ($0%word)) = 0). reflexivity. Qed.
+  Goal (shiftAmt 2 (Const type ($4%word)) = 4). reflexivity. Qed.
+  Goal (shiftAmt 1 (Const type ($0%word)) = 0). reflexivity. Qed.
+  Goal (shiftAmt 1 (Const type ($2%word)) = 2). reflexivity. Qed.
+  Goal (shiftAmt 1 (Const type ($4%word)) = 4). reflexivity. Qed.
+  Goal (shiftAmt 1 (Const type ($6%word)) = 6). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($0%word)) = 0). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($1%word)) = 1). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($2%word)) = 2). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($3%word)) = 3). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($4%word)) = 4). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($5%word)) = 5). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($6%word)) = 6). reflexivity. Qed.
+  Goal (shiftAmt 0 (Const type ($7%word)) = 7). reflexivity. Qed.
 
-  Definition mask (sz addr : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (memOpCodeToMask (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+  Definition mask (sz : nat) (addr : PAddr @# type) : N
+    := Z.to_N (wordVal _ (evalExpr (memOpCodeToMask (Const type (natToWord TlSizeSz sz)) addr))).
 
-  Compute (mask 3 0).
-  Compute (mask 2 0).
-  Compute (mask 2 4).
-  Compute (mask 1 0).
-  Compute (mask 1 2).
-  Compute (mask 1 4).
-  Compute (mask 1 6).
-  Compute (mask 0 0).
-  Compute (mask 0 1).
-  Compute (mask 0 2).
-  Compute (mask 0 3).
-  Compute (mask 0 4).
-  Compute (mask 0 5).
-  Compute (mask 0 6).
-  Compute (mask 0 7).
+  Goal (mask 3 (Const type ($0%word)) = hex"FF"). reflexivity. Qed.
+  Goal (mask 2 (Const type ($0%word)) = hex"F").  reflexivity. Qed.
+  Goal (mask 2 (Const type ($4%word)) = hex"F0"). reflexivity. Qed.
+  Goal (mask 1 (Const type ($0%word)) = hex"3").  reflexivity. Qed.
+  Goal (mask 1 (Const type ($2%word)) = hex"C").  reflexivity. Qed.
+  Goal (mask 1 (Const type ($4%word)) = hex"30"). reflexivity. Qed.
+  Goal (mask 1 (Const type ($6%word)) = hex"C0"). reflexivity. Qed.
+  Goal (mask 0 (Const type ($0%word)) = hex"1").  reflexivity. Qed.
+  Goal (mask 0 (Const type ($1%word)) = hex"2").  reflexivity. Qed.
+  Goal (mask 0 (Const type ($2%word)) = hex"4").  reflexivity. Qed.
+  Goal (mask 0 (Const type ($3%word)) = hex"8").  reflexivity. Qed.
+  Goal (mask 0 (Const type ($4%word)) = hex"10"). reflexivity. Qed.
+  Goal (mask 0 (Const type ($5%word)) = hex"20"). reflexivity. Qed.
+  Goal (mask 0 (Const type ($6%word)) = hex"40"). reflexivity. Qed.
+  Goal (mask 0 (Const type ($7%word)) = hex"80"). reflexivity. Qed.
 
 End test.
