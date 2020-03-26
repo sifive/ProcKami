@@ -45,6 +45,17 @@ Section memOpsFuncs.
     := unpack DataMask
          ($(Nat.pow 2 (Nat.pow 2 size) - 1)).
 
+  Definition getMaskExpr ty n
+    (sz : Bit n @# ty)
+    :  Bit (size DataMask) @# ty
+    := ($1 << (($1 : Bit (S (Nat.log2_up Rlen_over_8)) @# ty) << sz)) - $1.
+
+  Definition getMaskShiftAmt ty n
+    (sz : Bit n @# ty)
+    (address : PAddr @# ty)
+    :  Bit 3 @# ty
+    := ((ZeroExtendTruncLsb 3 address) >> sz) << sz.
+
   Section memOps.
     Variable memOps : list MemOp.
 
