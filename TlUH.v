@@ -127,15 +127,15 @@ Section test.
           FU.hasVirtualMem := true |}.
 
   Definition testMask (sz : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord (TlSizeSz) sz)))))).
+    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord TlSizeSz sz)))))).
 
-  Compute (testMask 3).
-  Compute (testMask 2).
-  Compute (testMask 1).
-  Compute (testMask 0).
+  Goal (testMask 3 = "FF"). reflexivity. Qed.
+  Goal (testMask 2 = "F"). reflexivity. Qed.
+  Goal (testMask 1 = "3"). reflexivity. Qed.
+  Goal (testMask 0 = "1"). reflexivity. Qed.
 
-  Definition shiftAmt (sz addr : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
+  Definition shiftAmt (sz addr : nat)
+    := (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) (Const type (natToWord PAddrSz addr)))))).
 
   Compute (shiftAmt 3 0).
   Compute (shiftAmt 2 0).
