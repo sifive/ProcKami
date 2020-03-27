@@ -31,9 +31,6 @@ Require Import StdLibKami.Cam.Impl.
 Require Import StdLibKami.Arbiter.Ifc.
 Require Import StdLibKami.Arbiter.Impl.
 
-Require Import StdLibKami.Router.Ifc.
-Require Import StdLibKami.Router.Impl.
-
 Require Import ProcKami.Pipeline.Decoder.
 
 Require Import ProcKami.Pipeline.Mem.PmaPmp.
@@ -48,8 +45,6 @@ Section Impl.
   Context (deviceTree : @DeviceTree procParams).
   Context {memParams: Mem.Ifc.Params}.
   
-  Context (memCallback: forall ty, ty (@MemResp _ memParams) -> ActionT ty Void).
-
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
@@ -87,7 +82,8 @@ Section Impl.
       CompletionBuffer.Ifc.outReqK   := PAddrDevOffset deviceTree;
       CompletionBuffer.Ifc.storeReqK := PktWithException FU.VAddr;
       CompletionBuffer.Ifc.immResK   := Void;
-      CompletionBuffer.Ifc.resK      := Maybe FU.Inst;
+      CompletionBuffer.Ifc.inResK    := Pair FU.Data TlSize;
+      CompletionBuffer.Ifc.outResK   := FU.Inst;
       CompletionBuffer.Ifc.inReqToOutReq
       := fun ty req
          => (STRUCT {
@@ -100,7 +96,13 @@ Section Impl.
       CompletionBuffer.Ifc.inReqToStoreReq := fun ty req => (STRUCT { "fst" ::= req @% "vaddr";
                                                                       "snd" ::= req @% "inReq" @% "snd"})%kami_expr;
       CompletionBuffer.Ifc.isError := fun ty _ => $$false;
-      CompletionBuffer.Ifc.isSend := fun ty req => !(req @% "inReq" @% "snd" @% "valid")
+      CompletionBuffer.Ifc.isSend := fun ty req => !(req @% "inReq" @% "snd" @% "valid");
+      CompletionBuffer.Ifc.inToOutRes := fun ty inRes storeReq =>
+                                           (IF ((ZeroExtendTruncLsb 3 (storeReq @% "fst") >> $$(natToWord 2 2)) == $1)
+                                            then ZeroExtendTruncMsb FU.InstSz (inRes @% "fst")
+                                            else ZeroExtendTruncLsb FU.InstSz (inRes @% "fst"))
+                                           (* ZeroExtendTruncLsb FU.InstSz *)
+                                           (*   ((inRes @% "fst") >> (getByteShiftAmt (inRes @% "snd") (storeReq @% "fst"))) *)
     |}.
   
   Local Definition completionBuffer
@@ -125,33 +127,12 @@ Section Impl.
                                    |}).
 
   Local Definition arbiterClients
-    :  list (Client (Maybe Data)).
-  refine [
-      (* memory unit client *)
-      {| clientTagSz := memUnitTagLgSize;
-         clientHandleRes := memCallback
-      |} ;
-      
-      (* MMU client *)
-      {| clientTagSz := 0;
-         clientHandleRes ty res := (LET res : Maybe FU.Data <- #res @% "res";
-                                    @Mmu.Ifc.callback _ deviceTree _ mmu _ res)%kami_action |};
-      (* Fetch Client *)                                                                                 
-      {| clientTagSz := @completionBufferLgSize memParams;
-         clientHandleRes ty
-                         (res: ty (STRUCT_TYPE { "tag" :: Bit _;
-                                                 "res" :: Maybe Data }))
-         := (LET inst: Maybe FU.Inst
-                       <- STRUCT { "valid" ::= #res @% "res" @% "valid" ;
-                                   "data"  ::= ZeroExtendTruncLsb FU.InstSz (#res @% "res" @% "data") };
-             LET fullRes: STRUCT_TYPE { "tag" :: Bit _;
-                                        "res" :: Maybe FU.Inst }
-                          <- STRUCT { "tag" ::= castBits _ (#res @% "tag");
-                                      "res" ::= #inst};
-             @CompletionBuffer.Ifc.callback _ completionBuffer ty fullRes)%kami_action |}
-    ].
-  abstract (simpl; rewrite Nat.log2_up_pow2; try lia).
-  Defined.
+    :  list (Client (Pair FU.Data TlSize)) :=
+  [
+    {| clientTagSz := memUnitTagLgSize |};
+    {| clientTagSz := 0 |};
+    {| clientTagSz := @completionBufferLgSize memParams |}
+  ].
 
   Local Definition arbiterParams :=
     {|
@@ -165,20 +146,21 @@ Section Impl.
     :  @Arbiter.Ifc.Ifc _ {| clientList := arbiterClients |}
     := @Arbiter.Impl.impl arbiterParams _.
 
-  Definition ArbiterTag := Arbiter.Ifc.Tag {| clientList :=  arbiterClients |}.
-
-  Local Definition deviceIfcs := map (fun d => deviceIfc d ArbiterTag) (ProcKami.Device.devices deviceTree).
-
-  Local Definition routerParams := {|
-                                    Router.Ifc.name := @^"devRouter";
-                                    Router.Ifc.devices := deviceIfcs
-                                  |}.
-  
-  Local Definition router :=
-    @Router.Impl.impl routerParams.
+  Local Definition ArbiterTag := Arbiter.Ifc.Tag {| clientList :=  arbiterClients |}.
 
   Local Definition ArbiterOutReq := STRUCT_TYPE { "tag" :: ArbiterTag;
                                                   "req" :: @MemReq _ deviceTree }.
+
+  Local Definition arbiterHasResps :=
+    Arbiter.Ifc.hasResps
+      arbiter
+      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerFirst"(); Ret #res).
+
+  Local Definition arbiterGetResps :=
+    Arbiter.Ifc.getResps
+      arbiter
+      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerFirst"(); Ret #res)
+      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerDeq"(); Ret #res).
 
   Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
     @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize memParams) @# ty.
@@ -194,21 +176,8 @@ Section Impl.
   abstract (simpl; rewrite Natlog2_up_pow2; auto).
   Defined.
   
-  Local Definition arbiterReqToRouterReq ty (req: ty ArbiterOutReq): @Router.Ifc.OutReq routerParams @# ty.
-  refine (
-    let deviceInReq : Device.Req ArbiterTag @# ty := STRUCT { "tag" ::= #req @% "tag" ;
-                                                              "memOp" ::= #req @% "req" @% "memOp" ;
-                                                              "offset" ::= #req @% "req" @% "offset" ;
-                                                              "data" ::= #req @% "req" @% "data" } in
-    STRUCT { "dtag" ::= castBits _ (#req @% "req" @% "dtag") ;
-             "req" ::= deviceInReq}).
-  abstract (unfold numDevices; simpl; unfold deviceIfcs; rewrite map_length; auto).
-  Defined.
-  
-  
   Local Definition routerSendReq ty (req: ty ArbiterOutReq): ActionT ty (Maybe Void) :=
-    LET inReq <- arbiterReqToRouterReq ty req;
-    LETA ret <- @Router.Ifc.sendReq _ router ty inReq;
+    Call ret: Bool <- "routerSendReq"(#req: ArbiterOutReq);
     Ret ((STRUCT { "valid" ::= #ret ;
                    "data" ::= $$(getDefaultConst Void) }): Maybe Void @# ty).
 
@@ -235,19 +204,38 @@ Section Impl.
     LETA retVal <- @Arbiter.Ifc.sendReq _ _ arbiter routerSendReq Fin.F1 ty req;
     Ret (#retVal @% "valid").
 
-  Local Definition responseToFetcherRule ty: ActionT ty Void :=
+  Local Definition completionBufferFetcherResRule ty: ActionT ty Void.
+  refine (
+    LETA res <- arbiterGetResps (Fin.FS (Fin.FS Fin.F1)) _;
+    If #res @% "valid"
+    then (
+        LET fullRes <- STRUCT { "tag" ::= (castBits _ (#res @% "data" @% "tag")) ;
+                                "res" ::= #res @% "data" @% "res" };
+        CompletionBuffer.Ifc.callback completionBuffer fullRes );
+    Retv).
+  abstract (simpl; rewrite Natlog2_up_pow2; auto).
+  Defined.
+         
+  Local Definition mmuResRule ty: ActionT ty Void :=
+    LETA res <- arbiterGetResps (Fin.FS Fin.F1) _;
+    LET callRes <- #res @% "data" @% "res";
+    If #res @% "valid"
+    then Mmu.Ifc.callback mmu _ callRes;
+    Retv.
+
+  Local Definition memHasRes ty: ActionT ty Bool := arbiterHasResps Fin.F1 _.
+
+  Local Definition memGetRes ty: ActionT ty (Maybe (@MemResp _ memParams)) := arbiterGetResps Fin.F1 _.
+
+  Local Definition completionBufferFetcherCompleteRule ty: ActionT ty Void :=
     @CompletionBuffer.Ifc.callbackRule
       _ completionBuffer
       (fun ty resp =>
          LET fetcherResp: (@Fetcher.Ifc.InRes fetcherParams) <-
                           STRUCT { "vaddr" ::= #resp @% "storeReq" @% "fst" ;
                                    "immRes" ::= #resp @% "immRes" ;
-                                   "error" ::=
-                                     (IF #resp @% "storeReq" @% "snd" @% "valid"
-                                      then #resp @% "storeReq" @% "snd"
-                                      else STRUCT { "valid" ::= !(#resp @% "res" @% "valid") ;
-                                                    "data"  ::= ($InstAccessFault : Exception @# ty) } );
-                                   "inst" ::= #resp @% "res" @% "data" };
+                                   "error" ::= #resp @% "storeReq" @% "snd" ;
+                                   "inst" ::= #resp @% "res" };
       @Fetcher.Ifc.callback _ fetcher _ fetcherResp) ty.
 
   Definition impl
@@ -256,15 +244,13 @@ Section Impl.
             ((Fetcher.Ifc.regs fetcher)
                ++ CompletionBuffer.Ifc.regs completionBuffer
                ++ Mmu.Ifc.regs mmu
-               ++ Arbiter.Ifc.regs arbiter
-               ++ Router.Ifc.regs router) ;
+               ++ Arbiter.Ifc.regs arbiter);
 
           Mem.Ifc.regFiles :=
             ((Fetcher.Ifc.regFiles fetcher)
                ++ CompletionBuffer.Ifc.regFiles completionBuffer
                ++ Mmu.Ifc.regFiles mmu
-               ++ Arbiter.Ifc.regFiles arbiter
-               ++ Router.Ifc.regFiles router) ;
+               ++ Arbiter.Ifc.regFiles arbiter);
 
           fetcherIsFull := @Fetcher.Ifc.isFull _ fetcher;
           Mem.Ifc.fetcherSendAddr := fetcherSendReq;
@@ -277,7 +263,8 @@ Section Impl.
           fetcherNotCompleteDeqRule := @Fetcher.Ifc.notCompleteDeqRule _ fetcher;
           fetcherTransferRule := @Fetcher.Ifc.transferRule _ fetcher;
 
-          Mem.Ifc.responseToFetcherRule := responseToFetcherRule;
+          Mem.Ifc.completionBufferFetcherCompleteRule := completionBufferFetcherCompleteRule;
+          Mem.Ifc.completionBufferFetcherResRule := completionBufferFetcherResRule;
 
           memTranslate := Mmu.Ifc.memTranslate mmu;
 
@@ -285,13 +272,17 @@ Section Impl.
           mmuClearException := Mmu.Ifc.clearException mmu;
 
           Mem.Ifc.mmuSendReqRule := mmuSendReqRule;
+          Mem.Ifc.mmuResRule := mmuResRule;
+
           mmuFlush := Mmu.Ifc.flush mmu;
 
           sendMemUnitMemReq := memSendReq;
-
+          hasMemUnitMemRes := memHasRes;
+          getMemUnitMemRes := memGetRes;
+          
           arbiterResetRule := @Arbiter.Ifc.resetRule _ _ arbiter;
 
-          routerPollRules := @Router.Ifc.pollRules _ router (@Arbiter.Ifc.callback _ _ arbiter);
+          Tag := ArbiterTag;
        |}.
 
   Local Close Scope kami_action.

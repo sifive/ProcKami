@@ -164,12 +164,11 @@ Section exts.
   Variable debug_buffer_sz : nat.
   Variable debug_impebreak : bool.
 
-  Local Instance procParams
+  Instance modelProcParams
     :  ProcParams
     := {| FU.procName := name ;
           FU.Xlen_over_8 := Xlen_over_8;
           FU.Flen_over_8 := Flen_over_8;
-          FU.MemOpCodeSz := 6;
           FU.pcInit := (evalExpr (SignExtendTruncLsb (Xlen_over_8 * 8) (Const type pc_init_val)));
           FU.supported_xlens := supported_xlens;
           FU.supported_exts := supported_exts;
@@ -181,9 +180,6 @@ Section exts.
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true |}.
 
-  Lemma memOpCodeSzIsValid : MemOpCodeSz >= Nat.log2_up (length memOps).
-  Proof. cbv; reflexivity. Qed.
-
   Section ty.
     Variable ty : Kind -> Type.
 
@@ -193,7 +189,7 @@ Section exts.
     Section func_units.
 
       Local Definition func_units 
-        :  list (@FUEntry procParams)
+        :  list (@FUEntry modelProcParams)
         := [
              MRet   ;
              ECall  ;
@@ -252,8 +248,8 @@ Section exts.
 
       Local Definition param_filter_xlens
             (fuInputK fuOutputK: Kind)
-        (e: @InstEntry procParams fuInputK fuOutputK)
-        : @InstEntry procParams fuInputK fuOutputK
+        (e: @InstEntry modelProcParams fuInputK fuOutputK)
+        : @InstEntry modelProcParams fuInputK fuOutputK
         := {| instName := instName e ;
               xlens := filter (fun x => existsb (Nat.eqb x) supported_xlens) (xlens e) ;
               extensions := extensions e ;
@@ -266,8 +262,8 @@ Section exts.
 
       Local Definition param_filter_insts
         (fuInputK fuOutputK : Kind)
-        :  list (@InstEntry procParams fuInputK fuOutputK) ->
-           list (@InstEntry procParams fuInputK fuOutputK)
+        :  list (@InstEntry modelProcParams fuInputK fuOutputK) ->
+           list (@InstEntry modelProcParams fuInputK fuOutputK)
         := filter
              (fun inst
                => andb
@@ -289,11 +285,11 @@ Section exts.
            |}.
         
       Local Definition param_filter_func_units
-        :  list (@FUEntry procParams) -> list (@FUEntry procParams)
+        :  list (@FUEntry modelProcParams) -> list (@FUEntry modelProcParams)
         := filter (fun func_unit => negb (emptyb (fuInsts func_unit))).
 
       Local Definition param_func_units
-        :  list (@FUEntry procParams)
+        :  list (@FUEntry modelProcParams)
         := param_filter_func_units (map param_filter_func_unit func_units).
 
     End func_units.
@@ -304,7 +300,7 @@ Section exts.
   (* TODO: Fix this *)
   Definition generate_model
     := @processor
-         procParams
+         modelProcParams
          param_func_units
          deviceTree
          memParams.

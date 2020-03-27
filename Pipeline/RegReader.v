@@ -55,9 +55,9 @@ Section reg_reader.
     (xlen : XlenValue @# ty)
     (reg_id : RegId @# ty)
     :  ActionT ty Data
-    := ReadRf reg_val
+    := Call reg_val
          :  Bit (@Xlen procParams)
-         <- (@^"read_reg_" ++ natToHexStr n) (reg_id : RegId);
+         <- (@^"regRead" ++ natToHexStr n) (reg_id : RegId);
        Ret
          (IF reg_id == $0
             then $0
@@ -67,9 +67,9 @@ Section reg_reader.
     (n : nat)
     (freg_id : RegId @# ty)
     :  ActionT ty Data
-    := ReadRf freg_val
+    := Call freg_val
          :  Bit (@Flen procParams)
-         <- (@^"read_freg_" ++ natToHexStr n) (freg_id : RegId); 
+         <- (@^"fregRead" ++ natToHexStr n) (freg_id : RegId); 
        Ret (flen_one_extend Rlen #freg_val).
 
   Local Definition reg_reader

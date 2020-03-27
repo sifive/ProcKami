@@ -9,8 +9,6 @@ Require Import ProcKami.MemRegion.
 
 Require Import StdLibKami.Router.Ifc.
 
-Import ListNotations.
-
 Section DeviceIfc.
   Context {procParams : ProcParams}.
 
@@ -50,8 +48,7 @@ Section DeviceIfc.
   Local Definition Res tagK
     := STRUCT_TYPE {
          "tag" :: tagK;
-         "res" :: Maybe Data (* Error *)
-       }.
+         "res" :: Pair Data TlSize }.
 
   Record Device
     := {
@@ -60,8 +57,7 @@ Section DeviceIfc.
          pmas : list Pma;
          regFiles: list RegFileBase;
          regs: forall tagK: Kind, list RegInitT;
-         deviceIfc : forall tagK, DeviceIfc (Req tagK) (Res tagK)
-       }.
+         deviceIfc : forall tagK, DeviceIfc (Req tagK) (Res tagK) }.
 
   Class BaseDevice := { baseName: string;
                         baseIo: bool;
@@ -161,8 +157,6 @@ Section DeviceIfc.
       
       (*
         * Invalid - unavailable
-        * Valid Invalid - available, error
-        * Valid Valid DATA - available, no error
        *)
       Local Definition getRes
         :  ActionT ty (Maybe (Res tagK))
@@ -181,9 +175,12 @@ Section DeviceIfc.
       
              LETA regData : Data <- regValue (#req @% "memOp") (#memData @% "data");
              Write ^"busy": Bool <- $$ false;
-             LET result : (Res tagK) <- STRUCT { "tag" ::= #req @% "tag";
-                                                 "res" ::= STRUCT {"valid" ::= #memData @% "valid";
-                                                                   "data" ::= #regData} };
+             LET result
+             : (Res tagK) <-
+               STRUCT { "tag" ::= #req @% "tag";
+                        "res" ::= STRUCT { "fst" ::= (#regData <<
+                                                       (getByteShiftAmt (getSize (#req @% "memOp")) (#req @% "offset")));
+                                           "snd" ::= getSize (#req @% "memOp") } };
              Ret #result
            else
              Ret $$(getDefaultConst (Res tagK)) as res;

@@ -4,10 +4,10 @@ Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.Debug.DebugDevice.
 
 Require Import ProcKami.Device.
-Require Import ProcKami.Devices.BootRom.
-Require Import ProcKami.Devices.MMappedRegs.
-Require Import ProcKami.Devices.PMem.
-Require Import ProcKami.Devices.Uart.
+Require Import ProcKami.DeviceMod.
+
+Require Import StdLibKami.RegArray.Ifc.
+Require Import StdLibKami.RegArray.Impl.
 
 Require Import ProcKami.FU.
 
@@ -32,8 +32,6 @@ Section Params.
   Local Open Scope kami_action.
   Local Open Scope kami_expr.
 
-  Definition Tag := @ArbiterTag _ deviceTree memParams.
-  
   Definition processorCore 
     :  BaseModule
     := MODULE {
@@ -44,8 +42,6 @@ Section Params.
          Registers (@debug_internal_regs procParams) with
          Registers (@Pipeline.Ifc.regs pipeline) with
 
-         Registers (concat (map (fun dev => @Device.regs procParams dev Tag) (@devices procParams deviceTree))) with
-
          Rule @^"tokenStart"
            := Pipeline.Ifc.tokenStartRule pipeline with
 
@@ -55,8 +51,14 @@ Section Params.
          Rule @^"mmuSendReq"
            := Pipeline.Ifc.mmuSendReqRule pipeline with
 
-         Rule @^"responseToFetcher"
-           := Pipeline.Ifc.responseToFetcherRule pipeline with
+         Rule @^"mmuRes"
+           := Pipeline.Ifc.mmuResRule pipeline with
+
+         Rule @^"completionBufferFetcherComplete"
+           := Pipeline.Ifc.completionBufferFetcherCompleteRule pipeline with
+
+         Rule @^"completionBufferFetcherRes"
+           := Pipeline.Ifc.completionBufferFetcherResRule pipeline with
 
          Rule @^"fetcherTransfer"
            := Pipeline.Ifc.fetcherTransferRule pipeline with
@@ -73,13 +75,6 @@ Section Params.
          Rule @^"trapInterrupt"
            := Pipeline.Ifc.trapInterruptRule pipeline with
 
-         map
-           (fun ruleAction : nat * (forall ty, ActionT ty Void)
-             => MERule
-                  (@^("routerPoll" ++ nat_decimal_string (fst ruleAction)),
-                   (fun ty => (snd ruleAction) ty)))
-           (tag (Pipeline.Ifc.routerPollRules pipeline)) with
-
          Rule @^"arbiterReset"
            := Pipeline.Ifc.arbiterResetRule pipeline with
 
@@ -88,47 +83,46 @@ Section Params.
                 DispString _ "==================================================\n"
               ];
               Retv
-       }.
+         }.
 
-  Definition intRegFile
-    :  RegFileBase
-    := @Build_RegFileBase
-         false
-         1
-         (@^"int_data_reg")
-         (Async [(@^"read_reg_1"); (@^"read_reg_2")])
-         (@^"regWrite")
-         32
-         (Bit Xlen)
-         (RFNonFile _ None).
+  Definition intRegArray := @RegArray.Impl.impl
+                              {| name := @^"intRegs";
+                                 k := Bit Xlen;
+                                 size := Nat.pow 2 RegIdWidth;
+                                 init := None
+                              |}.
+  
+  Definition floatRegArray := @RegArray.Impl.impl
+                                {| name := @^"flatRegs";
+                                   k := Bit Flen;
+                                   size := Nat.pow 2 RegIdWidth;
+                                   init := None
+                                |}.
+  
+  Definition intRegFile :=
+    (MODULE {
+         Registers (RegArray.Ifc.regs intRegArray) with
+         Method @^"regRead1"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
+         Method @^"regRead2"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
+         Method @^"regWrite"(req: WriteRq RegIdWidth (Bit Xlen)): Void :=
+           RegArray.Ifc.write intRegArray _ req
+      })%kami.
 
-  Definition floatRegFile
-    :  RegFileBase
-    := @Build_RegFileBase 
-         false
-         1
-         (@^"float_reg_file")
-         (Async [(@^"read_freg_1"); (@^"read_freg_2"); (@^"read_freg_3")])
-         (@^"fregWrite")
-         32
-         (Bit Flen)
-         (RFNonFile _ None).
+  Definition floatRegFile :=
+    (MODULE {
+         Registers (RegArray.Ifc.regs floatRegArray) with
+         Method @^"fregRead1"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregRead2"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregRead3"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
+         Method @^"fregWrite"(req: WriteRq RegIdWidth (Bit Flen)): Void :=
+           RegArray.Ifc.write floatRegArray _ req
+      })%kami.
 
-  Definition processor
-    :  Mod 
-    := let md
-         := fold_right
-              ConcatMod
-              processorCore
-              (map
-                (fun m => Base (BaseRegFile m)) 
-                ([   
-                   intRegFile;
-                   floatRegFile
-                 ] ++
-                 (@Pipeline.Ifc.regFiles pipeline) ++
-                 (concat (map (fun dev => @Device.regFiles procParams dev) (@devices procParams deviceTree))))) in
-       (createHideMod md (map fst (getAllMethods md))).
+  Definition processorPipeline := ConcatMod processorCore (ConcatMod intRegFile floatRegFile).
+
+  Definition processor := let md := ConcatMod processorPipeline (deviceMod deviceTree (Pipeline.Ifc.ArbiterTag pipeline)) in
+                          (createHideMod md (map fst (getAllMethods md))).
+
 
   Local Close Scope kami_expr.
   Local Close Scope kami_action.

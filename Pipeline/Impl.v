@@ -65,60 +65,7 @@ Section Impl.
      LETA _ <- @Fifo.Ifc.enq _ tokenFifo _ tokenFifoVal;
      Retv)%kami_action.
 
-  Section memInterfaceSizeParams.
-    Local Open Scope kami_action.
-    Local Open Scope kami_expr.
-
-    Local Definition memCallback ty
-               (res: ty (@MemResp _ memParams))
-      :  ActionT ty Void
-      := LETA oldOptCommit : Maybe CommitPkt <- @Fifo.Ifc.first _ decExecFifo _;
-         System [
-           DispString _ "[memCallback] res: ";
-           DispHex #res;
-           DispString _ "\n oldOptCommit: ";
-           DispHex #oldOptCommit;
-           DispString _ "\n"
-         ];
-         LET wb : RoutedReg <- STRUCT {
-                                 "tag" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
-                                             then $FloatRegTag
-                                             else $IntRegTag);
-                                 "data"  ::= #res @% "res" @% "data"
-                               };
-         LET commitPkt
-           :  CommitPkt
-           <- #oldOptCommit @% "data"
-               @%["execUpd" <- #oldOptCommit @% "data" @% "execUpd" @%[ "val1" <- Valid #wb]]
-               @%["exception" <-
-                  STRUCT { "valid" ::= !(#res @% "res" @% "valid");
-                           "data" ::= (IF #oldOptCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isSAmo"
-                                       then ($VmAccessSAmo: Exception @# ty)
-                                       else $VmAccessLoad)
-                 }];
-         LETA cxtCfg: ContextCfgPkt <- readConfig _;
-         System [
-           DispString _ "[memCallback] commit pkt: ";
-           DispHex #commitPkt;
-           DispString _ "\n"
-         ];
-         Read realPc: VAddr <- @^"realPc";
-         System [DispString _ "memCallback eq: "; DispHex (#oldOptCommit @% "data" @% "execCxt" @% "pc");
-                DispString _ " "; DispHex #realPc; DispString _ "_";
-                DispHex ((#oldOptCommit @% "data" @% "execCxt" @% "pc") == #realPc); DispString _ "\n"];
-         System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
-         LETA nextPc: VAddr <- commit #cxtCfg (#commitPkt @% "execCxt") (#commitPkt @% "execUpd") (#commitPkt @% "exception");
-         System [DispString _ "Load newPc: "; DispHex #nextPc; DispString _ "\n"];
-         Write @^"pc" <- #nextPc;
-         Write @^"realPc" <- #nextPc;
-         LETA _ <- @Fifo.Ifc.deq _ decExecFifo _;
-         enqVoid.
-
-    Local Close Scope kami_expr.
-    Local Close Scope kami_action.
-  End memInterfaceSizeParams.
-  
-  Local Definition mem := @Mem.Impl.impl  _ deviceTree _ memCallback.
+  Local Definition mem := @Mem.Impl.impl  _ deviceTree _.
 
   Section ty.
     Variable ty: Kind -> Type.
@@ -368,16 +315,32 @@ Section Impl.
                 enqVoid );
               Retv )
             else (
-              LETA hasLoad <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
-              If !((#optCommit @% "data" @% "execCxt" @% "memHints" @% "valid") && #hasLoad)
+              LETA hasLoadPotential <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
+              LET hasLoad <- #optCommit @% "data" @% "execCxt" @% "memHints" @% "valid" && #hasLoadPotential;
+              LETA hasLoadRet <- Mem.Ifc.hasMemUnitMemRes mem _;
+              System [DispString _ "Load Details: "; DispHex #hasLoad; DispString _ " "; DispHex #hasLoadRet; DispString _ "\n"];
+              If (!#hasLoad || #hasLoadRet)
               then (
                 System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
+                LETA loadRet <- Mem.Ifc.getMemUnitMemRes mem _;
+                LET resData <- (#loadRet @% "data" @% "res" @% "fst")
+                                 >> (getByteShiftAmt (#loadRet @% "data" @% "res" @% "snd")
+                                                     (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "data"));
+                LET loadWb : RoutedReg <- STRUCT {
+                                              "tag" ::= (IF #optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
+                                                         then $FloatRegTag
+                                                         else $IntRegTag);
+                                              "data"  ::= #resData
+                                            };
+                LET finalUpd <- (IF #hasLoad
+                                 then #optCommit @% "data" @% "execUpd" @%[ "val1" <- Valid #loadWb]
+                                 else #optCommit @% "data" @% "execUpd");
+
                 If (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "tag" == $SFenceTag)
                 then Mem.Ifc.mmuFlush mem _;
                 If (#optCommit @% "data" @% "execUpd" @% "fence.i")
                 then Mem.Ifc.fetcherClear mem _;
-                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") (#optCommit @% "data" @% "execUpd")
-                                      (#optCommit @% "data" @% "exception");
+                LETA nextPc <- commit #context (#optCommit @% "data" @% "execCxt") #finalUpd (#optCommit @% "data" @% "exception");
                 System [DispString _ "Commit Normal: "; DispHex #nextPc; DispString _ "\n"];
                 Write @^"pc" <- #nextPc;
                 Write @^"realPc" <- #nextPc;
@@ -413,8 +376,8 @@ Section Impl.
     Local Close Scope kami_action.
   End ty.
 
-  Definition ArbiterTag := @Mem.Impl.ArbiterTag _ deviceTree _ memCallback.
-  
+  Definition ArbiterTag := @Mem.Impl.ArbiterTag _ _.
+
   Definition impl
     :  Ifc
     := {|
@@ -432,17 +395,19 @@ Section Impl.
            := @Fifo.Ifc.regFiles _ tokenFifo ++
               @Fifo.Ifc.regFiles _ decExecFifo ++
               @Mem.Ifc.regFiles _ _ _ mem;
-         Pipeline.Ifc.tokenStartRule                := tokenStartRule;
-         Pipeline.Ifc.mmuSendReqRule                := Mem.Ifc.mmuSendReqRule mem;
-         Pipeline.Ifc.sendPcRule                    := sendPcRule;
-         Pipeline.Ifc.routerPollRules               := Mem.Ifc.routerPollRules mem;
-         Pipeline.Ifc.responseToFetcherRule         := Mem.Ifc.responseToFetcherRule mem;
-         Pipeline.Ifc.fetcherTransferRule           := Mem.Ifc.fetcherTransferRule mem;
-         Pipeline.Ifc.fetcherNotCompleteDeqRule     := Mem.Ifc.fetcherNotCompleteDeqRule mem;
-         Pipeline.Ifc.decodeExecRule                := decodeExecRule;
-         Pipeline.Ifc.commitRule                    := commitRule;
-         Pipeline.Ifc.arbiterResetRule              := Mem.Ifc.arbiterResetRule mem;
-         Pipeline.Ifc.trapInterruptRule             := trapInterruptRule;
+         Pipeline.Ifc.tokenStartRule                      := tokenStartRule;
+         Pipeline.Ifc.mmuSendReqRule                      := Mem.Ifc.mmuSendReqRule mem;
+         Pipeline.Ifc.mmuResRule                          := Mem.Ifc.mmuResRule mem;
+         Pipeline.Ifc.sendPcRule                          := sendPcRule;
+         Pipeline.Ifc.completionBufferFetcherCompleteRule := Mem.Ifc.completionBufferFetcherCompleteRule mem;
+         Pipeline.Ifc.completionBufferFetcherResRule      := Mem.Ifc.completionBufferFetcherResRule mem;
+         Pipeline.Ifc.fetcherTransferRule                 := Mem.Ifc.fetcherTransferRule mem;
+         Pipeline.Ifc.fetcherNotCompleteDeqRule           := Mem.Ifc.fetcherNotCompleteDeqRule mem;
+         Pipeline.Ifc.decodeExecRule                      := decodeExecRule;
+         Pipeline.Ifc.commitRule                          := commitRule;
+         Pipeline.Ifc.arbiterResetRule                    := Mem.Ifc.arbiterResetRule mem;
+         Pipeline.Ifc.trapInterruptRule                   := trapInterruptRule;
+         Pipeline.Ifc.ArbiterTag                          := ArbiterTag
        |}.
 
 End Impl.
