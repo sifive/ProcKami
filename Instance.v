@@ -18,6 +18,7 @@ Require Import Kami.Simulator.NativeTest.
 Require Import Kami.Simulator.CoqSim.Simulator.
 Require Import Kami.Simulator.CoqSim.HaskellTypes.
 Require Import Kami.Simulator.CoqSim.RegisterFile.
+Require Import Kami.Simulator.CoqSim.Eval.
 Require Import Kami.WfActionT.
 Require Import ProcKami.Devices.Uart.
 
@@ -61,6 +62,7 @@ Definition model64 : Mod := model [Xlen32; Xlen64].
 
 (** vm_compute should take ~40s *)
 
+(*
 Lemma model64_wf : WfMod_unit model64 = [].
 Proof.
   vm_compute.
@@ -72,6 +74,7 @@ Proof.
   vm_compute.
   reflexivity.
 Qed.
+*)
 
 Definition procParams (xlens : list nat) : ProcParams
   := ModelParams.procParams
@@ -84,12 +87,13 @@ Definition procParams (xlens : list nat) : ProcParams
        debug_buffer_sz
        debug_impebreak.
 
-Definition meths (xlens : list nat) := [
+(* Definition meths (xlens : list nat) := [
   ("proc_core_ext_interrupt_pending", (Bit 0, Bool));
   ("proc_core_readUART", (UartRead, Data));
   ("proc_core_writeUART", (@UartWrite (procParams xlens), Bit 0))
-].
+]. *)
 
+(*
 Axiom cheat : forall {X},X.
 
 Definition coqSim_32
@@ -117,6 +121,7 @@ Definition coqSim_64
      IO unit *)
   := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
        @eval_BaseMod E _ env args rfbs timeout (meths xlens64) bm cheat.
+*)
 
 Separate Extraction
          predPack
@@ -153,6 +158,8 @@ Separate Extraction
          testSyncNotIsAddr
          testNative
 
-         coqSim_32
-         coqSim_64
+         print_Val2
+         init_state
+         sim_step
+         initialize_files_zero
          .
