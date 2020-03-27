@@ -447,11 +447,15 @@ Section Impl.
 
   (* method called by mem when response is ready. *)
   Local Definition callback ty
-    (resp : ty FU.Data)
+    (resp' : ty (Pair FU.Data TlSize))
     :  ActionT ty Void
     := Read level: PtLevel <- ^"level";
        Read vaddr : VAddr <- ^"vaddr";
        Read context : TlbContext <- ^"context";
+       (* LET resp: FU.Data <- (IF ((ZeroExtendTruncLsb 3 #vaddr >> (#resp' @% "snd")) == $1) *)
+       (*                       then ZeroExtendTruncLsb _ (ZeroExtendTruncMsb 32 (#resp' @% "fst")) *)
+       (*                       else #resp' @% "fst"); *)
+       LET resp: FU.Data <- #resp' @% "fst" >> (getByteShiftAmt (#resp' @% "snd") (#vaddr));
        LET pte <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) #resp);
        LET index <- $(tlbMaxPageLevels - 1) - #level;
        LETA trans_result<- convertLetExprSyntax_ActionT (translatePte lgPageSz

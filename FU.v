@@ -322,7 +322,7 @@ Section Params.
   Definition RoutedReg
     := STRUCT_TYPE {
           "tag"  :: RoutingTag;
-          "data"   :: Data
+          "data" :: Data
          }.
 
   Definition ExecUpdPkt :=

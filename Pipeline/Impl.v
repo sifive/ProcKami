@@ -323,12 +323,14 @@ Section Impl.
               then (
                 System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
                 LETA loadRet <- Mem.Ifc.getMemUnitMemRes mem _;
-                LET res <- #loadRet @% "data";
+                LET resData <- (#loadRet @% "data" @% "res" @% "fst")
+                                 >> (getByteShiftAmt (#loadRet @% "data" @% "res" @% "snd")
+                                                     (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "data"));
                 LET loadWb : RoutedReg <- STRUCT {
                                               "tag" ::= (IF #optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
                                                          then $FloatRegTag
                                                          else $IntRegTag);
-                                              "data"  ::= #res @% "res"
+                                              "data"  ::= #resData
                                             };
                 LET finalUpd <- (IF #hasLoad
                                  then #optCommit @% "data" @% "execUpd" @%[ "val1" <- Valid #loadWb]

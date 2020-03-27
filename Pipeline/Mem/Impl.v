@@ -82,7 +82,8 @@ Section Impl.
       CompletionBuffer.Ifc.outReqK   := PAddrDevOffset deviceTree;
       CompletionBuffer.Ifc.storeReqK := PktWithException FU.VAddr;
       CompletionBuffer.Ifc.immResK   := Void;
-      CompletionBuffer.Ifc.resK      := FU.Inst;
+      CompletionBuffer.Ifc.inResK    := Pair FU.Data TlSize;
+      CompletionBuffer.Ifc.outResK   := FU.Inst;
       CompletionBuffer.Ifc.inReqToOutReq
       := fun ty req
          => (STRUCT {
@@ -95,7 +96,13 @@ Section Impl.
       CompletionBuffer.Ifc.inReqToStoreReq := fun ty req => (STRUCT { "fst" ::= req @% "vaddr";
                                                                       "snd" ::= req @% "inReq" @% "snd"})%kami_expr;
       CompletionBuffer.Ifc.isError := fun ty _ => $$false;
-      CompletionBuffer.Ifc.isSend := fun ty req => !(req @% "inReq" @% "snd" @% "valid")
+      CompletionBuffer.Ifc.isSend := fun ty req => !(req @% "inReq" @% "snd" @% "valid");
+      CompletionBuffer.Ifc.inToOutRes := fun ty inRes storeReq =>
+                                           (* (IF ((ZeroExtendTruncLsb 3 (storeReq @% "fst") >> $$(natToWord 2 2)) == $1) *)
+                                           (*  then ZeroExtendTruncMsb FU.InstSz (inRes @% "fst") *)
+                                           (*  else ZeroExtendTruncLsb FU.InstSz (inRes @% "fst") *)
+                                           ZeroExtendTruncLsb FU.InstSz
+                                             ((inRes @% "fst") >> (getByteShiftAmt (inRes @% "snd") (storeReq @% "fst")))
     |}.
   
   Local Definition completionBuffer
@@ -120,7 +127,7 @@ Section Impl.
                                    |}).
 
   Local Definition arbiterClients
-    :  list (Client Data) :=
+    :  list (Client (Pair FU.Data TlSize)) :=
   [
     {| clientTagSz := memUnitTagLgSize |};
     {| clientTagSz := 0 |};
@@ -202,10 +209,9 @@ Section Impl.
     LETA res <- arbiterGetResps (Fin.FS (Fin.FS Fin.F1)) _;
     If #res @% "valid"
     then (
-      LET inst: FU.Inst <- ZeroExtendTruncLsb FU.InstSz (#res @% "data" @% "res");
-      LET fullRes <- STRUCT { "tag" ::= castBits _ (#res @% "data" @% "tag");
-                              "res" ::= #inst };
-      CompletionBuffer.Ifc.callback completionBuffer fullRes );
+        LET fullRes <- STRUCT { "tag" ::= (castBits _ (#res @% "data" @% "tag")) ;
+                                "res" ::= #res @% "data" @% "res" };
+        CompletionBuffer.Ifc.callback completionBuffer fullRes );
     Retv).
   abstract (simpl; rewrite Natlog2_up_pow2; auto).
   Defined.

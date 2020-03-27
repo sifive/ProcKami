@@ -53,6 +53,6 @@ Section Ifc.
          : ActionT ty (Maybe (PktWithException PAddrDevOffset));
          
          callback 
-           : forall ty, ty Data -> ActionT ty Void
+           : forall ty, ty (Pair Data TlSize) -> ActionT ty Void
        }.
 End Ifc.

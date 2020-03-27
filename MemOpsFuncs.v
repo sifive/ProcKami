@@ -50,12 +50,24 @@ Section memOpsFuncs.
     :  Bit (size DataMask) @# ty
     := ($1 << (($1 : Bit (S (Nat.log2_up Rlen_over_8)) @# ty) << sz)) - $1.
 
-  Definition getMaskShiftAmt ty n
+  Definition getShiftAmt ty n m
     (sz : Bit n @# ty)
-    (address : PAddr @# ty)
+    (addr : Bit m @# ty)
     :  Bit 3 @# ty
-    := ((ZeroExtendTruncLsb 3 address) >> sz) << sz.
+    := $0. (* ((ZeroExtendTruncLsb 3 addr) >> sz) << sz. *)
 
+  Definition getSize ty (req : MemOpCode @# ty) :=
+    UniBit (TruncLsb TlSizeSz TlParamSz)
+           (UniBit (TruncLsb (TlSizeSz + TlParamSz) TlOpcodeSz)
+                   req).
+
+  Definition getByteShiftAmt ty n m
+    (sz : Bit n @# ty)
+    (addr : Bit m @# ty)
+    : Bit 6 @# ty
+    := ({< getShiftAmt sz addr,
+         Const _ (natToWord 3 0) >}).
+         
   Section memOps.
     Variable memOps : list MemOp.
 
