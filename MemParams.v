@@ -5,11 +5,10 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.Debug.DebugDevice.
-
 Require Import ProcKami.Device.
 Require Import ProcKami.MemRegion.
 
+Require Import ProcKami.Devices.Debug.
 Require Import ProcKami.Devices.BootRom.
 Require Import ProcKami.Devices.PMem.
 Require Import ProcKami.Devices.MMappedRegs.
@@ -26,7 +25,7 @@ Section DeviceTree.
   Local Definition devicesInst
     :  list Device
     := [
-         @debugDevice _;
+         @debug _;
          @bootRom _;
          @msip _;
          @mtimecmp _;
@@ -41,7 +40,7 @@ Section DeviceTree.
          {|
            addr := hex"0";
            width := hex"1000";
-           device := Fin.F1: Fin.t (length devicesInst) (* debug device *)
+           device := Fin.F1: Fin.t (length devicesInst) (* debug *)
          |};
          {|
            addr := hex"1000";

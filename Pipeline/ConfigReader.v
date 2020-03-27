@@ -49,9 +49,6 @@ Section config_reader.
          (STRUCT {
             "xlen"             ::= #xlen;
             "satp_mode"        ::= #satp_mode;
-            (* TODO: LLEE: we may need to reinstate this depending on how we implement debug support. *)
-            (* "debug_hart_state" ::= #state; *)
-            (* "mode"             ::= IF #state @% "debug" then $MachineMode else #mode; (* debug spec 4.1 *) *)
             "mode"             ::= #mode;
             "tsr"              ::= #tsr;
             "tvm"              ::= #tvm;

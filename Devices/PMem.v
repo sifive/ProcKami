@@ -8,7 +8,7 @@ Require Import StdLibKami.Router.Ifc.
 Section device.
   Context (procParams: ProcParams).
 
-  Local Definition lgMemSz := 20.
+  Local Definition LgMemSz := 20.
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -24,21 +24,21 @@ Section device.
                                                    readResName := "pMemReadRes";
                                                    readRegName := "pMemReadReg" |}];
                           rfWrite := "pMemWrite";
-                          rfIdxNum := (Nat.pow 2 lgMemSz);
+                          rfIdxNum := (Nat.pow 2 LgMemSz);
                           rfData := (Bit 8);
-                          rfInit := RFFile true true "testfile" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _) |} :: nil;
+                          rfInit := RFFile true true "testfile" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
        baseRegs := nil;
        write := (fun ty req =>
                    LET writeRq
-                   :  WriteRqMask lgMemSz Rlen_over_8 (Bit 8)
+                   :  WriteRqMask LgMemSz Rlen_over_8 (Bit 8)
                       <- (STRUCT {
-                              "addr" ::= SignExtendTruncLsb lgMemSz (req @% "addr");
+                              "addr" ::= SignExtendTruncLsb LgMemSz (req @% "addr");
                               "data" ::= req @% "data";
                               "mask" ::= req @% "mask"
-                            } : WriteRqMask lgMemSz Rlen_over_8 (Bit 8) @# ty);
+                            } : WriteRqMask LgMemSz Rlen_over_8 (Bit 8) @# ty);
                    Call "pMemWrite" (#writeRq: _);
                    Ret $$true);
-       readReq := (fun ty addr => ReadReqRf "pMemReadReq" (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz); Retv);
+       readReq := (fun ty addr => ReadReqRf "pMemReadReq" (SignExtendTruncLsb LgMemSz addr : Bit LgMemSz); Retv);
        readRes := (fun ty => (Call readData : Array Rlen_over_8 (Bit 8) <- "pMemReadRes"();
                               Ret ((Valid (pack #readData)): Maybe Data @# ty))); |}.
 End device.

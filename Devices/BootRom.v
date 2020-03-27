@@ -8,7 +8,7 @@ Require Import StdLibKami.Router.Ifc.
 Section device.
   Context (procParams: ProcParams).
 
-  Local Definition lgMemSz := 12.
+  Local Definition LgMemSz := 12.
 
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
@@ -34,12 +34,12 @@ Section device.
                                                    readResName := "bootRomReadRes";
                                                    readRegName := "bootRomReadReg" |}];
                           rfWrite := "bootRomWrite";
-                          rfIdxNum := (Nat.pow 2 lgMemSz);
+                          rfIdxNum := (Nat.pow 2 LgMemSz);
                           rfData := (Bit 8);
-                          rfInit := RFFile true true "boot_rom" 0 (Nat.pow 2 lgMemSz) (fun _ => wzero _) |} :: nil;
+                          rfInit := RFFile true true "boot_rom" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
        baseRegs := nil;
        write := (fun _ _ => Ret $$false);
-       readReq := (fun ty addr => ReadReqRf "bootRomReadReq" (SignExtendTruncLsb lgMemSz addr : Bit lgMemSz); Retv);
+       readReq := (fun ty addr => ReadReqRf "bootRomReadReq" (SignExtendTruncLsb LgMemSz addr : Bit LgMemSz); Retv);
        readRes := (fun ty => (Call readData : Array Rlen_over_8 (Bit 8) <- "bootRomReadRes"();
                               Ret ((Valid (pack #readData)): Maybe Data @# ty))); |}.
 End device.
