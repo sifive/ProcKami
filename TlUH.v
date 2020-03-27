@@ -38,7 +38,7 @@ Section tluh.
 
       Local Open Scope kami_expr.
 
-      Local Definition memOpCodeToMask
+      Local Definition getFinalMaskExpr
         (sz : TlSize @# ty)
         (address : PAddr @# ty)
         :  Bit (size DataMask) @# ty
@@ -60,7 +60,7 @@ Section tluh.
              "a_size"    ::= sz;
              "a_source"  ::= pack (req @% "tag");
              "a_address" ::= (req @% "offset");
-             "a_mask"    ::= memOpCodeToMask sz (req @% "offset");
+             "a_mask"    ::= getFinalMaskExpr sz (req @% "offset");
              "a_corrupt" ::= $$false;
              "a_data"    ::= req @% "data"
            }.
@@ -111,7 +111,7 @@ Section tluh.
 End tluh.
 
 Section test.
-  Instance testParams : ProcParams
+  Local Instance testParams : ProcParams
     := {| FU.procName := "blah" ;
           FU.Xlen_over_8 := 8;
           FU.Flen_over_8 := 8;
@@ -126,50 +126,57 @@ Section test.
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true |}.
 
-  Definition testMask (sz : nat) : string
-    := natToHexStr (Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord TlSizeSz sz)))))).
+  Let testMask sz
+    := Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord TlSizeSz sz))))).
 
-  Goal (testMask 3 = "FF"). reflexivity. Qed.
-  Goal (testMask 2 = "F"). reflexivity. Qed.
-  Goal (testMask 1 = "3"). reflexivity. Qed.
-  Goal (testMask 0 = "1"). reflexivity. Qed.
+  Goal (testMask 3 = bin "11111111"). reflexivity. Qed.
+  Goal (testMask 2 = bin "00001111"). reflexivity. Qed.
+  Goal (testMask 1 = bin "00000011"). reflexivity. Qed.
+  Goal (testMask 0 = bin "00000001"). reflexivity. Qed.
 
-  Definition shiftAmt (sz : nat) (addr : PAddr @# type)
-    := (Z.to_nat (wordVal _ (evalExpr (getMaskShiftAmt (Const type (natToWord TlSizeSz sz)) addr)))).
+  Let init: ConstT (Bit (PAddrSz - 3)) := _ 'h"438ad38".
 
-  Goal (shiftAmt 3 (Const type ($0%word)) = 0). reflexivity. Qed.
-  Goal (shiftAmt 2 (Const type ($0%word)) = 0). reflexivity. Qed.
-  Goal (shiftAmt 2 (Const type ($4%word)) = 4). reflexivity. Qed.
-  Goal (shiftAmt 1 (Const type ($0%word)) = 0). reflexivity. Qed.
-  Goal (shiftAmt 1 (Const type ($2%word)) = 2). reflexivity. Qed.
-  Goal (shiftAmt 1 (Const type ($4%word)) = 4). reflexivity. Qed.
-  Goal (shiftAmt 1 (Const type ($6%word)) = 6). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($0%word)) = 0). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($1%word)) = 1). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($2%word)) = 2). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($3%word)) = 3). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($4%word)) = 4). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($5%word)) = 5). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($6%word)) = 6). reflexivity. Qed.
-  Goal (shiftAmt 0 (Const type ($7%word)) = 7). reflexivity. Qed.
+  Let testShiftAmt sz addr
+    := (Z.to_nat
+          (wordVal _
+                   (evalExpr
+                      (getMaskShiftAmt (Const type (natToWord TlSizeSz sz))
+                                       ({< Const type init, Const type (natToWord 3 addr) >})%kami_expr)))).
 
-  Definition mask (sz : nat) (addr : PAddr @# type) : N
-    := Z.to_N (wordVal _ (evalExpr (memOpCodeToMask (Const type (natToWord TlSizeSz sz)) addr))).
+  Goal (testShiftAmt 3 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 2 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 2 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "010") = 2). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "110") = 6). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "001") = 1). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "010") = 2). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "011") = 3). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "101") = 5). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "110") = 6). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "111") = 7). reflexivity. Qed.
 
-  Goal (mask 3 (Const type ($0%word)) = hex"FF"). reflexivity. Qed.
-  Goal (mask 2 (Const type ($0%word)) = hex"F").  reflexivity. Qed.
-  Goal (mask 2 (Const type ($4%word)) = hex"F0"). reflexivity. Qed.
-  Goal (mask 1 (Const type ($0%word)) = hex"3").  reflexivity. Qed.
-  Goal (mask 1 (Const type ($2%word)) = hex"C").  reflexivity. Qed.
-  Goal (mask 1 (Const type ($4%word)) = hex"30"). reflexivity. Qed.
-  Goal (mask 1 (Const type ($6%word)) = hex"C0"). reflexivity. Qed.
-  Goal (mask 0 (Const type ($0%word)) = hex"1").  reflexivity. Qed.
-  Goal (mask 0 (Const type ($1%word)) = hex"2").  reflexivity. Qed.
-  Goal (mask 0 (Const type ($2%word)) = hex"4").  reflexivity. Qed.
-  Goal (mask 0 (Const type ($3%word)) = hex"8").  reflexivity. Qed.
-  Goal (mask 0 (Const type ($4%word)) = hex"10"). reflexivity. Qed.
-  Goal (mask 0 (Const type ($5%word)) = hex"20"). reflexivity. Qed.
-  Goal (mask 0 (Const type ($6%word)) = hex"40"). reflexivity. Qed.
-  Goal (mask 0 (Const type ($7%word)) = hex"80"). reflexivity. Qed.
+  Definition testFinalMask sz addr
+    := Z.to_nat (wordVal _ (evalExpr (getFinalMaskExpr
+                                        (Const type (natToWord TlSizeSz sz))
+                                        ({<Const type init, Const type (natToWord 3 addr)>})%kami_expr))).
 
+  Goal (testFinalMask 3 (bin "000") = (bin "11111111")). reflexivity. Qed.
+  Goal (testFinalMask 2 (bin "000") = (bin "00001111")). reflexivity. Qed.
+  Goal (testFinalMask 2 (bin "100") = (bin "11110000")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "000") = (bin "00000011")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "010") = (bin "00001100")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "100") = (bin "00110000")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "110") = (bin "11000000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "000") = (bin "00000001")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "001") = (bin "00000010")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "010") = (bin "00000100")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "011") = (bin "00001000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "100") = (bin "00010000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "101") = (bin "00100000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "110") = (bin "01000000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "111") = (bin "10000000")). reflexivity. Qed.
 End test.
