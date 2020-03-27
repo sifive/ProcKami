@@ -54,7 +54,7 @@ Section memOpsFuncs.
     (sz : Bit n @# ty)
     (addr : Bit m @# ty)
     :  Bit 3 @# ty
-    := $0. (* ((ZeroExtendTruncLsb 3 addr) >> sz) << sz. *)
+    := ((ZeroExtendTruncLsb 3 addr) >> sz) << sz.
 
   Definition getSize ty (req : MemOpCode @# ty) :=
     UniBit (TruncLsb TlSizeSz TlParamSz)

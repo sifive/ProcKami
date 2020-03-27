@@ -452,10 +452,13 @@ Section Impl.
     := Read level: PtLevel <- ^"level";
        Read vaddr : VAddr <- ^"vaddr";
        Read context : TlbContext <- ^"context";
-       (* LET resp: FU.Data <- (IF ((ZeroExtendTruncLsb 3 #vaddr >> (#resp' @% "snd")) == $1) *)
-       (*                       then ZeroExtendTruncLsb _ (ZeroExtendTruncMsb 32 (#resp' @% "fst")) *)
-       (*                       else #resp' @% "fst"); *)
-       LET resp: FU.Data <- #resp' @% "fst" >> (getByteShiftAmt (#resp' @% "snd") (#vaddr));
+       Read paddr : PAddr <- ^"paddr"  ;
+       LET resp: FU.Data <- (IF ((ZeroExtendTruncLsb 3 #paddr >> (#resp' @% "snd")) == $1)
+                             then ZeroExtendTruncLsb _ (ZeroExtendTruncMsb 32 (#resp' @% "fst"))
+                             else #resp' @% "fst");
+       (* LET resp: FU.Data <- #resp' @% "fst" >> (getByteShiftAmt (#resp' @% "snd") (#paddr)); *)
+       System [DispString _ "MMU callback true response: "; DispHex #resp'; DispString _ "\n"];
+       System [DispString _ "MMU callback response: "; DispHex #resp; DispString _ "\n"];
        LET pte <-  unpack PteEntry (ZeroExtendTruncLsb (Syntax.size PteEntry) #resp);
        LET index <- $(tlbMaxPageLevels - 1) - #level;
        LETA trans_result<- convertLetExprSyntax_ActionT (translatePte lgPageSz
