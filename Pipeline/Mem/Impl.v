@@ -100,7 +100,7 @@ Section Impl.
       CompletionBuffer.Ifc.inToOutRes := fun ty inRes storeReq =>
                                            (IF ((ZeroExtendTruncLsb 3 (storeReq @% "fst") >> $$(natToWord 2 2)) == $1)
                                             then ZeroExtendTruncMsb FU.InstSz (inRes @% "fst")
-                                            else ZeroExtendTruncLsb FU.InstSz (inRes @% "fst")
+                                            else ZeroExtendTruncLsb FU.InstSz (inRes @% "fst"))
                                            (* ZeroExtendTruncLsb FU.InstSz *)
                                            (*   ((inRes @% "fst") >> (getByteShiftAmt (inRes @% "snd") (storeReq @% "fst"))) *)
     |}.
