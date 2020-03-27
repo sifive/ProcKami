@@ -20,6 +20,7 @@ Require Import Kami.Simulator.CoqSim.Simulator.
 Require Import Kami.Simulator.CoqSim.HaskellTypes.
 Require Import Kami.Simulator.CoqSim.RegisterFile.
 Require Import Kami.WfActionT.
+Require Import Kami.SignatureMatch.
 Require Import ProcKami.Devices.Uart.
 
 Definition supportedExts
@@ -91,6 +92,18 @@ Proof.
 Qed.
 
 Lemma model32_wf : WfMod_unit model32 = [].
+Proof.
+  vm_compute.
+  reflexivity.
+Qed.
+
+Lemma model64_sf : SigMatch_Mod model64 = [].
+Proof.
+  vm_compute.
+  reflexivity.
+Qed.
+
+Lemma model32_sf : SigMatch_Mod model32 = [].
 Proof.
   vm_compute.
   reflexivity.
