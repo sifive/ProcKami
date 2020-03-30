@@ -324,7 +324,7 @@ Section Impl.
                 System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];
                 LETA loadRet <- Mem.Ifc.getMemUnitMemRes mem _;
                 LET resData <- (#loadRet @% "data" @% "res" @% "fst")
-                                 >> (getByteShiftAmt (#loadRet @% "data" @% "res" @% "snd")
+                                 >>> (getByteShiftAmt (#loadRet @% "data" @% "res" @% "snd")
                                                      (#optCommit @% "data" @% "execUpd" @% "val2" @% "data" @% "data"));
                 LET loadWb : RoutedReg <- STRUCT {
                                               "tag" ::= (IF #optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "isFrd"
