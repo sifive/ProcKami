@@ -279,14 +279,19 @@ Section Impl.
       ];
       If #optCommit @% "valid"
       then (
+        LETA hasLoadPotential <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
+        LET hasLoad <- #optCommit @% "data" @% "execCxt" @% "memHints" @% "valid" && #hasLoadPotential;
+        LETA hasLoadRet <- Mem.Ifc.hasMemUnitMemRes mem _;
+        System [DispString _ "Load Details: "; DispHex #hasLoad; DispString _ " "; DispHex #hasLoadRet; DispString _ "\n"];
         LETA canClear <- Mem.Ifc.fetcherCanClear mem _;
         System [DispString _ "realPc "; DispHex #realPc; DispString _ " "; DispHex #canClear; DispString _ "\n"];
         If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
-          If #canClear
+          If #canClear && (!#hasLoad || #hasLoadRet)
           then (    
             System [DispString _ "Incoming PC not matching: "; DispHex #realPc; DispString _ " ";
                    DispHex (#optCommit @% "data" @% "execCxt" @% "pc"); DispString _ "\n"];
+            LETA _ <- Mem.Ifc.getMemUnitMemRes mem _;
             LETA _ <- Mem.Ifc.fetcherClear mem _;
             Write @^"pc" <- #realPc;
             Write @^"realPc" <- #realPc;
@@ -315,10 +320,6 @@ Section Impl.
                 enqVoid );
               Retv )
             else (
-              LETA hasLoadPotential <- memOpHasLoad memOps (#optCommit @% "data" @% "execCxt" @% "memHints" @% "data" @% "memOp");
-              LET hasLoad <- #optCommit @% "data" @% "execCxt" @% "memHints" @% "valid" && #hasLoadPotential;
-              LETA hasLoadRet <- Mem.Ifc.hasMemUnitMemRes mem _;
-              System [DispString _ "Load Details: "; DispHex #hasLoad; DispString _ " "; DispHex #hasLoadRet; DispString _ "\n"];
               If (!#hasLoad || #hasLoadRet)
               then (
                 System [DispString _ "PC: "; DispHex #realPc; DispString _ "\n"];

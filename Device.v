@@ -137,6 +137,7 @@ Section DeviceIfc.
                  (req : ty (Req tagK))
         :  ActionT ty Bool (* accepted *)
         := Read busy : Bool <- ^"busy";
+           System [DispString _ "Dev sendReq: "; DispHex #busy; DispString _ " "; DispHex #req; DispString _ "\n"];
            If !#busy
            then (
              LETA writeData : Maybe MemWrite <- memStoreValue
@@ -184,8 +185,9 @@ Section DeviceIfc.
              Ret #result
            else
              Ret $$(getDefaultConst (Res tagK)) as res;
-           Ret ((STRUCT {"valid" ::= #busy;
-                         "data" ::= #res }): Maybe (Res tagK) @# ty).
+           LET retval <- ((STRUCT {"valid" ::= #busy;
+                                   "data" ::= #res }): Maybe (Res tagK) @# ty);
+           Ret #retval.
       
       Local Close Scope kami_action.
       Local Close Scope kami_expr.

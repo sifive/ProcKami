@@ -45,11 +45,12 @@ Section DeviceIfc.
   Local Definition rules: list (Attribute (Action Void)) :=
     map (fun '(num, rule) => (("devPoll" ++ natToHexStr num)%string,
                               fun (ty: Kind -> Type) =>
-                                (LETA full <- Fifo.Ifc.isFull fifo;
-                                If !#full
-                                 then rule ty;
-                                 Retv)))
-        (tag (Router.Ifc.pollRules router (fun ty x => LETA _ <- Fifo.Ifc.enq fifo x;
+                                ( LETA full <- Fifo.Ifc.isFull fifo;
+                                  If !#full
+                                  then rule ty;
+                                  Retv)))
+        (tag (Router.Ifc.pollRules router (fun ty x =>
+                                             LETA _ <- Fifo.Ifc.enq fifo x;
                                           Retv))).
 
   Local Definition InReq := STRUCT_TYPE { "tag" :: tagK;
@@ -81,6 +82,8 @@ Section DeviceIfc.
         Registers (Fifo.Ifc.regs fifo) with
             
         Rules rules with
+        Rule "DevPollingDone" := (Router.Ifc.finishRule router _) with
+            
 
         Method "routerSendReq" (req: InReq): Bool := routerSendReq _ req with
         Method "routerDeq" (): Maybe (Device.Res tagK) := Fifo.Ifc.deq fifo with
