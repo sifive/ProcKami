@@ -244,8 +244,10 @@ Section Impl.
                                                                           "req" ::= #memReq };
                   LETA accepted: Bool <- @sendMemUnitMemReq _ _ _ mem _ memUnitMemReq;
                   System [
-                    DispString _ "[decodeExecRule] memory unit req accepted: ";
+                    DispString _ "[decodeExecRule] memory unit req with accepted: ";
                     DispHex #accepted;
+                    DispString _ " ";
+                    DispHex #memUnitMemReq;
                     DispString _ "\n"
                   ];
                   If #accepted (* Request accepted *)
@@ -287,7 +289,7 @@ Section Impl.
         System [DispString _ "realPc "; DispHex #realPc; DispString _ " "; DispHex #canClear; DispString _ "\n"];
         If #realPc != #optCommit @% "data" @% "execCxt" @% "pc"
         then (
-          If #canClear && (!#hasLoad || #hasLoadRet)
+          If #canClear && (!#hasLoad || #optCommit @% "data" @% "exception" @% "valid" || #hasLoadRet)
           then (    
             System [DispString _ "Incoming PC not matching: "; DispHex #realPc; DispString _ " ";
                    DispHex (#optCommit @% "data" @% "execCxt" @% "pc"); DispString _ "\n"];

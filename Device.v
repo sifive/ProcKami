@@ -137,7 +137,6 @@ Section DeviceIfc.
                  (req : ty (Req tagK))
         :  ActionT ty Bool (* accepted *)
         := Read busy : Bool <- ^"busy";
-           System [DispString _ "Dev sendReq: "; DispHex #busy; DispString _ " "; DispHex #req; DispString _ "\n"];
            If !#busy
            then (
              LETA writeData : Maybe MemWrite <- memStoreValue
