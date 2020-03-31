@@ -184,8 +184,9 @@ Section DeviceIfc.
              Ret #result
            else
              Ret $$(getDefaultConst (Res tagK)) as res;
-           Ret ((STRUCT {"valid" ::= #busy;
-                         "data" ::= #res }): Maybe (Res tagK) @# ty).
+           LET retval <- ((STRUCT {"valid" ::= #busy;
+                                   "data" ::= #res }): Maybe (Res tagK) @# ty);
+           Ret #retval.
       
       Local Close Scope kami_action.
       Local Close Scope kami_expr.
