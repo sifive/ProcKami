@@ -119,20 +119,6 @@ Section DeviceIfc.
                   end))
              code.
       
-      Local Definition regValue
-            (code : MemOpCode @# ty)
-            (memData : Data @# ty)
-        :  ActionT ty Data
-        := applyMemOp
-             memOps
-             (fun memOp
-              => match memOpRegValue memOp return ActionT ty Data with
-                 | memRegValueFn f => (LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
-                                      Ret #result)
-                 | memRegValueNone => Ret memData
-                 end)
-             code.
-      
       Local Definition sendReq
                  (req : ty (Req tagK))
         :  ActionT ty Bool (* accepted *)
@@ -156,7 +142,7 @@ Section DeviceIfc.
            Ret !#busy.
       
       (*
-        * Invalid - unavailable
+        * Invalid - not accepted
        *)
       Local Definition getRes
         :  ActionT ty (Maybe (Res tagK))
@@ -173,12 +159,11 @@ Section DeviceIfc.
              If #writeData @% "valid"
              then write (#writeData @% "data");
       
-             LETA regData : Data <- regValue (#req @% "memOp") (#memData @% "data");
              Write ^"busy": Bool <- $$ false;
              LET result
              : (Res tagK) <-
                STRUCT { "tag" ::= #req @% "tag";
-                        "res" ::= STRUCT { "fst" ::= (#regData <<
+                        "res" ::= STRUCT { "fst" ::= ((#memData @% "data") <<
                                                        (getByteShiftAmt (getSize (#req @% "memOp")) (#req @% "offset")));
                                            "snd" ::= getSize (#req @% "memOp") } };
              Ret #result

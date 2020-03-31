@@ -85,8 +85,6 @@ Goal Nat.log2_up (length (@memOps model64Params)) <= (@TlFullSz model64Params).
 Proof. cbv; lia. Qed.
 
 (** vm_compute should take ~40s *)
-
-(*
 Lemma model64_wf : WfMod_unit model64 = [].
 Proof.
   vm_compute.
@@ -98,7 +96,6 @@ Proof.
   vm_compute.
   reflexivity.
 Qed.
-*)
 
 Lemma model64_sf : SigMatch_Mod model64 = [].
 Proof.

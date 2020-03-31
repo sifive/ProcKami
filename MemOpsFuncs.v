@@ -141,6 +141,19 @@ Section memOpsFuncs.
                     | None => RetE $$(getDefaultConst k) (* impossible case. *)
                     end).
 
+        Definition getRegValue
+              (code : MemOpCode @# ty)
+              (memData : Data @# ty)
+          :  ActionT ty Data
+          := applyMemOp
+               (fun memOp
+                => match memOpRegValue memOp return ActionT ty Data with
+                   | memRegValueFn f => (LETA result : Data <- convertLetExprSyntax_ActionT (f ty memData);
+                                        Ret #result)
+                   | memRegValueNone => Ret memData
+                   end)
+               code.
+        
         Local Close Scope kami_action.
 
       End func_units.
