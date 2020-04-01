@@ -374,7 +374,17 @@ Section Impl.
           enqVoid );
         Retv);
       Retv.
-           
+
+    Local Definition debugInterruptRule :=
+      Call debugInterrupt : Bool <- @^"debugInterrupt"();
+      Write @^"debugMode" : Bool <- #debugInterrupt;
+      Retv.
+
+    Local Definition externalInterruptRule :=
+      Call externalInterrupt : Bool <- @^"externalInterrupt"();
+      Write @^"meip" : Bool <- #externalInterrupt;
+      Retv.
+
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
   End ty.
@@ -410,7 +420,9 @@ Section Impl.
          Pipeline.Ifc.commitRule                          := commitRule;
          Pipeline.Ifc.arbiterResetRule                    := Mem.Ifc.arbiterResetRule mem;
          Pipeline.Ifc.trapInterruptRule                   := trapInterruptRule;
-         Pipeline.Ifc.ArbiterTag                          := ArbiterTag
+         Pipeline.Ifc.debugInterruptRule                  := debugInterruptRule;
+         Pipeline.Ifc.externalInterruptRule               := externalInterruptRule;
+         Pipeline.Ifc.ArbiterTag                          := ArbiterTag;
        |}.
 
 End Impl.

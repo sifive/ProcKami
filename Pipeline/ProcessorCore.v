@@ -40,6 +40,12 @@ Section Params.
          Register @^"debugMode": Bool <- Default with
          Register @^"debugPending": Bool <- Default with    
 
+         Rule @^"debugInterruptRule"
+           := Pipeline.Ifc.debugInterruptRule pipeline with
+
+         Rule @^"externalInterruptRule"
+           := Pipeline.Ifc.externalInterruptRule pipeline with
+
          Rule @^"tokenStart"
            := Pipeline.Ifc.tokenStartRule pipeline with
 
