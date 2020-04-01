@@ -61,14 +61,11 @@ Definition modelParams (xlens : list nat) : ProcParams
        misaligned_access 
        (_ 'h"1000").
 
-Definition xlens32 := [Xlen32].
-Definition xlens64 := [Xlen32; Xlen64].
-
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
 
-Definition model32Params := modelParams xlens32.
-Definition model64Params := modelParams xlens64.
+Definition model32Params := modelParams [Xlen32].
+Definition model64Params := modelParams [Xlen32; Xlen64].
 
 (* verify that the 32 bit model is compatible with TileLink. *)
 Goal Nat.log2_up (length (@memOps model32Params)) <= (@TlFullSz model32Params).
@@ -116,8 +113,8 @@ Definition coqSim_32
      ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
      ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
      IO unit *)
-  := let '(_,(rfbs,bm)) := separateModRemove (model xlens32) in
-       @eval_BaseMod E _ env args rfbs timeout (meths xlens32) bm cheat.
+  := let '(_,(rfbs,bm)) := separateModRemove (model [Xlen32]) in
+       @eval_BaseMod E _ env args rfbs timeout (meths [Xlen32]) bm cheat.
 
 Definition coqSim_64
   {E}
@@ -129,8 +126,8 @@ Definition coqSim_64
      ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
      ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
      IO unit *)
-  := let '(_,(rfbs,bm)) := separateModRemove (model xlens64) in
-       @eval_BaseMod E _ env args rfbs timeout (meths xlens64) bm cheat.
+  := let '(_,(rfbs,bm)) := separateModRemove (model [Xlen32; Xlen64]) in
+       @eval_BaseMod E _ env args rfbs timeout (meths [Xlen32; Xlen64]) bm cheat.
 *)
 
 Separate Extraction
