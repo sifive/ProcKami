@@ -172,8 +172,6 @@ Class ProcParams :=
     allow_misaligned: bool;
     allow_inst_misaligned: bool;
     misaligned_access: bool;
-    debug_buffer_sz : nat;
-    debug_impebreak : bool;
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
     hasVirtualMem : bool
   }.
@@ -358,16 +356,6 @@ Section Params.
          "compressed?" :: Bool
        }.
 
-  Definition debug_hart_state
-    := STRUCT_TYPE {
-         "halted"    :: Bool; (* not executing instructions *)
-         "haltreq"   :: Bool;
-         "resumereq" :: Bool;
-         "resumeack" :: Bool;
-         "debug"     :: Bool; (* grant debug privileges when running. *)
-         "command"   :: Bool  (* hart selected to execute abstract command. *) 
-       }.
-
   Section Extensions.
     
     Definition ImplExts := ["I"; "M"; "A"; "F"; "D"; "C"; "S"; "U"; "Zicsr"; "Zifencei"].
@@ -451,7 +439,6 @@ Section Params.
         "xlen"             :: XlenValue; (* First read during inputXlate *)
         "satp_mode"        :: SatpMode; (* First read during vpc translation in fetch *)
 
-        (* "debug_hart_state" :: debug_hart_state; *)
         "mode"             :: PrivMode; (* First read during vpc translation in fetch *)
         "tsr"              :: Bool; (* Move MRet to commit and remove this *)
         "tvm"              :: Bool; (* Move MRet to commit and remove this *)
@@ -1049,11 +1036,6 @@ Section Params.
       Local Open Scope kami_action.
     End ty.
   End func_units.
-
-  Definition debug_device_addr : word PAddrSz := (($0)%word : word PAddrSz).
-
-  Definition debug_csrs_num_data
-    := Xlen_over_8 * 3 / 4.
 
   Definition DebugCauseEBreak := 1.
   Definition DebugCauseHalt   := 3.

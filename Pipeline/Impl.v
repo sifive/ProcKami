@@ -12,7 +12,6 @@ Require Import ProcKami.Pipeline.Executer.
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Pipeline.ConfigReader.
 
-Require Import ProcKami.Debug.Debug.
 Require Import ProcKami.Pipeline.Trap.
 
 Require Import ProcKami.Pipeline.Ifc.
@@ -357,8 +356,8 @@ Section Impl.
       Retv.
 
     Local Definition trapInterruptRule :=
-      LETA debugVal : debug_hart_state <- debug_hart_state_read _;
-      If !(#debugVal @% "debug")
+      Read debug : Bool <- @^"debugMode";
+      If !#debug
       then (
         Read modeRaw : PrivMode <- @^"mode";
         Read extRegs: ExtensionsReg <- @^"extRegs";
@@ -367,7 +366,7 @@ Section Impl.
         Read pc : VAddr <- @^"pc";
         LETA xlen : XlenValue <- readXlen #mode;
         System [DispString _ "[trap_interrupt]\n"];
-        LETA nextPc <- interruptAction #xlen (#debugVal @% "debug") #mode #pc;
+        LETA nextPc <- interruptAction #xlen #debug #mode #pc;
         If #nextPc @% "valid"
         then (
           Write @^"pc" <- #nextPc @% "data";
@@ -375,7 +374,17 @@ Section Impl.
           enqVoid );
         Retv);
       Retv.
-           
+
+    Local Definition debugInterruptRule :=
+      Call debugInterrupt : Bool <- @^"debugInterrupt"();
+      Write @^"debugMode" : Bool <- #debugInterrupt;
+      Retv.
+
+    Local Definition externalInterruptRule :=
+      Call externalInterrupt : Bool <- @^"externalInterrupt"();
+      Write @^"meip" : Bool <- #externalInterrupt;
+      Retv.
+
     Local Close Scope kami_expr.
     Local Close Scope kami_action.
   End ty.
@@ -411,7 +420,9 @@ Section Impl.
          Pipeline.Ifc.commitRule                          := commitRule;
          Pipeline.Ifc.arbiterResetRule                    := Mem.Ifc.arbiterResetRule mem;
          Pipeline.Ifc.trapInterruptRule                   := trapInterruptRule;
-         Pipeline.Ifc.ArbiterTag                          := ArbiterTag
+         Pipeline.Ifc.debugInterruptRule                  := debugInterruptRule;
+         Pipeline.Ifc.externalInterruptRule               := externalInterruptRule;
+         Pipeline.Ifc.ArbiterTag                          := ArbiterTag;
        |}.
 
 End Impl.

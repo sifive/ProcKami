@@ -19,6 +19,8 @@ Section Ifc.
       commitRule: forall {ty}, ActionT ty Void;
       trapInterruptRule: forall {ty}, ActionT ty Void;
       arbiterResetRule: forall {ty}, ActionT ty Void;
+      debugInterruptRule: forall {ty}, ActionT ty Void;
+      externalInterruptRule: forall {ty}, ActionT ty Void;
       ArbiterTag : Kind;
     }.
 End Ifc.

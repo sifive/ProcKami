@@ -42,8 +42,6 @@ Definition supportedExts
 Definition allow_misaligned      := false.
 Definition allow_inst_misaligned := true.
 Definition misaligned_access     := false.
-Definition debug_buffer_sz       := 2.
-Definition debug_impebreak       := true.
 
 Definition model (xlens : list nat) : Mod
   := generate_model
@@ -52,9 +50,7 @@ Definition model (xlens : list nat) : Mod
        allow_misaligned
        allow_inst_misaligned
        misaligned_access
-       (_ 'h"1000")
-       debug_buffer_sz
-       debug_impebreak.
+       (_ 'h"1000").
 
 Definition modelParams (xlens : list nat) : ProcParams
   := modelProcParams
@@ -63,9 +59,7 @@ Definition modelParams (xlens : list nat) : ProcParams
        allow_misaligned
        allow_inst_misaligned
        misaligned_access 
-       (_ 'h"1000")
-       debug_buffer_sz
-       debug_impebreak.
+       (_ 'h"1000").
 
 Definition xlens32 := [Xlen32].
 Definition xlens64 := [Xlen32; Xlen64].

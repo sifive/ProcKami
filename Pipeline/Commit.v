@@ -5,8 +5,6 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.Debug.Debug.
-
 Require Import ProcKami.Pipeline.RegWriter.
 Require Import ProcKami.Pipeline.Trap.
 
@@ -104,18 +102,10 @@ Section trap_handling.
            Retv;
        Retv.
 
-  Local Definition exitDebugMode
-    (dpc : Bit Xlen @# ty)
-    (prv : Bit 2 @# ty)
-    :  ActionT ty Void
-    := Write @^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth prv;
-       LETA _ <- debug_hart_state_set "debug" $$false;
-       Retv.
-
   Local Definition commitOpCall2
     (dpc : VAddr @# ty)
     (prv : PrivMode @# ty)
-    (debugHartState : debug_hart_state @# ty)
+    (debug: Bool @# ty)
     (commitOp : Maybe RoutedReg @# ty)
     :  ActionT ty Void
     := If commitOp @% "valid"
@@ -130,7 +120,7 @@ Section trap_handling.
              then commitOpRetAux "u" 0;
            If commitOp @% "data" @% "tag" == $WfiTag
              then commitOpWfi;
-           If debugHartState @% "debug" &&
+           If debug &&
               commitOp @% "data" @% "tag" == $DRetTag
              then exitDebugMode dpc prv;
            If commitOp @% "data" @% "tag" == $LrTag
@@ -201,7 +191,7 @@ Section trap_handling.
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    (debugHartState : debug_hart_state @# ty)
+    (debug : Bool @# ty)
     (mcounteren : CounterEnType @# ty)
     (scounteren : CounterEnType @# ty)
     (callIsWriteCsr : Bool @# ty)
@@ -216,14 +206,14 @@ Section trap_handling.
                  cfg_pkt @% "mode" == $SupervisorMode && cfg_pkt @% "tvm") ||
                 (* Illegal WFI instruction *)
                 (update_pkt @% "val2" @% "data" @% "tag" == $WfiTag &&
-                 !(debugHartState @% "debug") &&
+                 !debug &&
                  cfg_pkt @% "tw" && cfg_pkt @% "mode" != $MachineMode) ||
                 (* CSR write exception *)
                 (callIsWriteCsr &&
                  !csrAccessible 
                    Csrs
                    (cfg_pkt @% "xlen")
-                   (debugHartState @% "debug")
+                   debug
                    (cfg_pkt @% "mode")
                    (cfg_pkt @% "tvm")
                    mcounteren
@@ -257,7 +247,7 @@ Section trap_handling.
     (cfg_pkt : ContextCfgPkt @# ty)
     (exec_context_pkt : ExecContextPkt @# ty)
     (update_pkt : ExecUpdPkt @# ty)
-    (debugHartState : debug_hart_state @# ty)
+    (debug : Bool @# ty)
     (mcounteren : CounterEnType @# ty)
     (scounteren : CounterEnType @# ty)
     (callIsWriteCsr : Bool @# ty)
@@ -266,7 +256,7 @@ Section trap_handling.
     := LETC illegalInstException
          :  Maybe Exception
          <- commitIllegalInst
-              cfg_pkt exec_context_pkt update_pkt debugHartState
+              cfg_pkt exec_context_pkt update_pkt debug
               mcounteren scounteren callIsWriteCsr;
        LETC eCallException
          :  Maybe Exception
@@ -292,7 +282,7 @@ Section trap_handling.
     (update_pkt : ExecUpdPkt @# ty)
     (exception : Maybe Exception @# ty)
     :  ActionT ty (Maybe Exception)
-    := LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
+    := Read debug : Bool <- @^"debugMode";
        LETA mcounteren : CounterEnType <- read_counteren _ @^"mcounteren";
        LETA scounteren : CounterEnType <- read_counteren _ @^"scounteren";
        LET callIsWriteCsr
@@ -301,7 +291,7 @@ Section trap_handling.
        convertLetExprSyntax_ActionT
          (commitException
            cfg_pkt exec_context_pkt update_pkt
-           #debugHartState #mcounteren #scounteren
+           #debug #mcounteren #scounteren
            #callIsWriteCsr exception).
        
 
@@ -337,13 +327,13 @@ Section trap_handling.
        LET callIsWriteCsr
          :  Bool
          <- commitOpCallIsWriteCsr (update_pkt @% "val1");
-       LETA debugHartState : debug_hart_state <- debug_hart_state_read ty;
+       Read debug : Bool <- @^"debugMode";
        System [DispString _ "CommitException: "; DispHex #commitException; DispString _ "\n" ];
        If (#commitException @% "valid")
          then
            trapException
              (cfg_pkt @% "xlen")
-             (#debugHartState @% "debug")
+             #debug
              (cfg_pkt @% "mode")
              (exec_context_pkt @% "pc")
              (#commitException @% "data")
@@ -361,7 +351,7 @@ Section trap_handling.
                   #callIsWriteCsr;
            LETA _
              <- commitOpCall2
-                  #dpc #prv #debugHartState
+                  #dpc #prv #debug
                   (update_pkt @% "val2");
            LETA _
              <- commitSc
@@ -373,7 +363,7 @@ Section trap_handling.
            Ret #nextPc
          as realNextPc;
        Read step : Bool <- @^"step";
-       If !(#debugHartState @% "debug") && #step (* debug spec 4.8.1 *)
+       If !#debug && #step (* debug spec 4.8.1 *)
          then enterDebugMode (cfg_pkt @% "mode") #realNextPc $DebugCauseStep;
        System [
          DispString _ "[commit] done.\n"

@@ -161,8 +161,6 @@ Section exts.
   Local Definition Rlen_over_8 : nat := Nat.max Xlen_over_8 (Nat.max Flen_over_8 PAddrSz_over_8).
 
   Variable pc_init_val: word (Xlen_over_8 * 8).
-  Variable debug_buffer_sz : nat.
-  Variable debug_impebreak : bool.
 
   Instance modelProcParams
     :  ProcParams
@@ -175,8 +173,6 @@ Section exts.
           FU.allow_misaligned := allow_misaligned;
           FU.allow_inst_misaligned := allow_inst_misaligned;
           FU.misaligned_access := misaligned_access;
-          FU.debug_buffer_sz := debug_buffer_sz;
-          FU.debug_impebreak := debug_impebreak;
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true |}.
 

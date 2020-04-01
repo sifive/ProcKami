@@ -1,8 +1,5 @@
 Require Import Kami.AllNotations.
 
-Require Import ProcKami.Debug.Debug.
-Require Import ProcKami.Debug.DebugDevice.
-
 Require Import ProcKami.Device.
 Require Import ProcKami.DeviceMod.
 
@@ -39,8 +36,15 @@ Section Params.
          Register @^"reservation" : Maybe Reservation <- getDefaultConst (Maybe Reservation) with
 
          Registers (@csr_regs procParams Csrs) with
-         Registers (@debug_internal_regs procParams) with
          Registers (@Pipeline.Ifc.regs pipeline) with
+         Register @^"debugMode": Bool <- Default with
+         Register @^"debugPending": Bool <- Default with    
+
+         Rule @^"debugInterruptRule"
+           := Pipeline.Ifc.debugInterruptRule pipeline with
+
+         Rule @^"externalInterruptRule"
+           := Pipeline.Ifc.externalInterruptRule pipeline with
 
          Rule @^"tokenStart"
            := Pipeline.Ifc.tokenStartRule pipeline with

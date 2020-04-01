@@ -2,9 +2,6 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
-Require Import ProcKami.Debug.Debug.
-
-
 Import ListNotations.
 
 Section trap.
@@ -153,7 +150,15 @@ Section trap.
     := Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen pc;
        Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb PrivModeWidth mode;
        Write @^"cause" : Bit 3 <- cause;
-       LETA _ <- debug_hart_state_set "debug" $$true;
+       Write @^"debugMode" : Bool <- $$true;
+       Retv.
+
+  Definition exitDebugMode
+    (dpc : Bit Xlen @# ty)
+    (prv : Bit 2 @# ty)
+    :  ActionT ty Void
+    := Write @^"mode" : PrivMode <- ZeroExtendTruncLsb PrivModeWidth prv;
+       Write @^"debugMode" : Bool <- $$ false;
        Retv.
 
   Definition trapException 
@@ -175,7 +180,6 @@ Section trap.
        Read sedeleg : Bit 16 <- @^"sedeleg";
        If debug
          then
-           LETA _ <- debug_hart_command_done ty;
            Ret pc
          else 
            If (exception == $Breakpoint) &&
@@ -203,7 +207,7 @@ Section trap.
          as next_pc;
        Ret #next_pc.
 
-  Definition intrpt_pending
+  Definition interruptPending
     (name : string)
     :  ActionT ty Bool
     := Read pending : Bool <- (name ++ "p");
@@ -220,15 +224,15 @@ Section trap.
        Read mie : Bool <- @^"mie";
        Read sie : Bool <- @^"sie";
        Read uie : Bool <- @^"uie";
-       LETA mei : Bool <- intrpt_pending @^"mei";
-       LETA msi : Bool <- intrpt_pending @^"msi";
-       LETA mti : Bool <- intrpt_pending @^"mti";
-       LETA sei : Bool <- intrpt_pending @^"sei";
-       LETA ssi : Bool <- intrpt_pending @^"ssi";
-       LETA sti : Bool <- intrpt_pending @^"sti";
-       LETA uei : Bool <- intrpt_pending @^"uei";
-       LETA usi : Bool <- intrpt_pending @^"usi";
-       LETA uti : Bool <- intrpt_pending @^"uti";
+       LETA mei : Bool <- interruptPending @^"mei";
+       LETA msi : Bool <- interruptPending @^"msi";
+       LETA mti : Bool <- interruptPending @^"mti";
+       LETA sei : Bool <- interruptPending @^"sei";
+       LETA ssi : Bool <- interruptPending @^"ssi";
+       LETA sti : Bool <- interruptPending @^"sti";
+       LETA uei : Bool <- interruptPending @^"uei";
+       LETA usi : Bool <- interruptPending @^"usi";
+       LETA uti : Bool <- interruptPending @^"uti";
        LET code : Maybe (Pair PrivMode Exception)
          <- IF #mei then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMExt} : Pair PrivMode Exception @# ty) else (
             IF #msi then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptM} : Pair PrivMode Exception @# ty) else (

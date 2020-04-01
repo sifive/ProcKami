@@ -118,8 +118,6 @@ Section test.
           FU.allow_misaligned := false;
           FU.allow_inst_misaligned := false;
           FU.misaligned_access := false;
-          FU.debug_buffer_sz := 0;
-          FU.debug_impebreak := false;
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true |}.
 
@@ -140,40 +138,40 @@ Section test.
                       (getShiftAmt (Const type (natToWord TlSizeSz sz))
                                    ({< Const type init, Const type (natToWord 3 addr) >})%kami_expr)))).
 
-  (* Goal (testShiftAmt 3 (bin "000") = 0). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 2 (bin "000") = 0). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 2 (bin "100") = 4). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 1 (bin "000") = 0). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 1 (bin "010") = 2). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 1 (bin "100") = 4). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 1 (bin "110") = 6). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "000") = 0). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "001") = 1). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "010") = 2). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "011") = 3). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "100") = 4). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "101") = 5). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "110") = 6). reflexivity. Qed. *)
-  (* Goal (testShiftAmt 0 (bin "111") = 7). reflexivity. Qed. *)
+  Goal (testShiftAmt 3 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 2 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 2 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "010") = 2). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 1 (bin "110") = 6). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "000") = 0). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "001") = 1). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "010") = 2). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "011") = 3). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "100") = 4). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "101") = 5). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "110") = 6). reflexivity. Qed.
+  Goal (testShiftAmt 0 (bin "111") = 7). reflexivity. Qed.
 
   Let testFinalMask sz addr
     := Z.to_nat (wordVal _ (evalExpr (getFinalMaskExpr
                                         (Const type (natToWord TlSizeSz sz))
                                         ({<Const type init, Const type (natToWord 3 addr)>})%kami_expr))).
 
-  (* Goal (testFinalMask 3 (bin "000") = (bin "11111111")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 2 (bin "000") = (bin "00001111")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 2 (bin "100") = (bin "11110000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 1 (bin "000") = (bin "00000011")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 1 (bin "010") = (bin "00001100")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 1 (bin "100") = (bin "00110000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 1 (bin "110") = (bin "11000000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "000") = (bin "00000001")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "001") = (bin "00000010")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "010") = (bin "00000100")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "011") = (bin "00001000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "100") = (bin "00010000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "101") = (bin "00100000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "110") = (bin "01000000")). reflexivity. Qed. *)
-  (* Goal (testFinalMask 0 (bin "111") = (bin "10000000")). reflexivity. Qed. *)
+  Goal (testFinalMask 3 (bin "000") = (bin "11111111")). reflexivity. Qed.
+  Goal (testFinalMask 2 (bin "000") = (bin "00001111")). reflexivity. Qed.
+  Goal (testFinalMask 2 (bin "100") = (bin "11110000")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "000") = (bin "00000011")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "010") = (bin "00001100")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "100") = (bin "00110000")). reflexivity. Qed.
+  Goal (testFinalMask 1 (bin "110") = (bin "11000000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "000") = (bin "00000001")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "001") = (bin "00000010")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "010") = (bin "00000100")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "011") = (bin "00001000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "100") = (bin "00010000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "101") = (bin "00100000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "110") = (bin "01000000")). reflexivity. Qed.
+  Goal (testFinalMask 0 (bin "111") = (bin "10000000")). reflexivity. Qed.
 End test.
