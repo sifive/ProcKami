@@ -3,19 +3,25 @@ Require Import ProcKami.FU.
 Require Import ProcKami.Device.
 Require Import ProcKami.MemOps.
 Require Import ProcKami.MemOpsFuncs.
+Require Import ProcKami.Pipeline.Mem.Ifc.
+Require Import ProcKami.Pipeline.Mem.PmaPmp.
 
 Section tluh.
   Context {procParams : ProcParams}.
+  Context (deviceTree : @DeviceTree procParams).
 
   Section tlLink.
     Context (tagK : Kind).
+
+    Definition InReq := STRUCT_TYPE { "tag" :: tagK; (* TL source ID *)
+                                        "req" :: @MemReq _ deviceTree }.
 
     Definition ChannelAReq := STRUCT_TYPE {
       "a_opcode"  :: TlOpcode;
       "a_param"   :: TlParam;
       "a_size"    :: TlSize;
       "a_source"  :: Bit (size tagK);
-      "a_address" :: PAddr;
+      "a_address" :: FU.PAddr;
       "a_mask"    :: Bit (size DataMask);
       "a_corrupt" :: Bool;
       "a_data"    :: Data
@@ -45,31 +51,42 @@ Section tluh.
         := getMaskExpr sz << (getShiftAmt sz address).
 
       Definition fromKamiReq
-        (req : Device.Req tagK @# ty)
+        (req : InReq @# ty)
         :  ChannelAReq @# ty
         := STRUCT {
-             "a_opcode"  ::= UniBit (TruncMsb _ TlOpcodeSz) (req @% "memOp");
+             "a_opcode"  ::= UniBit (TruncMsb _ TlOpcodeSz) (req @% "req" @% "memOp");
              "a_param"
                ::= UniBit (TruncMsb TlSizeSz TlParamSz)
                      (UniBit (TruncLsb (TlSizeSz + TlParamSz) TlOpcodeSz)
-                       (req @% "memOp"));
-             "a_size"    ::= getSize (req @% "memOp");
+                       (req @% "req" @% "memOp"));
+             "a_size"    ::= getSize (req @% "req" @% "memOp");
              "a_source"  ::= pack (req @% "tag");
-             "a_address" ::= (req @% "offset");
-             "a_mask"    ::= getFinalMaskExpr (getSize (req @% "memOp")) (req @% "offset");
+             "a_address" ::= (req @% "req" @% "paddr");
+             "a_mask"    ::= getFinalMaskExpr (getSize (req @% "req" @% "memOp")) (req @% "req" @% "paddr");
              "a_corrupt" ::= $$false;
-             "a_data"    ::= req @% "data"
+             "a_data"    ::= req @% "req" @% "data"
            }.
+
+      Local Open Scope kami_action.
 
       Definition toKamiReq
         (req : ChannelAReq @# ty)
-        :  Device.Req tagK @# ty
-        := STRUCT {
-             "tag"    ::= unpack tagK (req @% "a_source");
-             "memOp"  ::= ({< req @% "a_opcode", req @% "a_param", req @% "a_size" >});
-             "offset" ::= req @% "a_address";
-             "data"   ::= req @% "a_data"
-           }.
+        : ActionT ty InReq
+        := LETA dtag : Maybe (DTagOffset deviceTree) <- getDTagOffset deviceTree (req @% "a_address" : FU.PAddr @# ty);
+           LET memReq : Mem.Ifc.MemReq deviceTree
+             <- STRUCT {
+                  "dtag"   ::= #dtag @% "data" @% "dtag";
+                  "offset" ::= #dtag @% "data" @% "offset";
+                  "paddr"  ::= req @% "a_address";
+                  "memOp"  ::= ({< req @% "a_opcode", req @% "a_param", req @% "a_size" >});
+                  "data"   ::= req @% "a_data"
+                };
+           Ret (STRUCT {
+             "tag" ::= unpack tagK (req @% "a_source");
+             "req" ::= #memReq
+           } : InReq @# ty).
+
+      Local Close Scope kami_action.
 
       (*
         NOTE: Murali instructed me to set d_denied and d_corrupt
@@ -87,19 +104,6 @@ Section tluh.
              "d_denied"  ::= $$false;
              "d_corrupt" ::= $$false;
              "d_data"    ::= res @% "res" @% "fst"
-           }.
-
-      (*
-        NOTE: Murali instructed me to set valid so that it always
-        indicate that the message is valid.
-      *)
-      Definition toKamiRes
-        (res : ChannelDRes @# ty)
-        :  Device.Res tagK @# ty
-        := STRUCT {
-             "tag" ::= unpack tagK (res @% "d_source");
-             "res" ::= STRUCT { "fst" ::= res @% "d_data";
-                                "snd" ::= res @% "d_size" }
            }.
 
       Local Close Scope kami_expr.
