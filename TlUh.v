@@ -14,7 +14,7 @@ Section tluh.
     Context (tagK : Kind).
 
     Definition InReq := STRUCT_TYPE { "tag" :: tagK; (* TL source ID *)
-                                        "req" :: @MemReq _ deviceTree }.
+                                      "req" :: @MemReq _ deviceTree }.
 
     Definition ChannelAReq := STRUCT_TYPE {
       "a_opcode"  :: TlOpcode;
@@ -87,6 +87,29 @@ Section tluh.
            } : InReq @# ty).
 
       Local Close Scope kami_action.
+
+      (*
+        NOTE: Murali instructed me to set valid so that it always
+       indicate that the message is valid.
+      *)
+      Definition toKamiRes
+          (ty : Kind -> Type)
+          (res : Maybe ChannelDRes @# ty)
+          :  Maybe (Device.Res tagK) @# ty
+          := let outRes : Pair Data TlSize @# ty
+               := STRUCT {
+                    "fst" ::= res @% "data" @% "d_data";
+                    "snd" ::= res @% "data" @% "d_size"
+                  } : Pair Data TlSize @# ty in
+             let data : Device.Res tagK @# ty
+               := STRUCT {
+                    "tag" ::= unpack tagK (res @% "data" @% "d_source");
+                    "res" ::= outRes
+                  } : Device.Res tagK @# ty in
+             STRUCT {
+               "valid" ::= res @% "valid";
+               "data" ::= data
+             }.
 
       (*
         NOTE: Murali instructed me to set d_denied and d_corrupt

@@ -292,9 +292,10 @@ Section exts.
 
   End ty.
 
-  (* V. the model generator. *)
-  (* TODO: Fix this *)
-  Definition generate_model
+  Definition generateCore
+    := @processorPipeline modelProcParams param_func_units deviceTree memParams.
+
+  Definition generateModel
     := @processor
          modelProcParams
          param_func_units

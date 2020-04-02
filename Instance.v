@@ -43,8 +43,17 @@ Definition allow_misaligned      := false.
 Definition allow_inst_misaligned := true.
 Definition misaligned_access     := false.
 
+Definition core (xlens : list nat) : Mod
+  := generateCore
+       xlens
+       supportedExts
+       allow_misaligned
+       allow_inst_misaligned
+       misaligned_access
+       (_ 'h"1000").
+
 Definition model (xlens : list nat) : Mod
-  := generate_model
+  := generateModel
        xlens
        supportedExts
        allow_misaligned
@@ -60,6 +69,9 @@ Definition modelParams (xlens : list nat) : ProcParams
        allow_inst_misaligned
        misaligned_access 
        (_ 'h"1000").
+
+Definition core32 : Mod := core [Xlen32].
+Definition core64 : Mod := core [Xlen32; Xlen64].
 
 Definition model32 : Mod := model [Xlen32].
 Definition model64 : Mod := model [Xlen32; Xlen64].
@@ -155,6 +167,9 @@ Separate Extraction
 
          separateModRemove
          separateModHidesNoInline
+
+         core32
+         core64
 
          model32
          model64
