@@ -40,6 +40,10 @@ Section Params.
          Register @^"debugMode": Bool <- Default with
          Register @^"debugPending": Bool <- Default with    
 
+         Rule @^"pipeline"
+           := System [DispString _ "==================================================\n"];
+              Retv with
+
          Rule @^"debugInterruptRule"
            := Pipeline.Ifc.debugInterruptRule pipeline with
 
@@ -80,13 +84,7 @@ Section Params.
            := Pipeline.Ifc.trapInterruptRule pipeline with
 
          Rule @^"arbiterReset"
-           := Pipeline.Ifc.arbiterResetRule pipeline with
-
-         Rule @^"pipeline"
-           := System [
-                DispString _ "==================================================\n"
-              ];
-              Retv
+           := Pipeline.Ifc.arbiterResetRule pipeline
          }.
 
   Definition intRegArray := @RegArray.Impl.impl
