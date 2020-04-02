@@ -80,10 +80,10 @@ Section PmaPmp.
                 } : PmaSuccessPkt @# ty)).
 
 
-  Local Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
-                                               "offset" :: FU.Offset }.
+  Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
+                                         "offset" :: FU.Offset }.
 
-  Local Definition getDTagOffset ty
+  Definition getDTagOffset ty
     (addr : PAddr @# ty)
     :  ActionT ty (Maybe DTagOffset)
     := @memRegionApply

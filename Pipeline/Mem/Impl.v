@@ -40,6 +40,8 @@ Require Import ProcKami.Pipeline.Mem.Ifc.
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
 
+Require Import ProcKami.TlUh.
+
 Section Impl.
   Context {procParams : ProcParams}.
   Context (deviceTree : @DeviceTree procParams).
@@ -151,16 +153,39 @@ Section Impl.
   Local Definition ArbiterOutReq := STRUCT_TYPE { "tag" :: ArbiterTag;
                                                   "req" :: @MemReq _ deviceTree }.
 
+  (*
+    NOTE: Murali instructed me to set valid so that it always
+   indicate that the message is valid.
+  *)
+  Local Definition toKamiRes
+      (ty : Kind -> Type)
+      (res : Maybe (ChannelDRes ArbiterTag) @# ty)
+      :  Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) @# ty
+      := let outRes : Pair Data TlSize @# ty
+           := STRUCT {
+                "fst" ::= res @% "data" @% "d_data";
+                "snd" ::= res @% "data" @% "d_size"
+              } : Pair Data TlSize @# ty in
+         let data : Arbiter.Ifc.InRes {| clientList := arbiterClients |} @# ty
+           := STRUCT {
+                "tag" ::= unpack ArbiterTag (res @% "data" @% "d_source");
+                "res" ::= outRes
+              } : Arbiter.Ifc.InRes {| clientList := arbiterClients |} @# ty in
+         STRUCT {
+           "valid" ::= res @% "valid";
+           "data" ::= data
+         }.
+
   Local Definition arbiterHasResps :=
     Arbiter.Ifc.hasResps
       arbiter
-      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerFirst"(); Ret #res).
+      (fun ty => Call res: Maybe (ChannelDRes ArbiterTag) <- "routerFirst"(); Ret (toKamiRes #res)).
 
   Local Definition arbiterGetResps :=
     Arbiter.Ifc.getResps
       arbiter
-      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerFirst"(); Ret #res)
-      (fun ty => Call res: Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) <- "routerDeq"(); Ret #res).
+      (fun ty => Call res: Maybe (ChannelDRes ArbiterTag) <- "routerFirst"(); Ret (toKamiRes #res))
+      (fun ty => Call res: Maybe (ChannelDRes ArbiterTag) <- "routerDeq"(); Ret (toKamiRes #res)).
 
   Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
     @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize memParams) @# ty.
@@ -177,7 +202,7 @@ Section Impl.
   Defined.
   
   Local Definition routerSendReq ty (req: ty ArbiterOutReq): ActionT ty (Maybe Void) :=
-    Call ret: Bool <- "routerSendReq"(#req: ArbiterOutReq);
+    Call ret: Bool <- "routerSendReq" ((fromKamiReq #req) : ChannelAReq ArbiterTag);
     Ret ((STRUCT { "valid" ::= #ret ;
                    "data" ::= $$(getDefaultConst Void) }): Maybe Void @# ty).
 

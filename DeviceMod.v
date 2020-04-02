@@ -13,6 +13,8 @@ Require Import ProcKami.Device.
 
 Require Import ProcKami.FU.
 
+Require Import ProcKami.TlUh.
+
 Require Import ProcKami.Pipeline.Mem.Ifc.
 
 Section DeviceIfc.
@@ -22,16 +24,17 @@ Section DeviceIfc.
   
   Local Definition deviceIfcs := map (fun d => deviceIfc d tagK) (ProcKami.Device.devices deviceTree).
 
+  (* Local Definition routerParams := @Router.Ifc.Build_Params "devRouter" (ChannelAReq tagK) (ChannelDRes tagK) deviceIfcs. *)
   Local Definition routerParams := {|
                                     Router.Ifc.name := "devRouter";
                                     Router.Ifc.devices := deviceIfcs
                                   |}.
-  
+
   Local Definition router :=
     @Router.Impl.impl routerParams.
 
   Local Definition fifo: @Fifo.Ifc.Ifc {| Fifo.Ifc.name := "devRespFifo";
-                                          Fifo.Ifc.k := Device.Res tagK;
+                                          Fifo.Ifc.k := ChannelDRes tagK;
                                           Fifo.Ifc.size := 1 |}.
   refine (@Fifo.Impl.impl _
                           {| Fifo.Impl.sizePow2 := _;
@@ -49,14 +52,13 @@ Section DeviceIfc.
                                   If !#full
                                   then rule ty;
                                   Retv)))
-        (tag (Router.Ifc.pollRules router (fun ty x =>
-                                             LETA _ <- Fifo.Ifc.enq fifo x;
-                                          Retv))).
 
-  Local Definition InReq := STRUCT_TYPE { "tag" :: tagK;
-                                          "req" :: @MemReq _ deviceTree }.
+        (tag (Router.Ifc.pollRules router (fun ty (x : ty (Device.Res tagK)) =>
+                                             LET res : ChannelDRes tagK <- fromKamiRes #x;
+                                             LETA _ <- Fifo.Ifc.enq fifo res;
+                                             Retv))).
 
-  Local Definition InReqToRouterReq ty (req: ty InReq): @Router.Ifc.OutReq routerParams @# ty.
+  Local Definition InReqToRouterReq (ty : Kind -> Type) (req: ty (InReq deviceTree tagK)): @Router.Ifc.OutReq routerParams @# ty.
   refine (
     let deviceInReq : Device.Req tagK @# ty := STRUCT { "tag" ::= #req @% "tag" ;
                                                         "memOp" ::= #req @% "req" @% "memOp" ;
@@ -67,8 +69,9 @@ Section DeviceIfc.
   abstract (unfold numDevices; simpl; unfold deviceIfcs; rewrite map_length; auto).
   Defined.
   
-  Local Definition routerSendReq ty (req: ty InReq): ActionT ty Bool :=
-    LET inReq <- InReqToRouterReq ty req;
+  Local Definition routerSendReq ty (req: ty (ChannelAReq tagK)): ActionT ty Bool :=
+    LETA kamiReq : InReq deviceTree tagK <- toKamiReq deviceTree #req;
+    LET inReq <- InReqToRouterReq ty kamiReq;
     LETA ret <- @Router.Ifc.sendReq _ router ty inReq;
     Ret #ret.
   
@@ -85,9 +88,9 @@ Section DeviceIfc.
         Rule "DevPollingDone" := (Router.Ifc.finishRule router _) with
             
 
-        Method "routerSendReq" (req: InReq): Bool := routerSendReq _ req with
-        Method "routerDeq" (): Maybe (Device.Res tagK) := Fifo.Ifc.deq fifo with
-        Method "routerFirst" (): Maybe (Device.Res tagK) := Fifo.Ifc.first fifo
+        Method "routerSendReq" (req: ChannelAReq tagK): Bool := routerSendReq _ req with
+        Method "routerDeq" (): Maybe (ChannelDRes tagK) := Fifo.Ifc.deq fifo with
+        Method "routerFirst" (): Maybe (ChannelDRes tagK) := Fifo.Ifc.first fifo
       }.
 
   Definition deviceMod :=
