@@ -162,7 +162,7 @@ Section Impl.
     Arbiter.Ifc.getResps
       arbiter
       (fun ty => Call res: Maybe (ChannelDRes ArbiterTag) <- "routerFirst"(); Ret (toKamiRes #res))
-      (fun ty => Call res: Maybe (ChannelDRes ArbiterTag) <- "routerDeq"(); Ret (toKamiRes #res)).
+      (fun ty => Call res: Bool  <- "routerDeq"(); Ret #res).
 
   Local Definition cbReqToArbiterReq ty (inReq: @CompletionBuffer.Ifc.OutReq completionBufferParams @# ty):
     @Arbiter.Ifc.ClientReq arbiterParams (@completionBufferLgSize memParams) @# ty.

@@ -89,7 +89,9 @@ Section DeviceIfc.
             
 
         Method "routerSendReq" (req: ChannelAReq tagK): Bool := routerSendReq _ req with
-        Method "routerDeq" (): Maybe (ChannelDRes tagK) := Fifo.Ifc.deq fifo with
+        Method "routerDeq" (): Bool
+          := LETA res : Maybe (ChannelDRes tagK) <- Fifo.Ifc.deq fifo;
+             Ret (#res @% "valid") with
         Method "routerFirst" (): Maybe (ChannelDRes tagK) := Fifo.Ifc.first fifo
       }.
 
