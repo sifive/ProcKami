@@ -153,6 +153,29 @@ Section Impl.
   Local Definition ArbiterOutReq := STRUCT_TYPE { "tag" :: ArbiterTag;
                                                   "req" :: @MemReq _ deviceTree }.
 
+  (*
+    NOTE: Murali instructed me to set valid so that it always
+   indicate that the message is valid.
+  *)
+  Local Definition toKamiRes
+      (ty : Kind -> Type)
+      (res : Maybe (ChannelDRes ArbiterTag) @# ty)
+      :  Maybe (@Arbiter.Ifc.InRes {| clientList := arbiterClients |}) @# ty
+      := let outRes : Pair Data TlSize @# ty
+           := STRUCT {
+                "fst" ::= res @% "data" @% "d_data";
+                "snd" ::= res @% "data" @% "d_size"
+              } : Pair Data TlSize @# ty in
+         let data : Arbiter.Ifc.InRes {| clientList := arbiterClients |} @# ty
+           := STRUCT {
+                "tag" ::= unpack ArbiterTag (res @% "data" @% "d_source");
+                "res" ::= outRes
+              } : Arbiter.Ifc.InRes {| clientList := arbiterClients |} @# ty in
+         STRUCT {
+           "valid" ::= res @% "valid";
+           "data" ::= data
+         }.
+
   Local Definition arbiterHasResps :=
     Arbiter.Ifc.hasResps
       arbiter
