@@ -114,9 +114,11 @@ Qed.
 
 Axiom cheat : forall {X},X.
 
-Definition rules_32 : list (evaluated_Rule (getAllRegisters model32)) := map (fun r => eval_Rule r cheat) (getAllRules model32).
+Definition basemod32 := let '(_,(_,basemod)) := separateModRemove model32 in basemod.
+Definition basemod64 := let '(_,(_,basemod)) := separateModRemove model64 in basemod.
 
-Definition rules_64 : list (evaluated_Rule (getAllRegisters model64)) := map (fun r => eval_Rule r cheat) (getAllRules model64).
+Definition rules_32 : list (evaluated_Rule (getRegisters basemod32)) := map (fun r => eval_Rule r cheat) (getRules basemod32).
+Definition rules_64 : list (evaluated_Rule (getRegisters basemod64)) := map (fun r => eval_Rule r cheat) (getRules basemod64).
 
 Separate Extraction
          predPack
