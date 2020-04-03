@@ -112,35 +112,11 @@ Proof.
   reflexivity.
 Qed.
 
-(*
 Axiom cheat : forall {X},X.
 
-Definition coqSim_32
-  {E}
-  `{Environment E}
-  (env : E)
-  (args : list (string * string))
-  (timeout : nat)
-  (*:  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
-     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
-     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
-     IO unit *)
-  := let '(_,(rfbs,bm)) := separateModRemove (model [Xlen32]) in
-       @eval_BaseMod E _ env args rfbs timeout (meths [Xlen32]) bm cheat.
+Definition rules_32 : list (evaluated_Rule (getAllRegisters model32)) := map (fun r => eval_Rule r cheat) (getAllRules model32).
 
-Definition coqSim_64
-  {E}
-  `{Environment E}
-  (env : E)
-  (args : list (string * string))
-  (timeout : nat)
-  (* :  (HWord 0 -> FileState -> (SimRegs _ _) -> E -> IO (E * bool)) ->
-     ((HWord 8 * (HWord 2 * unit)) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 32)) ->
-     ((HWord 8 * (HWord 64 * (HWord 2 * unit))) -> FileState -> (SimRegs _ _) -> E -> IO (E * HWord 0)) ->
-     IO unit *)
-  := let '(_,(rfbs,bm)) := separateModRemove (model [Xlen32; Xlen64]) in
-       @eval_BaseMod E _ env args rfbs timeout (meths [Xlen32; Xlen64]) bm cheat.
-*)
+Definition rules_64 : list (evaluated_Rule (getAllRegisters model64)) := map (fun r => eval_Rule r cheat) (getAllRules model64).
 
 Separate Extraction
          predPack
@@ -173,6 +149,9 @@ Separate Extraction
 
          model32
          model64
+
+         rules_32
+         rules_64
 
          testReg
          testAsync
