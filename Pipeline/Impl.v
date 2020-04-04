@@ -366,7 +366,7 @@ Section Impl.
         Read pc : VAddr <- @^"pc";
         LETA xlen : XlenValue <- readXlen #mode;
         System [DispString _ "[trap_interrupt]\n"];
-        LETA nextPc <- interruptAction #xlen #debug #mode #pc;
+        LETA nextPc <- trapInterrupt #xlen #debug #mode #pc;
         If #nextPc @% "valid"
         then (
           Write @^"pc" <- #nextPc @% "data";

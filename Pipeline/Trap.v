@@ -1,3 +1,30 @@
+(*
+  TODO: LLEE: getDelegMode : Trap Index -> "i"/"e" -> PrivMode  to determine which mode a trap is delegated to first lookup the deleg in the order of m, s, u. The first deleg that is not 1 that is the mode that will handle the trap.
+  TODO: LLEE: getInterruptEnable draft a function that checks if the trap is enabled. check for *global* interrupt enable we're not right now.
+  TODO: LLEE:
+
+  getPriorityBitstring "msi" 
+
+  LETA A <- priortiy ["msi", ...]; trapAction A
+
+  priority : [{<pending && enabled, delegMode, name>}] -> {<pending && enabled: Bool, delegMode : PrivMode, name : Bit 3>}
+  any interrupt with higher delegMode wins over any interrupt with lower deleg mode.
+  if tie in delegMode then priority order is mei msi ... uti
+
+  priority2 A@{<pendingA, delegModeA, nameA>} B@{<pendingB, delegModeB, nameB>} = A > B.
+
+  fold over interrupts.
+
+  TODO: LLEE: updateTrapStack: factor out the m MachineMode and 2 arguments from trapAction. Use the scheme used by select_satp. split the first part trapAction: pp, pie, ie, next mode. call it updateTrapStack.
+  TODO: LLEE: setTrapContext: determine where the trap handler computes next pc. and updates the epc, cause, and tval. second half of trapAction.
+  TODO: LLEE: trapAction calls everything
+
+  delegMode, updateTrapStack, setTrapContext, and trapAction should be used to handle exceptions also.
+
+  TODO: rewrite everything except: getExceptionValue, enterDebugMode, exitDebugMode. Reuse these three functions in the new file.
+  This file should contain just these functions 
+*)
+
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
@@ -11,7 +38,164 @@ Section trap.
   Local Open Scope kami_expr.
   Local Open Scope kami_action.
 
-  Definition getExceptionValue
+  Local Definition NumInterrupts := 12.
+  Local Definition NumDelegs  := 16.
+
+  Local Definition isInterruptSelect
+    (k : Kind)
+    (f : bool -> ActionT ty k)
+    (isInterrupt : Bool @# ty)
+    :  ActionT ty k
+    := If isInterrupt
+         then f true
+         else f false
+         as res;
+       Ret #res.
+
+  Local Definition delegModeSelect
+    (k : Kind)
+    (f : nat -> ActionT ty k)
+    (delegMode : PrivMode @# ty)
+    :  ActionT ty k
+    := If delegMode == $MachineMode
+         then f MachineMode
+         else
+           If delegMode == $SupervisorMode
+             then f SupervisorMode
+             else f UserMode
+             as res;
+           Ret #res
+         as res;
+       Ret #res.
+
+  Local Definition delegated (deleg : Array NumDelegs Bool @# ty) (trap : Trap @# ty) : Bool @# ty
+    := deleg@[trap].
+
+  Local Definition delegModeAux
+    (trap : Trap @# ty)
+    :  list ((PrivMode @# ty) * (Array NumDelegs Bool @# ty)) -> PrivMode @# ty
+    := fold_right
+         (fun deleg lowerMode
+           => IF delegated (snd deleg) trap
+                then lowerMode
+                else fst deleg)
+         $UserMode.
+
+  Local Definition delegMode
+    (mdeleg : Array NumDelegs Bool @# ty)
+    (sdeleg : Array NumDelegs Bool @# ty)
+    (trap : Trap @# ty)
+    :  PrivMode @# ty
+    := delegModeAux trap [($MachineMode, mdeleg); ($SupervisorMode, sdeleg)].
+
+  Local Definition getModePrefix (mode : nat) : string
+    := if Nat.eqb mode MachineMode then "m"
+         else if Nat.eqb mode SupervisorMode then "s" else "u".
+
+  Local Definition delegName (mode : nat) (isInterrupt : bool) : string
+    := @^((getModePrefix mode) ++ (if isInterrupt then "i" else "e") ++ "deleg")%string.
+
+  Local Definition getDelegMode
+    (trap : Trap @# ty)
+    :  forall isInterrupt : Bool @# ty, ActionT ty PrivMode
+    := isInterruptSelect
+         (fun isInterrupt : bool
+           => let delegSz : nat
+                := if isInterrupt then NumInterrupts else NumDelegs in
+              Read mdeleg'
+                :  Bit delegSz
+                <- (delegName MachineMode isInterrupt);
+              Read sdeleg'
+                :  Bit delegSz
+                <- (delegName SupervisorMode isInterrupt);
+              LET mdeleg : Array NumDelegs Bool <- unpack _ (ZeroExtendTruncLsb _ #mdeleg');
+              LET sdeleg : Array NumDelegs Bool <- unpack _ (ZeroExtendTruncLsb _ #sdeleg');
+              Ret (delegMode #mdeleg #sdeleg trap)).
+
+  Local Definition getInterruptEnable
+    (mip : Array NumInterrupts Bool @# ty)
+    (mie : Array NumInterrupts Bool @# ty)
+    (interrupt : Interrupt @# ty)
+    :  Bool @# ty
+    := mip@[interrupt] && mie@[interrupt].
+
+  Local Definition PriorityBitStringSz : nat := 1 + PrivModeWidth + TrapSz + 0.
+
+  Local Definition PriorityBitString := Bit PriorityBitStringSz.
+
+  Local Definition getPriorityBitString
+    (status : Bool @# ty) (* pending and enabled. *)
+    (delegMode : PrivMode @# ty)
+    (trap : Trap @# ty)
+    :  PriorityBitString @# ty
+    := {< pack status, delegMode, trap >}.
+
+  Local Definition getPriorityInterrupt
+    (mip : Array NumInterrupts Bool @# ty)
+    (mie : Array NumInterrupts Bool @# ty)
+    (mideleg : Array NumDelegs Bool @# ty)
+    (sideleg : Array NumDelegs Bool @# ty)
+    :  PriorityBitString ## ty
+    := fold_left
+         (fun (accExpr : PriorityBitString ## ty) (trap : nat)
+           => LETE acc <- accExpr;
+              LETC priorityBitString
+                :  PriorityBitString
+                <- getPriorityBitString
+                     (getInterruptEnable mip mie $trap)
+                     (delegMode mideleg sideleg $trap)
+                     $trap;
+              RetE
+                (IF #acc <= #priorityBitString
+                  then #priorityBitString
+                  else #acc))
+         (seq 0 (NumInterrupts - 1))
+         (RetE $0).
+
+  (* returns either mip or mie. *)
+  Local Definition readInterruptStatus
+    (suffix : string)
+    :  ActionT ty (Array NumInterrupts Bool)
+    := Read mei : Bool <- @^("mei" ++ suffix);
+       Read msi : Bool <- @^("msi" ++ suffix);
+       Read mti : Bool <- @^("mti" ++ suffix);
+       Read sei : Bool <- @^("sei" ++ suffix);
+       Read ssi : Bool <- @^("ssi" ++ suffix);
+       Read sti : Bool <- @^("sti" ++ suffix);
+       Read uei : Bool <- @^("uei" ++ suffix);
+       Read usi : Bool <- @^("usi" ++ suffix);
+       Read uti : Bool <- @^("uti" ++ suffix);
+       Ret (ARRAY {#mei; $$false; #sei; #uei;
+                   #mti; $$false; #sti; #uti;
+                   #msi; $$false; #ssi; #usi}
+            : Array NumInterrupts Bool @# ty).
+
+  Local Definition getPPWidth (mode : nat) : nat
+    := if Nat.eqb mode MachineMode then 2
+         else if Nat.eqb mode SupervisorMode then 1
+           else 0.
+
+  Local Definition updateTrapStack
+    (delegMode : nat)
+    (isInterrupt : Bool @# ty)
+    (currMode : PrivMode @# ty)
+    :  ActionT ty Void
+    := Read ie : Bool <- @^(getModePrefix delegMode ++ "ie");
+       Write @^(getModePrefix delegMode ++ "pie") : Bool <- #ie;
+       Write @^(getModePrefix delegMode ++ "ie") : Bool <- $$false;
+       Read extRegs: ExtensionsReg <- @^"extRegs";
+       LET extensions: Extensions <- ExtRegToExt #extRegs;
+       Write @^(getModePrefix delegMode ++ "pp")
+         :  Bit (getPPWidth delegMode)
+         <- ZeroExtendTruncLsb (getPPWidth delegMode) (modeFix #extensions currMode);
+       Write @^"mode" : PrivMode <- modeFix #extensions $delegMode;
+       If isInterrupt
+         then
+           Write @^"isWfi" : Bool <- $$false;
+           Retv;
+       Retv.
+
+  Local Definition getExceptionValue
              (exception: Exception @# ty)
              (pc: VAddr @# ty)
              (inst: Inst @# ty)
@@ -38,109 +222,53 @@ Section trap.
           ($SAmoPageFault: Exception @# ty) ::= #memAddr
         })).
 
-  Definition trapAction
-    (prefix : string)
-    (intrpt : Bool @# ty)
-    (next_mode : PrivMode @# ty)
-    (pp_width : nat)
+  Local Definition setTrapContext
+    (delegMode : nat)
+    (isInterrupt : Bool @# ty)
     (xlen : XlenValue @# ty)
-    (debug : Bool @# ty)
-    (mode : PrivMode @# ty)
-    (pc : VAddr @# ty)
-    (exception : Exception @# ty)
+    (trap: Trap @# ty)
+    (pc: VAddr @# ty)
     (inst: Inst @# ty)
-    (update_pkt: ExecUpdPkt @# ty)
-    (next_pc: VAddr @# ty)
+    (updatePkt : ExecUpdPkt @# ty)
+    (nextPc: VAddr @# ty)
     (exceptionUpper: Bool @# ty)
     :  ActionT ty VAddr
-    := (* section 3.1.7, 4.1.1 *)
-       Read ie : Bool <- @^(prefix ++ "ie");
-       Write @^(prefix ++ "pie") : Bool <- #ie;
-       Write @^(prefix ++ "ie") : Bool <- $$false;
-       Read extRegs: ExtensionsReg <- @^"extRegs";
-       LET extensions: Extensions <- ExtRegToExt #extRegs;
-       Write @^(prefix ++ "pp")
-         :  Bit pp_width
-         <- ZeroExtendTruncLsb pp_width (modeFix #extensions mode);
-       (* section 3.1.12 *)
-       Read tvec_mode : Bit 2 <- @^(prefix ++ "tvec_mode");
-       Read tvec_base : Bit (Xlen - 2) <- @^(prefix ++ "tvec_base");
-       LET addr_base
+    := Read tvecMode : Bit 2 <- @^(getModePrefix delegMode ++ "tvec_mode");
+       Read tvecBase : Bit (Xlen - 2) <- @^(getModePrefix delegMode ++ "tvec_base");
+       LET addrBase : VAddr <- xlen_sign_extend Xlen xlen #tvecBase << ($2 : Bit 2 @# ty);
+       LET addrOffset : VAddr <- xlen_sign_extend Xlen xlen trap << ($2 : Bit 2 @# ty);
+       LETA trapValue : Bit Xlen
+         <- convertLetExprSyntax_ActionT
+              (getExceptionValue trap pc inst updatePkt nextPc exceptionUpper);
+       LET finalTrapValue: Bit Xlen <- IF isInterrupt then $0 else #trapValue;
+       LET nextPc
          :  VAddr
-         <- (* TODO: See 4.1.5 are we to allow any {m,s}tvec_base value and append two 0s? The test suite appears to assume we do. *)
-            (* xlen_sign_extend Xlen xlen #tvec_base; *)
-            xlen_sign_extend Xlen xlen #tvec_base << (Const _ (natToWord 2 2));
-       LET addr_offset
-         :  VAddr
-            (* 3.1.7 *)
-         <- xlen_sign_extend Xlen xlen (exception) << (Const _ (natToWord 2 2));
-       LETA exception_value: (Bit Xlen) <- convertLetExprSyntax_ActionT (getExceptionValue exception pc inst update_pkt next_pc exceptionUpper);
-       LET final_exception_value: Bit Xlen <- IF intrpt then $0 else #exception_value;
-       System [
-         DispString _ "[trapAction]\n";
-         DispString _ "  tvec_mode: ";
-         DispHex #tvec_mode;
-         DispString _ "\n";
-         DispString _ "  tvec_base: ";
-         DispHex #tvec_base;
-         DispString _ "\n";
-         DispString _ "  addr_base: ";
-         DispHex #addr_base;
-         DispString _ "\n";
-         DispString _ "  addr_offset: ";
-         DispHex #addr_offset;
-         DispString _ "\n";
-         DispString _ "  exception code: ";
-         DispHex (exception);
-         DispString _ "\n";
-         DispString _ "  exception val: ";
-         DispHex (#final_exception_value);
-         DispString _ "\n"
-       ];
-       (* section 3.1.7 *)
-       LET next_pc
-         :  VAddr
-         <- IF #tvec_mode == $0
-              then #addr_base
-              else (#addr_base + #addr_offset);
-       (* section 3.1.8 *)
-       (* section 3.1.20 *)
-       Write @^(prefix ++ "epc") : VAddr <- pc;
-       (* section 3.1.21 *)
-       Write @^(prefix ++ "cause_interrupt") : Bool <- intrpt;
-       Write @^(prefix ++ "cause_code")
+         <- IF #tvecMode == $0
+              then #addrBase
+              else (#addrBase + #addrOffset);
+       Write @^(getModePrefix delegMode ++ "epc") : VAddr <- pc;
+       Write @^(getModePrefix delegMode ++ "cause_interrupt") : Bool <- isInterrupt;
+       Write @^(getModePrefix delegMode ++ "cause_code")
          :  Bit (Xlen - 1)
-         <- ZeroExtendTruncLsb (Xlen - 1) (exception);
-       (* section 3.1.22 *)
-       Write @^(prefix ++ "tval") : Bit Xlen <- #final_exception_value;
-       Write @^"mode" : PrivMode <- modeFix #extensions next_mode;
-       If intrpt
-         then
-           Write @^"isWfi" : Bool <- $$false;
-           Retv;
-       System [
-         DispString _ "[Register Writer.trapAction]\n";
-         DispString _ ("  mode: " ++ prefix ++ "\n");
-         DispString _ "  tvec mode: ";
-         DispHex (#tvec_mode);
-         DispString _ "\n";
-         DispString _ "  address base: ";
-         DispHex (#addr_base);
-         DispString _ "\n";
-         DispString _ "  address offset: ";
-         DispHex (#addr_offset);
-         DispString _ "\n";
-         DispString _ "  wrote mode: ";
-         DispHex (next_mode);
-         DispString _ "\n"
-       ];
-       Ret #next_pc.
+         <- ZeroExtendTruncLsb (Xlen - 1) trap;
+       Write @^(getModePrefix delegMode ++ "tval") : Bit Xlen <- #finalTrapValue;
+       Ret #nextPc.
 
-  Definition delegated
-    (edeleg : Bit 16 @# ty)
-    (exception_code : Exception @# ty)
-    :  Bool @# ty
-    := (unsafeTruncLsb 1 (edeleg >> exception_code)) == Const ty (wones 1).
+  Local Definition trapAction
+    (delegMode : nat)
+    (isInterrupt : Bool @# ty)
+    (xlen : XlenValue @# ty)
+    (debug : Bool @# ty)
+    (currMode : PrivMode @# ty)
+    (pc : VAddr @# ty)
+    (trap : Trap @# ty)
+    (inst: Inst @# ty)
+    (updatePkt: ExecUpdPkt @# ty)
+    (returnPc: VAddr @# ty)
+    (exceptionUpper: Bool @# ty)
+    :  ActionT ty VAddr
+    := LETA _ <- updateTrapStack delegMode isInterrupt currMode;
+       setTrapContext delegMode isInterrupt xlen trap pc inst updatePkt returnPc exceptionUpper.
 
   Definition enterDebugMode
     (mode : PrivMode @# ty)
@@ -164,143 +292,76 @@ Section trap.
   Definition trapException 
     (xlen : XlenValue @# ty)
     (debug : Bool @# ty)
-    (mode : PrivMode @# ty)
+    (currMode : PrivMode @# ty)
     (pc : VAddr @# ty)
     (exception : Exception @# ty)
     (inst: Inst @# ty)
-    (upd_pkt: ExecUpdPkt @# ty)
-    (next_pc: VAddr @# ty)
+    (updatePkt: ExecUpdPkt @# ty)
+    (returnPc: VAddr @# ty)
     (exceptionUpper: Bool @# ty)
     :  ActionT ty VAddr
-    := System [DispString _ "[trapException]\n"];
-       Read ebreakm : Bool <- @^"ebreakm";
-       Read ebreaks : Bool <- @^"ebreaks";
-       Read ebreaku : Bool <- @^"ebreaku";
-       Read medeleg : Bit 16 <- @^"medeleg";
-       Read sedeleg : Bit 16 <- @^"sedeleg";
-       If debug
-         then
-           Ret pc
-         else 
-           If (exception == $Breakpoint) &&
-              ((mode == $MachineMode && #ebreakm) ||
-               (mode == $SupervisorMode && #ebreaks) ||
-               (mode == $UserMode && #ebreaku))
-             then
-               LETA _ <- enterDebugMode mode pc $DebugCauseEBreak;
-               Ret pc
-             else
-               If delegated #medeleg (exception) &&
-                  (mode == $SupervisorMode ||
-                   mode == $UserMode)
-                 then trapAction "s" $$false $1 1 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                 else
-                   (If delegated #sedeleg (exception) && mode == $UserMode
-                      then trapAction "u" $$false $0 0 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                      else trapAction "m" $$false $3 2 xlen debug mode pc exception inst upd_pkt next_pc exceptionUpper
-                      as next_pc;
-                    Ret #next_pc)
-                  as next_pc;
-               Ret #next_pc
-             as next_pc;
-           Ret #next_pc
-         as next_pc;
-       Ret #next_pc.
+    := LETA delegMode
+         :  PrivMode
+         <- getDelegMode exception $$false;
+       LETA nextPc
+         :  VAddr
+         <- delegModeSelect
+              (fun delegMode : nat
+                => If $delegMode >= currMode
+                     then
+                       trapAction delegMode $$false xlen debug currMode
+                         pc exception inst updatePkt returnPc exceptionUpper
+                     else Ret returnPc
+                     as nextPc;
+                   Ret #nextPc)
+              #delegMode;
+       Ret #nextPc.
 
-  Definition interruptPending
-    (name : string)
-    :  ActionT ty Bool
-    := Read pending : Bool <- (name ++ "p");
-       Read enabled : Bool <- (name ++ "e");
-       Ret (#pending && #enabled).
-
-  Definition interruptAction
+  Definition trapInterrupt
     (xlen : XlenValue @# ty)
     (debug : Bool @# ty)
-    (mode : PrivMode @# ty)
+    (currMode : PrivMode @# ty)
     (pc : VAddr @# ty)
     :  ActionT ty (Maybe VAddr)
-    := System [DispString _ "[interruptAction]\n"];
-       Read mie : Bool <- @^"mie";
-       Read sie : Bool <- @^"sie";
-       Read uie : Bool <- @^"uie";
-       LETA mei : Bool <- interruptPending @^"mei";
-       LETA msi : Bool <- interruptPending @^"msi";
-       LETA mti : Bool <- interruptPending @^"mti";
-       LETA sei : Bool <- interruptPending @^"sei";
-       LETA ssi : Bool <- interruptPending @^"ssi";
-       LETA sti : Bool <- interruptPending @^"sti";
-       LETA uei : Bool <- interruptPending @^"uei";
-       LETA usi : Bool <- interruptPending @^"usi";
-       LETA uti : Bool <- interruptPending @^"uti";
-       LET code : Maybe (Pair PrivMode Exception)
-         <- IF #mei then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMExt} : Pair PrivMode Exception @# ty) else (
-            IF #msi then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptM} : Pair PrivMode Exception @# ty) else (
-            IF #mti then Valid (STRUCT {"fst" ::= $MachineMode; "snd" ::= $IntrptMTimer} : Pair PrivMode Exception @# ty) else (
-            IF #sei then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptSExt} : Pair PrivMode Exception @# ty) else (
-            IF #ssi then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptS} : Pair PrivMode Exception @# ty) else (
-            IF #sti then Valid (STRUCT {"fst" ::= $SupervisorMode; "snd" ::= $IntrptSTimer} : Pair PrivMode Exception @# ty) else (
-            IF #uei then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUExt} : Pair PrivMode Exception @# ty) else (
-            IF #usi then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptU} : Pair PrivMode Exception @# ty) else (
-            IF #uti then Valid (STRUCT {"fst" ::= $UserMode; "snd" ::= $IntrptUTimer} : Pair PrivMode Exception @# ty) else
-            Invalid))))))));
-       LET exception : Exception
-         <- #code @% "data" @% "snd";
-       System [
-         DispString _ "[interruptAction] detected interrupt: ";
-         DispHex #exception;
-         DispString _ "\n"
-       ];
-       Read mideleg' : Bit 12 <- @^"mideleg";
-       Read sideleg' : Bit 12 <- @^"sideleg";
-       LET mideleg : Bit 16 <- ZeroExtend 4 #mideleg';
-       LET sideleg : Bit 16 <- ZeroExtend 4 #sideleg';
-       (* 3.1.6.1 and 3.1.9 *)
-       If #code @% "valid"
+    := LETA mip : Array NumInterrupts Bool <- readInterruptStatus "p";
+       LETA mie : Array NumInterrupts Bool <- readInterruptStatus "e";
+       Read mideleg : Bit NumInterrupts <- @^"mideleg";
+       Read sideleg : Bit NumInterrupts <- @^"sideleg";
+       LETA priorityBitString
+         :  PriorityBitString
+         <- convertLetExprSyntax_ActionT
+              (getPriorityInterrupt #mip #mie
+                (unpack (Array NumDelegs Bool) (ZeroExtendTruncLsb NumDelegs #mideleg))
+                (unpack (Array NumDelegs Bool) (ZeroExtendTruncLsb NumDelegs #sideleg)));
+       LET trap : Interrupt <- UniBit (TruncLsb TrapSz _) #priorityBitString;
+       LET trapIsPendingAndEnabled : Bool
+         <- (UniBit (TruncMsb 1 _) #priorityBitString) == $1;
+       LETA delegMode
+         :  PrivMode
+         <- getDelegMode #trap $$true;
+       LETA trapsEnabled
+         :  Bool
+         <- delegModeSelect
+              (fun delegMode : nat
+                => Read enabled : Bool <- @^(getModePrefix delegMode ++ "ie");
+                   Ret #enabled)
+              #delegMode;
+       LET shouldTrap : Bool
+         <- ((#delegMode > currMode) || (#delegMode == currMode && #trapsEnabled)) &&
+            #trapIsPendingAndEnabled;
+       If #shouldTrap
          then
-           If mode == $MachineMode && #mie
-             then
-               System [DispString _ "[trapInterrupt] trapping interrupt into machine mode.\n"];
-               LETA nextPc
-                 :  VAddr
-                 <- trapAction "m" $$true $MachineMode 2 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-               Ret (Valid #nextPc : Maybe VAddr @# ty)
-             else
-               If delegated #mideleg (#code @% "data" @% "snd")
-                 then
-                   If mode == $SupervisorMode &&
-                      (#code @% "data" @% "fst" == $MachineMode ||
-                       (#code @% "data" @% "fst" == $SupervisorMode && #sie))
-                     then
-                       System [DispString _ "[trapInterrupt] trapping interrupt into supervisor mode.\n"];
-                       LETA nextPc
-                         :  VAddr
-                         <- trapAction "s" $$true $SupervisorMode 1 xlen debug mode pc #exception ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-                       Ret (Valid #nextPc : Maybe VAddr @# ty)
-                     else
-                       If delegated #sideleg (#code @% "data" @% "snd") &&
-                          mode == $UserMode &&
-                          ((#code @% "data" @% "fst" > mode) ||
-                           (#code @% "data" @% "fst" == $UserMode && #uie))
-                         then
-                           System [DispString _ "[trapInterrupt] trapping interrupt into user mode.\n"];
-                           LETA nextPc
-                             :  VAddr
-                             <- trapAction "u" $$true $UserMode 0 xlen debug mode pc #exception  ($0) ($$(getDefaultConst ExecUpdPkt)) ($0) ($$false);
-                           Ret (Valid #nextPc : Maybe VAddr @# ty)
-                         else Ret (Invalid)
-                         as nextPc;
-                       Ret #nextPc
-                     as nextPc;
-                   Ret #nextPc
-                 else Ret (Invalid)
-                 as nextPc;
-               Ret #nextPc
-             as nextPc;
-           Ret #nextPc
-         else Ret (Invalid)
+           delegModeSelect
+             (fun delegMode : nat
+               => trapAction delegMode $$true xlen debug currMode pc (unsafeTruncLsb TrapSz #trap) $0
+                    $$(getDefaultConst ExecUpdPkt) $0 $$false)
+             #delegMode
+         else Ret $$(getDefaultConst VAddr)
          as nextPc;
-       Ret #nextPc.
+       Ret (STRUCT {
+         "valid" ::= #shouldTrap;
+         "data"  ::= #nextPc
+       } : Maybe VAddr @# ty).
 
   Local Close Scope kami_action.
   Local Close Scope kami_expr.

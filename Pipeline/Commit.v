@@ -327,18 +327,38 @@ Section trap_handling.
        LET callIsWriteCsr
          :  Bool
          <- commitOpCallIsWriteCsr (update_pkt @% "val1");
+       Read ebreakm : Bool <- @^"ebreakm";
+       Read ebreaks : Bool <- @^"ebreaks";
+       Read ebreaku : Bool <- @^"ebreaku";
        Read debug : Bool <- @^"debugMode";
        System [DispString _ "CommitException: "; DispHex #commitException; DispString _ "\n" ];
        If (#commitException @% "valid")
          then
-           trapException
-             (cfg_pkt @% "xlen")
-             #debug
-             (cfg_pkt @% "mode")
-             (exec_context_pkt @% "pc")
-             (#commitException @% "data")
-             (exec_context_pkt @% "inst")
-             update_pkt #nextPc (exec_context_pkt @% "exceptionUpper")
+           If #debug
+             then Ret (exec_context_pkt @% "pc")
+             else 
+               If (#commitException @% "data" == $Breakpoint) &&
+                  ((cfg_pkt @% "mode" == $MachineMode && #ebreakm) ||
+                   (cfg_pkt @% "mode" == $SupervisorMode && #ebreaks) ||
+                   (cfg_pkt @% "mode" == $UserMode && #ebreaku))
+                 then
+                   LETA _
+                     <- enterDebugMode (cfg_pkt @% "mode") (exec_context_pkt @% "pc")
+                          $DebugCauseEBreak;
+                   Ret (exec_context_pkt @% "pc")
+                 else
+                   trapException
+                     (cfg_pkt @% "xlen")
+                     #debug
+                     (cfg_pkt @% "mode")
+                     (exec_context_pkt @% "pc")
+                     (#commitException @% "data")
+                     (exec_context_pkt @% "inst")
+                     update_pkt #nextPc (exec_context_pkt @% "exceptionUpper")
+                 as nextPc;
+               Ret #nextPc
+             as nextPc;
+           Ret #nextPc
          else
            LETA _
              <- commitOpCall1
