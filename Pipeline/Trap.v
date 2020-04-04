@@ -1,30 +1,3 @@
-(*
-  TODO: LLEE: getDelegMode : Trap Index -> "i"/"e" -> PrivMode  to determine which mode a trap is delegated to first lookup the deleg in the order of m, s, u. The first deleg that is not 1 that is the mode that will handle the trap.
-  TODO: LLEE: getInterruptEnable draft a function that checks if the trap is enabled. check for *global* interrupt enable we're not right now.
-  TODO: LLEE:
-
-  getPriorityBitstring "msi" 
-
-  LETA A <- priortiy ["msi", ...]; trapAction A
-
-  priority : [{<pending && enabled, delegMode, name>}] -> {<pending && enabled: Bool, delegMode : PrivMode, name : Bit 3>}
-  any interrupt with higher delegMode wins over any interrupt with lower deleg mode.
-  if tie in delegMode then priority order is mei msi ... uti
-
-  priority2 A@{<pendingA, delegModeA, nameA>} B@{<pendingB, delegModeB, nameB>} = A > B.
-
-  fold over interrupts.
-
-  TODO: LLEE: updateTrapStack: factor out the m MachineMode and 2 arguments from trapAction. Use the scheme used by select_satp. split the first part trapAction: pp, pie, ie, next mode. call it updateTrapStack.
-  TODO: LLEE: setTrapContext: determine where the trap handler computes next pc. and updates the epc, cause, and tval. second half of trapAction.
-  TODO: LLEE: trapAction calls everything
-
-  delegMode, updateTrapStack, setTrapContext, and trapAction should be used to handle exceptions also.
-
-  TODO: rewrite everything except: getExceptionValue, enterDebugMode, exitDebugMode. Reuse these three functions in the new file.
-  This file should contain just these functions 
-*)
-
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
