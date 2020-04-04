@@ -57,7 +57,10 @@ Definition InstPageFault      := 12.
 Definition LoadPageFault      := 13.
 Definition SAmoPageFault      := 15.
 
-Definition Interrupt := (Bit 4).
+Definition TrapSz := 4.
+Definition Trap := Bit TrapSz.
+
+Definition Interrupt := (Bit TrapSz).
 
 Definition IntrptU      := 0.
 Definition IntrptS      := 1.
@@ -209,7 +212,7 @@ Section ParamDefinitions.
   Definition PAddr := Bit PAddrSz.
   Definition Offset := PAddr.
 
-  Definition Exception := Bit 4.
+  Definition Exception := Bit TrapSz.
 
   Definition PktWithException k := Pair k (Maybe Exception).
   
