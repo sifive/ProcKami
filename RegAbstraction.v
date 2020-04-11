@@ -11,12 +11,19 @@ Section regAbstraction.
     structFieldName : string;
     structFieldKind : Kind;
     structFieldRegKind : Kind;
+    structFieldRegInit : option (ConstT structFieldRegKind);
     structFieldRegReadXform : forall ty, structFieldRegKind @# ty -> structFieldKind @# ty;
     structFieldRegWriteXform : forall ty, structFieldKind @# ty -> structFieldRegKind @# ty
   }.
 
   Local Definition structFieldEntrySpec (field : StructField) : (string * Kind) :=
     (structFieldName field, structFieldKind field).
+
+  Local Definition structFieldInit (field : StructField) : ConstT (structFieldRegKind field) :=
+    match structFieldRegInit field with
+    | Some init => init
+    | _ => getDefaultConst (structFieldRegKind field)
+    end.
 
   Definition AbsStruct : Type := list StructField.
 
@@ -51,6 +58,7 @@ Section regAbstraction.
     structFieldName := "";
     structFieldKind := Void;
     structFieldRegKind := Void;
+    structFieldRegInit := None;
     structFieldRegReadXform := fun _ _ => $$(wzero 0);
     structFieldRegWriteXform := fun _ _ => $$(wzero 0)
   |}.
@@ -170,6 +178,16 @@ Section regAbstraction.
         struct i).
   Qed.
 
+  Definition structInit (struct : AbsStruct) : ConstT (StructRegPkt struct) :=
+    ConstStruct (structRegPktKinds struct) (structRegPktNames struct)
+      (fun i =>
+        let field := nth_Fin struct (cast i (map_length _ _)) in
+        eq_rect_r
+          (fun k => ConstT k)
+          (structFieldInit field)
+          (structRegFieldKindEqRev struct i)
+        ).
+
   Definition structPktToRegPkt ty
     (struct : AbsStruct)
     (structPkt : StructPkt struct @# ty)
@@ -211,17 +229,18 @@ Section regAbstraction.
   Section example.
     Variable ty : Kind -> Type.
 
-    Local Definition exampleStruct := [{|
+    Local Definition ExampleStruct := [{|
       structFieldName := "example";
       structFieldKind := Bool;
       structFieldRegKind := Void;
+      structFieldRegInit := None;
       structFieldRegReadXform := fun _ _ => $$true;
       structFieldRegWriteXform := fun _ _ => $$(getDefaultConst Void)
     |}].
 
-    Local Definition examplePkt := StructPkt exampleStruct.
+    Local Definition ExamplePkt := StructPkt ExampleStruct.
 
-    Local Definition examplePktInst : examplePkt @# ty :=
+    Local Definition examplePktInst : ExamplePkt @# ty :=
       STRUCT {
         "example" ::= $$true
       }.
