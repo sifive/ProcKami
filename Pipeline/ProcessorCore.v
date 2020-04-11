@@ -16,6 +16,8 @@ Require Import ProcKami.Pipeline.Impl.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
 
+Require Import ProcKami.Trigger.
+
 Import ListNotations.
 
 Section Params.

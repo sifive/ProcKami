@@ -4,6 +4,7 @@
   and include units such as the fetch, decode, and memory elements.
 *)
 Require Import Kami.AllNotations.
+Require Import ProcKami.RegAbstraction.
 
 Import ListNotations.
 
@@ -165,6 +166,49 @@ Record SupportedExt :=
     ext_init : bool ;
     ext_edit : bool }.
 
+Definition NonEmptyList (A : Type) := {xs : list A | xs <> []}.
+
+Inductive TriggerType := AddressDataMatch |  InstCount.
+
+Inductive TriggerTiming := BeforeCommit | AfterCommit.
+
+Inductive TriggerTimingDefault := 
+  DefaultBeforeCommit |
+  DefaultAfterCommit |
+  DefaultRecommended.
+
+Inductive TriggerAction := EnterDebugMode | RaiseBreakpointException.
+
+Record TriggerTypeConfig := {
+  supportedTypes : NonEmptyList TriggerType       
+}.
+
+Record TriggerTimingConfig := {
+  supportedTiming : NonEmptyList TriggerTiming;
+  timingDefault : TriggerTimingDefault;
+  timingWritable : bool;
+}.
+
+Record TriggerMatchConfig := {
+  maxChainLength : nat;
+  supportCountField : bool
+}.
+
+Record TriggerActionConfig := {
+  supportedActions : NonEmptyList TriggerAction
+}.
+
+Record TriggerConfig
+  := {
+       numTriggers : nat;
+       typeConfig : TriggerTypeConfig;
+       timingConfig : TriggerTimingConfig;
+       matchConfig : TriggerMatchConfig;
+       actionConfig : TriggerActionConfig;
+       mContextSz : nat;
+       supportHitField : bool;
+     }.
+
 Class ProcParams :=
   { procName : string ;
     Xlen_over_8: nat ;
@@ -176,7 +220,8 @@ Class ProcParams :=
     allow_inst_misaligned: bool;
     misaligned_access: bool;
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
-    hasVirtualMem : bool
+    hasVirtualMem : bool;
+    debugNumTriggers : nat (* log2 num of triggers *)
   }.
 
 Notation "@^ x" := (procName ++ "_" ++ x)%string (at level 0).
@@ -194,6 +239,15 @@ Class FpuParams
       fpu_exts_32        : list string;
       fpu_exts_64        : list string
     }.
+
+Definition TrigActionKind
+  := STRUCT_TYPE {
+       "action" :: Bit 4;
+       "timing" :: Bool
+     }.
+
+Definition TrigActionBreak := 1.
+Definition TrigActionDebug := 3.
 
 Section ParamDefinitions.
   Context {procParams: ProcParams}.
@@ -429,6 +483,61 @@ Section Params.
 
   End Extensions.
 
+  Definition TrigTypeValue := 2.
+  Definition TrigTypeCount := 3.
+  Definition TrigTypeInterrupt := 4.
+  Definition TrigTypeException := 5.
+
+  Definition TrigActBreak := 0.
+  Definition TrigActDebug := 1.
+
+  (* represents data/address trigger states. *)
+  Definition TrigStateDataValueKind
+    := STRUCT_TYPE {
+         "maskmax" :: Bit 6;
+         "sizehi"  :: Bit 2;
+         "hit"     :: Bool;
+         "select"  :: Bool;
+         "timing"  :: Bool;
+         "sizelo"  :: Bit 2;
+         "action"  :: Bit 4;
+         "chain"   :: Bool;
+         "match"   :: Bit 4;
+         "m"       :: Bool;
+         "s"       :: Bool;
+         "u"       :: Bool;
+         "execute" :: Bool;
+         "store"   :: Bool;
+         "load"    :: Bool;
+         "value"   :: Bit Xlen (* the data/address value used for matching and returned through tdata2. *)
+       }.
+
+  (* represents count trigger states. *)
+  Definition TrigStateDataCountKind
+    := STRUCT_TYPE {
+         "hit"    :: Bool;
+         "count"  :: Bit 14;
+         "m"      :: Bool;
+         "s"      :: Bool;
+         "u"      :: Bool;
+         "action" :: Bit 6
+       }.
+
+  Local Definition list_max := fold_right Nat.max 0.
+
+  Definition TrigStateDataKind 
+    := Bit (list_max (map size [TrigStateDataValueKind; TrigStateDataCountKind])).
+
+  Definition TrigStateKind
+    := STRUCT_TYPE {
+         "type"  :: Bit 4;
+         "dmode" :: Bool;
+         "data"  :: TrigStateDataKind
+       }.
+
+  Definition TrigStatesKind
+    := Array (Nat.pow 2 debugNumTriggers) TrigStateKind.
+
   Definition CounterEnType
     := STRUCT_TYPE {
            "hpm_flags" :: Bit 29;
@@ -453,7 +562,7 @@ Section Params.
         "sum"              :: Bool; (* First read during vpc translation in fetch *)
         "mprv"             :: Bool; (* First read during vpc translation in fetch *)
         "mpp"              :: PrivMode; (* First read during vpc translation in fetch *)
-        "satp_ppn"         :: SatpPpn (* First read during vpc translation in fetch *)
+        "satp_ppn"         :: SatpPpn; (* First read during vpc translation in fetch *)
 (*
         "mcounteren"       :: CounterEnType;
         "scounteren"       :: CounterEnType;
@@ -461,6 +570,9 @@ Section Params.
         "sepc"             :: VAddr;
         "uepc"             :: VAddr
 *)
+        "debug"            :: Bool;
+        "tselect"          :: Bit (Nat.log2_up debugNumTriggers);
+        "trig_states"      :: TrigStatesKind
       }.
 
   Record InstEntry ik ok :=
@@ -895,7 +1007,7 @@ Section Params.
                                then $Xlen32
                                else $Xlen64)%kami_expr.
     End XlenInterface.
-    
+
     Local Open Scope kami_expr.
 
     (* See 3.1.1 and 3.1.15 *)
@@ -1044,4 +1156,3 @@ Section Params.
   Definition DebugCauseHalt   := 3.
   Definition DebugCauseStep   := 4.
 End Params.
-
