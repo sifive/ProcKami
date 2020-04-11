@@ -146,7 +146,8 @@ Section test.
           FU.allow_inst_misaligned := false;
           FU.misaligned_access := false;
           FU.lgGranularity := 3;
-          FU.hasVirtualMem := true |}.
+          FU.hasVirtualMem := true;
+          debugNumTriggers := 0 |}.
 
   Let testMask sz
     := Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord TlSizeSz sz))))).
