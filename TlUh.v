@@ -147,7 +147,23 @@ Section test.
           FU.misaligned_access := false;
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true;
-          debugNumTriggers := 0 |}.
+          FU.trigCfg := {|
+            numTrigs := 0;
+            supportedTypes := TrigTypeBoth;
+            trigTimingCfg  := {|
+              supportedTiming := TrigTimingBoth;
+              timingDefault    := DefaultRecommended;
+              timingWritable   := false
+            |};
+            trigMatchCfg := {|
+              maxChainLength    := 0;
+              supportCountField := false
+            |};
+            supportedActions    := TrigActionBoth;
+            trigMContextSz      := 0;
+            trigSupportHitField := false
+          |}
+       |}.
 
   Let testMask sz
     := Z.to_nat (wordVal _ (evalExpr (getMaskExpr (Const type (natToWord TlSizeSz sz))))).

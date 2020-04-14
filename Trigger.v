@@ -36,9 +36,9 @@ Section trigger.
       Definition trigTdata1Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructPkt GenTrig @# ty)
+        (currState : StructRegPkt GenTrig @# ty)
         (tdata1 : Bit xlen @# ty)
-        :  StructPkt GenTrig @# ty
+        :  StructRegPkt GenTrig @# ty
         := let tdata1Pkt : StructPkt (TrigData1 xlen) @# ty
              := unpack (StructPkt (TrigData1 xlen))
                   (ZeroExtendTruncLsb (size (StructPkt (TrigData1 xlen))) tdata1) in
@@ -55,9 +55,9 @@ Section trigger.
     Definition trigTdata2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructPkt GenTrig @# ty)
+        (currState : StructRegPkt GenTrig @# ty)
         (tdata2 : Bit xlen @# ty)
-        :  StructPkt GenTrig @# ty
+        :  StructRegPkt GenTrig @# ty
         := IF !debugMode && (mode != $MachineMode && currState @% "header" @% "dmode")
              then currState
              else currState @%["data2" <- ZeroExtendTruncLsb GenTrigData2Sz tdata2].
@@ -74,7 +74,7 @@ Section trigger.
       (read : forall ty, StructRegPkt GenTrig @# ty -> Bit xlen @# ty)
       (write :
         forall ty, Bool @# ty -> PrivMode @# ty ->
-          StructPkt GenTrig @# ty -> Bit xlen @# ty ->
+          StructRegPkt GenTrig @# ty -> Bit xlen @# ty ->
           StructRegPkt GenTrig @# ty)
       (name : string)
       :  CsrField
@@ -248,7 +248,7 @@ Section trigger.
                      IF state @% "header" @% "type" == $TrigTypeValue && valueState @% "info" @% "chain"
                       then Invalid
                       else acc))
-           (getFins (Nat.pow 2 debugNumTriggers))
+           (getFins (Nat.pow 2 (numTrigs trigCfg)))
            Invalid.
 
     (* performs this action when a trigger matches whose action causes the hart to enter debug mode. *)

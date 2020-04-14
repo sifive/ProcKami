@@ -166,48 +166,37 @@ Record SupportedExt :=
     ext_init : bool ;
     ext_edit : bool }.
 
-Definition NonEmptyList (A : Type) := {xs : list A | xs <> []}.
+Inductive TrigType := AddressDataMatch | InstCount | TrigTypeBoth.
 
-Inductive TriggerType := AddressDataMatch |  InstCount.
+Inductive TrigTiming := BeforeCommit | AfterCommit | TrigTimingBoth.
 
-Inductive TriggerTiming := BeforeCommit | AfterCommit.
-
-Inductive TriggerTimingDefault := 
+Inductive TrigTimingDefault := 
   DefaultBeforeCommit |
   DefaultAfterCommit |
   DefaultRecommended.
 
-Inductive TriggerAction := EnterDebugMode | RaiseBreakpointException.
+Inductive TrigAction := EnterDebugMode | RaiseBreakpointException | TrigActionBoth.
 
-Record TriggerTypeConfig := {
-  supportedTypes : NonEmptyList TriggerType       
+Record TrigTimingCfg := {
+  supportedTiming : TrigTiming;
+  timingDefault   : TrigTimingDefault;
+  timingWritable  : bool;
 }.
 
-Record TriggerTimingConfig := {
-  supportedTiming : NonEmptyList TriggerTiming;
-  timingDefault : TriggerTimingDefault;
-  timingWritable : bool;
-}.
-
-Record TriggerMatchConfig := {
+Record TrigMatchCfg := {
   maxChainLength : nat;
   supportCountField : bool
 }.
 
-Record TriggerActionConfig := {
-  supportedActions : NonEmptyList TriggerAction
+Record TrigCfg := {
+  numTrigs            : nat; (* log2 num of triggers *)
+  supportedTypes      : TrigType;
+  trigTimingCfg       : TrigTimingCfg;
+  trigMatchCfg        : TrigMatchCfg;
+  supportedActions    : TrigAction;
+  trigMContextSz      : nat;
+  trigSupportHitField : bool;
 }.
-
-Record TriggerConfig
-  := {
-       numTriggers : nat;
-       typeConfig : TriggerTypeConfig;
-       timingConfig : TriggerTimingConfig;
-       matchConfig : TriggerMatchConfig;
-       actionConfig : TriggerActionConfig;
-       mContextSz : nat;
-       supportHitField : bool;
-     }.
 
 Class ProcParams :=
   { procName : string ;
@@ -221,7 +210,7 @@ Class ProcParams :=
     misaligned_access: bool;
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
     hasVirtualMem : bool;
-    debugNumTriggers : nat (* log2 num of triggers *)
+    trigCfg : TrigCfg;
   }.
 
 Notation "@^ x" := (procName ++ "_" ++ x)%string (at level 0).
@@ -491,10 +480,47 @@ Section Params.
   Definition TrigActBreak := 0.
   Definition TrigActDebug := 1.
 
+  Local Definition numTrigTypes :=
+    match supportedTypes trigCfg with
+    | TrigTypeBoth => 2
+    | _ => 1
+    end.
+
+  Local Definition TrigTypeRegSz := Nat.log2_up numTrigTypes.
+
+  Local Definition TrigTypeReg := Bit TrigTypeRegSz.
+
+  Local Open Scope kami_expr.
+
   Definition TrigHeader (contextKind : Kind) : AbsStruct contextKind := [
-    @Build_StructField contextKind "type" (Bit 4) (Bit 4) None (fun _ _ => id) (fun _ _ => id); (* TODO: LLEE: default to no trigger. *)
+    @Build_StructField contextKind "type"
+      (Bit 4)
+      TrigTypeReg
+      None (* TODO: LLEE: default to no trigger. *)
+      (fun ty _ regPkt =>
+        match supportedTypes trigCfg with
+        | AddressDataMatch => $TrigTypeValue
+        | InstCount => $TrigTypeCount
+        | TrigTypeBoth =>
+          Switch regPkt Retn Bit 4 With {
+            ($0 : TrigTypeReg @# ty) ::= ($TrigTypeValue : Bit 4 @# ty);
+            ($1 : TrigTypeReg @# ty) ::= ($TrigTypeCount : Bit 4 @# ty)
+          }
+        end)
+      (fun ty _ structPkt =>
+        match supportedTypes trigCfg with
+        | AddressDataMatch => $0
+        | InstCount => $1
+        | TrigTypeBoth =>
+          Switch structPkt Retn TrigTypeReg With {
+            ($TrigTypeValue : Bit 4 @# ty) ::= ($0 : TrigTypeReg @# ty);
+            ($TrigTypeCount : Bit 4 @# ty) ::= ($1 : TrigTypeReg @# ty)
+          }
+        end); 
     @Build_StructField contextKind "dmode" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
   ].
+
+  Local Close Scope kami_expr.
 
   Local Open Scope kami_expr.
 
@@ -662,7 +688,7 @@ Section Params.
   Local Close Scope kami_expr.
 
   Definition GenTrigs
-    := Array (Nat.pow 2 debugNumTriggers) (StructRegPkt GenTrig).
+    := Array (Nat.pow 2 (numTrigs trigCfg)) (StructRegPkt GenTrig).
 
   Definition CounterEnType
     := STRUCT_TYPE {
@@ -697,7 +723,7 @@ Section Params.
         "uepc"             :: VAddr
 *)
         "debug"            :: Bool;
-        "tselect"          :: Bit (Nat.log2_up debugNumTriggers);
+        "tselect"          :: Bit (Nat.log2_up (numTrigs trigCfg));
         "trig_states"      :: GenTrigs
       }.
 
