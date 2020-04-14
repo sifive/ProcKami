@@ -472,6 +472,7 @@ Section Params.
 
   End Extensions.
 
+  Definition TrigTypeNone  := 0.
   Definition TrigTypeValue := 2.
   Definition TrigTypeCount := 3.
   Definition TrigTypeInterrupt := 4.
@@ -486,7 +487,7 @@ Section Params.
     | _ => 1
     end.
 
-  Local Definition TrigTypeRegSz := Nat.log2_up numTrigTypes.
+  Local Definition TrigTypeRegSz := Nat.log2_up (numTrigTypes + 1).
 
   Local Definition TrigTypeReg := Bit TrigTypeRegSz.
 
@@ -496,25 +497,33 @@ Section Params.
     @Build_StructField contextKind "type"
       (Bit 4)
       TrigTypeReg
-      None (* TODO: LLEE: default to no trigger. *)
-      (fun ty _ regPkt =>
+      (Some (ConstBit $TrigTypeNone%word))
+      (fun ty _ value =>
         match supportedTypes trigCfg with
-        | AddressDataMatch => $TrigTypeValue
-        | InstCount => $TrigTypeCount
+        | AddressDataMatch => IF value == $1 then $TrigTypeValue else $TrigTypeNone
+        | InstCount        => IF value == $2 then $TrigTypeCount else $TrigTypeNone
         | TrigTypeBoth =>
-          Switch regPkt Retn Bit 4 With {
-            ($0 : TrigTypeReg @# ty) ::= ($TrigTypeValue : Bit 4 @# ty);
-            ($1 : TrigTypeReg @# ty) ::= ($TrigTypeCount : Bit 4 @# ty)
+          Switch value Retn Bit 4 With {
+            ($0 : TrigTypeReg @# ty) ::= ($TrigTypeNone  : Bit 4 @# ty);
+            ($1 : TrigTypeReg @# ty) ::= ($TrigTypeValue : Bit 4 @# ty);
+            ($2 : TrigTypeReg @# ty) ::= ($TrigTypeCount : Bit 4 @# ty)
           }
         end)
-      (fun ty _ structPkt =>
+      (fun ty _ value =>
         match supportedTypes trigCfg with
-        | AddressDataMatch => $0
-        | InstCount => $1
+        | AddressDataMatch =>
+          IF value == $TrigTypeValue
+          then $1 : TrigTypeReg @# ty
+          else $0 : TrigTypeReg @# ty
+        | InstCount =>
+          IF value == $TrigTypeCount
+          then $2 : TrigTypeReg @# ty
+          else $0 : TrigTypeReg @# ty
         | TrigTypeBoth =>
-          Switch structPkt Retn TrigTypeReg With {
-            ($TrigTypeValue : Bit 4 @# ty) ::= ($0 : TrigTypeReg @# ty);
-            ($TrigTypeCount : Bit 4 @# ty) ::= ($1 : TrigTypeReg @# ty)
+          Switch value Retn TrigTypeReg With {
+            ($TrigTypeNone  : Bit 4 @# ty) ::= ($0 : TrigTypeReg @# ty);
+            ($TrigTypeValue : Bit 4 @# ty) ::= ($1 : TrigTypeReg @# ty);
+            ($TrigTypeCount : Bit 4 @# ty) ::= ($2 : TrigTypeReg @# ty)
           }
         end); 
     @Build_StructField contextKind "dmode" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
