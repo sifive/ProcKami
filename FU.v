@@ -662,19 +662,19 @@ Section Params.
 
   Definition GenTrigData2Reg := Bit GenTrigData2RegSz.
 
-  Local Definition GenTrigInfoField : StructField Bool :=
+  Definition GenTrigInfoField : StructField Bool :=
     @Build_StructField Bool "info"
       GenTrigInfo
       GenTrigInfoReg
       None
       (fun ty context value =>
         IF context
-        then packedRegPktToPackedStructPkt (trigInfo TrigValue) $$(wzero 0) value
-        else packedRegPktToPackedStructPkt (trigInfo TrigCount) $$(wzero 0) value)
+        then packedRegPktToPackedStructPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value
+        else packedRegPktToPackedStructPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
       (fun ty context value =>
         IF context
-        then packedStructPktToPackedRegPkt (trigInfo TrigValue) $$(wzero 0) value
-        else packedStructPktToPackedRegPkt (trigInfo TrigCount) $$(wzero 0) value).
+        then packedStructPktToPackedRegPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value
+        else packedStructPktToPackedRegPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value).
 
   Definition GenTrig : AbsStruct Bool := [
     TrigHeaderField Bool;
@@ -685,15 +685,15 @@ Section Params.
       None
       (fun ty context value =>
         IF context
-        then packedRegPktToPackedStructPkt (trigData2 TrigValue) $$(wzero 0) value
-        else packedRegPktToPackedStructPkt (trigData2 TrigCount) $$(wzero 0) value)
+        then packedRegPktToPackedStructPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value
+        else packedRegPktToPackedStructPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
       (fun ty context value =>
         IF context
-        then packedStructPktToPackedRegPkt (trigData2 TrigValue) $$(wzero 0) value
-        else packedStructPktToPackedRegPkt (trigData2 TrigCount) $$(wzero 0) value)
+        then packedStructPktToPackedRegPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value
+        else packedStructPktToPackedRegPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
   ].
 
-  Definition TrigData1 (xlen : nat) := [TrigHeaderField Bool; GenTrigInfoField].
+  Definition TrigData1 := [TrigHeaderField Bool; GenTrigInfoField].
 
   Definition GenTrigPktToValuePkt ty
     (statePkt : StructPkt GenTrig @# ty)

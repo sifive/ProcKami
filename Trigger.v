@@ -25,7 +25,7 @@ Section trigger.
         ZeroExtendTruncLsb xlen (pack (STRUCT {
           "header" ::= structPkt @% "header";
           "info"  ::= structPkt @% "info"
-        } : StructPkt (TrigData1 xlen) @# ty)).
+        } : StructPkt TrigData1 @# ty)).
 
       Definition trigTdata2Read (stateRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
         ZeroExtendTruncLsb xlen (pack
@@ -39,9 +39,9 @@ Section trigger.
         (currState : StructRegPkt GenTrig @# ty)
         (tdata1 : Bit xlen @# ty)
         :  StructRegPkt GenTrig @# ty
-        := let tdata1Pkt : StructPkt (TrigData1 xlen) @# ty
-             := unpack (StructPkt (TrigData1 xlen))
-                  (ZeroExtendTruncLsb (size (StructPkt (TrigData1 xlen))) tdata1) in
+        := let tdata1Pkt : StructPkt TrigData1 @# ty
+             := unpack (StructPkt TrigData1)
+                  (ZeroExtendTruncLsb (size (StructPkt TrigData1)) tdata1) in
            let nextHeader
              := IF debugMode
                   then currState @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
@@ -49,8 +49,12 @@ Section trigger.
            let nextState 
              := currState @%["header" <- nextHeader] in
            IF !debugMode && (mode != $MachineMode && tdata1Pkt @% "header" @% "dmode")
-             then nextState
-             else nextState @%["info" <- tdata1Pkt @% "info"].
+           then nextState
+           else
+             nextState @%["info" <- 
+               @structFieldRegWriteXform Bool GenTrigInfoField ty
+                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue)
+                 (tdata1Pkt @% "info" : GenTrigInfo @# ty)].
            
     Definition trigTdata2Write
         (debugMode : Bool @# ty)
