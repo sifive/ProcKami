@@ -529,10 +529,6 @@ Section Params.
     @Build_StructField contextKind "dmode" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
   ].
 
-  Local Close Scope kami_expr.
-
-  Local Open Scope kami_expr.
-
   Local Definition TrigHeaderField (contextKind : Kind) : StructField contextKind :=
     @Build_StructField contextKind "header"
       (StructPkt (TrigHeader Void))
@@ -567,13 +563,34 @@ Section Params.
     trig : AbsStruct Void := TrigStruct trigInfo trigData2
   }.
 
+  Local Definition TrigTimingRegKind (cfg : TrigTiming) : Kind :=
+    match cfg with
+    | TrigTimingBoth => Bool
+    | _ => Void
+    end.
+
   Definition TrigValue : Trig := {|
     trigInfo := [
       @Build_StructField Void "maskmax" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "sizehi" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "hit" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "select" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "timing" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "timing" (Bool)
+        (TrigTimingRegKind (supportedTiming (trigTimingCfg (@trigCfg procParams))))
+        None (* TODO: LLEE: set default *)
+        (fun ty _ =>
+          match supportedTiming (trigTimingCfg trigCfg) as x
+          return TrigTimingRegKind x @# ty -> Bool @# ty with
+          | BeforeCommit => fun _ => $$true
+          | AfterCommit  => fun _ => $$false
+          | TrigTimingBoth => fun value => value
+          end)
+        (fun ty _ =>
+          match supportedTiming (trigTimingCfg trigCfg) as x
+          return Bool @# ty -> TrigTimingRegKind x @# ty with
+          | TrigTimingBoth => fun value => value
+          | _ => fun _ => $$(wzero 0)
+          end);
       @Build_StructField Void "sizelo" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "action" (Bit 4) (Bit 4) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "chain" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
