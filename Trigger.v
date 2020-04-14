@@ -17,17 +17,17 @@ Section trigger.
     Section ty.
       Variable ty : Kind -> Type.
 
-      Definition trigTdata1Read (stateRegPkt : StructRegPkt AbsTrigStateStruct @# ty) : Bit xlen @# ty :=
-        let structPkt : StructPkt AbsTrigStateStruct @# ty :=
+      Definition trigTdata1Read (stateRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
+        let structPkt : StructPkt GenTrig @# ty :=
           regPktToStructPkt
             (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
             stateRegPkt in
         ZeroExtendTruncLsb xlen (pack (STRUCT {
           "header" ::= structPkt @% "header";
           "info"  ::= structPkt @% "info"
-        } : StructPkt (TrigData1Struct xlen) @# ty)).
+        } : StructPkt (TrigData1 xlen) @# ty)).
 
-      Definition trigTdata2Read (stateRegPkt : StructRegPkt AbsTrigStateStruct @# ty) : Bit xlen @# ty :=
+      Definition trigTdata2Read (stateRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
         ZeroExtendTruncLsb xlen (pack
           ((regPktToStructPkt
             (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
@@ -36,12 +36,12 @@ Section trigger.
       Definition trigTdata1Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructPkt AbsTrigStateStruct @# ty)
+        (currState : StructPkt GenTrig @# ty)
         (tdata1 : Bit xlen @# ty)
-        :  StructPkt AbsTrigStateStruct @# ty
-        := let tdata1Pkt : StructPkt (TrigData1Struct xlen) @# ty
-             := unpack (StructPkt (TrigData1Struct xlen))
-                  (ZeroExtendTruncLsb (size (StructPkt (TrigData1Struct xlen))) tdata1) in
+        :  StructPkt GenTrig @# ty
+        := let tdata1Pkt : StructPkt (TrigData1 xlen) @# ty
+             := unpack (StructPkt (TrigData1 xlen))
+                  (ZeroExtendTruncLsb (size (StructPkt (TrigData1 xlen))) tdata1) in
            let nextHeader
              := IF debugMode
                   then currState @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
@@ -55,12 +55,12 @@ Section trigger.
     Definition trigTdata2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructPkt AbsTrigStateStruct @# ty)
+        (currState : StructPkt GenTrig @# ty)
         (tdata2 : Bit xlen @# ty)
-        :  StructPkt AbsTrigStateStruct @# ty
+        :  StructPkt GenTrig @# ty
         := IF !debugMode && (mode != $MachineMode && currState @% "header" @% "dmode")
              then currState
-             else currState @%["data2" <- ZeroExtendTruncLsb AbsTrigStateData2Sz tdata2].
+             else currState @%["data2" <- ZeroExtendTruncLsb GenTrigData2Sz tdata2].
 
     End ty.
 
@@ -71,11 +71,11 @@ Section trigger.
       := context @% "mode" == $MachineMode || context @% "debug".
 
     Definition trigTdataCsrField
-      (read : forall ty, StructRegPkt AbsTrigStateStruct @# ty -> Bit xlen @# ty)
+      (read : forall ty, StructRegPkt GenTrig @# ty -> Bit xlen @# ty)
       (write :
         forall ty, Bool @# ty -> PrivMode @# ty ->
-          StructPkt AbsTrigStateStruct @# ty -> Bit xlen @# ty ->
-          StructRegPkt AbsTrigStateStruct @# ty)
+          StructPkt GenTrig @# ty -> Bit xlen @# ty ->
+          StructRegPkt GenTrig @# ty)
       (name : string)
       :  CsrField
       := {|
@@ -84,13 +84,13 @@ Section trigger.
            csrFieldValue
              := csrFieldValueReg {|
                   csrFieldRegisterName := @^"trigStates";
-                  csrFieldRegisterKind := TrigStatesKind;
+                  csrFieldRegisterKind := GenTrigs;
                   csrFieldRegisterValue := None;
                   csrFieldRegisterReadXform
-                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty)
+                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty)
                          => read ty (currValue @[ context @% "cfg" @% "tselect"]);
                   csrFieldRegisterWriteXform
-                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty) (inputValue : Bit xlen @# ty)
+                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty) (inputValue : Bit xlen @# ty)
                          => currValue @[
                               context @% "cfg" @% "tselect"
                                 <- write ty
@@ -136,7 +136,7 @@ Section trigger.
          }.
 
     Local Definition trigValueModeMatch
-      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
+      (state : StructPkt (trig TrigValue) @# ty)
       (mode  : PrivMode @# ty)
       :  Bool @# ty
       := Switch mode Retn Bool With {
@@ -146,7 +146,7 @@ Section trigger.
          }.
 
     Local Definition trigValueTypeMatch
-      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
+      (state : StructPkt (trig TrigValue) @# ty)
       (type : TrigEventType)
       :  Bool @# ty
       := match type with
@@ -159,7 +159,7 @@ Section trigger.
          end.
 
     Local Definition trigValueSizeMatch
-      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
+      (state : StructPkt (trig TrigValue) @# ty)
       (size  : Bit 4 @# ty)
       :  Bool @# ty
       := let stateSize
@@ -169,7 +169,7 @@ Section trigger.
 
     (* TODO: LLEE: double check the sign extensions. *)
     Local Definition trigValueValueMatch
-      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
+      (state : StructPkt (trig TrigValue) @# ty)
       (value  : Bit Xlen @# ty)
       :  Bool @# ty
       := let size
@@ -197,7 +197,7 @@ Section trigger.
       the given value.
     *)
     Definition trigValueMatch
-      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
+      (state : StructPkt (trig TrigValue) @# ty)
       (event : TrigEvent)
       (mode  : PrivMode @# ty)
       :  Bool @# ty
@@ -207,13 +207,13 @@ Section trigger.
          trigValueValueMatch state (trigEventValue event).
 
     Definition trigTrigMatch
-      (state : StructPkt AbsTrigStateStruct @# ty)
+      (state : StructPkt GenTrig @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
       :  Maybe TrigActionKind @# ty
       := let valueState
-           :  StructPkt (trigStateStruct TrigStateValue) @# ty
-           := AbsTrigStatePktToValuePkt state in
+           :  StructPkt (trig TrigValue) @# ty
+           := GenTrigPktToValuePkt state in
          IF state @% "header" @% "type" == $TrigTypeValue
            then
              Valid (STRUCT {
@@ -224,17 +224,17 @@ Section trigger.
              (* TODO: add other trigger types. *)
 
     Definition trigTrigsMatch
-      (states : TrigStatesKind @# ty)
+      (states : GenTrigs @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
       :  Maybe TrigActionKind @# ty
       := fold_left
            (fun acc i
              => let stateReg
-                  :  StructRegPkt AbsTrigStateStruct @# ty
+                  :  StructRegPkt GenTrig @# ty
                   := ReadArrayConst states i in
                 let state
-                  :  StructPkt AbsTrigStateStruct @# ty
+                  :  StructPkt GenTrig @# ty
                   := regPktToStructPkt (stateReg @% "header" @% "type" == $TrigTypeValue) stateReg  in
                 let result
                   :  Maybe TrigActionKind @# ty
@@ -243,8 +243,8 @@ Section trigger.
                   then result
                   else
                     (let valueState
-                      :  StructPkt (trigStateStruct TrigStateValue) @# ty
-                      := AbsTrigStatePktToValuePkt state in
+                      :  StructPkt (trig TrigValue) @# ty
+                      := GenTrigPktToValuePkt state in
                      IF state @% "header" @% "type" == $TrigTypeValue && valueState @% "info" @% "chain"
                       then Invalid
                       else acc))
@@ -262,7 +262,7 @@ Section trigger.
          Retv.
 
     Definition trigAction
-      (states : TrigStatesKind @# ty)
+      (states : GenTrigs @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
       (pc : VAddr @# ty)
@@ -287,7 +287,7 @@ Section trigger.
          Ret #result.
 
     Definition trigBindAction
-      (states : TrigStatesKind @# ty)
+      (states : GenTrigs @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
       (pc : VAddr @# ty)
