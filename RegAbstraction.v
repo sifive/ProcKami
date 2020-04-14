@@ -7,13 +7,15 @@ Section regAbstraction.
   Local Open Scope kami_action.
   Local Open Scope kami_scope.
 
+  Variable contextKind : Kind.
+
   Record StructField := {
     structFieldName : string;
     structFieldKind : Kind;
     structFieldRegKind : Kind;
     structFieldRegInit : option (ConstT structFieldRegKind);
-    structFieldRegReadXform : forall ty, structFieldRegKind @# ty -> structFieldKind @# ty;
-    structFieldRegWriteXform : forall ty, structFieldKind @# ty -> structFieldRegKind @# ty
+    structFieldRegReadXform : forall ty, contextKind @# ty -> structFieldRegKind @# ty -> structFieldKind @# ty;
+    structFieldRegWriteXform : forall ty, contextKind @# ty -> structFieldKind @# ty -> structFieldRegKind @# ty
   }.
 
   Local Definition structFieldEntrySpec (field : StructField) : (string * Kind) :=
@@ -54,13 +56,13 @@ Section regAbstraction.
   Definition StructRegPkt (struct : AbsStruct)
     := getStruct (structRegFieldEntrySpecs struct).
 
-  Local Definition nilStructField : StructField := {|
+  Definition nilStructField : StructField := {|
     structFieldName := "";
     structFieldKind := Void;
     structFieldRegKind := Void;
     structFieldRegInit := None;
-    structFieldRegReadXform := fun _ _ => $$(wzero 0);
-    structFieldRegWriteXform := fun _ _ => $$(wzero 0)
+    structFieldRegReadXform := fun _ _ _ => $$(wzero 0);
+    structFieldRegWriteXform := fun _ _ _ => $$(wzero 0)
   |}.
 
   Local Definition nilEntrySpec : (string * Kind) := ("", Void).
@@ -190,6 +192,7 @@ Section regAbstraction.
 
   Definition structPktToRegPkt ty
     (struct : AbsStruct)
+    (context : contextKind @# ty)
     (structPkt : StructPkt struct @# ty)
     :  StructRegPkt struct @# ty :=
   @BuildStruct ty
@@ -199,7 +202,7 @@ Section regAbstraction.
     (fun index =>
       let field := nth_Fin struct (cast index (map_length _ _)) in
       let val :=
-        structFieldRegWriteXform field
+        structFieldRegWriteXform field context
           (eq_rect_r
             (fun k => k @# ty)
             (ReadStruct structPkt
@@ -209,6 +212,7 @@ Section regAbstraction.
 
   Definition regPktToStructPkt ty
     (struct : AbsStruct)
+    (context : contextKind @# ty)
     (regPkt : StructRegPkt struct @# ty)
     :  StructPkt struct @# ty :=
   @BuildStruct ty
@@ -218,34 +222,13 @@ Section regAbstraction.
     (fun index =>
       let field := nth_Fin struct (cast index (map_length _ _)) in
       let val :=
-        (structFieldRegReadXform field
+        (structFieldRegReadXform field context
           (eq_rect_r
             (fun k => k @# ty)
             (ReadStruct regPkt
               (cast (cast index (map_length _ _)) (eq_sym (map_length _ _))))
             (structRegFieldKindEq struct (cast index (map_length _ _))))) in
       eq_rect_r (fun k => k @# ty) val (structFieldKindEqRev struct index)).
-
-  Section example.
-    Variable ty : Kind -> Type.
-
-    Local Definition ExampleStruct := [{|
-      structFieldName := "example";
-      structFieldKind := Bool;
-      structFieldRegKind := Void;
-      structFieldRegInit := None;
-      structFieldRegReadXform := fun _ _ => $$true;
-      structFieldRegWriteXform := fun _ _ => $$(getDefaultConst Void)
-    |}].
-
-    Local Definition ExamplePkt := StructPkt ExampleStruct.
-
-    Local Definition examplePktInst : ExamplePkt @# ty :=
-      STRUCT {
-        "example" ::= $$true
-      }.
-
-  End example.
 
   Local Close Scope kami_scope.
   Local Close Scope kami_action.
