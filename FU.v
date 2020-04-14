@@ -577,7 +577,17 @@ Section Params.
       @Build_StructField Void "select" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "timing" (Bool)
         (TrigTimingRegKind (supportedTiming (trigTimingCfg (@trigCfg procParams))))
-        None (* TODO: LLEE: set default *)
+        (Some
+          (match supportedTiming (trigTimingCfg trigCfg) as x
+           return ConstT (TrigTimingRegKind x) with
+           | TrigTimingBoth =>
+             match timingDefault (trigTimingCfg trigCfg) with
+             | DefaultBeforeCommit => ConstBool true
+             | DefaultAfterCommit  => ConstBool false
+             | DefaultRecommended  => ConstBool true (* TODO: LLEE: review spec and set this based on the trigger type. *)
+             end
+           | _ => ConstBit (wzero 0)
+           end))
         (fun ty _ =>
           match supportedTiming (trigTimingCfg trigCfg) as x
           return TrigTimingRegKind x @# ty -> Bool @# ty with
