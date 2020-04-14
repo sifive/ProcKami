@@ -14,212 +14,53 @@ Section trigger.
   Section xlen.
     Variable xlen : nat.
 
-    Local Definition trigStateValueData1Struct
-      :  AbsStruct
-      := [
-           @Build_StructField "type" (Bit 4) (Bit 4) None (fun _ => id) (fun _ => id);
-           @Build_StructField "dmode" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "maskmax" (Bit 6) (Bit 6) None (fun _ => id) (fun _ => id);
-           @Build_StructField "reserved" (Bit (xlen - 34)%nat) (Bit (xlen - 34)%nat) None (fun _ => id) (fun _ => id);
-           @Build_StructField "sizehi" (Bit 2) (Bit 2) None (fun _ => id) (fun _ => id);
-           @Build_StructField "hit" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "select" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "timing" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "sizelo" (Bit 2) (Bit 2) None (fun _ => id) (fun _ => id);
-           @Build_StructField "action" (Bit 4) (Bit 4) None (fun _ => id) (fun _ => id);
-           @Build_StructField "chain" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "match" (Bit 4) (Bit 4) None (fun _ => id) (fun _ => id);
-           @Build_StructField "m" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "h" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "s" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "u" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "execute" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "store" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "load" (Bool) (Bool) None (fun _ => id) (fun _ => id)
-         ].
-                                                 
-    Local Definition trigStateValueData1Kind := StructPkt trigStateValueData1Struct.
-
-    Local Definition trigStateCountData1Struct
-      :  AbsStruct
-      := [
-           @Build_StructField "type" (Bit 4) (Bit 4) None (fun _ => id) (fun _ => id);
-           @Build_StructField "dmode" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "reserved" (Bit (xlen - 30)%nat) (Bit (xlen - 30)%nat) None (fun _ => id) (fun _ => id);
-           @Build_StructField "hit" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "count" (Bit 14) (Bit 14) None (fun _ => id) (fun _ => id);
-           @Build_StructField "m" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "h" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "s" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "u" (Bool) (Bool) None (fun _ => id) (fun _ => id);
-           @Build_StructField "action" (Bit 6) (Bit 6) None (fun _ => id) (fun _ => id)
-         ].
-
-    Local Definition trigStateCountData1Kind := StructPkt trigStateCountData1Struct.
-
     Section ty.
       Variable ty : Kind -> Type.
 
-      Definition trigTdata1Read
-        (state : TrigStateKind @# ty)
-        :  Bit xlen @# ty
-        := Switch state @% "type" Retn Bit xlen With {
-             ($TrigTypeValue : Bit 4 @# ty)
-               ::= let data
-                     := unpack TrigStateDataValueKind
-                          (ZeroExtendTruncLsb (size TrigStateDataValueKind)
-                            (unpack TrigStateDataKind (state @% "data"))) in
-                   ZeroExtendTruncLsb xlen
-                     (pack (STRUCT {
-                         "type"     ::= state @% "type";
-                         "dmode"    ::= state @% "dmode";
-                         "maskmax"  ::= data @% "maskmax";
-                         "reserved" ::= ($0 : Bit (xlen - 34)%nat @# ty);
-                         "sizehi"   ::= data @% "sizehi";
-                         "hit"      ::= data @% "hit";
-                         "select"   ::= data @% "select";
-                         "timing"   ::= data @% "timing";
-                         "sizelo"   ::= data @% "sizelo";
-                         "action"   ::= data @% "action";
-                         "chain"    ::= data @% "chain";
-                         "match"    ::= data @% "match";
-                         "m"        ::= data @% "m";
-                         "h"        ::= $$false;
-                         "s"        ::= data @% "s";
-                         "u"        ::= data @% "u";
-                         "execute"  ::= data @% "execute";
-                         "store"    ::= data @% "store";
-                         "load"     ::= data @% "load"
-                       } : trigStateValueData1Kind @# ty));
-             ($TrigTypeCount : Bit 4 @# ty)
-               ::= let data
-                     := unpack TrigStateDataCountKind
-                          (ZeroExtendTruncLsb (size TrigStateDataCountKind)
-                            (unpack TrigStateDataKind (state @% "data"))) in
-                   ZeroExtendTruncLsb xlen
-                     (pack (STRUCT {
-                         "type"     ::= state @% "type";
-                         "dmode"    ::= state @% "dmode";
-                         "reserved" ::= ($0 : Bit (xlen - 30)%nat @# ty);
-                         "hit"      ::= data @% "hit";
-                         "count"    ::= data @% "count";
-                         "m"        ::= data @% "m";
-                         "h"        ::= $$false;
-                         "s"        ::= data @% "s";
-                         "u"        ::= data @% "u";
-                         "action"   ::= data @% "action"
-                       } : trigStateCountData1Kind @# ty))
-           }.
+      Definition trigTdata1Read (stateRegPkt : StructRegPkt AbsTrigStateStruct @# ty) : Bit xlen @# ty :=
+        let structPkt : StructPkt AbsTrigStateStruct @# ty :=
+          regPktToStructPkt
+            (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            stateRegPkt in
+        ZeroExtendTruncLsb xlen (pack (STRUCT {
+          "header" ::= structPkt @% "header";
+          "info"  ::= structPkt @% "info"
+        } : StructPkt (TrigData1Struct xlen) @# ty)).
 
-      Definition trigTdata2Read
-        (state : TrigStateKind @# ty)
-        :  Bit xlen @# ty
-        := Switch state @% "type" Retn Bit xlen With {
-             ($TrigTypeValue : Bit 4 @# ty)
-               ::= let data
-                     := unpack TrigStateDataValueKind
-                          (ZeroExtendTruncLsb (size TrigStateDataValueKind)
-                            (unpack TrigStateDataKind (state @% "data"))) in
-                   ZeroExtendTruncLsb xlen (data @% "value");
-             ($TrigTypeCount : Bit 4 @# ty)
-               ::= ($0 : Bit xlen @# ty)
-           }.
+      Definition trigTdata2Read (stateRegPkt : StructRegPkt AbsTrigStateStruct @# ty) : Bit xlen @# ty :=
+        ZeroExtendTruncLsb xlen (pack
+          ((regPktToStructPkt
+            (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            stateRegPkt) @% "data2")).
 
       Definition trigTdata1Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : TrigStateKind @# ty)
+        (currState : StructPkt AbsTrigStateStruct @# ty)
         (tdata1 : Bit xlen @# ty)
-        :  TrigStateKind @# ty
-        := let inputState
-             := unpack TrigStateKind
-                  (ZeroExtendTruncLsb (size TrigStateKind) tdata1) in
-           let nextState
+        :  StructPkt AbsTrigStateStruct @# ty
+        := let tdata1Pkt : StructPkt (TrigData1Struct xlen) @# ty
+             := unpack (StructPkt (TrigData1Struct xlen))
+                  (ZeroExtendTruncLsb (size (StructPkt (TrigData1Struct xlen))) tdata1) in
+           let nextHeader
              := IF debugMode
-                  then currState @%["dmode" <- inputState @% "dmode"]
-                  else currState in
-           IF !debugMode && (mode != $MachineMode && inputState @% "dmode")
+                  then currState @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
+                  else currState @% "header" in
+           let nextState 
+             := currState @%["header" <- nextHeader] in
+           IF !debugMode && (mode != $MachineMode && tdata1Pkt @% "header" @% "dmode")
              then nextState
-             else
-               nextState
-                 @%["type" <- inputState @% "type"]
-                 @%["data"
-                      <- Switch inputState @% "type" Retn TrigStateDataKind With {
-                           ($TrigTypeValue : Bit 4 @# ty)
-                             ::= let inputData
-                                   := unpack TrigStateDataValueKind
-                                        (ZeroExtendTruncLsb (size TrigStateDataValueKind)
-                                          (unpack TrigStateDataKind (inputState @% "data"))) in
-                                 let currData
-                                   := unpack TrigStateDataValueKind
-                                        (ZeroExtendTruncLsb
-                                          (size TrigStateDataValueKind)
-                                          (unpack TrigStateDataKind (currState @% "data"))) in
-                                 let nextData
-                                   := currData
-                                        @%["sizehi"  <- inputData @% "sizehi"]
-                                        @%["hit"     <- inputData @% "hit"]
-                                        @%["select"  <- inputData @% "select"]
-                                        @%["timing"  <- inputData @% "timing"]
-                                        @%["sizelo"  <- inputData @% "sizelo"]
-                                        @%["action"  <- inputData @% "action"]
-                                        @%["chain"   <- inputData @% "chain"]
-                                        @%["match"   <- inputData @% "match"]
-                                        @%["m"       <- inputData @% "m"]
-                                        @%["s"       <- inputData @% "s"]
-                                        @%["u"       <- inputData @% "u"]
-                                        @%["execute" <- inputData @% "execute"]
-                                        @%["store"   <- inputData @% "store"] in
-                                ZeroExtendTruncLsb
-                                  (size TrigStateDataKind)
-                                  (pack nextData);
-                           ($TrigTypeCount : Bit 4 @# ty)
-                             ::= let inputData
-                                   := unpack TrigStateDataCountKind
-                                        (ZeroExtendTruncLsb (size TrigStateDataCountKind)
-                                          (unpack TrigStateDataKind (inputState @% "data"))) in
-                                 let currData
-                                   := unpack TrigStateDataCountKind
-                                        (ZeroExtendTruncLsb
-                                          (size TrigStateDataCountKind)
-                                          (unpack TrigStateDataKind (currState @% "data"))) in
-                                 let nextData
-                                   := currData
-                                        @%["hit"    <- inputData @% "hit"]
-                                        @%["count"  <- inputData @% "count"]
-                                        @%["m"      <- inputData @% "m"]
-                                        @%["s"      <- inputData @% "s"]
-                                        @%["u"      <- inputData @% "u"]
-                                        @%["action" <- inputData @% "action"] in
-                                 ZeroExtendTruncLsb
-                                   (size TrigStateDataKind)
-                                   (pack nextData)
-                         }].
-
+             else nextState @%["info" <- tdata1Pkt @% "info"].
+           
     Definition trigTdata2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : TrigStateKind @# ty)
+        (currState : StructPkt AbsTrigStateStruct @# ty)
         (tdata2 : Bit xlen @# ty)
-        :  TrigStateKind @# ty
-        := IF !debugMode && (mode != $MachineMode && currState @% "dmode")
+        :  StructPkt AbsTrigStateStruct @# ty
+        := IF !debugMode && (mode != $MachineMode && currState @% "header" @% "dmode")
              then currState
-             else
-               Switch currState @% "type" Retn TrigStateKind With {
-                 ($TrigTypeValue : Bit 4 @# ty)
-                   ::= let currData
-                         := unpack TrigStateDataValueKind
-                              (ZeroExtendTruncLsb
-                                (size TrigStateDataValueKind)
-                                (unpack TrigStateDataKind (currState @% "data"))) in
-                       let nextData
-                         := currData @%["value" <- ZeroExtendTruncLsb Xlen tdata2] in
-                       currState
-                         @%["data"
-                              <- ZeroExtendTruncLsb (size TrigStateDataKind) (pack nextData)];
-                 ($TrigTypeCount : Bit 4 @# ty)
-                   ::= currState
-               }.
+             else currState @%["data2" <- ZeroExtendTruncLsb AbsTrigStateData2Sz tdata2].
 
     End ty.
 
@@ -230,8 +71,11 @@ Section trigger.
       := context @% "mode" == $MachineMode || context @% "debug".
 
     Definition trigTdataCsrField
-      (read : forall ty, TrigStateKind @# ty -> Bit xlen @# ty)
-      (write : forall ty, Bool @# ty -> PrivMode @# ty -> TrigStateKind @# ty -> Bit xlen @# ty -> TrigStateKind @# ty)
+      (read : forall ty, StructRegPkt AbsTrigStateStruct @# ty -> Bit xlen @# ty)
+      (write :
+        forall ty, Bool @# ty -> PrivMode @# ty ->
+          StructPkt AbsTrigStateStruct @# ty -> Bit xlen @# ty ->
+          StructRegPkt AbsTrigStateStruct @# ty)
       (name : string)
       :  CsrField
       := {|
@@ -239,24 +83,23 @@ Section trigger.
            csrFieldKind := Bit xlen;
            csrFieldValue
              := csrFieldValueReg {|
-                    csrFieldRegisterName := @^"trigStates";
-                    csrFieldRegisterKind := TrigStatesKind;
-                    csrFieldRegisterValue := None;
-                    csrFieldRegisterReadXform
-                      := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty)
-                           => read ty (currValue @[ context @% "cfg" @% "tselect"]);
-                    csrFieldRegisterWriteXform
-                      := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty) (inputValue : Bit xlen @# ty)
-                           => currValue @[
-                                context @% "cfg" @% "tselect"
-                                  <- write ty
-                                       (context @% "cfg" @% "debug")
-                                       (context @% "cfg" @% "mode")
-                                       (currValue @[ context @% "cfg" @% "tselect"])
-                                       inputValue]
+                  csrFieldRegisterName := @^"trigStates";
+                  csrFieldRegisterKind := TrigStatesKind;
+                  csrFieldRegisterValue := None;
+                  csrFieldRegisterReadXform
+                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty)
+                         => read ty (currValue @[ context @% "cfg" @% "tselect"]);
+                  csrFieldRegisterWriteXform
+                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : TrigStatesKind @# ty) (inputValue : Bit xlen @# ty)
+                         => currValue @[
+                              context @% "cfg" @% "tselect"
+                                <- write ty
+                                     (context @% "cfg" @% "debug")
+                                     (context @% "cfg" @% "mode")
+                                     (currValue @[ context @% "cfg" @% "tselect"])
+                                     inputValue]
                 |}
          |}.
-       
 
     Definition trigTdata1CsrField
       :  CsrField
@@ -293,57 +136,58 @@ Section trigger.
          }.
 
     Local Definition trigValueModeMatch
-      (state : TrigStateDataValueKind @# ty)
+      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
       (mode  : PrivMode @# ty)
       :  Bool @# ty
       := Switch mode Retn Bool With {
-           ($MachineMode : PrivMode @# ty)    ::= state @% "m";
-           ($SupervisorMode : PrivMode @# ty) ::= state @% "s";
-           ($UserMode : PrivMode @# ty)       ::= state @% "u"
+           ($MachineMode : PrivMode @# ty)    ::= state @% "info" @% "m";
+           ($SupervisorMode : PrivMode @# ty) ::= state @% "info" @% "s";
+           ($UserMode : PrivMode @# ty)       ::= state @% "info" @% "u"
          }.
 
     Local Definition trigValueTypeMatch
-      (state : TrigStateDataValueKind @# ty)
+      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
       (type : TrigEventType)
       :  Bool @# ty
       := match type with
-         | trigEventFetchAddr  => state @% "execute" && state @% "select"
-         | trigEventFetchInst => state @% "execute" && !(state @% "select")
-         | trigEventLoadAddr   => state @% "load"  && state @% "select"
-         | trigEventLoadData   => state @% "load"  && !(state @% "select")
-         | trigEventStoreAddr  => state @% "store" && state @% "select"
-         | trigEventStoreData  => state @% "store" && !(state @% "select")
+         | trigEventFetchAddr  => state @% "info" @% "execute" && state @% "info" @% "select"
+         | trigEventFetchInst => state @% "info" @% "execute" && !(state @% "info" @% "select")
+         | trigEventLoadAddr   => state @% "info" @% "load"  && state @% "info" @% "select"
+         | trigEventLoadData   => state @% "info" @% "load"  && !(state @% "info" @% "select")
+         | trigEventStoreAddr  => state @% "info" @% "store" && state @% "info" @% "select"
+         | trigEventStoreData  => state @% "info" @% "store" && !(state @% "info" @% "select")
          end.
 
     Local Definition trigValueSizeMatch
-      (state : TrigStateDataValueKind @# ty)
+      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
       (size  : Bit 4 @# ty)
       :  Bool @# ty
       := let stateSize
            :  Bit 4 @# ty
-           := ZeroExtendTruncLsb 4 ({< state @% "sizehi", state @% "sizelo" >}) in
+           := ZeroExtendTruncLsb 4 ({< state @% "info" @% "sizehi", state @% "info" @% "sizelo" >}) in
          stateSize == $0 || size == stateSize.
 
+    (* TODO: LLEE: double check the sign extensions. *)
     Local Definition trigValueValueMatch
-      (state : TrigStateDataValueKind @# ty)
+      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
       (value  : Bit Xlen @# ty)
       :  Bool @# ty
       := let size
            :  Bit 4 @# ty
-           := ZeroExtendTruncLsb 4 ({< state @% "sizehi", state @% "sizelo" >}) in
-         Switch state @% "match" Retn Bool With {
-           ($0 : Bit 4 @# ty) ::= value == state @% "value";
+           := ZeroExtendTruncLsb 4 ({< state @% "info" @% "sizehi", state @% "info" @% "sizelo" >}) in
+         Switch state @% "info" @% "match" Retn Bool With {
+           ($0 : Bit 4 @# ty) ::= value == SignExtendTruncLsb Xlen (pack (state @% "data2"));
            ($1 : Bit 4 @# ty) ::= $$false; (* TODO: what does the text mean here? 5.2.9 *)
-           ($2 : Bit 4 @# ty) ::= (value >= (state @% "value"));
-           ($3 : Bit 4 @# ty) ::= (value <= (state @% "value"));
+           ($2 : Bit 4 @# ty) ::= (value >= SignExtendTruncLsb Xlen (pack (state @% "data2")));
+           ($3 : Bit 4 @# ty) ::= (value <= SignExtendTruncLsb Xlen (pack (state @% "data2")));
            ($4 : Bit 4 @# ty)
              ::= (ZeroExtendTruncLsb (Xlen / 2)%nat value .&
-                  ZeroExtendTruncMsb (Xlen / 2)%nat (state @% "value")) ==
-                 (ZeroExtendTruncLsb (Xlen / 2)%nat (state @% "value"));
+                  ZeroExtendTruncMsb (Xlen / 2)%nat (pack (state @% "data2"))) ==
+                 (ZeroExtendTruncLsb (Xlen / 2)%nat (pack (state @% "data2")));
            ($5 : Bit 4 @# ty)
              ::= (ZeroExtendTruncMsb (Xlen / 2)%nat value .&
-                  ZeroExtendTruncMsb (Xlen / 2)%nat (state @% "value")) ==
-                 (ZeroExtendTruncLsb (Xlen / 2)%nat (state @% "value"))
+                  ZeroExtendTruncMsb (Xlen / 2)%nat (pack (state @% "data2"))) ==
+                 (ZeroExtendTruncLsb (Xlen / 2)%nat (pack (state @% "data2")))
          }.
 
     (*
@@ -353,7 +197,7 @@ Section trigger.
       the given value.
     *)
     Definition trigValueMatch
-      (state : TrigStateDataValueKind @# ty)
+      (state : StructPkt (trigStateStruct TrigStateValue) @# ty)
       (event : TrigEvent)
       (mode  : PrivMode @# ty)
       :  Bool @# ty
@@ -363,19 +207,18 @@ Section trigger.
          trigValueValueMatch state (trigEventValue event).
 
     Definition trigTrigMatch
-      (state : TrigStateKind @# ty)
+      (state : StructPkt AbsTrigStateStruct @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
       :  Maybe TrigActionKind @# ty
-      := let data
-           :  TrigStateDataValueKind @# ty
-           := unpack TrigStateDataValueKind
-                (ZeroExtendTruncLsb (size TrigStateDataValueKind) (state @% "data")) in
-         IF state @% "type" == $TrigTypeValue
+      := let valueState
+           :  StructPkt (trigStateStruct TrigStateValue) @# ty
+           := AbsTrigStatePktToValuePkt state in
+         IF state @% "header" @% "type" == $TrigTypeValue
            then
              Valid (STRUCT {
-               "action" ::= (data @% "action" : Bit 4 @# ty);
-               "timing" ::= (data @% "timing" : Bool @# ty)
+               "action" ::= (valueState @% "info" @% "action" : Bit 4 @# ty);
+               "timing" ::= (valueState @% "info" @% "timing" : Bool @# ty)
              } : TrigActionKind @# ty)
            else Invalid. 
              (* TODO: add other trigger types. *)
@@ -387,20 +230,22 @@ Section trigger.
       :  Maybe TrigActionKind @# ty
       := fold_left
            (fun acc i
-             => let state
-                  :  TrigStateKind @# ty
+             => let stateReg
+                  :  StructRegPkt AbsTrigStateStruct @# ty
                   := ReadArrayConst states i in
-                let data
-                  :  TrigStateDataValueKind @# ty
-                  := unpack TrigStateDataValueKind
-                       (ZeroExtendTruncLsb (size TrigStateDataValueKind) (state @% "data")) in
+                let state
+                  :  StructPkt AbsTrigStateStruct @# ty
+                  := regPktToStructPkt (stateReg @% "header" @% "type" == $TrigTypeValue) stateReg  in
                 let result
                   :  Maybe TrigActionKind @# ty
                   := trigTrigMatch state event mode in
                 IF result @% "valid"
                   then result
                   else
-                    (IF state @% "type" == $TrigTypeValue && data @% "chain"
+                    (let valueState
+                      :  StructPkt (trigStateStruct TrigStateValue) @# ty
+                      := AbsTrigStatePktToValuePkt state in
+                     IF state @% "header" @% "type" == $TrigTypeValue && valueState @% "info" @% "chain"
                       then Invalid
                       else acc))
            (getFins (Nat.pow 2 debugNumTriggers))
