@@ -190,45 +190,72 @@ Section regAbstraction.
           (structRegFieldKindEqRev struct i)
         ).
 
-  Definition structPktToRegPkt ty
-    (struct : AbsStruct)
-    (context : contextKind @# ty)
-    (structPkt : StructPkt struct @# ty)
-    :  StructRegPkt struct @# ty :=
-  @BuildStruct ty
-    (length (structRegFieldEntrySpecs struct))
-    (structRegPktKinds struct)
-    (structRegPktNames struct)
-    (fun index =>
-      let field := nth_Fin struct (cast index (map_length _ _)) in
-      let val :=
-        structFieldRegWriteXform field context
-          (eq_rect_r
-            (fun k => k @# ty)
-            (ReadStruct structPkt
-              (cast (cast index (map_length _ _)) (eq_sym (map_length _ _))))
-            (structFieldKindEq struct (cast index (map_length _ _)))) in
-      eq_rect_r (fun k => k @# ty) val (structRegFieldKindEqRev struct index)).
+  Section ty.
+    Variable ty : Kind -> Type.
 
-  Definition regPktToStructPkt ty
-    (struct : AbsStruct)
-    (context : contextKind @# ty)
-    (regPkt : StructRegPkt struct @# ty)
-    :  StructPkt struct @# ty :=
-  @BuildStruct ty
-    (length (structEntrySpecs struct))
-    (structPktKinds struct)
-    (structPktNames struct)
-    (fun index =>
-      let field := nth_Fin struct (cast index (map_length _ _)) in
-      let val :=
-        (structFieldRegReadXform field context
-          (eq_rect_r
-            (fun k => k @# ty)
-            (ReadStruct regPkt
-              (cast (cast index (map_length _ _)) (eq_sym (map_length _ _))))
-            (structRegFieldKindEq struct (cast index (map_length _ _))))) in
-      eq_rect_r (fun k => k @# ty) val (structFieldKindEqRev struct index)).
+    Definition structPktToRegPkt
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (structPkt : StructPkt struct @# ty)
+      :  StructRegPkt struct @# ty :=
+    @BuildStruct ty
+      (length (structRegFieldEntrySpecs struct))
+      (structRegPktKinds struct)
+      (structRegPktNames struct)
+      (fun index =>
+        let field := nth_Fin struct (cast index (map_length _ _)) in
+        let val :=
+          structFieldRegWriteXform field context
+            (eq_rect_r
+              (fun k => k @# ty)
+              (ReadStruct structPkt
+                (cast (cast index (map_length _ _)) (eq_sym (map_length _ _))))
+              (structFieldKindEq struct (cast index (map_length _ _)))) in
+        eq_rect_r (fun k => k @# ty) val (structRegFieldKindEqRev struct index)).
+
+    Definition regPktToStructPkt
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (regPkt : StructRegPkt struct @# ty)
+      :  StructPkt struct @# ty :=
+    @BuildStruct ty
+      (length (structEntrySpecs struct))
+      (structPktKinds struct)
+      (structPktNames struct)
+      (fun index =>
+        let field := nth_Fin struct (cast index (map_length _ _)) in
+        let val :=
+          (structFieldRegReadXform field context
+            (eq_rect_r
+              (fun k => k @# ty)
+              (ReadStruct regPkt
+                (cast (cast index (map_length _ _)) (eq_sym (map_length _ _))))
+              (structRegFieldKindEq struct (cast index (map_length _ _))))) in
+        eq_rect_r (fun k => k @# ty) val (structFieldKindEqRev struct index)).
+
+    Definition packedStructPktToPackedRegPkt
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (n : nat)
+      (packedStructPkt : Bit n @# ty)
+      :  Bit n @# ty :=
+    ZeroExtendTruncLsb n
+      (pack (@structPktToRegPkt struct context
+        (unpack (StructPkt struct)
+          (ZeroExtendTruncLsb (size (StructPkt struct)) packedStructPkt)))).
+
+    Definition packedRegPktToPackedStructPkt
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (n : nat)
+      (packedRegPkt : Bit n @# ty)
+      :  Bit n @# ty :=
+    ZeroExtendTruncLsb n
+      (pack (@regPktToStructPkt struct context
+        (unpack (StructRegPkt struct)
+          (ZeroExtendTruncLsb (size (StructRegPkt struct)) packedRegPkt)))).
+
+  End ty. 
 
   Local Close Scope kami_scope.
   Local Close Scope kami_action.

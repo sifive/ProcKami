@@ -491,46 +491,49 @@ Section Params.
   Definition TrigActBreak := 0.
   Definition TrigActDebug := 1.
 
-  Definition TrigStateHeaderStruct (contextKind : Kind) : AbsStruct contextKind := [
+  Definition TrigHeader (contextKind : Kind) : AbsStruct contextKind := [
     @Build_StructField contextKind "type" (Bit 4) (Bit 4) None (fun _ _ => id) (fun _ _ => id); (* TODO: LLEE: default to no trigger. *)
     @Build_StructField contextKind "dmode" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
   ].
 
   Local Open Scope kami_expr.
 
-  Definition TrigStateStruct
-    (infoStruct : AbsStruct Void)
-    (data2Struct : AbsStruct Void) :
+  Local Definition TrigHeaderField (contextKind : Kind) : StructField contextKind :=
+    @Build_StructField contextKind "header"
+      (StructPkt (TrigHeader Void))
+      (StructRegPkt (TrigHeader Void))
+      (Some (structInit (TrigHeader Void)))
+      (fun _ _ => regPktToStructPkt (struct := TrigHeader Void) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := TrigHeader Void) $$(wzero 0)).
+
+  Definition TrigStruct
+    (info : AbsStruct Void)
+    (data2 : AbsStruct Void) :
     AbsStruct Void := [
-    @Build_StructField Void "header"
-      (StructPkt (TrigStateHeaderStruct Void))
-      (StructRegPkt (TrigStateHeaderStruct Void))
-      (Some (structInit (TrigStateHeaderStruct Void)))
-      (fun _ _ => regPktToStructPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0))
-      (fun _ _ => structPktToRegPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0));
+    TrigHeaderField Void;
     @Build_StructField Void "info"
-      (StructPkt infoStruct)
-      (StructRegPkt infoStruct)
-      (Some (structInit infoStruct))
-      (fun _ _ => regPktToStructPkt (struct := infoStruct) $$(wzero 0))
-      (fun _ _ => structPktToRegPkt (struct := infoStruct) $$(wzero 0));
+      (StructPkt info)
+      (StructRegPkt info)
+      (Some (structInit info))
+      (fun _ _ => regPktToStructPkt (struct := info) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := info) $$(wzero 0));
     @Build_StructField Void "data2"
-      (StructPkt data2Struct)
-      (StructRegPkt data2Struct)
-      (Some (structInit data2Struct))
-      (fun _ _ => regPktToStructPkt (struct := data2Struct) $$(wzero 0))
-      (fun _ _ => structPktToRegPkt (struct := data2Struct) $$(wzero 0))
+      (StructPkt data2)
+      (StructRegPkt data2)
+      (Some (structInit data2))
+      (fun _ _ => regPktToStructPkt (struct := data2) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := data2) $$(wzero 0))
   ].
 
-  Record TrigState := {
-    trigStateInfoStruct : AbsStruct Void;
-    trigStateData2Struct : AbsStruct Void;
-    trigStateData1Struct : AbsStruct Void := TrigStateHeaderStruct Void ++ trigStateInfoStruct;
-    trigStateStruct : AbsStruct Void := TrigStateStruct trigStateInfoStruct trigStateData2Struct
+  Record Trig := {
+    trigInfo : AbsStruct Void;
+    trigData2 : AbsStruct Void;
+    trigData1 : AbsStruct Void := TrigHeader Void ++ trigInfo;
+    trig : AbsStruct Void := TrigStruct trigInfo trigData2
   }.
 
-  Definition TrigStateValue : TrigState := {|
-    trigStateInfoStruct := [
+  Definition TrigValue : Trig := {|
+    trigInfo := [
       @Build_StructField Void "maskmax" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "sizehi" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "hit" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
@@ -547,13 +550,13 @@ Section Params.
       @Build_StructField Void "store" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "load" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
     ];
-    trigStateData2Struct := [
+    trigData2 := [
       @Build_StructField Void "value" (Bit Xlen) (Bit Xlen) None (fun _ _ => id) (fun _ _ => id)
     ]
   |}.
 
-  Definition TrigStateCount : TrigState := {|
-    trigStateInfoStruct := [
+  Definition TrigCount : Trig := {|
+    trigInfo := [
       @Build_StructField Void "hit" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "count" (Bit 14) (Bit 14) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "m" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
@@ -561,7 +564,7 @@ Section Params.
       @Build_StructField Void "u" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "action" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id)
     ];
-    trigStateData2Struct := [nilStructField Void]
+    trigData2 := [nilStructField Void]
   |}.
 
   Local Definition list_max := fold_right Nat.max 0.
@@ -569,178 +572,97 @@ Section Params.
   Local Definition maxSize (ks : list Kind) := list_max (map size ks).
 
   (* TODO: LLEE: prove that the value and count struct packets are the same size: (xlen - headerSz). Then use bit size casts rather than ZeroExtendTrunctLsb. *)
-  Definition AbsTrigStateInfoSz
+  Definition GenTrigInfoSz
     := maxSize
-         [StructPkt (trigStateInfoStruct TrigStateValue);
-          StructPkt (trigStateInfoStruct TrigStateCount)].
+         [StructPkt (trigInfo TrigValue);
+          StructPkt (trigInfo TrigCount)].
 
-  Definition AbsTrigStateInfoRegSz
+  Definition GenTrigInfoRegSz
     := maxSize
-         [StructRegPkt (trigStateInfoStruct TrigStateValue);
-          StructRegPkt (trigStateInfoStruct TrigStateCount)].
+         [StructRegPkt (trigInfo TrigValue);
+          StructRegPkt (trigInfo TrigCount)].
 
-  Definition AbsTrigStateData2Sz
+  Definition GenTrigData2Sz
     := maxSize
-         [StructPkt (trigStateData2Struct TrigStateValue);
-          StructPkt (trigStateData2Struct TrigStateCount)].
+         [StructPkt (trigData2 TrigValue);
+          StructPkt (trigData2 TrigCount)].
 
-  Definition AbsTrigStateData2RegSz
+  Definition GenTrigData2RegSz
     := maxSize
-         [StructRegPkt (trigStateData2Struct TrigStateValue);
-          StructRegPkt (trigStateData2Struct TrigStateCount)].
+         [StructRegPkt (trigData2 TrigValue);
+          StructRegPkt (trigData2 TrigCount)].
 
-  Definition AbsTrigStateInfo:= Bit AbsTrigStateInfoSz.
+  Definition GenTrigInfo:= Bit GenTrigInfoSz.
 
-  Definition AbsTrigStateInfoReg := Bit AbsTrigStateInfoRegSz.
+  Definition GenTrigInfoReg := Bit GenTrigInfoRegSz.
 
-  Definition AbsTrigStateData2 := Bit AbsTrigStateData2Sz.
+  Definition GenTrigData2 := Bit GenTrigData2Sz.
 
-  Definition AbsTrigStateData2Reg := Bit AbsTrigStateData2RegSz.
+  Definition GenTrigData2Reg := Bit GenTrigData2RegSz.
 
-  Definition AbsTrigStateStruct : AbsStruct Bool := [
-    @Build_StructField Bool "header"
-      (StructPkt (TrigStateHeaderStruct Void))
-      (StructRegPkt (TrigStateHeaderStruct Void))
-      (Some (structInit (TrigStateHeaderStruct Void)))
-      (fun _ _ => regPktToStructPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0))
-      (fun _ _ => structPktToRegPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0));
+  Local Definition GenTrigInfoField : StructField Bool :=
     @Build_StructField Bool "info"
-      AbsTrigStateInfo
-      AbsTrigStateInfoReg
+      GenTrigInfo
+      GenTrigInfoReg
       None
       (fun ty context value =>
         IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@regPktToStructPkt Void ty (trigStateInfoStruct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateInfoStruct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateInfoStruct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@regPktToStructPkt Void ty (trigStateInfoStruct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateInfoStruct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateInfoStruct TrigStateCount))) value)))))
+        then packedRegPktToPackedStructPkt (trigInfo TrigValue) $$(wzero 0) value
+        else packedRegPktToPackedStructPkt (trigInfo TrigCount) $$(wzero 0) value)
       (fun ty context value =>
         IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@structPktToRegPkt Void ty (trigStateInfoStruct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateInfoStruct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateInfoStruct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@structPktToRegPkt Void ty (trigStateInfoStruct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateInfoStruct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateInfoStruct TrigStateCount))) value)))));
+        then packedStructPktToPackedRegPkt (trigInfo TrigValue) $$(wzero 0) value
+        else packedStructPktToPackedRegPkt (trigInfo TrigCount) $$(wzero 0) value).
+
+  Definition GenTrig : AbsStruct Bool := [
+    TrigHeaderField Bool;
+    GenTrigInfoField;
     @Build_StructField Bool "data2"
-      AbsTrigStateData2
-      AbsTrigStateData2Reg
+      GenTrigData2
+      GenTrigData2Reg
       None
       (fun ty context value =>
         IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@regPktToStructPkt Void ty (trigStateData2Struct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateData2Struct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateData2Struct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@regPktToStructPkt Void ty (trigStateData2Struct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateData2Struct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateData2Struct TrigStateCount))) value)))))
+        then packedRegPktToPackedStructPkt (trigData2 TrigValue) $$(wzero 0) value
+        else packedRegPktToPackedStructPkt (trigData2 TrigCount) $$(wzero 0) value)
       (fun ty context value =>
         IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@structPktToRegPkt Void ty (trigStateData2Struct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateData2Struct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateData2Struct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@structPktToRegPkt Void ty (trigStateData2Struct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateData2Struct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateData2Struct TrigStateCount))) value)))))
+        then packedStructPktToPackedRegPkt (trigData2 TrigValue) $$(wzero 0) value
+        else packedStructPktToPackedRegPkt (trigData2 TrigCount) $$(wzero 0) value)
   ].
 
-  Definition TrigData1Struct (xlen : nat) := [
-    @Build_StructField Bool "header"
-      (StructPkt (TrigStateHeaderStruct Void))
-      (StructRegPkt (TrigStateHeaderStruct Void))
-      (Some (structInit (TrigStateHeaderStruct Void)))
-      (fun _ _ => regPktToStructPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0))
-      (fun _ _ => structPktToRegPkt (struct := TrigStateHeaderStruct Void) $$(wzero 0));
-    @Build_StructField Bool "info"
-      AbsTrigStateInfo
-      AbsTrigStateInfoReg 
-      None
-      (fun ty context value =>
-        IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@regPktToStructPkt Void ty (trigStateInfoStruct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateInfoStruct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateInfoStruct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@regPktToStructPkt Void ty (trigStateInfoStruct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructRegPkt (trigStateInfoStruct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructRegPkt (trigStateInfoStruct TrigStateCount))) value)))))
-      (fun ty context value =>
-        IF context
-        then
-          ZeroExtendTruncLsb _
-            (pack 
-              (@structPktToRegPkt Void ty (trigStateInfoStruct TrigStateValue) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateInfoStruct TrigStateValue))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateInfoStruct TrigStateValue))) value))))
-        else
-          ZeroExtendTruncLsb _
-            (pack
-              (@structPktToRegPkt Void ty (trigStateInfoStruct TrigStateCount) (Const ty (wzero 0))
-                (unpack (StructPkt (trigStateInfoStruct TrigStateCount))
-                  (ZeroExtendTruncLsb (size (StructPkt (trigStateInfoStruct TrigStateCount))) value)))))
-  ].
+  Definition TrigData1 (xlen : nat) := [TrigHeaderField Bool; GenTrigInfoField].
 
-  Definition AbsTrigStatePktToValuePkt ty
-    (statePkt : StructPkt AbsTrigStateStruct @# ty)
-    :  StructPkt (trigStateStruct TrigStateValue) @# ty
+  Definition GenTrigPktToValuePkt ty
+    (statePkt : StructPkt GenTrig @# ty)
+    :  StructPkt (trig TrigValue) @# ty
     := STRUCT {
          "header" ::= statePkt @% "header";
          "info" ::=
-           unpack (StructPkt (trigStateInfoStruct TrigStateValue))
+           unpack (StructPkt (trigInfo TrigValue))
              (ZeroExtendTruncLsb _ (pack (statePkt @% "info")));
          "data2" ::=
-           unpack (StructPkt (trigStateData2Struct TrigStateValue))
+           unpack (StructPkt (trigData2 TrigValue))
              (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
        }.
 
-  Definition AbsTrigStatePktToCountPkt ty
-    (statePkt : StructPkt AbsTrigStateStruct @# ty)
-    :  StructPkt (trigStateStruct TrigStateCount) @# ty
+  Definition GenTrigPktToCountPkt ty
+    (statePkt : StructPkt GenTrig @# ty)
+    :  StructPkt (trig TrigCount) @# ty
     := STRUCT {
          "header" ::= statePkt @% "header";
          "info" ::=
-           unpack (StructPkt (trigStateInfoStruct TrigStateCount))
+           unpack (StructPkt (trigInfo TrigCount))
              (ZeroExtendTruncLsb _ (pack (statePkt @% "info")));
          "data2" ::=
-           unpack (StructPkt (trigStateData2Struct TrigStateCount))
+           unpack (StructPkt (trigData2 TrigCount))
              (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
        }.
 
   Local Close Scope kami_expr.
 
-  Definition TrigStatesKind
-    := Array (Nat.pow 2 debugNumTriggers) (StructRegPkt AbsTrigStateStruct).
+  Definition GenTrigs
+    := Array (Nat.pow 2 debugNumTriggers) (StructRegPkt GenTrig).
 
   Definition CounterEnType
     := STRUCT_TYPE {
@@ -776,7 +698,7 @@ Section Params.
 *)
         "debug"            :: Bool;
         "tselect"          :: Bit (Nat.log2_up debugNumTriggers);
-        "trig_states"      :: TrigStatesKind
+        "trig_states"      :: GenTrigs
       }.
 
   Record InstEntry ik ok :=
