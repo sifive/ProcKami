@@ -563,6 +563,16 @@ Section Params.
     trig : AbsStruct Void := TrigStruct trigInfo trigData2
   }.
 
+  Local Definition supportsXlen64 : bool := existsb (Nat.eqb Xlen64) supported_xlens.
+
+  Local Definition TrigSizeHiRegKind (supportsXlen64 : bool) : Kind :=
+    if supportsXlen64
+    then Bit 2
+    else Void.
+
+  Local Definition TrigHitRegKind (cfg : bool) : Kind :=
+    if cfg then Bool else Void.
+
   Local Definition TrigTimingRegKind (cfg : TrigTiming) : Kind :=
     match cfg with
     | TrigTimingBoth => Bool
@@ -572,8 +582,36 @@ Section Params.
   Definition TrigValue : Trig := {|
     trigInfo := [
       @Build_StructField Void "maskmax" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "sizehi" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "hit" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "sizehi" (Bit 2)
+        (TrigSizeHiRegKind supportsXlen64)
+        None
+        (fun ty _ =>
+          match supportsXlen64 as x
+          return TrigSizeHiRegKind x @# ty -> Bit 2 @# ty with
+          | true  => id
+          | false => fun _ => $0
+          end)
+        (fun ty _ value => 
+          match supportsXlen64 as x
+          return TrigSizeHiRegKind x @# ty with
+          | true  => value
+          | false => $0
+          end);
+      @Build_StructField Void "hit" (Bool)
+        (TrigHitRegKind (trigSupportHitField trigCfg))
+        None
+        (fun ty _ =>
+          match trigSupportHitField trigCfg as x
+          return TrigHitRegKind x @# ty -> Bool @# ty with
+          | true => id
+          | false => fun _ => $$false
+          end)
+        (fun ty _ value =>
+          match trigSupportHitField trigCfg as x
+          return TrigHitRegKind x @# ty with
+          | true => value
+          | false => $$(wzero 0)
+          end);
       @Build_StructField Void "select" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "timing" (Bool)
         (TrigTimingRegKind (supportedTiming (trigTimingCfg (@trigCfg procParams))))
