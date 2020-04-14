@@ -176,7 +176,23 @@ Section exts.
           FU.misaligned_access := misaligned_access;
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true;
-          debugNumTriggers := 1 |}.
+          FU.trigCfg := {|
+            numTrigs := 1; (* TODO: LLEE: determine why, when this is set to 0, CoqSim throws a runtime error reporting the presence of a register with negative width. *)
+            supportedTypes := TrigTypeBoth;
+            trigTimingCfg  := {|
+              supportedTiming := TrigTimingBoth;
+              timingDefault    := DefaultRecommended;
+              timingWritable   := false
+            |};
+            trigMatchCfg := {|
+              maxChainLength    := 0;
+              supportCountField := false
+            |};
+            supportedActions    := TrigActionBoth;
+            trigMContextSz      := 0;
+            trigSupportHitField := false
+          |}
+       |}.
 
   Section ty.
     Variable ty : Kind -> Type.
