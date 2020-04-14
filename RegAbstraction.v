@@ -236,24 +236,38 @@ Section regAbstraction.
     Definition packedStructPktToPackedRegPkt
       (struct : AbsStruct)
       (context : contextKind @# ty)
-      (n : nat)
-      (packedStructPkt : Bit n @# ty)
-      :  Bit n @# ty :=
-    ZeroExtendTruncLsb n
-      (pack (@structPktToRegPkt struct context
-        (unpack (StructPkt struct)
-          (ZeroExtendTruncLsb (size (StructPkt struct)) packedStructPkt)))).
+      (packedStructPkt : Bit (size (StructPkt struct)) @# ty)
+      :  Bit (size (StructRegPkt struct)) @# ty :=
+    (pack (@structPktToRegPkt struct context
+      (unpack (StructPkt struct) packedStructPkt))).
 
     Definition packedRegPktToPackedStructPkt
       (struct : AbsStruct)
       (context : contextKind @# ty)
-      (n : nat)
+      (packedRegPkt : Bit (size (StructRegPkt struct)) @# ty)
+      :  Bit (size (StructPkt struct)) @# ty :=
+    (pack (@regPktToStructPkt struct context
+      (unpack (StructRegPkt struct) packedRegPkt))).
+
+    Definition packedStructPktToPackedRegPktUnsafe
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (n m : nat)
+      (packedStructPkt : Bit n @# ty)
+      :  Bit m @# ty :=
+    ZeroExtendTruncLsb m
+      (packedStructPktToPackedRegPkt struct context
+        (ZeroExtendTruncLsb (size (StructPkt struct)) packedStructPkt)).
+
+    Definition packedRegPktToPackedStructPktUnsafe
+      (struct : AbsStruct)
+      (context : contextKind @# ty)
+      (n m : nat)
       (packedRegPkt : Bit n @# ty)
-      :  Bit n @# ty :=
-    ZeroExtendTruncLsb n
-      (pack (@regPktToStructPkt struct context
-        (unpack (StructRegPkt struct)
-          (ZeroExtendTruncLsb (size (StructRegPkt struct)) packedRegPkt)))).
+      :  Bit m @# ty :=
+    ZeroExtendTruncLsb m
+      (packedRegPktToPackedStructPkt struct context
+        (ZeroExtendTruncLsb (size (StructRegPkt struct)) packedRegPkt)).
 
   End ty. 
 
