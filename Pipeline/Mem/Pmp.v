@@ -23,10 +23,10 @@ Section pmp.
     :  ActionT ty PmpEntryPkt
     := Read entry_cfg
          :  PmpCfg
-         <- @^("pmp" ++ nat_decimal_string n ++ "cfg");
+         <- @^("pmp" ++ natToDecStr n ++ "cfg");
        Read entry_addr
          :  Bit pmp_reg_width
-         <- @^("pmpaddr" ++ nat_decimal_string n);
+         <- @^("pmpaddr" ++ natToDecStr n);
        Ret
          (STRUCT {
             "cfg" ::= #entry_cfg;
@@ -74,7 +74,7 @@ Section pmp.
 (*
                    System [
                      DispString _ "[checkPmp] ==================================================\n";
-                     DispString _ ("[checkPmp] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
+                     DispString _ ("[checkPmp] checking register: pmp" ++ natToDecStr (S entry_index) ++ "cfg.\n");
                      DispString _ "[checkPmp] acc: ";
                      DispHex #acc;
                      DispString _ "\n"
