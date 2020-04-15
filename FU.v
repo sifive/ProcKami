@@ -183,9 +183,11 @@ Record TrigTimingCfg := {
   timingWritable  : bool;
 }.
 
+Inductive TrigSelect := MatchVAddr | MatchData | TrigSelectBoth.
+
 Record TrigMatchCfg := {
   maxChainLength : nat;
-  supportCountField : bool
+  countFieldSz : nat
 }.
 
 Record TrigCfg := {
@@ -193,6 +195,7 @@ Record TrigCfg := {
   supportedTypes      : TrigType;
   trigTimingCfg       : TrigTimingCfg;
   trigMatchCfg        : TrigMatchCfg;
+  supportedSelect     : TrigSelect;
   supportedActions    : TrigAction;
   trigMContextSz      : nat;
   trigSupportHitField : bool;
@@ -579,6 +582,61 @@ Section Params.
     | _ => Void
     end.
 
+  Local Definition TrigActionRegKind (cfg : TrigAction) : Kind :=
+    match cfg with
+    | TrigActionBoth => Bool
+    | _ => Void
+    end.
+
+  Local Definition numTrigMatchTypes := 5.
+  Local Definition TrigMatchRegKindSz := Nat.log2_up numTrigMatchTypes.
+  Local Definition TrigMatchRegKind : Kind := Bit TrigMatchRegKindSz.
+
+  Local Definition TrigValueData2RegKind (cfg : TrigSelect) : Kind :=
+    match cfg with
+    | MatchVAddr => Bit Xlen
+    | _ => Bit Rlen
+    end.
+
+  Local Definition trigHitField :=
+    @Build_StructField Void "hit" (Bool)
+      (TrigHitRegKind (trigSupportHitField trigCfg))
+      None
+      (fun ty _ =>
+        match trigSupportHitField trigCfg as x
+        return TrigHitRegKind x @# ty -> Bool @# ty with
+        | true => id
+        | false => fun _ => $$false
+        end)
+      (fun ty _ value =>
+        match trigSupportHitField trigCfg as x
+        return TrigHitRegKind x @# ty with
+        | true => value
+        | false => $$(wzero 0)
+        end).
+
+  Local Definition trigActionField (n : nat) :=
+    @Build_StructField Void "action" (Bit n)
+      (TrigActionRegKind (supportedActions trigCfg))
+      None
+      (fun ty _ =>
+        match supportedActions trigCfg as x
+        return TrigActionRegKind x @# ty -> Bit n @# ty with
+        | EnterDebugMode => fun _ => $TrigActDebug
+        | RaiseBreakpointException => fun _ => $TrigActBreak
+        | TrigActionBoth =>
+          fun regValue : Bool @# ty =>  
+            IF regValue then $TrigActBreak else $TrigActDebug
+        end)
+      (fun ty _ value =>
+        match supportedActions trigCfg as x
+        return TrigActionRegKind x @# ty with
+        | EnterDebugMode => $$(wzero 0)
+        | RaiseBreakpointException => $$(wzero 0)
+        | TrigActionBoth =>
+          IF value == $TrigActBreak then $$true else $$false
+        end).
+
   Definition TrigValue : Trig := {|
     trigInfo := [
       @Build_StructField Void "maskmax" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id);
@@ -597,21 +655,7 @@ Section Params.
           | true  => value
           | false => $0
           end);
-      @Build_StructField Void "hit" (Bool)
-        (TrigHitRegKind (trigSupportHitField trigCfg))
-        None
-        (fun ty _ =>
-          match trigSupportHitField trigCfg as x
-          return TrigHitRegKind x @# ty -> Bool @# ty with
-          | true => id
-          | false => fun _ => $$false
-          end)
-        (fun ty _ value =>
-          match trigSupportHitField trigCfg as x
-          return TrigHitRegKind x @# ty with
-          | true => value
-          | false => $$(wzero 0)
-          end);
+      trigHitField;
       @Build_StructField Void "select" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "timing" (Bool)
         (TrigTimingRegKind (supportedTiming (trigTimingCfg (@trigCfg procParams))))
@@ -640,9 +684,13 @@ Section Params.
           | _ => fun _ => $$(wzero 0)
           end);
       @Build_StructField Void "sizelo" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "action" (Bit 4) (Bit 4) None (fun _ _ => id) (fun _ _ => id);
+      trigActionField 4;
       @Build_StructField Void "chain" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "match" (Bit 4) (Bit 4) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "match" (Bit 4)
+        TrigMatchRegKind
+        None
+        (fun _ _ value => ZeroExtendTruncLsb 4 value)
+        (fun _ _ value => ZeroExtendTruncLsb TrigMatchRegKindSz value);
       @Build_StructField Void "m" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "s" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "u" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
@@ -651,18 +699,40 @@ Section Params.
       @Build_StructField Void "load" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
     ];
     trigData2 := [
-      @Build_StructField Void "value" (Bit Xlen) (Bit Xlen) None (fun _ _ => id) (fun _ _ => id)
+      @Build_StructField Void "value" (Bit Rlen)
+        (TrigValueData2RegKind (supportedSelect trigCfg))
+        None
+        (fun ty _ =>
+          match supportedSelect trigCfg as x
+          return TrigValueData2RegKind x @# ty -> Bit Rlen @# ty with
+          | MatchVAddr => fun value => SignExtendTruncLsb _ value
+          | _ => id
+          end)
+        (fun ty _ value =>
+          match supportedSelect trigCfg as x
+          return TrigValueData2RegKind x @# ty with
+          | MatchVAddr => ZeroExtendTruncLsb _ value (* trunc *)
+          | _ => value
+          end)
     ]
   |}.
 
   Definition TrigCount : Trig := {|
     trigInfo := [
-      @Build_StructField Void "hit" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "count" (Bit 14) (Bit 14) None (fun _ _ => id) (fun _ _ => id);
+      trigHitField;
+      @Build_StructField Void "count" (Bit 14)
+        (Bit (countFieldSz (trigMatchCfg trigCfg)))
+        None
+        (fun ty _ value =>
+          match countFieldSz (trigMatchCfg trigCfg) with
+          | 0 => $1
+          | _ => ZeroExtendTruncLsb _ value
+          end)
+        (fun ty _ value => ZeroExtendTruncLsb _ value);
       @Build_StructField Void "m" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "s" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
       @Build_StructField Void "u" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
-      @Build_StructField Void "action" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id)
+      trigActionField 6
     ];
     trigData2 := [nilStructField Void]
   |}.
