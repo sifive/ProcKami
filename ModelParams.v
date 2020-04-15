@@ -180,13 +180,14 @@ Section exts.
             supportedTypes := TrigTypeBoth;
             trigTimingCfg  := {|
               supportedTiming := TrigTimingBoth;
-              timingDefault    := DefaultRecommended;
-              timingWritable   := false
+              timingDefault   := DefaultRecommended;
+              timingWritable  := false
             |};
             trigMatchCfg := {|
-              maxChainLength    := 0;
-              supportCountField := false
+              maxChainLength := 0;
+              countFieldSz   := 0
             |};
+            supportedSelect     := TrigSelectBoth;
             supportedActions    := TrigActionBoth;
             trigMContextSz      := 0;
             trigSupportHitField := false

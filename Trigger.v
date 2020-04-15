@@ -64,7 +64,7 @@ Section trigger.
         :  StructRegPkt GenTrig @# ty
         := IF !debugMode && (mode != $MachineMode && currState @% "header" @% "dmode")
              then currState
-             else currState @%["data2" <- ZeroExtendTruncLsb GenTrigData2Sz tdata2].
+             else currState @%["data2" <- SignExtendTruncLsb GenTrigData2RegSz tdata2].
 
     End ty.
 
