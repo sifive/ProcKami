@@ -801,7 +801,7 @@ Section Params.
         else packedStructPktToPackedRegPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
   ].
 
-  Definition TrigData1 := [TrigHeaderField Bool; GenTrigInfoField].
+  Definition GenTrigData1 := [TrigHeaderField Bool; GenTrigInfoField].
 
   Definition GenTrigPktToValuePkt ty
     (statePkt : StructPkt GenTrig @# ty)

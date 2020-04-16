@@ -17,54 +17,54 @@ Section trigger.
     Section ty.
       Variable ty : Kind -> Type.
 
-      Definition trigTdata1Read (stateRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
-        let structPkt : StructPkt GenTrig @# ty :=
+      Definition trigData1Read (genTrigRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
+        let genTrigPkt : StructPkt GenTrig @# ty :=
           regPktToStructPkt
-            (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
-            stateRegPkt in
+            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            genTrigRegPkt in
         ZeroExtendTruncLsb xlen (pack (STRUCT {
-          "header" ::= structPkt @% "header";
-          "info"  ::= structPkt @% "info"
-        } : StructPkt TrigData1 @# ty)).
+          "header" ::= genTrigPkt @% "header";
+          "info"  ::= genTrigPkt @% "info"
+        } : StructPkt GenTrigData1 @# ty)).
 
-      Definition trigTdata2Read (stateRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
+      Definition trigData2Read (genTrigRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
         ZeroExtendTruncLsb xlen (pack
           ((regPktToStructPkt
-            (stateRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
-            stateRegPkt) @% "data2")).
+            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            genTrigRegPkt) @% "data2")).
 
-      Definition trigTdata1Write
+      Definition trigData1Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructRegPkt GenTrig @# ty)
+        (genTrigRegPkt : StructRegPkt GenTrig @# ty)
         (tdata1 : Bit xlen @# ty)
         :  StructRegPkt GenTrig @# ty
-        := let tdata1Pkt : StructPkt TrigData1 @# ty
-             := unpack (StructPkt TrigData1)
-                  (ZeroExtendTruncLsb (size (StructPkt TrigData1)) tdata1) in
+        := let tdata1Pkt : StructPkt GenTrigData1 @# ty
+             := unpack (StructPkt GenTrigData1)
+                  (ZeroExtendTruncLsb (size (StructPkt GenTrigData1)) tdata1) in
            let nextHeader
              := IF debugMode
-                  then currState @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
-                  else currState @% "header" in
-           let nextState 
-             := currState @%["header" <- nextHeader] in
+                  then genTrigRegPkt @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
+                  else genTrigRegPkt @% "header" in
+           let result 
+             := genTrigRegPkt @%["header" <- nextHeader] in
            IF !debugMode && (mode != $MachineMode && tdata1Pkt @% "header" @% "dmode")
-           then nextState
+           then result
            else
-             nextState @%["info" <- 
+             result @%["info" <- 
                @structFieldRegWriteXform Bool GenTrigInfoField ty
-                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue)
+                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
                  (tdata1Pkt @% "info" : GenTrigInfo @# ty)].
            
-    Definition trigTdata2Write
+    Definition trigData2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
-        (currState : StructRegPkt GenTrig @# ty)
+        (genTrigRegPkt : StructRegPkt GenTrig @# ty)
         (tdata2 : Bit xlen @# ty)
         :  StructRegPkt GenTrig @# ty
-        := IF !debugMode && (mode != $MachineMode && currState @% "header" @% "dmode")
-             then currState
-             else currState @%["data2" <- SignExtendTruncLsb GenTrigData2RegSz tdata2].
+        := IF !debugMode && (mode != $MachineMode && genTrigRegPkt @% "header" @% "dmode")
+             then genTrigRegPkt
+             else genTrigRegPkt @%["data2" <- SignExtendTruncLsb GenTrigData2RegSz tdata2].
 
     End ty.
 
@@ -74,7 +74,11 @@ Section trigger.
       :  Bool @# ty
       := context @% "mode" == $MachineMode || context @% "debug".
 
-    Definition trigTdataCsrField
+(*
+  structInit
+  ConstArray
+*)
+    Definition trigDataCsrField
       (read : forall ty, StructRegPkt GenTrig @# ty -> Bit xlen @# ty)
       (write :
         forall ty, Bool @# ty -> PrivMode @# ty ->
@@ -85,40 +89,41 @@ Section trigger.
       := {|
            csrFieldName := name;
            csrFieldKind := Bit xlen;
-           csrFieldValue
-             := csrFieldValueReg {|
-                  csrFieldRegisterName := @^"trigStates";
-                  csrFieldRegisterKind := GenTrigs;
-                  csrFieldRegisterValue := None;
-                  csrFieldRegisterReadXform
-                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty)
-                         => read ty (currValue @[ context @% "cfg" @% "tselect"]);
-                  csrFieldRegisterWriteXform
-                    := fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty) (inputValue : Bit xlen @# ty)
-                         => currValue @[
-                              context @% "cfg" @% "tselect"
-                                <- write ty
-                                     (context @% "cfg" @% "debug")
-                                     (context @% "cfg" @% "mode")
-                                     (currValue @[ context @% "cfg" @% "tselect"])
-                                     inputValue]
-                |}
+           csrFieldValue :=
+             csrFieldValueReg {|
+               csrFieldRegisterName := @^"trigs";
+               csrFieldRegisterKind := GenTrigs;
+               csrFieldRegisterValue := 
+                 Some (ConstArray (fun _ => structInit GenTrig));
+               csrFieldRegisterReadXform :=
+                 fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty)
+                   => read ty (currValue @[ context @% "cfg" @% "tselect"]);
+               csrFieldRegisterWriteXform :=
+                 fun ty (context : CsrFieldUpdGuard @# ty) (currValue : GenTrigs @# ty) (inputValue : Bit xlen @# ty)
+                   => currValue @[
+                        context @% "cfg" @% "tselect"
+                          <- write ty
+                               (context @% "cfg" @% "debug")
+                               (context @% "cfg" @% "mode")
+                               (currValue @[ context @% "cfg" @% "tselect"])
+                               inputValue]
+             |}
          |}.
 
-    Definition trigTdata1CsrField
+    Definition trigData1CsrField
       :  CsrField
-      := @trigTdataCsrField
-           (fun ty => @trigTdata1Read ty)
-           (fun ty => @trigTdata1Write ty)
-           "trigTdata1".
+      := @trigDataCsrField
+           (fun ty => @trigData1Read ty)
+           (fun ty => @trigData1Write ty)
+           "trigData1".
 
     (* TODO: ensure that we do not generate duplicate registers from the CSR table. *)
-    Definition trigTdata2CsrField
+    Definition trigData2CsrField
       :  CsrField
-      := @trigTdataCsrField
-           (fun ty => @trigTdata2Read ty)
-           (fun ty => @trigTdata2Write ty)
-           "trigTdata2".
+      := @trigDataCsrField
+           (fun ty => @trigData2Read ty)
+           (fun ty => @trigData2Write ty)
+           "trigData2".
   End xlen.
 
   Section ty.
