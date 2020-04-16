@@ -1290,14 +1290,14 @@ Section csrs.
            csrViews
              := 
                 [
-                  let fields := [ @trigTdata1CsrField _ 32 ] in
+                  let fields := [ @trigData1CsrField _ 32 ] in
                   {|
                     csrViewContext    := fun ty => $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
                   |};
-                  let fields := [ @trigTdata1CsrField _ 64 ] in
+                  let fields := [ @trigData1CsrField _ 64 ] in
                   {|
                     csrViewContext    := fun ty => $2;
                     csrViewFields     := fields;
@@ -1313,14 +1313,14 @@ Section csrs.
            csrViews
              := 
                 [
-                  let fields := [ @trigTdata2CsrField _ 32 ] in
+                  let fields := [ @trigData2CsrField _ 32 ] in
                   {|
                     csrViewContext    := fun ty => $1;
                     csrViewFields     := fields;
                     csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
                     csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
                   |};
-                  let fields := [ @trigTdata2CsrField _ 64 ] in
+                  let fields := [ @trigData2CsrField _ 64 ] in
                   {|
                     csrViewContext    := fun ty => $2;
                     csrViewFields     := fields;
