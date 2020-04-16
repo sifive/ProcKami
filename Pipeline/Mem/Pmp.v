@@ -1,7 +1,5 @@
-(*
-  This module implements the physical memory protection interface.
-*)
 Require Import Kami.AllNotations.
+Require Import Kami.Lib.NatStr.
 
 Require Import ProcKami.FU.
 
