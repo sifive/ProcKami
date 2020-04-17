@@ -108,22 +108,24 @@ Section trap.
     (mie : Array NumInterrupts Bool @# ty)
     (mideleg : Array NumDelegs Bool @# ty)
     (sideleg : Array NumDelegs Bool @# ty)
-    :  PriorityBitString ## ty
-    := fold_left
-         (fun (accExpr : PriorityBitString ## ty) (trap : nat)
-           => LETE acc <- accExpr;
-              LETC priorityBitString
-                :  PriorityBitString
-                <- getPriorityBitString
-                     (getInterruptEnable mip mie $trap)
-                     (delegMode mideleg sideleg $trap)
-                     $trap;
-              RetE
-                (IF #acc <= #priorityBitString
-                  then #priorityBitString
-                  else #acc))
-         (seq 0 (NumInterrupts - 1))
-         (RetE $0).
+    :  PriorityBitString ## ty :=
+    fold_tree
+      (fun (priorityBitStringExpr : PriorityBitString ## ty)
+        (accExpr : PriorityBitString ## ty) =>
+        LETE acc <- accExpr;
+        LETE priorityBitString <- priorityBitStringExpr;
+        RetE
+          (IF #acc <= #priorityBitString
+            then #priorityBitString
+            else #acc))
+      (RetE $0)
+      (map
+        (fun trap : nat =>
+          RetE (getPriorityBitString
+            (getInterruptEnable mip mie $trap)
+            (delegMode mideleg sideleg $trap)
+            $trap))
+        (seq 0 (NumInterrupts - 1))).
 
   (* returns either mip or mie. *)
   Local Definition readInterruptStatus
