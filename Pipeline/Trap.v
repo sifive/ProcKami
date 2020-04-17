@@ -310,7 +310,7 @@ Section trap.
                 (unpack (Array NumDelegs Bool) (ZeroExtendTruncLsb NumDelegs #sideleg)));
        LET trap : Interrupt <- UniBit (TruncLsb TrapSz _) #priorityBitString;
        LET trapIsPendingAndEnabled : Bool
-         <- (ZeroExtendTruncMsb 1 #priorityBitString) == $1;
+         <- (UniBit (TruncMsb (PrivModeWidth + TrapSz + 0) 1) #priorityBitString) == $1;
        LETA delegMode
          :  PrivMode
          <- getDelegMode #trap $$true;
