@@ -138,9 +138,9 @@ Section trap.
        Read uei : Bool <- @^("uei" ++ suffix);
        Read usi : Bool <- @^("usi" ++ suffix);
        Read uti : Bool <- @^("uti" ++ suffix);
-       Ret (ARRAY {#mei; $$false; #sei; #uei;
-                   #mti; $$false; #sti; #uti;
-                   #msi; $$false; #ssi; #usi}
+       Ret (ARRAY {#usi; #ssi; $$false; #msi;
+                   #uti; #sti; $$false; #mti;
+                   #uei; #sei; $$false; #mei}
             : Array NumInterrupts Bool @# ty).
 
   Local Definition getPPWidth (mode : nat) : nat
@@ -308,7 +308,7 @@ Section trap.
                 (unpack (Array NumDelegs Bool) (ZeroExtendTruncLsb NumDelegs #sideleg)));
        LET trap : Interrupt <- UniBit (TruncLsb TrapSz _) #priorityBitString;
        LET trapIsPendingAndEnabled : Bool
-         <- (UniBit (TruncMsb 1 _) #priorityBitString) == $1;
+         <- (ZeroExtendTruncMsb 1 #priorityBitString) == $1;
        LETA delegMode
          :  PrivMode
          <- getDelegMode #trap $$true;
