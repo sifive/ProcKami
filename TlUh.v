@@ -148,7 +148,7 @@ Section test.
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true;
           FU.trigCfg := {|
-            numTrigs := 0;
+            lgNumTrigs := 0;
             supportedTypes := TrigTypeBoth;
             trigTimingCfg  := {|
               supportedTiming := TrigTimingBoth;

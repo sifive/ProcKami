@@ -1263,7 +1263,7 @@ Section csrs.
              := [
                   let fields := [
                     @csrFieldAny _ "tselect" (Bit 32)
-                      (Bit (Nat.log2_up (numTrigs trigCfg))) None
+                      (Bit (Nat.log2_up (lgNumTrigs trigCfg))) None
                   ] in
                   {|
                     csrViewContext    := fun ty => $1;
@@ -1273,7 +1273,7 @@ Section csrs.
                   |};
                   let fields := [
                     @csrFieldAny _ "tselect" (Bit 64)
-                      (Bit (Nat.log2_up (numTrigs trigCfg))) None
+                      (Bit (Nat.log2_up (lgNumTrigs trigCfg))) None
                   ] in
                   {|
                     csrViewContext    := fun ty => $1;
