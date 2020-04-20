@@ -47,7 +47,7 @@ Section config_reader.
        Read mpp : PrivMode <- @^"mpp";
        Read debug : Bool <- @^"debugMode";
        Read tselect : Bit (Nat.log2_up (lgNumTrigs trigCfg)) <- @^"tselect";
-       Read trigStates : GenTrigs <- @^"trigStates";
+       Read trigStates : GenTrigs <- @^"trigs";
        LET retval <-
          (STRUCT {
             "xlen"             ::= #xlen;
