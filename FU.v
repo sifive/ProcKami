@@ -484,6 +484,29 @@ Section Params.
   Definition TrigActBreak := 0.
   Definition TrigActDebug := 1.
 
+  Definition trigsActionKind (cfg : TrigAction) : Kind :=
+    match cfg with
+    | TrigActionBoth => Bit 2
+    | _ => Bool
+    end.
+
+  Definition TrigsActionKind := trigsActionKind (supportedActions trigCfg).
+
+  Local Open Scope kami_expr.
+
+  Definition trigsActionVal {ty} (x : Bit 2 @# ty) (y : Bool @# ty) : TrigsActionKind @# ty :=
+    match supportedActions trigCfg as x return trigsActionKind x @# ty with
+    | TrigActionBoth => x
+    | _ => y
+    end.
+
+  Definition TrigsActionNone {ty}  := trigsActionVal ($0 : Bit 2 @# ty) $$false.
+  Definition TrigsActionBreak {ty} := trigsActionVal ($1 : Bit 2 @# ty) $$true.
+  Definition TrigsActionDebug {ty} := trigsActionVal ($2 : Bit 2 @# ty) $$true.
+  Definition TrigsActionBoth {ty}  := trigsActionVal ($3 : Bit 2 @# ty) $$true.
+
+  Local Close Scope kami_expr.
+
   Local Definition numTrigTypes :=
     match supportedTypes trigCfg with
     | TrigTypeBoth => 2
@@ -592,11 +615,13 @@ Section Params.
   Local Definition TrigMatchRegKindSz := Nat.log2_up numTrigMatchTypes.
   Local Definition TrigMatchRegKind : Kind := Bit TrigMatchRegKindSz.
 
-  Local Definition TrigValueData2RegKind (cfg : TrigSelect) : Kind :=
+  Definition TrigValueData2RegSz (cfg : TrigSelect) : nat :=
     match cfg with
-    | MatchVAddr => Bit Xlen
-    | _ => Bit Rlen
+    | MatchVAddr => Xlen
+    | _ => Rlen
     end.
+
+  Definition TrigValueData2RegKind (cfg : TrigSelect) : Kind := Bit (TrigValueData2RegSz cfg).
 
   Local Definition trigHitField :=
     @Build_StructField Void "hit" (Bool)
@@ -803,7 +828,7 @@ Section Params.
 
   Definition GenTrigData1 := [TrigHeaderField Bool; GenTrigInfoField].
 
-  Definition GenTrigPktToValuePkt ty
+  Definition genTrigPktToValuePkt ty
     (statePkt : StructPkt GenTrig @# ty)
     :  StructPkt (trig TrigValue) @# ty
     := STRUCT {
@@ -816,7 +841,7 @@ Section Params.
              (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
        }.
 
-  Definition GenTrigPktToCountPkt ty
+  Definition genTrigPktToCountPkt ty
     (statePkt : StructPkt GenTrig @# ty)
     :  StructPkt (trig TrigCount) @# ty
     := STRUCT {
@@ -828,6 +853,24 @@ Section Params.
            unpack (StructPkt (trigData2 TrigCount))
              (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
        }.
+
+  Definition valuePktToGenTrigPkt ty
+    (trigPkt : StructPkt (trig TrigValue) @# ty)
+    :  StructPkt GenTrig @# ty :=
+    STRUCT {
+      "header" ::= trigPkt @% "header";
+      "info"   ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "info"));
+      "data2"  ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "data2"))
+    }.
+
+  Definition countPktToGenTrigPkt ty
+    (trigPkt : StructPkt (trig TrigCount) @# ty)
+    :  StructPkt GenTrig @# ty :=
+    STRUCT {
+      "header" ::= trigPkt @% "header";
+      "info"   ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "info"));
+      "data2"  ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "data2"))
+    }.
 
   Local Close Scope kami_expr.
 
