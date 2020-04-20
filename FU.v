@@ -191,7 +191,7 @@ Record TrigMatchCfg := {
 }.
 
 Record TrigCfg := {
-  numTrigs            : nat; (* log2 num of triggers *)
+  lgNumTrigs            : nat; (* log2 num of triggers *)
   supportedTypes      : TrigType;
   trigTimingCfg       : TrigTimingCfg;
   trigMatchCfg        : TrigMatchCfg;
@@ -832,7 +832,7 @@ Section Params.
   Local Close Scope kami_expr.
 
   Definition GenTrigs
-    := Array (Nat.pow 2 (numTrigs trigCfg)) (StructRegPkt GenTrig).
+    := Array (Nat.pow 2 (lgNumTrigs trigCfg)) (StructRegPkt GenTrig).
 
   Definition CounterEnType
     := STRUCT_TYPE {
@@ -867,7 +867,7 @@ Section Params.
         "uepc"             :: VAddr
 *)
         "debug"            :: Bool;
-        "tselect"          :: Bit (Nat.log2_up (numTrigs trigCfg));
+        "tselect"          :: Bit (Nat.log2_up (lgNumTrigs trigCfg));
         "trig_states"      :: GenTrigs
       }.
 

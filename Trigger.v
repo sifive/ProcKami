@@ -257,7 +257,7 @@ Section trigger.
                      IF state @% "header" @% "type" == $TrigTypeValue && valueState @% "info" @% "chain"
                       then Invalid
                       else acc))
-           (getFins (Nat.pow 2 (numTrigs trigCfg)))
+           (getFins (Nat.pow 2 (lgNumTrigs trigCfg)))
            Invalid.
 
     (* performs this action when a trigger matches whose action causes the hart to enter debug mode. *)

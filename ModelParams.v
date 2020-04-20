@@ -177,7 +177,7 @@ Section exts.
           FU.lgGranularity := 3;
           FU.hasVirtualMem := true;
           FU.trigCfg := {|
-            numTrigs := 1; (* TODO: LLEE: determine why, when this is set to 0, CoqSim throws a runtime error reporting the presence of a register with negative width. *)
+            lgNumTrigs := 1; (* TODO: LLEE: determine why, when this is set to 0, CoqSim throws a runtime error reporting the presence of a register with negative width. *)
             supportedTypes := TrigTypeBoth;
             trigTimingCfg  := {|
               supportedTiming := TrigTimingBoth;
