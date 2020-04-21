@@ -92,7 +92,7 @@ Section PmaPmp.
          dtag PmaSuccessPkt
          (fun dev
            => let acc_pmas f := (@Kor _ Bool) (map f (@pmas _ dev)) in
-              let width_match pma := req_len == $(pma_width pma) in
+              let width_match pma := req_len == $(pmaWidth pma) in
               Ret (STRUCT {
                   "width" ::= acc_pmas width_match;
                   "pma"
@@ -101,11 +101,11 @@ Section PmaPmp.
                             => width_match pma &&
                                Switch access_type Retn Bool With {
                                  ($VmAccessInst : AccessType @# ty)
-                                   ::= ($$(pma_executable pma) : Bool @# ty);
+                                   ::= ($$(pmaExecutable pma) : Bool @# ty);
                                  ($VmAccessLoad : AccessType @# ty)
-                                   ::= ($$(pma_readable pma) : Bool @# ty);
+                                   ::= ($$(pmaReadable pma) : Bool @# ty);
                                  ($VmAccessSAmo : AccessType @# ty)
-                                   ::= ($$(pma_writeable pma) : Bool @# ty)
+                                   ::= ($$(pmaWriteable pma) : Bool @# ty)
                                } &&
                                amoCodeSelect amoCode
                                  (fun amoClass =>
@@ -121,7 +121,7 @@ Section PmaPmp.
                          (fun pma
                            => width_match pma &&
                               (isAligned offset req_len || 
-                               $$(pma_misaligned pma)))
+                               $$(pmaMisaligned pma)))
                 } : PmaSuccessPkt @# ty)).
 
 

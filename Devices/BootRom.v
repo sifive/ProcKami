@@ -20,11 +20,11 @@ Section device.
        basePmas :=  map
                 (fun width
                  => {|
-                     pma_width      := width;
-                     pma_readable   := true;
-                     pma_writeable  := false;
-                     pma_executable := true;
-                     pma_misaligned := true
+                     pmaWidth      := width;
+                     pmaReadable   := true;
+                     pmaWriteable  := false;
+                     pmaExecutable := true;
+                     pmaMisaligned := true
                    |})
                 [0; 1; 2; 3];
        baseAmos := [];

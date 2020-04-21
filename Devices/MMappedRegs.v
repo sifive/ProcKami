@@ -74,11 +74,11 @@ Section mmregs.
            basePmas := map
                          (fun width
                           => {|
-                              pma_width      := width;
-                              pma_readable   := true;
-                              pma_writeable  := true;
-                              pma_executable := true;
-                              pma_misaligned := true;
+                              pmaWidth      := width;
+                              pmaReadable   := true;
+                              pmaWriteable  := true;
+                              pmaExecutable := true;
+                              pmaMisaligned := true;
                             |})
                          [0;1;2;3];
            baseAmos := [];

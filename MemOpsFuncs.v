@@ -35,22 +35,22 @@ Section memOpsFuncs.
 
   Record Pma
     := {
-        pma_width : nat; (* in bytes *)
-        pma_readable : bool;
-        pma_writeable : bool;
-        pma_executable : bool;
-        pma_misaligned : bool
+        pmaWidth : nat; (* in bytes *)
+        pmaReadable : bool;
+        pmaWriteable : bool;
+        pmaExecutable : bool;
+        pmaMisaligned : bool
       }.
 
   Definition pmas_default
     := map
          (fun x
           => {|
-              pma_width      := x;
-              pma_readable   := true;
-              pma_writeable  := true;
-              pma_executable := true;
-              pma_misaligned := true
+              pmaWidth      := x;
+              pmaReadable   := true;
+              pmaWriteable  := true;
+              pmaExecutable := true;
+              pmaMisaligned := true
             |})
          [0; 1; 2; 3].
 
