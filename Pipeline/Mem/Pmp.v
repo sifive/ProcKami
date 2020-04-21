@@ -1,6 +1,3 @@
-(*
-  This module implements the physical memory protection interface.
-*)
 Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
@@ -23,10 +20,10 @@ Section pmp.
     :  ActionT ty PmpEntryPkt
     := Read entry_cfg
          :  PmpCfg
-         <- @^("pmp" ++ nat_decimal_string n ++ "cfg");
+         <- @^("pmp" ++ natToHexStr n ++ "cfg");
        Read entry_addr
          :  Bit pmp_reg_width
-         <- @^("pmpaddr" ++ nat_decimal_string n);
+         <- @^("pmpaddr" ++ natToHexStr n);
        Ret
          (STRUCT {
             "cfg" ::= #entry_cfg;
@@ -74,7 +71,7 @@ Section pmp.
 (*
                    System [
                      DispString _ "[checkPmp] ==================================================\n";
-                     DispString _ ("[checkPmp] checking register: pmp" ++ nat_decimal_string (S entry_index) ++ "cfg.\n");
+                     DispString _ ("[checkPmp] checking register: pmp" ++ natToHexStr (S entry_index) ++ "cfg.\n");
                      DispString _ "[checkPmp] acc: ";
                      DispHex #acc;
                      DispString _ "\n"

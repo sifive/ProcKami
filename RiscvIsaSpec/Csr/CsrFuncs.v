@@ -347,7 +347,7 @@ Section CsrInterface.
   Definition pmpField
     (index : nat)
     :  CsrField
-    := let name := ("pmp" ++ nat_decimal_string index ++ "cfg")%string in
+    := let name := ("pmp" ++ natToHexStr index ++ "cfg")%string in
        {|
          csrFieldName := name;
          csrFieldKind := PmpCfg;

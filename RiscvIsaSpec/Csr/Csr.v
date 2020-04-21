@@ -761,12 +761,12 @@ Section csrs.
          simpleCsr "pmpaddr7" (CsrIdWidth 'h"3b7") (width := pmp_reg_width) None accessMModeOnly;
          simpleCsr "pmpaddr8" (CsrIdWidth 'h"3b8") (width := pmp_reg_width) None accessMModeOnly;
          simpleCsr "pmpaddr9" (CsrIdWidth 'h"3b9") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr10" (CsrIdWidth 'h"3ba") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr11" (CsrIdWidth 'h"3bb") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr12" (CsrIdWidth 'h"3bc") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr13" (CsrIdWidth 'h"3bd") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr14" (CsrIdWidth 'h"3be") (width := pmp_reg_width) None accessMModeOnly;
-         simpleCsr "pmpaddr15" (CsrIdWidth 'h"3bf") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrA" (CsrIdWidth 'h"3ba") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrB" (CsrIdWidth 'h"3bb") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrC" (CsrIdWidth 'h"3bc") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrD" (CsrIdWidth 'h"3bd") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrE" (CsrIdWidth 'h"3be") (width := pmp_reg_width) None accessMModeOnly;
+         simpleCsr "pmpaddrF" (CsrIdWidth 'h"3bf") (width := pmp_reg_width) None accessMModeOnly;
          {|
            csrName := "sstatus";
            csrAddr := CsrIdWidth 'h"100";
