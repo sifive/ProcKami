@@ -232,15 +232,6 @@ Class FpuParams
       fpu_exts_64        : list string
     }.
 
-Definition TrigActionKind
-  := STRUCT_TYPE {
-       "action" :: Bit 4;
-       "timing" :: Bool
-     }.
-
-Definition TrigActionBreak := 1.
-Definition TrigActionDebug := 3.
-
 Section ParamDefinitions.
   Context {procParams: ProcParams}.
   Context {fpuParams: FpuParams}.
@@ -484,26 +475,16 @@ Section Params.
   Definition TrigActBreak := 0.
   Definition TrigActDebug := 1.
 
-  Definition trigsActionKind (cfg : TrigAction) : Kind :=
-    match cfg with
-    | TrigActionBoth => Bit 2
-    | _ => Bool
-    end.
-
-  Definition TrigsActionKind := trigsActionKind (supportedActions trigCfg).
-
   Local Open Scope kami_expr.
 
-  Definition trigsActionVal {ty} (x : Bit 2 @# ty) (y : Bool @# ty) : TrigsActionKind @# ty :=
-    match supportedActions trigCfg as x return trigsActionKind x @# ty with
-    | TrigActionBoth => x
-    | _ => y
-    end.
-
-  Definition TrigsActionNone {ty}  := trigsActionVal ($0 : Bit 2 @# ty) $$false.
-  Definition TrigsActionBreak {ty} := trigsActionVal ($1 : Bit 2 @# ty) $$true.
-  Definition TrigsActionDebug {ty} := trigsActionVal ($2 : Bit 2 @# ty) $$true.
-  Definition TrigsActionBoth {ty}  := trigsActionVal ($3 : Bit 2 @# ty) $$true.
+  (* TODO: LLEE: rescale based on configuration. *)
+  Definition TrigsActionKind :=
+    STRUCT_TYPE {
+      "enterDebugBefore" :: Bool;
+      "enterDebugAfter"  :: Bool;
+      "breakpointBefore" :: Bool;
+      "breakpointAfter"  :: Bool
+    }.
 
   Local Close Scope kami_expr.
 
