@@ -35,6 +35,7 @@ Require Import ProcKami.Pipeline.Executer.
 Require Import ProcKami.Pipeline.RegWriter.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
+Require Import ProcKami.RiscvIsaSpec.Csr.CsrRewrites.
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Devices.Debug.
 Require Import ProcKami.Pipeline.ProcessorCore.
@@ -51,14 +52,19 @@ Require Import ProcKami.Pipeline.Mem.Ifc.
 Require Import ProcKami.Pipeline.Ifc.
 Require Import ProcKami.Pipeline.Impl.
 
+Require Import Kami.Rewrites.ReflectionPre.
+Require Import Kami.Rewrites.ReflectionImpl.
+
 Opaque getFins.
 Opaque Nat.mul.
 
 Section WfModProcessorProof.
-  Context `{procParams: ProcParams}.  Open Scope kami_expr.
+  Context {procParams: ProcParams}.
   Context (func_units: list FUEntry).
   Context (deviceTree: DeviceTree).
   Context (memParams: Mem.Ifc.Params).
+
+  Open Scope kami_expr.
 
   Variable ty : Kind -> Type.
                          
@@ -141,8 +147,8 @@ Ltac solve_mem_separate_names:=
      end.
 
 Hint Resolve mem_separate_name_space_registers mem_separate_name_space_regs mem_separate_name_space_methods : mem_separate_names.
-
-Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
+*)
+(*Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
 Proof.
   reflexivity.
 Qed.
@@ -214,7 +220,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_csrFieldAny:
       forall a b c d e l, map csr_reg_csr_field (@csrFieldAny a b c d (Some e)::l)=
-[((proc_name ++ String "_" b)%string,
+[((procName ++ String "_" b)%string,
  existT RegInitValT (SyntaxKind d) (Some (SyntaxConst e)))]::(map csr_reg_csr_field l).
 Proof.
     simpl.
@@ -229,7 +235,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_csrFieldAny_None:
       forall a b c d l, map csr_reg_csr_field (@csrFieldAny a b c d None::l)=
-[((proc_name ++ String "_" b)%string,
+[((procName ++ String "_" b)%string,
  existT RegInitValT (SyntaxKind d) None)]::(map csr_reg_csr_field l).
 Proof.
     simpl.
@@ -244,7 +250,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_csrFieldReadOnly:
       forall a b c d e l, map csr_reg_csr_field (@csrFieldReadOnly a b c d (Some e)::l)=
-[((proc_name ++ String "_" b)%string,
+[((procName ++ String "_" b)%string,
  existT RegInitValT (SyntaxKind d) (Some (SyntaxConst e)))]::
  (map csr_reg_csr_field l).
 Proof.
@@ -260,7 +266,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_csrFieldReadOnly_None:
       forall a b c d l, map csr_reg_csr_field (@csrFieldReadOnly a b c d None::l)=
-[((proc_name ++ String "_" b)%string,
+[((procName ++ String "_" b)%string,
  existT RegInitValT (SyntaxKind d) None)]::
  (map csr_reg_csr_field l).
 Proof.
@@ -276,7 +282,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_xlField:
       forall a b l, map csr_reg_csr_field (@xlField a b::l)=
-[((proc_name ++ String "_" (b ++ "xl"))%string,
+[((procName ++ String "_" (b ++ "xl"))%string,
  existT RegInitValT (SyntaxKind XlenValue) (Some (SyntaxConst initXlen)))]::
  (map csr_reg_csr_field l).
 Proof.
@@ -292,7 +298,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_misa:
       forall l, map csr_reg_csr_field (misa::l)=
-[((proc_name ++ "_extRegs")%string,
+[((procName ++ "_extRegs")%string,
    existT RegInitValT (SyntaxKind ExtensionsReg)
      (Some (SyntaxConst InitExtsRegVal)))]::
  (map csr_reg_csr_field l).
@@ -323,7 +329,7 @@ Qed.
 Lemma map_csr_reg_csr_field_pmpField:
   forall l n, map csr_reg_csr_field ((pmpField n)::l)=
                 [(@^ ("pmp" ++ nat_decimal_string n ++ "cfg"),
-   existT RegInitValT (SyntaxKind Pmp.PmpCfg) (Some (SyntaxConst Default)))]::
+   existT RegInitValT (SyntaxKind PmpCfg) (Some (SyntaxConst Default)))]::
           (map csr_reg_csr_field l).
 Proof.
     simpl.
@@ -339,7 +345,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_tvecField:
       forall a b c d l, map csr_reg_csr_field (@tvecField a b c d::l)=
-[((proc_name ++ String "_" (b ++ "tvec_base"))%string,
+[((procName ++ String "_" (b ++ "tvec_base"))%string,
  existT RegInitValT (SyntaxKind (Bit d)) None)]::(map csr_reg_csr_field l).
 Proof.
     simpl.
@@ -411,7 +417,7 @@ Qed.
 Theorem map_fst_csr_reg_csr_field_csrFieldAny:
   forall a b c d e,
     (map fst (csr_reg_csr_field (@csrFieldAny a b c d e)))=
-        [(proc_name ++ String "_" b)%string].
+        [(procName ++ String "_" b)%string].
 Proof.
     intros.
     unfold csrFieldAny.
@@ -3985,13 +3991,44 @@ Admitted.
 Hint Resolve WFConcat9 : wfModProcessor_db.
      *)
 
+Ltac KRSimplifyTacTop :=
+  match goal with
+  | |- ?X => KRSimplifyTac X (KRTypeElem KRElemProp)
+  end.
+
+Theorem mode_disjoint_from_registers:
+    forall devices,
+    ~ (In (procName ++ "_mode")%string
+    (map fst
+       (concat
+          (map (fun mm : RegFileBase => getRegFileRegisters mm) devices)))).
+Proof.
+  intros.
+  induction devices.
+  - simpl.
+    intro X.
+    apply X.
+  - simpl.
+    autorewrite with kami_rewrite_db.
+    intro X.
+    inversion X; subst; clear X.
+    + unfold getRegFileRegisters in H.
+      destruct a.
+      simpl in H.
+Admitted.
+
 Theorem DisjKey_getAllRegisters_processorCore_deviceTree:
   DisjKey (getAllRegisters (processorCore func_units deviceTree memParams))
     (concat
        (map (fun mm : RegFileBase => getRegFileRegisters mm)
             (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
+Proof.
+  (*unfold processorCore.
+  autorewrite with kami_rewrite_db;repeat (decide equality).
+  simpl.
+  autorewrite with kami_rewrite_db;repeat (decide equality).
+  simpl.*)
 Admitted.
-
 Hint Resolve DisjKey_getAllRegisters_processorCore_deviceTree : wfMod_ConcatMod_Helper.
 
 Theorem DisjKey_getAllRegisters_processorCore_deviceBaseMod:
@@ -4094,9 +4131,120 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_floatRegFile_deviceBaseMod : wfMod_ConcatMod_Helper.
 
+Theorem DisjKey_getAllRegisters_processorCore_intRegFile:
+  DisjKey (getAllRegisters (processorCore func_units deviceTree memParams)) (getAllRegisters intRegFile).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_processorCore_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRegisters_processorCore_floatRegFile:
+  DisjKey (getAllRegisters (processorCore func_units deviceTree memParams)) (getAllRegisters floatRegFile).
+Admitted.
+
+Hint Resolve DisjKey_getAllRegisters_processorCore_floatRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllRules_processorCore_intRegFile:
+  DisjKey (getAllRules (processorCore func_units deviceTree memParams)) (getAllRules intRegFile).
+Admitted.
+
+Hint Resolve  DisjKey_getAllRules_processorCore_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_processorCore_intRegFile:
+  DisjKey (getAllMethods (processorCore func_units deviceTree memParams)) (getAllMethods intRegFile).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_processorCore_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem DisjKey_getAllMethods_processorCore_floatRegFile:
+  DisjKey (getAllMethods (processorCore func_units deviceTree memParams)) (getAllMethods floatRegFile).
+Admitted.
+
+Hint Resolve DisjKey_getAllMethods_processorCore_floatRegFile : wfMod_ConcatMod_Helper.
+
+Theorem WfMod_processorCore:
+  WfMod ty (processorCore func_units deviceTree memParams).
+(*Proof.
+  unfold processorCore.
+  autorewrite with kami_rewrite_db.
+  apply WfMod_new_WfMod.
+  compute [WfMod_new WfBaseModule_new].
+  split.
+  unfold Csrs.
+  unfold csr_regs.
+  time (autorewrite with kami_rewrite_db).
+  time (autorewrite with simp_csrs).*)
+Admitted.
+
+  
+  (*compute [csr_regs Csrs csrViews csr_reg_csr_field nilCsr csrFieldAny csrFieldValue csrFieldNoReg csr_reg_csr_field_reg map concat repeatCsrView csrViewFields nubBy app csrFieldRegAny csrFieldRegisterName csrFieldRegisterValue fold_right].
+  makeModule getRegisters makeModule_regs Registers map Csrs csr_regs nubBy concat fold_right csrViews repeatCsrView app nilCsr csrViewFields csr_reg_csr_field csrFieldAny csrFieldValue csrFieldNoReg csr_reg_csr_field_reg].
+  autorewrite with kami_rewrite_db.
+Admitted.*)
+
+Hint Resolve WfMod_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WfMod_ConcatMod_intRegFile_floatRegFile:
+  WfMod ty (ConcatMod intRegFile floatRegFile).
+Admitted.
+
+Hint Resolve WfMod_ConcatMod_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
+
+Theorem WfConcatActionT_getAllRules_processorCore:
+ forall rule : RuleT,
+ In rule (getAllRules (processorCore func_units deviceTree memParams)) ->
+ WfConcatActionT (snd rule ty) (ConcatMod intRegFile floatRegFile).
+Admitted.
+
+Hint Resolve WfConcatActionT_getAllRules_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WfConcatActionT_getAllMethods_processorCore:
+ forall meth : string * {x : Signature & MethodT x},
+ In meth (getAllMethods (processorCore func_units deviceTree memParams)) ->
+ forall v : ty (fst (projT1 (snd meth))), WfConcatActionT (projT2 (snd meth) ty v) (ConcatMod intRegFile floatRegFile).
+Admitted.
+
+Hint Resolve WfConcatActionT_getAllMethods_processorCore : wfMod_ConcatMod_Helper.
+
+Theorem WfConcatActionT_getAllRules_intRegFile:
+ forall rule : RuleT,
+   In rule (getAllRules intRegFile) -> WfConcatActionT (snd rule ty) (processorCore func_units deviceTree memParams).
+Admitted.
+
+Hint Resolve WfConcatActionT_getAllRules_intRegFile : wfMod_ConcatMod_Helper.
+
+Theorem WfConcatActionT_getAllMethods_intRegFile_floatRegFile:
+ forall meth : string * {x : Signature & MethodT x},
+ In meth (getAllMethods intRegFile ++ getAllMethods floatRegFile) ->
+ forall v : ty (fst (projT1 (snd meth))),
+   WfConcatActionT (projT2 (snd meth) ty v) (processorCore func_units deviceTree memParams).
+Admitted.
+
+Hint Resolve WfConcatActionT_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
+
 Theorem wfMod_processorCore_intRegFile_floatRegFile:
   WfMod ty (ConcatMod (processorCore func_units deviceTree memParams) (ConcatMod intRegFile floatRegFile)).
-Admitted.
+Proof.
+  apply ConcatModWf;try (unfold processorPipeline; autorewrite with kami_rewrite_db; repeat (decide equality); repeat split; try (unfold deviceMod; autorewrite with kami_rewrite_db; repeat (decide equality); repeat split)).
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - auto with wfMod_ConcatMod_Helper.
+  - intros.
+    apply WfConcatActionT_getAllRules_processorCore.
+    apply H.
+  - intros.
+    apply WfConcatActionT_getAllMethods_processorCore.
+    apply H.
+  - intros.
+    apply WfConcatActionT_getAllRules_intRegFile.
+    apply H.
+  - intros.
+    apply WfConcatActionT_getAllMethods_intRegFile_floatRegFile.
+    apply H.
+Qed.
 
 Hint Resolve wfMod_processorCore_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
 
