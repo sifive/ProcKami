@@ -7,7 +7,6 @@
   transformations needed to handle this behavior.
 *)
 Require Import Kami.AllNotations.
-Require Import Kami.Lib.NatStr.
 
 Require Import ProcKami.FU.
 Require Import ProcKami.Pipeline.RegWriter.

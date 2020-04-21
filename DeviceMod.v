@@ -1,5 +1,4 @@
 Require Import Kami.AllNotations.
-Require Import Kami.Lib.NatStr.
 
 Require Import StdLibKami.RegArray.Ifc.
 Require Import StdLibKami.RegArray.Impl.
