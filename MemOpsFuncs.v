@@ -1,4 +1,3 @@
-(* This module defines the memory operations semantics table. *)
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
@@ -32,10 +31,34 @@ Section memOpsFuncs.
        | _ => false
        end.
 
+  Inductive PmaAmoClass := AmoSwap | AmoLogical | AmoArith.
+
+  Record Pma
+    := {
+        pma_width : nat; (* in bytes *)
+        pma_readable : bool;
+        pma_writeable : bool;
+        pma_executable : bool;
+        pma_misaligned : bool
+      }.
+
+  Definition pmas_default
+    := map
+         (fun x
+          => {|
+              pma_width      := x;
+              pma_readable   := true;
+              pma_writeable  := true;
+              pma_executable := true;
+              pma_misaligned := true
+            |})
+         [0; 1; 2; 3].
+
   Record MemOp := {
     memOpName : MemOpName;
     memOpCode : N;
     memOpSize : nat;
+    memOpAmoClass : option PmaAmoClass;
     memOpRegValue : MemRegValue;
     memOpWriteValue : MemWriteValue
   }.

@@ -12,31 +12,6 @@ Require Import StdLibKami.Router.Ifc.
 Section DeviceIfc.
   Context {procParams : ProcParams}.
 
-  Inductive PmaAmoClass := AmoNone | AmoSwap | AmoLogical | AmoArith.
-
-  Record Pma
-    := {
-        pma_width : nat; (* in bytes *)
-        pma_readable : bool;
-        pma_writeable : bool;
-        pma_executable : bool;
-        pma_misaligned : bool;
-        pma_amo : PmaAmoClass
-      }.
-
-  Definition pmas_default
-    := map
-         (fun x
-          => {|
-              pma_width      := x;
-              pma_readable   := true;
-              pma_writeable  := true;
-              pma_executable := true;
-              pma_misaligned := true;
-              pma_amo        := AmoArith
-            |})
-         [0; 1; 2; 3].
-
   Local Definition Req tagK
     := STRUCT_TYPE {
          "tag"    :: tagK;
@@ -55,6 +30,7 @@ Section DeviceIfc.
          name : string;
          io   : bool;
          pmas : list Pma;
+         amos : list PmaAmoClass;
          regFiles: list RegFileBase;
          regs: forall tagK: Kind, list RegInitT;
          deviceIfc : forall tagK, DeviceIfc (Req tagK) (Res tagK) }.
@@ -62,6 +38,7 @@ Section DeviceIfc.
   Class BaseDevice := { baseName: string;
                         baseIo: bool;
                         basePmas: list Pma;
+                        baseAmos : list PmaAmoClass;
                         baseRegFiles: list RegFileBase;
                         baseRegs: list RegInitT;
                         write : forall ty, MemWrite @# ty -> ActionT ty Bool; (* Error *)
@@ -181,6 +158,7 @@ Section DeviceIfc.
       {| name := baseName;
          io   := baseIo;
          pmas := basePmas;
+         amos := baseAmos;
          regFiles:= baseRegFiles;
          regs := fun tagK =>
                    makeModule_regs

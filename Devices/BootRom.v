@@ -2,6 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
+Require Import ProcKami.MemOpsFuncs.
 
 Require Import StdLibKami.Router.Ifc.
 
@@ -23,10 +24,10 @@ Section device.
                      pma_readable   := true;
                      pma_writeable  := false;
                      pma_executable := true;
-                     pma_misaligned := true;
-                     pma_amo        := AmoNone
+                     pma_misaligned := true
                    |})
                 [0; 1; 2; 3];
+       baseAmos := [];
        baseRegFiles := {| rfIsWrMask := true;
                           rfNum := Rlen_over_8;
                           rfDataArray := "bootRomFile";

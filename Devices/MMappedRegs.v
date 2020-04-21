@@ -7,6 +7,7 @@ Require Import StdLibKami.Router.Ifc.
 Require Import ProcKami.Device.
 
 Require Import ProcKami.FU.
+Require Import ProcKami.MemOpsFuncs.
 
 Import ListNotations.
 
@@ -78,9 +79,9 @@ Section mmregs.
                               pma_writeable  := true;
                               pma_executable := true;
                               pma_misaligned := true;
-                              pma_amo        := AmoNone
                             |})
                          [0;1;2;3];
+           baseAmos := [];
            baseRegFiles := nil;
            baseRegs := (if genReg
                         then map (fun mmReg =>

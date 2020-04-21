@@ -45,11 +45,47 @@ Section PmaPmp.
                 (tag devs));
        Ret (#result @% "data").
 
+  Local Definition AmoCodeNone := 0.
+  Local Definition AmoCodeSwap := 1.
+  Local Definition AmoCodeLogical := 2.
+  Local Definition AmoCodeArith := 3.
+  Local Definition AmoCodeSz := Nat.log2_up 4.
+  Local Definition AmoCode := Bit AmoCodeSz.
+
+  Local Definition toAmoCode ty (amoClass : option PmaAmoClass) : AmoCode @# ty :=
+    match amoClass with
+    | None => $AmoCodeNone
+    | Some class =>
+      match class with
+      | AmoSwap    => $AmoCodeSwap
+      | AmoLogical => $AmoCodeLogical
+      | AmoArith   => $AmoCodeArith
+      end
+    end.
+
+  Local Definition amoCodeSelect ty (amoCode : AmoCode @# ty) k
+    (f : option PmaAmoClass -> k @# ty) : k @# ty :=
+    Switch amoCode Retn k With {
+      ($AmoCodeNone    : AmoCode @# ty) ::= f None;
+      ($AmoCodeSwap    : AmoCode @# ty) ::= f (Some AmoSwap);
+      ($AmoCodeLogical : AmoCode @# ty) ::= f (Some AmoLogical);
+      ($AmoCodeArith   : AmoCode @# ty) ::= f (Some AmoArith)
+    }.
+
+  Lemma amoClassDec : forall x y : PmaAmoClass, {x = y}+{x <> y}.
+  Proof.
+    destruct x; repeat (destruct y; ((right; discriminate) || (left; reflexivity))).
+  Qed.
+
+  Local Definition amoClassInDec
+    : forall (x : PmaAmoClass) (xs : list PmaAmoClass), {In x xs}+{~ In x xs} := in_dec amoClassDec.
+
   Local Definition checkPma ty
     (dtag : DeviceTag @# ty)
     (offset : FU.Offset @# ty)
     (req_len : MemRqLgSize @# ty)
     (access_type : AccessType @# ty)
+    (amoCode : AmoCode @# ty)
     :  ActionT ty PmaSuccessPkt 
     := @mem_device_apply ty
          (@ProcKami.Device.devices _ deviceTree)
@@ -70,7 +106,16 @@ Section PmaPmp.
                                    ::= ($$(pma_readable pma) : Bool @# ty);
                                  ($VmAccessSAmo : AccessType @# ty)
                                    ::= ($$(pma_writeable pma) : Bool @# ty)
-                               });
+                               } &&
+                               amoCodeSelect amoCode
+                                 (fun amoClass =>
+                                   match amoClass with
+                                   | None => $$true
+                                   | Some class =>
+                                     if amoClassInDec class (amos dev)
+                                     then $$true
+                                     else $$false
+                                   end));
                   "misaligned"
                     ::= acc_pmas
                          (fun pma
@@ -106,17 +151,15 @@ Section PmaPmp.
 
   Definition getDTagOffsetPmaPmpError ty
              (accessType: AccessType @# ty)
-             (memOp: MemOpCode @# ty)
+             (memOpCode: MemOpCode @# ty)
              (mode: PrivMode @# ty)
              (addr: PAddr @# ty)
     :  ActionT ty (Pair (Maybe DTagOffset) MemErrorPkt)
     := LETA size
          :  MemRqLgSize
-         <- applyMemOp
-              memOps
-              (fun memOp
-                => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
-              memOp;
+         <- applyMemOp memOps
+              (fun memOp => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
+              memOpCode;
        LETA pmp_result
          :  Bool
          <- checkPmp
@@ -125,13 +168,16 @@ Section PmaPmp.
               addr
               #size;
        LETA dTagOffset: Maybe DTagOffset <- getDTagOffset addr;
+       LETA amoCode : AmoCode
+         <- applyMemOp memOps (fun memOp => Ret (toAmoCode ty (memOpAmoClass memOp))) memOpCode;
        LETA pma_result
          :  PmaSuccessPkt
          <- checkPma
               (#dTagOffset @% "data" @% "dtag")
               (#dTagOffset @% "data" @% "offset")
               #size
-              accessType;
+              accessType
+              #amoCode;
        LET err_pkt : MemErrorPkt
          <- STRUCT {
               "pmp"        ::= !#pmp_result;
