@@ -108,22 +108,24 @@ Section trap.
     (mie : Array NumInterrupts Bool @# ty)
     (mideleg : Array NumDelegs Bool @# ty)
     (sideleg : Array NumDelegs Bool @# ty)
-    :  PriorityBitString ## ty
-    := fold_left
-         (fun (accExpr : PriorityBitString ## ty) (trap : nat)
-           => LETE acc <- accExpr;
-              LETC priorityBitString
-                :  PriorityBitString
-                <- getPriorityBitString
-                     (getInterruptEnable mip mie $trap)
-                     (delegMode mideleg sideleg $trap)
-                     $trap;
-              RetE
-                (IF #acc <= #priorityBitString
-                  then #priorityBitString
-                  else #acc))
-         (seq 0 (NumInterrupts - 1))
-         (RetE $0).
+    :  PriorityBitString ## ty :=
+    fold_tree
+      (fun (priorityBitStringExpr : PriorityBitString ## ty)
+        (accExpr : PriorityBitString ## ty) =>
+        LETE acc <- accExpr;
+        LETE priorityBitString <- priorityBitStringExpr;
+        RetE
+          (IF #acc <= #priorityBitString
+            then #priorityBitString
+            else #acc))
+      (RetE $0)
+      (map
+        (fun trap : nat =>
+          RetE (getPriorityBitString
+            (getInterruptEnable mip mie $trap)
+            (delegMode mideleg sideleg $trap)
+            $trap))
+        (seq 0 (NumInterrupts - 1))).
 
   (* returns either mip or mie. *)
   Local Definition readInterruptStatus
@@ -138,9 +140,9 @@ Section trap.
        Read uei : Bool <- @^("uei" ++ suffix);
        Read usi : Bool <- @^("usi" ++ suffix);
        Read uti : Bool <- @^("uti" ++ suffix);
-       Ret (ARRAY {#mei; $$false; #sei; #uei;
-                   #mti; $$false; #sti; #uti;
-                   #msi; $$false; #ssi; #usi}
+       Ret (ARRAY {#usi; #ssi; $$false; #msi;
+                   #uti; #sti; $$false; #mti;
+                   #uei; #sei; $$false; #mei}
             : Array NumInterrupts Bool @# ty).
 
   Local Definition getPPWidth (mode : nat) : nat
@@ -308,7 +310,7 @@ Section trap.
                 (unpack (Array NumDelegs Bool) (ZeroExtendTruncLsb NumDelegs #sideleg)));
        LET trap : Interrupt <- UniBit (TruncLsb TrapSz _) #priorityBitString;
        LET trapIsPendingAndEnabled : Bool
-         <- (UniBit (TruncMsb 1 _) #priorityBitString) == $1;
+         <- (UniBit (TruncMsb (PrivModeWidth + TrapSz + 0) 1) #priorityBitString) == $1;
        LETA delegMode
          :  PrivMode
          <- getDelegMode #trap $$true;
