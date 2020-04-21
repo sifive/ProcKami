@@ -354,7 +354,7 @@ Section trigger.
       :  Pair GenTrigs TrigsActionKind @# ty :=
       fold_left
         (fun (acc : Pair GenTrigs TrigsActionKind @# ty) i =>
-          let genTrigRegPkt := trigs @[$i : Bit (numTrigs trigCfg) @# ty] in
+          let genTrigRegPkt := trigs @[$i : Bit (lgNumTrigs trigCfg) @# ty] in
           let genTrigPkt :=
             regPktToStructPkt
               (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
@@ -369,7 +369,7 @@ Section trigger.
           then
             let genTrigs : GenTrigs @# ty := acc @% "fst" in
             let updatedGenTrigs : GenTrigs @# ty :=
-              genTrigs @[($i : Bit (numTrigs trigCfg) @# ty) <- updatedTrigRegPkt] in
+              genTrigs @[($i : Bit (lgNumTrigs trigCfg) @# ty) <- updatedTrigRegPkt] in
             STRUCT {
               "fst" ::=
                 IF updatedTrigPkt @% "valid"
@@ -392,7 +392,7 @@ Section trigger.
                  } : TrigsActionKind @# ty)
              } : Pair GenTrigs TrigsActionKind @# ty
           else acc)
-        (seq 0 (Nat.pow 2 (numTrigs trigCfg)))
+        (seq 0 (Nat.pow 2 (lgNumTrigs trigCfg)))
         (STRUCT {
            "fst" ::= (trigs : GenTrigs @# ty);
            "snd" ::=
