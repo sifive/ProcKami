@@ -1,9 +1,11 @@
 Require Import Kami.AllNotations.
 
+Require Import StdLibKami.RegArray.Ifc.
+Require Import StdLibKami.RegArray.Impl.
+
 Require Import ProcKami.FU.
 
 Require Import ProcKami.Pipeline.Decoder.
-
 
 Section reg_reader.
   Context {procParams: ProcParams}.
@@ -50,14 +52,27 @@ Section reg_reader.
   Local Definition reg_reader_has (which: InstHints -> bool) pkt :=
     (reg_reader_match (fun ik ok pkt => which (instHints pkt))) pkt.
 
+  Definition intRegArray := @RegArray.Impl.impl
+                              {| name := @^"intRegs";
+                                 k := Bit Xlen;
+                                 size := Nat.pow 2 RegIdWidth;
+                                 init := None
+                              |}.
+  
+  Definition floatRegArray := @RegArray.Impl.impl
+                                {| name := @^"flatRegs";
+                                   k := Bit Flen;
+                                   size := Nat.pow 2 RegIdWidth;
+                                   init := None
+                                |}.
+
   Local Definition reg_reader_read_reg
     (n : nat)
     (xlen : XlenValue @# ty)
     (reg_id : RegId @# ty)
     :  ActionT ty Data
-    := Call reg_val
-         :  Bit (@Xlen procParams)
-         <- (@^"regRead" ++ natToHexStr n) (reg_id : RegId);
+    := LET regId <- reg_id;
+       LETA reg_val <- RegArray.Ifc.read intRegArray _ regId;
        Ret
          (IF reg_id == $0
             then $0
@@ -67,9 +82,8 @@ Section reg_reader.
     (n : nat)
     (freg_id : RegId @# ty)
     :  ActionT ty Data
-    := Call freg_val
-         :  Bit (@Flen procParams)
-         <- (@^"fregRead" ++ natToHexStr n) (freg_id : RegId); 
+    := LET fregId <- freg_id;
+       LETA freg_val <- RegArray.Ifc.read floatRegArray _ fregId;
        Ret (flen_one_extend Rlen #freg_val).
 
   Local Definition reg_reader

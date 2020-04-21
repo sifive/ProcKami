@@ -2,6 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 
+Require Import ProcKami.Pipeline.RegReader.
 
 Import ListNotations.
 
@@ -17,7 +18,8 @@ Section RegWriter.
     (reg_id : RegId @# ty)
     (data : Data @# ty)
     :  ActionT ty Void
-    := Call @^"regWrite"((STRUCT {"addr" ::= reg_id; "data" ::= xlen_sign_extend Xlen xlen data}): WriteRq RegIdWidth (Bit Xlen));
+    := LET writeArg <- ((STRUCT {"addr" ::= reg_id; "data" ::= xlen_sign_extend Xlen xlen data}): WriteRq RegIdWidth (Bit Xlen) @# ty);
+       LETA _ <- RegArray.Ifc.write intRegArray _ writeArg;
        System [DispString _ "Reg Write: "; DispHex reg_id; DispString _ " "; DispHex data; DispString _ "\n"];
        Retv.
 
@@ -25,7 +27,8 @@ Section RegWriter.
     (reg_id : RegId @# ty)
     (data : Data @# ty)
     :  ActionT ty Void
-    := Call @^"fregWrite"(STRUCT {"addr" ::= reg_id; "data" ::= OneExtendTruncLsb Flen data}: WriteRq RegIdWidth (Bit Flen));
+    := LET writeArg <- ((STRUCT {"addr" ::= reg_id; "data" ::= OneExtendTruncLsb Flen data}): WriteRq RegIdWidth (Bit Flen) @# ty);
+       LETA _ <- RegArray.Ifc.write floatRegArray _ writeArg;
        System [DispString _ "FReg Write: "; DispHex reg_id; DispString _ " "; DispHex data; DispString _ "\n"];
        Retv.
 

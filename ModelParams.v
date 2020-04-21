@@ -9,6 +9,7 @@ Require Import ProcKami.FU.
 Require Import ProcKami.MemParams.
 
 Require Import ProcKami.Pipeline.ProcessorCore.
+Require Import ProcKami.Pipeline.Impl.
 
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Add.
 Require Import ProcKami.RiscvIsaSpec.Insts.Alu.Logical.
@@ -293,7 +294,7 @@ Section exts.
   End ty.
 
   Definition generateCore
-    := @processorPipeline modelProcParams param_func_units deviceTree memParams.
+    := @processorCore modelProcParams param_func_units deviceTree memParams.
 
   Definition generateModel
     := @processor

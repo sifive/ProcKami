@@ -87,42 +87,7 @@ Section Params.
            := Pipeline.Ifc.arbiterResetRule pipeline
          }.
 
-  Definition intRegArray := @RegArray.Impl.impl
-                              {| name := @^"intRegs";
-                                 k := Bit Xlen;
-                                 size := Nat.pow 2 RegIdWidth;
-                                 init := None
-                              |}.
-  
-  Definition floatRegArray := @RegArray.Impl.impl
-                                {| name := @^"flatRegs";
-                                   k := Bit Flen;
-                                   size := Nat.pow 2 RegIdWidth;
-                                   init := None
-                                |}.
-  
-  Definition intRegFile :=
-    (MODULE {
-         Registers (RegArray.Ifc.regs intRegArray) with
-         Method @^"regRead1"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
-         Method @^"regRead2"(req: RegId): Bit Xlen := RegArray.Ifc.read intRegArray _ req with
-         Method @^"regWrite"(req: WriteRq RegIdWidth (Bit Xlen)): Void :=
-           RegArray.Ifc.write intRegArray _ req
-      })%kami.
-
-  Definition floatRegFile :=
-    (MODULE {
-         Registers (RegArray.Ifc.regs floatRegArray) with
-         Method @^"fregRead1"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
-         Method @^"fregRead2"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
-         Method @^"fregRead3"(req: RegId): Bit Flen := RegArray.Ifc.read floatRegArray _ req with
-         Method @^"fregWrite"(req: WriteRq RegIdWidth (Bit Flen)): Void :=
-           RegArray.Ifc.write floatRegArray _ req
-      })%kami.
-
-  Definition processorPipeline := ConcatMod processorCore (ConcatMod intRegFile floatRegFile).
-
-  Definition processor := let md := ConcatMod processorPipeline (deviceMod deviceTree (Pipeline.Ifc.ArbiterTag pipeline)) in
+  Definition processor := let md := ConcatMod processorCore (deviceMod deviceTree (Pipeline.Ifc.ArbiterTag pipeline)) in
                           (createHideMod md (map fst (getAllMethods md))).
 
 

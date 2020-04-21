@@ -403,11 +403,15 @@ Section Impl.
               ] ++
               @Fifo.Ifc.regs _ tokenFifo ++
               @Fifo.Ifc.regs _ decExecFifo ++
-              @Mem.Ifc.regs _ _ _ mem;
+              @Mem.Ifc.regs _ _ _ mem ++
+              (RegArray.Ifc.regs intRegArray) ++
+              (RegArray.Ifc.regs floatRegArray);
          Pipeline.Ifc.regFiles
            := @Fifo.Ifc.regFiles _ tokenFifo ++
               @Fifo.Ifc.regFiles _ decExecFifo ++
-              @Mem.Ifc.regFiles _ _ _ mem;
+              @Mem.Ifc.regFiles _ _ _ mem ++
+              (RegArray.Ifc.regFiles intRegArray) ++
+              (RegArray.Ifc.regFiles floatRegArray);
          Pipeline.Ifc.tokenStartRule                      := tokenStartRule;
          Pipeline.Ifc.mmuSendReqRule                      := Mem.Ifc.mmuSendReqRule mem;
          Pipeline.Ifc.mmuResRule                          := Mem.Ifc.mmuResRule mem;
