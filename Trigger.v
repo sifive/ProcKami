@@ -20,7 +20,7 @@ Section trigger.
       Definition trigData1Read (genTrigRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
         let genTrigPkt : StructPkt GenTrig @# ty :=
           regPktToStructPkt
-            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
             genTrigRegPkt in
         ZeroExtendTruncLsb xlen (pack (STRUCT {
           "header" ::= genTrigPkt @% "header";
@@ -30,7 +30,7 @@ Section trigger.
       Definition trigData2Read (genTrigRegPkt : StructRegPkt GenTrig @# ty) : Bit xlen @# ty :=
         ZeroExtendTruncLsb xlen (pack
           ((regPktToStructPkt
-            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
             genTrigRegPkt) @% "data2")).
 
       Definition trigData1Write
@@ -53,7 +53,7 @@ Section trigger.
            else
              result @%["info" <- 
                @structFieldRegWriteXform Bool GenTrigInfoField ty
-                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue) (* NOTE: must change if we support more than two trigger types. *)
+                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue)
                  (tdata1Pkt @% "info" : GenTrigInfo @# ty)].
            
     Definition trigData2Write
@@ -113,7 +113,6 @@ Section trigger.
            (fun ty => @trigData1Write ty)
            "trigData1".
 
-    (* TODO: ensure that we do not generate duplicate registers from the CSR table. *)
     Definition trigData2CsrField
       :  CsrField
       := @trigDataCsrField
@@ -245,7 +244,6 @@ Section trigger.
          | _ => $$false
          end.
 
-    (* TODO: LLEE: remove. This function is redundant w.r.t trigValueModeMatch *)
     Local Definition trigCountModeMatch
       (trigPkt : StructPkt (trig TrigCount) @# ty)
       (mode : PrivMode @# ty)
@@ -288,64 +286,60 @@ Section trigger.
     Local Definition genTrigUpdate
       (genTrigPkt : StructPkt GenTrig @# ty)
       (mode : PrivMode @# ty)
-      :  Maybe (StructPkt GenTrig) @# ty :=
-      IF genTrigPkt @% "header" @% "type" == $TrigTypeCount
-      then Valid (countPktToGenTrigPkt (trigCountUpdate (genTrigPktToCountPkt genTrigPkt) mode))
-      else
-        IF genTrigPkt @% "header" @% "type" == $TrigTypeValue
-        then
-          let trigPkt := trigValueUpdate (genTrigPktToValuePkt genTrigPkt) mode in
-          STRUCT {
-            "valid" ::= !(trigPkt @% "info" @% "chain");
-            "data"  ::= valuePktToGenTrigPkt trigPkt
-          } : Maybe (StructPkt GenTrig) @# ty
-        else Invalid.
+      : StructPkt GenTrig @# ty :=
+      Switch genTrigPkt @% "header" @% "type" Retn StructPkt GenTrig With {
+        ($TrigTypeCount : Bit 4 @# ty) ::=
+          countPktToGenTrigPkt (trigCountUpdate (genTrigPktToCountPkt genTrigPkt) mode);
+        ($TrigTypeValue : Bit 4 @# ty) ::=
+          let trigPkt := genTrigPktToValuePkt genTrigPkt in
+          IF trigPkt @% "info" @% "chain"
+          then genTrigPkt
+          else valuePktToGenTrigPkt (trigValueUpdate trigPkt mode)
+      }.
 
     Definition trigTrigMatch
       (genTrigPkt : StructPkt GenTrig @# ty)
       (event : TrigEvent)
       (mode : PrivMode @# ty)
-      :  Maybe TrigsActionKind @# ty
-      := IF genTrigPkt @% "header" @% "type" == $TrigTypeValue
-         then
-           let trig
-             :  StructPkt (trig TrigValue) @# ty
-             := genTrigPktToValuePkt genTrigPkt in
-           (STRUCT {
-             "valid" ::= trigValueMatch trig event mode;
-             "data"  ::=
-               (STRUCT {
-                 "enterDebugBefore" ::=
-                   ((trig @% "info" @% "action" == $TrigActDebug) &&
-                    (trig @% "info" @% "timing") : Bool @# ty);
-                 "enterDebugAfter" ::=
-                   ((trig @% "info" @% "action" == $TrigActDebug) &&
-                    !(trig @% "info" @% "timing") : Bool @# ty);
-                 "breakpointBefore" ::=
-                   ((trig @% "info" @% "action" == $TrigActBreak) &&
-                    (trig @% "info" @% "timing") : Bool @# ty);
-                 "breakpointAfter" ::=
-                   ((trig @% "info" @% "action" == $TrigActBreak) &&
-                    !(trig @% "info" @% "timing") : Bool @# ty)
-                } : TrigsActionKind @# ty)
-            } : Maybe TrigsActionKind @# ty)
-         else
-           IF genTrigPkt @% "header" @% "type" == $TrigTypeCount
-           then
-             let trig
-               :  StructPkt (trig TrigCount) @# ty
-               := genTrigPktToCountPkt genTrigPkt in
-             (STRUCT {
-               "valid" ::= trigCountMatch trig event mode;
-               "data"  ::=
-                 (STRUCT {
-                   "enterDebugBefore" ::= $$false; (* TODO: LLEE: check timing of count triggers. *)
-                   "enterDebugAfter" ::= (trig @% "info" @% "action" == $TrigActDebug);
-                   "breakpointBefore" ::= $$false;
-                   "breakpointAfter" ::= (trig @% "info" @% "action" == $TrigActBreak)
-                  } : TrigsActionKind @# ty)
-              } : Maybe TrigsActionKind @# ty)
-           else Invalid.
+      : Maybe TrigsActionKind @# ty :=
+      Switch genTrigPkt @% "header" @% "type" Retn Maybe TrigsActionKind With {
+        ($TrigTypeValue : Bit 4 @# ty) ::=
+          let trig
+            :  StructPkt (trig TrigValue) @# ty
+            := genTrigPktToValuePkt genTrigPkt in
+          (STRUCT {
+            "valid" ::= trigValueMatch trig event mode;
+            "data"  ::=
+              (STRUCT {
+                "enterDebugBefore" ::=
+                  ((trig @% "info" @% "action" == $TrigActDebug) &&
+                   (trig @% "info" @% "timing") : Bool @# ty);
+                "enterDebugAfter" ::=
+                  ((trig @% "info" @% "action" == $TrigActDebug) &&
+                   !(trig @% "info" @% "timing") : Bool @# ty);
+                "breakpointBefore" ::=
+                  ((trig @% "info" @% "action" == $TrigActBreak) &&
+                   (trig @% "info" @% "timing") : Bool @# ty);
+                "breakpointAfter" ::=
+                  ((trig @% "info" @% "action" == $TrigActBreak) &&
+                   !(trig @% "info" @% "timing") : Bool @# ty)
+               } : TrigsActionKind @# ty)
+           } : Maybe TrigsActionKind @# ty);
+        ($TrigTypeCount : Bit 4 @# ty) ::= 
+          let trig
+            :  StructPkt (trig TrigCount) @# ty
+            := genTrigPktToCountPkt genTrigPkt in
+          (STRUCT {
+            "valid" ::= trigCountMatch trig event mode;
+            "data"  ::=
+              (STRUCT {
+                "enterDebugBefore" ::= $$false; (* TODO: LLEE: check timing of count triggers. *)
+                "enterDebugAfter" ::= (trig @% "info" @% "action" == $TrigActDebug);
+                "breakpointBefore" ::= $$false;
+                "breakpointAfter" ::= (trig @% "info" @% "action" == $TrigActBreak)
+               } : TrigsActionKind @# ty)
+           } : Maybe TrigsActionKind @# ty)
+      }.
 
     Definition trigUpdateTrigs
       (event : TrigEvent)
@@ -364,17 +358,11 @@ Section trigger.
           let updatedTrigRegPkt :=
             structPktToRegPkt
               (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
-              (updatedTrigPkt @% "data") in
+              updatedTrigPkt in
           IF matches @% "valid"
           then
-            let genTrigs : GenTrigs @# ty := acc @% "fst" in
-            let updatedGenTrigs : GenTrigs @# ty :=
-              genTrigs @[($i : Bit (lgNumTrigs trigCfg) @# ty) <- updatedTrigRegPkt] in
             STRUCT {
-              "fst" ::=
-                IF updatedTrigPkt @% "valid"
-                then updatedGenTrigs
-                else acc @% "fst";
+              "fst" ::= acc @% "fst" @[($i : Bit (lgNumTrigs trigCfg) @# ty) <- updatedTrigRegPkt];
               "snd" ::= 
                 (STRUCT {
                    "enterDebugBefore" ::=
@@ -403,16 +391,6 @@ Section trigger.
                 "breakpointAfter"  ::= $$false
               } : TrigsActionKind @# ty)
          } : Pair GenTrigs TrigsActionKind @# ty).
-
-    (* performs this action when a trigger matches whose action causes the hart to enter debug mode. *)
-    Definition trigHartDebug
-      (pc : VAddr @# ty)
-      (mode : PrivMode @# ty)
-      :  ActionT ty Void
-      := Write @^"debug" : Bool <- $$true;
-         Write @^"dpc" : Bit Xlen <- SignExtendTruncLsb Xlen pc;
-         Write @^"prv" : Bit 2 <- ZeroExtendTruncLsb 2 mode;
-         Retv.
 
   End ty.
 
