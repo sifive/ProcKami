@@ -475,19 +475,6 @@ Section Params.
   Definition TrigActBreak := 0.
   Definition TrigActDebug := 1.
 
-  Local Open Scope kami_expr.
-
-  (* TODO: LLEE: rescale based on configuration. *)
-  Definition TrigsActionKind :=
-    STRUCT_TYPE {
-      "enterDebugBefore" :: Bool;
-      "enterDebugAfter"  :: Bool;
-      "breakpointBefore" :: Bool;
-      "breakpointAfter"  :: Bool
-    }.
-
-  Local Close Scope kami_expr.
-
   Local Definition numTrigTypes :=
     match supportedTypes trigCfg with
     | TrigTypeBoth => 2
