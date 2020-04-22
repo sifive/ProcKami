@@ -2,6 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
+Require Import ProcKami.MemOpsFuncs.
 
 Require Import StdLibKami.Router.Ifc.
 
@@ -17,6 +18,7 @@ Section device.
     {| baseName := "pMem";
        baseIo := true;
        basePmas := pmas_default;
+       baseAmo := AmoArith;
        baseRegFiles := {| rfIsWrMask := true;
                           rfNum := Rlen_over_8;
                           rfDataArray := "pMemFile";

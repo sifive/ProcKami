@@ -2,6 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
+Require Import ProcKami.MemOpsFuncs.
 
 Require Import StdLibKami.Router.Ifc.
 
@@ -17,6 +18,7 @@ Section device.
     {| baseName := "debug";
        baseIo := true;
        basePmas := pmas_default;
+       baseAmo := AmoNone;
        baseRegFiles := nil;
        baseRegs := nil;
        write :=

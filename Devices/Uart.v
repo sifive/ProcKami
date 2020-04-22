@@ -2,6 +2,7 @@ Require Import Kami.AllNotations.
 
 Require Import ProcKami.FU.
 Require Import ProcKami.Device.
+Require Import ProcKami.MemOpsFuncs.
 
 Require Import StdLibKami.Router.Ifc.
 
@@ -28,6 +29,7 @@ Section device.
     {| baseName := "uart";
        baseIo := true;
        basePmas := pmas_default;
+       baseAmo := AmoNone;
        baseRegFiles := nil;
        baseRegs := makeModule_regs (Register "uartRes" : Maybe Data <- Default )%kami;
        write := (fun ty req =>

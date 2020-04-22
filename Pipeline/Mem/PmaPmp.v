@@ -45,18 +45,46 @@ Section PmaPmp.
                 (tag devs));
        Ret (#result @% "data").
 
+  Local Definition AmoCodeNone    := 0.
+  Local Definition AmoCodeSwap    := 1.
+  Local Definition AmoCodeLogical := 2.
+  Local Definition AmoCodeArith   := 3.
+  Local Definition AmoCodeSz      := Nat.log2_up 4.
+  Local Definition AmoCode        := Bit AmoCodeSz.
+
+  Local Definition toAmoCode (amoClass : PmaAmoClass) : nat :=
+    match amoClass with
+    | AmoNone    => AmoCodeNone
+    | AmoSwap    => AmoCodeSwap
+    | AmoLogical => AmoCodeLogical
+    | AmoArith   => AmoCodeArith
+    end.
+
+  Local Definition amoCodeSelect ty (amoCode : AmoCode @# ty) k
+    (f : PmaAmoClass -> k @# ty) : k @# ty :=
+    Switch amoCode Retn k With {
+      ($AmoCodeNone    : AmoCode @# ty) ::= f AmoNone;
+      ($AmoCodeSwap    : AmoCode @# ty) ::= f AmoSwap;
+      ($AmoCodeLogical : AmoCode @# ty) ::= f AmoLogical;
+      ($AmoCodeArith   : AmoCode @# ty) ::= f AmoArith
+    }.
+
+  Local Definition amoIsSubset (x y : PmaAmoClass) : bool :=
+    Nat.leb (toAmoCode x) (toAmoCode y).
+
   Local Definition checkPma ty
     (dtag : DeviceTag @# ty)
     (offset : FU.Offset @# ty)
     (req_len : MemRqLgSize @# ty)
     (access_type : AccessType @# ty)
+    (amoCode : AmoCode @# ty)
     :  ActionT ty PmaSuccessPkt 
     := @mem_device_apply ty
          (@ProcKami.Device.devices _ deviceTree)
          dtag PmaSuccessPkt
          (fun dev
            => let acc_pmas f := (@Kor _ Bool) (map f (@pmas _ dev)) in
-              let width_match pma := req_len == $(pma_width pma) in
+              let width_match pma := req_len == $(pmaWidth pma) in
               Ret (STRUCT {
                   "width" ::= acc_pmas width_match;
                   "pma"
@@ -65,20 +93,21 @@ Section PmaPmp.
                             => width_match pma &&
                                Switch access_type Retn Bool With {
                                  ($VmAccessInst : AccessType @# ty)
-                                   ::= ($$(pma_executable pma) : Bool @# ty);
+                                   ::= ($$(pmaExecutable pma) : Bool @# ty);
                                  ($VmAccessLoad : AccessType @# ty)
-                                   ::= ($$(pma_readable pma) : Bool @# ty);
+                                   ::= ($$(pmaReadable pma) : Bool @# ty);
                                  ($VmAccessSAmo : AccessType @# ty)
-                                   ::= ($$(pma_writeable pma) : Bool @# ty)
-                               });
+                                   ::= ($$(pmaWriteable pma) : Bool @# ty)
+                               } &&
+                               amoCodeSelect amoCode
+                                 (fun amoClass => $$(amoIsSubset amoClass (amo dev))));
                   "misaligned"
                     ::= acc_pmas
                          (fun pma
                            => width_match pma &&
                               (isAligned offset req_len || 
-                               $$(pma_misaligned pma)))
+                               $$(pmaMisaligned pma)))
                 } : PmaSuccessPkt @# ty)).
-
 
   Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
                                          "offset" :: FU.Offset }.
@@ -106,17 +135,15 @@ Section PmaPmp.
 
   Definition getDTagOffsetPmaPmpError ty
              (accessType: AccessType @# ty)
-             (memOp: MemOpCode @# ty)
+             (memOpCode: MemOpCode @# ty)
              (mode: PrivMode @# ty)
              (addr: PAddr @# ty)
     :  ActionT ty (Pair (Maybe DTagOffset) MemErrorPkt)
     := LETA size
          :  MemRqLgSize
-         <- applyMemOp
-              memOps
-              (fun memOp
-                => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
-              memOp;
+         <- applyMemOp memOps
+              (fun memOp => Ret ($(memOpSize memOp) : MemRqLgSize @# ty))
+              memOpCode;
        LETA pmp_result
          :  Bool
          <- checkPmp
@@ -125,13 +152,16 @@ Section PmaPmp.
               addr
               #size;
        LETA dTagOffset: Maybe DTagOffset <- getDTagOffset addr;
+       LETA amoCode : AmoCode
+         <- applyMemOp memOps (fun memOp => Ret $(toAmoCode (memOpAmoClass memOp))) memOpCode;
        LETA pma_result
          :  PmaSuccessPkt
          <- checkPma
               (#dTagOffset @% "data" @% "dtag")
               (#dTagOffset @% "data" @% "offset")
               #size
-              accessType;
+              accessType
+              #amoCode;
        LET err_pkt : MemErrorPkt
          <- STRUCT {
               "pmp"        ::= !#pmp_result;
