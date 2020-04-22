@@ -18,7 +18,7 @@ Section device.
     {| baseName := "pMem";
        baseIo := true;
        basePmas := pmas_default;
-       baseAmos := [AmoSwap; AmoLogical; AmoArith];
+       baseAmo := AmoArith;
        baseRegFiles := {| rfIsWrMask := true;
                           rfNum := Rlen_over_8;
                           rfDataArray := "pMemFile";

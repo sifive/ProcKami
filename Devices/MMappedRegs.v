@@ -81,7 +81,7 @@ Section mmregs.
                               pmaMisaligned := true;
                             |})
                          [0;1;2;3];
-           baseAmos := [];
+           baseAmo := AmoNone;
            baseRegFiles := nil;
            baseRegs := (if genReg
                         then map (fun mmReg =>

@@ -18,7 +18,7 @@ Section device.
     {| baseName := "debug";
        baseIo := true;
        basePmas := pmas_default;
-       baseAmos := [];
+       baseAmo := AmoNone;
        baseRegFiles := nil;
        baseRegs := nil;
        write :=

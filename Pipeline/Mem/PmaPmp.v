@@ -45,40 +45,32 @@ Section PmaPmp.
                 (tag devs));
        Ret (#result @% "data").
 
-  Local Definition AmoCodeNone := 0.
-  Local Definition AmoCodeSwap := 1.
+  Local Definition AmoCodeNone    := 0.
+  Local Definition AmoCodeSwap    := 1.
   Local Definition AmoCodeLogical := 2.
-  Local Definition AmoCodeArith := 3.
-  Local Definition AmoCodeSz := Nat.log2_up 4.
-  Local Definition AmoCode := Bit AmoCodeSz.
+  Local Definition AmoCodeArith   := 3.
+  Local Definition AmoCodeSz      := Nat.log2_up 4.
+  Local Definition AmoCode        := Bit AmoCodeSz.
 
-  Local Definition toAmoCode ty (amoClass : option PmaAmoClass) : AmoCode @# ty :=
+  Local Definition toAmoCode (amoClass : PmaAmoClass) : nat :=
     match amoClass with
-    | None => $AmoCodeNone
-    | Some class =>
-      match class with
-      | AmoSwap    => $AmoCodeSwap
-      | AmoLogical => $AmoCodeLogical
-      | AmoArith   => $AmoCodeArith
-      end
+    | AmoNone    => AmoCodeNone
+    | AmoSwap    => AmoCodeSwap
+    | AmoLogical => AmoCodeLogical
+    | AmoArith   => AmoCodeArith
     end.
 
   Local Definition amoCodeSelect ty (amoCode : AmoCode @# ty) k
-    (f : option PmaAmoClass -> k @# ty) : k @# ty :=
+    (f : PmaAmoClass -> k @# ty) : k @# ty :=
     Switch amoCode Retn k With {
-      ($AmoCodeNone    : AmoCode @# ty) ::= f None;
-      ($AmoCodeSwap    : AmoCode @# ty) ::= f (Some AmoSwap);
-      ($AmoCodeLogical : AmoCode @# ty) ::= f (Some AmoLogical);
-      ($AmoCodeArith   : AmoCode @# ty) ::= f (Some AmoArith)
+      ($AmoCodeNone    : AmoCode @# ty) ::= f AmoNone;
+      ($AmoCodeSwap    : AmoCode @# ty) ::= f AmoSwap;
+      ($AmoCodeLogical : AmoCode @# ty) ::= f AmoLogical;
+      ($AmoCodeArith   : AmoCode @# ty) ::= f AmoArith
     }.
 
-  Lemma amoClassDec : forall x y : PmaAmoClass, {x = y}+{x <> y}.
-  Proof.
-    destruct x; repeat (destruct y; ((right; discriminate) || (left; reflexivity))).
-  Qed.
-
-  Local Definition amoClassInDec
-    : forall (x : PmaAmoClass) (xs : list PmaAmoClass), {In x xs}+{~ In x xs} := in_dec amoClassDec.
+  Local Definition amoIsSubset (x y : PmaAmoClass) : bool :=
+    Nat.leb (toAmoCode x) (toAmoCode y).
 
   Local Definition checkPma ty
     (dtag : DeviceTag @# ty)
@@ -108,14 +100,7 @@ Section PmaPmp.
                                    ::= ($$(pmaWriteable pma) : Bool @# ty)
                                } &&
                                amoCodeSelect amoCode
-                                 (fun amoClass =>
-                                   match amoClass with
-                                   | None => $$true
-                                   | Some class =>
-                                     if amoClassInDec class (amos dev)
-                                     then $$true
-                                     else $$false
-                                   end));
+                                 (fun amoClass => $$(amoIsSubset amoClass (amo dev))));
                   "misaligned"
                     ::= acc_pmas
                          (fun pma
@@ -123,7 +108,6 @@ Section PmaPmp.
                               (isAligned offset req_len || 
                                $$(pmaMisaligned pma)))
                 } : PmaSuccessPkt @# ty)).
-
 
   Definition DTagOffset := STRUCT_TYPE { "dtag" :: DeviceTag;
                                          "offset" :: FU.Offset }.
@@ -169,7 +153,7 @@ Section PmaPmp.
               #size;
        LETA dTagOffset: Maybe DTagOffset <- getDTagOffset addr;
        LETA amoCode : AmoCode
-         <- applyMemOp memOps (fun memOp => Ret (toAmoCode ty (memOpAmoClass memOp))) memOpCode;
+         <- applyMemOp memOps (fun memOp => Ret $(toAmoCode (memOpAmoClass memOp))) memOpCode;
        LETA pma_result
          :  PmaSuccessPkt
          <- checkPma

@@ -27,7 +27,7 @@ Section device.
                      pmaMisaligned := true
                    |})
                 [0; 1; 2; 3];
-       baseAmos := [];
+       baseAmo := AmoNone;
        baseRegFiles := {| rfIsWrMask := true;
                           rfNum := Rlen_over_8;
                           rfDataArray := "bootRomFile";

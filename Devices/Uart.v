@@ -29,7 +29,7 @@ Section device.
     {| baseName := "uart";
        baseIo := true;
        basePmas := pmas_default;
-       baseAmos := [];
+       baseAmo := AmoNone;
        baseRegFiles := nil;
        baseRegs := makeModule_regs (Register "uartRes" : Maybe Data <- Default )%kami;
        write := (fun ty req =>

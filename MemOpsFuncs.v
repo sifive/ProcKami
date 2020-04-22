@@ -31,7 +31,7 @@ Section memOpsFuncs.
        | _ => false
        end.
 
-  Inductive PmaAmoClass := AmoSwap | AmoLogical | AmoArith.
+  Inductive PmaAmoClass := AmoNone | AmoSwap | AmoLogical | AmoArith.
 
   Record Pma
     := {
@@ -58,7 +58,7 @@ Section memOpsFuncs.
     memOpName : MemOpName;
     memOpCode : N;
     memOpSize : nat;
-    memOpAmoClass : option PmaAmoClass;
+    memOpAmoClass : PmaAmoClass;
     memOpRegValue : MemRegValue;
     memOpWriteValue : MemWriteValue
   }.

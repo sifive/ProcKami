@@ -30,7 +30,7 @@ Section DeviceIfc.
          name : string;
          io   : bool;
          pmas : list Pma;
-         amos : list PmaAmoClass;
+         amo  : PmaAmoClass;
          regFiles: list RegFileBase;
          regs: forall tagK: Kind, list RegInitT;
          deviceIfc : forall tagK, DeviceIfc (Req tagK) (Res tagK) }.
@@ -38,7 +38,7 @@ Section DeviceIfc.
   Class BaseDevice := { baseName: string;
                         baseIo: bool;
                         basePmas: list Pma;
-                        baseAmos : list PmaAmoClass;
+                        baseAmo: PmaAmoClass;
                         baseRegFiles: list RegFileBase;
                         baseRegs: list RegInitT;
                         write : forall ty, MemWrite @# ty -> ActionT ty Bool; (* Error *)
@@ -158,7 +158,7 @@ Section DeviceIfc.
       {| name := baseName;
          io   := baseIo;
          pmas := basePmas;
-         amos := baseAmos;
+         amo  := baseAmo;
          regFiles:= baseRegFiles;
          regs := fun tagK =>
                    makeModule_regs
