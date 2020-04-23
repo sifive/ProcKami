@@ -23,21 +23,28 @@ Section trigger.
     Section ty.
       Variable ty : Kind -> Type.
 
+      Local Definition trigRegPktIsValue (genTrigRegPkt : GenTrigRegPkt @# ty) : Bool @# ty :=
+        genTrigRegPkt @% "header" @% "type" == $TrigTypeValue.
+
+      Local Definition trigPktIsValue (genTrigPkt : GenTrigPkt @# ty) : Bool @# ty :=
+        genTrigPkt @% "header" @% "type" == $TrigTypeValue.
+
+      (* TODO: LLEE: check that this is not inefficient when only one trig type is supported. I.E. should the context kind vary based on the supported types? *)
+      Local Definition toGenTrigPkt (genTrigRegPkt : GenTrigRegPkt @# ty) : GenTrigPkt @# ty :=
+        regPktToStructPkt (trigRegPktIsValue genTrigRegPkt) genTrigRegPkt.
+
+      Local Definition toGenTrigRegPkt (genTrigPkt : GenTrigPkt @# ty) : GenTrigRegPkt @# ty :=
+        structPktToRegPkt (trigPktIsValue genTrigPkt) genTrigPkt.
+
       Local Definition trigData1Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
-        let genTrigPkt : GenTrigPkt @# ty :=
-          regPktToStructPkt
-            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
-            genTrigRegPkt in
+        let genTrigPkt : GenTrigPkt @# ty := toGenTrigPkt genTrigRegPkt in
         ZeroExtendTruncLsb xlen (pack (STRUCT {
           "header" ::= genTrigPkt @% "header";
           "info"  ::= genTrigPkt @% "info"
         } : GenTrigPktData1 @# ty)).
 
       Local Definition trigData2Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
-        ZeroExtendTruncLsb xlen (pack
-          ((regPktToStructPkt
-            (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
-            genTrigRegPkt) @% "data2")).
+        ZeroExtendTruncLsb xlen (pack ((toGenTrigPkt genTrigRegPkt) @% "data2")).
 
       Local Definition trigData1Write
         (debugMode : Bool @# ty)
@@ -130,8 +137,7 @@ Section trigger.
   Section ty.
     Variable ty : Kind -> Type.
 
-    Inductive TrigEventTiming : Set :=
-      trigEventBefore | trigEventAfter.
+    Inductive TrigEventTiming : Set := trigEventBefore | trigEventAfter.
 
     Local Definition trigEventTimingDec : forall x y : TrigEventTiming, {x = y}+{x <> y}.
     Proof.
@@ -153,20 +159,18 @@ Section trigger.
     Local Definition TrigEventSizeSz : nat := 
       Nat.log2_up (Nat.div (TrigValueData2RegSz (supportedSelect trigCfg)) 8).
 
-    Local Definition TrigEventValueSz : nat :=
-      TrigValueData2RegSz (supportedSelect trigCfg).
+    Local Definition TrigEventValueSz : nat := TrigValueData2RegSz (supportedSelect trigCfg).
 
     Local Definition TrigEventSize : Kind := Bit TrigEventSizeSz.
 
-    Local Definition TrigEventValue : Kind := Bit TrigEventValueSz. (* TrigValueData2RegKind (supportedSelect trigCfg). *)
+    Local Definition TrigEventValue : Kind := Bit TrigEventValueSz.
 
-    Record TrigEvent
-      := {
-           trigEventTiming : TrigEventTiming;
-           trigEventType  : TrigEventType;
-           trigEventSize  : TrigEventSize @# ty;
-           trigEventValue : TrigEventValue @# ty;
-         }.
+    Record TrigEvent := {
+      trigEventTiming : TrigEventTiming;
+      trigEventType  : TrigEventType;
+      trigEventSize  : TrigEventSize @# ty;
+      trigEventValue : TrigEventValue @# ty;
+    }.
 
     Local Definition trigValueTimingMatch
       (eventTiming : TrigEventTiming)
@@ -184,64 +188,66 @@ Section trigger.
 
     Local Definition trigValueModeMatch
       (trigPkt : TrigValuePkt @# ty)
-      (mode  : PrivMode @# ty)
-      :  Bool @# ty
-      := Switch mode Retn Bool With {
-           ($MachineMode : PrivMode @# ty)    ::= trigPkt @% "info" @% "m";
-           ($SupervisorMode : PrivMode @# ty) ::= trigPkt @% "info" @% "s";
-           ($UserMode : PrivMode @# ty)       ::= trigPkt @% "info" @% "u"
-         }.
+      (mode : PrivMode @# ty)
+      : Bool @# ty :=
+      Switch mode Retn Bool With {
+        ($MachineMode : PrivMode @# ty)    ::= trigPkt @% "info" @% "m";
+        ($SupervisorMode : PrivMode @# ty) ::= trigPkt @% "info" @% "s";
+        ($UserMode : PrivMode @# ty)       ::= trigPkt @% "info" @% "u"
+      }.
 
     Local Definition trigValueTypeMatch
       (eventType : TrigEventType)
       (trigPkt : TrigValuePkt @# ty)
-      :  Bool @# ty
-      := match eventType with
-         | trigEventFetchAddr  => trigPkt @% "info" @% "execute" && trigPkt @% "info" @% "select"
-         | trigEventFetchInst  => trigPkt @% "info" @% "execute" && !(trigPkt @% "info" @% "select")
-         | trigEventLoadAddr   => trigPkt @% "info" @% "load"  && trigPkt @% "info" @% "select"
-         | trigEventLoadData   => trigPkt @% "info" @% "load"  && !(trigPkt @% "info" @% "select")
-         | trigEventStoreAddr  => trigPkt @% "info" @% "store" && trigPkt @% "info" @% "select"
-         | trigEventStoreData  => trigPkt @% "info" @% "store" && !(trigPkt @% "info" @% "select")
-         | trigEventPostCommit => $$false
-         end.
+      : Bool @# ty :=
+      match eventType with
+      | trigEventFetchAddr  => trigPkt @% "info" @% "execute" && trigPkt @% "info" @% "select"
+      | trigEventFetchInst  => trigPkt @% "info" @% "execute" && !(trigPkt @% "info" @% "select")
+      | trigEventLoadAddr   => trigPkt @% "info" @% "load"  && trigPkt @% "info" @% "select"
+      | trigEventLoadData   => trigPkt @% "info" @% "load"  && !(trigPkt @% "info" @% "select")
+      | trigEventStoreAddr  => trigPkt @% "info" @% "store" && trigPkt @% "info" @% "select"
+      | trigEventStoreData  => trigPkt @% "info" @% "store" && !(trigPkt @% "info" @% "select")
+      | trigEventPostCommit => $$false
+      end.
 
     Local Definition trigValueSizeMatch
       (trigPkt : TrigValuePkt @# ty)
-      (sz  : TrigEventSize @# ty)
-      :  Bool @# ty
-      := let eventSz
-           :  TrigEventSize @# ty
-           := ZeroExtendTruncLsb TrigEventSizeSz ({< trigPkt @% "info" @% "sizehi", trigPkt @% "info" @% "sizelo" >}) in
-         eventSz == $0 || sz == eventSz.
+      (sz : TrigEventSize @# ty)
+      : Bool @# ty :=
+      let eventSz : TrigEventSize @# ty :=
+        ZeroExtendTruncLsb TrigEventSizeSz
+          ({< trigPkt @% "info" @% "sizehi",
+              trigPkt @% "info" @% "sizelo" >}) in
+      eventSz == $0 || sz == eventSz.
 
     Local Definition trigValueValueMatch
       (trigPkt : TrigValuePkt @# ty)
-      (value  : TrigEventValue @# ty)
-      :  Bool @# ty
-      := let size
-           :  TrigEventSize @# ty
-           := ZeroExtendTruncLsb TrigEventSizeSz ({< trigPkt @% "info" @% "sizehi", trigPkt @% "info" @% "sizelo" >}) in
-         let data2 := pack (trigPkt @% "data2") in
-         Switch trigPkt @% "info" @% "match" Retn Bool With {
-           ($0 : Bit 4 @# ty) ::= value == SignExtendTruncLsb _ data2;
-           ($1 : Bit 4 @# ty) ::= $$false; (* TODO: what does the text mean here? 5.2.9 *)
-           ($2 : Bit 4 @# ty) ::= (value >= SignExtendTruncLsb _ data2);
-           ($3 : Bit 4 @# ty) ::= (value <= SignExtendTruncLsb _ data2);
-           ($4 : Bit 4 @# ty)
-             ::= (SignExtendTruncLsb (Rlen / 2)%nat value .&
-                  SignExtendTruncMsb (Rlen / 2)%nat data2) ==
-                 (SignExtendTruncLsb (Rlen / 2)%nat data2);
-           ($5 : Bit 4 @# ty)
-             ::= (SignExtendTruncMsb (Rlen / 2)%nat value .&
-                  SignExtendTruncMsb (Rlen / 2)%nat data2) ==
-                 (SignExtendTruncLsb (Rlen / 2)%nat data2)
-         }.
+      (value : TrigEventValue @# ty)
+      : Bool @# ty :=
+      let size : TrigEventSize @# ty :=
+        ZeroExtendTruncLsb TrigEventSizeSz
+          ({< trigPkt @% "info" @% "sizehi",
+              trigPkt @% "info" @% "sizelo" >}) in
+      let data2 := pack (trigPkt @% "data2") in
+      Switch trigPkt @% "info" @% "match" Retn Bool With {
+        ($0 : Bit 4 @# ty) ::= value == SignExtendTruncLsb _ data2;
+        ($1 : Bit 4 @# ty) ::= $$false; (* TODO: LLEE: what does the text mean here? 5.2.9 *)
+        ($2 : Bit 4 @# ty) ::= (value >= SignExtendTruncLsb _ data2);
+        ($3 : Bit 4 @# ty) ::= (value <= SignExtendTruncLsb _ data2);
+        ($4 : Bit 4 @# ty) ::=
+          (SignExtendTruncLsb (Rlen / 2)%nat value .&
+           SignExtendTruncMsb (Rlen / 2)%nat data2) ==
+          (SignExtendTruncLsb (Rlen / 2)%nat data2);
+        ($5 : Bit 4 @# ty) ::=
+          (SignExtendTruncMsb (Rlen / 2)%nat value .&
+           SignExtendTruncMsb (Rlen / 2)%nat data2) ==
+          (SignExtendTruncLsb (Rlen / 2)%nat data2)
+      }.
 
     Local Definition trigValueMatch
       (event : TrigEvent)
       (trigPkt : TrigValuePkt @# ty)
-      (mode  : PrivMode @# ty)
+      (mode : PrivMode @# ty)
       : Bool @# ty :=
       trigValueTimingMatch (trigEventTiming event) trigPkt &&
       trigValueTypeMatch (trigEventType event) trigPkt &&
@@ -252,7 +258,7 @@ Section trigger.
     Local Definition trigValueUpdate
       (trigPkt : TrigValuePkt @# ty)
       (mode : PrivMode @# ty)
-      :  TrigValuePkt @# ty :=
+      : TrigValuePkt @# ty :=
       trigPkt @%["info" <-
         (trigPkt @% "info"
           @%["m" <- IF mode == $MachineMode    then $$false else trigPkt @% "info" @% "m"]
@@ -263,26 +269,24 @@ Section trigger.
     Local Definition trigCountTypeMatch
       (eventType : TrigEventType)
       (trigPkt : TrigCountPkt @# ty)
-      :  Bool @# ty
-      := match eventType with
-         | trigEventPostCommit => $$true
-         | _ => $$false
-         end.
+      : Bool @# ty :=
+      match eventType with
+      | trigEventPostCommit => $$true
+      | _ => $$false
+      end.
 
     Local Definition trigCountModeMatch
       (trigPkt : TrigCountPkt @# ty)
       (mode : PrivMode @# ty)
-      :  Bool @# ty
-      := Switch mode Retn Bool With {
-           ($MachineMode : PrivMode @# ty)    ::= trigPkt @% "info" @% "m";
-           ($SupervisorMode : PrivMode @# ty) ::= trigPkt @% "info" @% "s";
-           ($UserMode : PrivMode @# ty)       ::= trigPkt @% "info" @% "u"
-         }.
+      : Bool @# ty :=
+      Switch mode Retn Bool With {
+        ($MachineMode : PrivMode @# ty)    ::= trigPkt @% "info" @% "m";
+        ($SupervisorMode : PrivMode @# ty) ::= trigPkt @% "info" @% "s";
+        ($UserMode : PrivMode @# ty)       ::= trigPkt @% "info" @% "u"
+      }.
 
-    Local Definition trigCountCountMatch
-      (trigPkt : TrigCountPkt @# ty)
-      :  Bool @# ty
-      := trigPkt @% "info" @% "count" == $1.
+    Local Definition trigCountCountMatch (trigPkt : TrigCountPkt @# ty) : Bool @# ty :=
+      trigPkt @% "info" @% "count" == $1.
 
     Local Definition trigCountMatch
       (event : TrigEvent)
@@ -341,8 +345,7 @@ Section trigger.
             (IF trigPkt @% "info" @% "chain"
              then trigPkt
              else trigValueUpdate trigPkt mode))
-        (fun trigPkt =>
-          countPktToGenTrigPkt (trigCountUpdate trigPkt mode)).
+        (fun trigPkt => countPktToGenTrigPkt (trigCountUpdate trigPkt mode)).
 
     Local Definition trigsUpdate
       (matches : GenTrigPkt @# ty -> Bool @# ty)
@@ -352,19 +355,14 @@ Section trigger.
       fold_left
         (fun (acc : Pair Bool GenTrigs @# ty) i =>
           let trigRegPkt := trigs @[$i : Bit (lgNumTrigs trigCfg) @# ty] in
-          let trigPkt :=
-            regPktToStructPkt (* TODO: LLEE: check that this is not inefficient when only one trig type is supported. *)
-              (trigRegPkt @% "header" @% "type" == $TrigTypeValue)
-              trigRegPkt in
+          let trigPkt := toGenTrigPkt (trigRegPkt) in
           IF matches trigPkt
           then
             STRUCT {
               "fst" ::= $$true;
               "snd" ::= 
                 acc @% "snd" @[($i : Bit (lgNumTrigs trigCfg) @# ty) <-
-                                structPktToRegPkt
-                                  (trigRegPkt @% "header" @% "type" == $TrigTypeValue)
-                                  (genTrigUpdate mode trigPkt)]
+                               toGenTrigRegPkt (genTrigUpdate mode trigPkt)]
             }
           else acc)
         (seq 0 (Nat.pow 2 (lgNumTrigs trigCfg)))
