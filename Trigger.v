@@ -23,7 +23,7 @@ Section trigger.
     Section ty.
       Variable ty : Kind -> Type.
 
-      Definition trigData1Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
+      Local Definition trigData1Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
         let genTrigPkt : GenTrigPkt @# ty :=
           regPktToStructPkt
             (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
@@ -33,13 +33,13 @@ Section trigger.
           "info"  ::= genTrigPkt @% "info"
         } : GenTrigPktData1 @# ty)).
 
-      Definition trigData2Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
+      Local Definition trigData2Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
         ZeroExtendTruncLsb xlen (pack
           ((regPktToStructPkt
             (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue)
             genTrigRegPkt) @% "data2")).
 
-      Definition trigData1Write
+      Local Definition trigData1Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
         (genTrigRegPkt : GenTrigRegPkt @# ty)
@@ -62,7 +62,7 @@ Section trigger.
                  (tdata1Pkt @% "header" @% "type" == $TrigTypeValue)
                  (tdata1Pkt @% "info" : GenTrigInfo @# ty)].
            
-    Definition trigData2Write
+    Local Definition trigData2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
         (genTrigRegPkt : GenTrigRegPkt @# ty)
@@ -80,7 +80,7 @@ Section trigger.
       :  Bool @# ty
       := context @% "mode" == $MachineMode || context @% "debug".
 
-    Definition trigDataCsrField
+    Local Definition trigDataCsrField
       (read : forall ty, GenTrigRegPkt @# ty -> Bit xlen @# ty)
       (write :
         forall ty, Bool @# ty -> PrivMode @# ty ->
@@ -150,16 +150,15 @@ Section trigger.
       |  trigEventStoreData
       |  trigEventPostCommit.
 
-    (* TODO: LLEE: can this be made local? *)
-    Definition TrigEventSizeSz : nat := 
+    Local Definition TrigEventSizeSz : nat := 
       Nat.log2_up (Nat.div (TrigValueData2RegSz (supportedSelect trigCfg)) 8).
 
-    Definition TrigEventValueSz : nat :=
+    Local Definition TrigEventValueSz : nat :=
       TrigValueData2RegSz (supportedSelect trigCfg).
 
-    Definition TrigEventSize : Kind := Bit TrigEventSizeSz.
+    Local Definition TrigEventSize : Kind := Bit TrigEventSizeSz.
 
-    Definition TrigEventValue : Kind := Bit TrigEventValueSz. (* TrigValueData2RegKind (supportedSelect trigCfg). *)
+    Local Definition TrigEventValue : Kind := Bit TrigEventValueSz. (* TrigValueData2RegKind (supportedSelect trigCfg). *)
 
     Record TrigEvent
       := {
@@ -239,7 +238,7 @@ Section trigger.
                  (SignExtendTruncLsb (Rlen / 2)%nat data2)
          }.
 
-    Definition trigValueMatch
+    Local Definition trigValueMatch
       (event : TrigEvent)
       (trigPkt : TrigValuePkt @# ty)
       (mode  : PrivMode @# ty)
