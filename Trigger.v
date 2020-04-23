@@ -23,18 +23,20 @@ Section trigger.
     Section ty.
       Variable ty : Kind -> Type.
 
-      Local Definition trigRegPktIsValue (genTrigRegPkt : GenTrigRegPkt @# ty) : Bool @# ty :=
-        genTrigRegPkt @% "header" @% "type" == $TrigTypeValue.
+      Local Definition trigRegPktContext (genTrigRegPkt : GenTrigRegPkt @# ty) : GenTrigContext @# ty :=
+        genTrigContextValue (genTrigRegPkt @% "header" @% "type" == $TrigTypeValue).
 
-      Local Definition trigPktIsValue (genTrigPkt : GenTrigPkt @# ty) : Bool @# ty :=
-        genTrigPkt @% "header" @% "type" == $TrigTypeValue.
+      Local Definition trigPktContext (genTrigPkt : GenTrigPkt @# ty) : GenTrigContext @# ty :=
+        genTrigContextValue (genTrigPkt @% "header" @% "type" == $TrigTypeValue).
 
-      (* TODO: LLEE: check that this is not inefficient when only one trig type is supported. I.E. should the context kind vary based on the supported types? *)
+      Local Definition trigData1Context (data1Pkt : GenTrigPktData1 @# ty) : GenTrigContext @# ty :=
+        genTrigContextValue (data1Pkt @% "header" @% "type" == $TrigTypeValue).
+
       Local Definition toGenTrigPkt (genTrigRegPkt : GenTrigRegPkt @# ty) : GenTrigPkt @# ty :=
-        regPktToStructPkt (trigRegPktIsValue genTrigRegPkt) genTrigRegPkt.
+        regPktToStructPkt (trigRegPktContext genTrigRegPkt) genTrigRegPkt.
 
       Local Definition toGenTrigRegPkt (genTrigPkt : GenTrigPkt @# ty) : GenTrigRegPkt @# ty :=
-        structPktToRegPkt (trigPktIsValue genTrigPkt) genTrigPkt.
+        structPktToRegPkt (trigPktContext genTrigPkt) genTrigPkt.
 
       Local Definition trigData1Read (genTrigRegPkt : GenTrigRegPkt @# ty) : Bit xlen @# ty :=
         let genTrigPkt : GenTrigPkt @# ty := toGenTrigPkt genTrigRegPkt in
@@ -50,34 +52,34 @@ Section trigger.
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
         (genTrigRegPkt : GenTrigRegPkt @# ty)
-        (tdata1 : Bit xlen @# ty)
+        (data1 : Bit xlen @# ty)
         :  GenTrigRegPkt @# ty
-        := let tdata1Pkt : GenTrigPktData1 @# ty
+        := let data1Pkt : GenTrigPktData1 @# ty
              := unpack (GenTrigPktData1)
-                  (ZeroExtendTruncLsb (size (GenTrigPktData1)) tdata1) in
+                  (ZeroExtendTruncLsb (size (GenTrigPktData1)) data1) in
            let nextHeader
              := IF debugMode
-                  then genTrigRegPkt @% "header" @%["dmode" <- tdata1Pkt @% "header" @% "dmode"]
+                  then genTrigRegPkt @% "header" @%["dmode" <- data1Pkt @% "header" @% "dmode"]
                   else genTrigRegPkt @% "header" in
            let result 
              := genTrigRegPkt @%["header" <- nextHeader] in
-           IF !debugMode && (mode != $MachineMode && tdata1Pkt @% "header" @% "dmode")
+           IF !debugMode && (mode != $MachineMode && data1Pkt @% "header" @% "dmode")
            then result
            else
              result @%["info" <- 
-               @structFieldRegWriteXform Bool GenTrigInfoField ty
-                 (tdata1Pkt @% "header" @% "type" == $TrigTypeValue)
-                 (tdata1Pkt @% "info" : GenTrigInfo @# ty)].
+               @structFieldRegWriteXform GenTrigContext GenTrigInfoField ty
+                 (trigData1Context data1Pkt)
+                 (data1Pkt @% "info" : GenTrigInfo @# ty)].
            
     Local Definition trigData2Write
         (debugMode : Bool @# ty)
         (mode : PrivMode @# ty)
         (genTrigRegPkt : GenTrigRegPkt @# ty)
-        (tdata2 : Bit xlen @# ty)
+        (data2 : Bit xlen @# ty)
         :  GenTrigRegPkt @# ty
         := IF !debugMode && (mode != $MachineMode && genTrigRegPkt @% "header" @% "dmode")
              then genTrigRegPkt
-             else genTrigRegPkt @%["data2" <- SignExtendTruncLsb GenTrigData2RegSz tdata2].
+             else genTrigRegPkt @%["data2" <- SignExtendTruncLsb GenTrigData2RegSz data2].
 
     End ty.
 

@@ -763,38 +763,69 @@ Section Params.
 
   Definition GenTrigData2Reg := Bit GenTrigData2RegSz.
 
-  Definition GenTrigInfoField : StructField Bool :=
-    @Build_StructField Bool "info"
+  Definition genTrigContext (cfg : TrigType) : Kind :=
+    match cfg with
+    | TrigTypeBoth => Bool
+    | _ => Void
+    end.
+
+  Definition GenTrigContext : Kind := genTrigContext (supportedTypes trigCfg).
+
+  Definition genTrigContextValue ty (value : Bool @# ty) : GenTrigContext @# ty :=
+    match supportedTypes trigCfg as x
+    return genTrigContext x @# ty with
+    | TrigTypeBoth => value
+    | _ => $$(wzero 0)
+    end.
+
+  Definition selectGenTrigContext ty
+    (k : Kind)
+    (f : k @# ty)
+    (g : k @# ty)
+    : GenTrigContext @# ty -> k @# ty :=
+    match supportedTypes trigCfg as x
+    return genTrigContext x @# ty -> k @# ty with
+    | AddressDataMatch => fun _ => f
+    | InstCount => fun _ => g
+    | TrigTypeBoth => fun context => IF context then f else g
+    end.
+
+  Definition GenTrigInfoField : StructField GenTrigContext :=
+    @Build_StructField GenTrigContext "info"
       GenTrigInfo
       GenTrigInfoReg
       None
       (fun ty context value =>
-        IF context
-        then packedRegPktToPackedStructPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value
-        else packedRegPktToPackedStructPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
+        selectGenTrigContext
+          (packedRegPktToPackedStructPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value)
+          (packedRegPktToPackedStructPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
+          context)
       (fun ty context value =>
-        IF context
-        then packedStructPktToPackedRegPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value
-        else packedStructPktToPackedRegPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value).
+        selectGenTrigContext
+          (packedStructPktToPackedRegPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value)
+          (packedStructPktToPackedRegPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
+          context).
 
-  Definition GenTrig : AbsStruct Bool := [
-    TrigHeaderField Bool;
+  Definition GenTrig : AbsStruct GenTrigContext := [
+    TrigHeaderField GenTrigContext;
     GenTrigInfoField;
-    @Build_StructField Bool "data2"
+    @Build_StructField GenTrigContext "data2"
       GenTrigData2
       GenTrigData2Reg
       None
       (fun ty context value =>
-        IF context
-        then packedRegPktToPackedStructPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value
-        else packedRegPktToPackedStructPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+        selectGenTrigContext
+          (packedRegPktToPackedStructPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value)
+          (packedRegPktToPackedStructPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+          context)
       (fun ty context value =>
-        IF context
-        then packedStructPktToPackedRegPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value
-        else packedStructPktToPackedRegPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+        selectGenTrigContext
+          (packedStructPktToPackedRegPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value)
+          (packedStructPktToPackedRegPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+          context)
   ].
 
-  Definition GenTrigData1 := [TrigHeaderField Bool; GenTrigInfoField].
+  Definition GenTrigData1 := [TrigHeaderField GenTrigContext; GenTrigInfoField].
 
   Definition genTrigPktToValuePkt ty
     (statePkt : StructPkt GenTrig @# ty)
