@@ -35,10 +35,12 @@ Require Import ProcKami.Pipeline.Executer.
 Require Import ProcKami.Pipeline.RegWriter.
 Require Import ProcKami.RiscvIsaSpec.Csr.Csr.
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-Require Import ProcKami.RiscvIsaSpec.Csr.CsrRewrites.
+(*Require Import ProcKami.RiscvIsaSpec.Csr.CsrRewrites.*)
 Require Import ProcKami.Pipeline.Commit.
 Require Import ProcKami.Devices.Debug.
 Require Import ProcKami.Pipeline.ProcessorCore.
+Require Import ProcKami.Pipeline.Impl_Properties.
+
 Require Import Kami.Rewrites.ReflectionImpl.
 
 Require Import ProcKami.Device.
@@ -148,7 +150,7 @@ Ltac solve_mem_separate_names:=
 
 Hint Resolve mem_separate_name_space_registers mem_separate_name_space_regs mem_separate_name_space_methods : mem_separate_names.
 *)
-(*Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
+Lemma csrViews_reference: forall a b c d, csrViews {| csrName := a; csrAddr := b; csrViews := c; csrAccess := d |} = c.
 Proof.
   reflexivity.
 Qed.
@@ -492,7 +494,7 @@ Hint Rewrite csrViews_reference csrViews_reference_list csrViews_reference_nil_l
 Hint Rewrite concat_app concat_cons concat_nil map_app app_nil_l app_nil_r
              reverse_app_comm_cons : simp_csrs.
 
-(*Inductive isSubModule: Mod -> Mod -> Prop :=
+(*(*Inductive isSubModule: Mod -> Mod -> Prop :=
   | isSubModule_Base: forall m, isSubModule m m
   | isSubModule_ConcatMod1: forall m1 m2 m, isSubModule m m1 -> isSubModule m (ConcatMod m1 m2)
   | isSubModule_ConcatMod2: forall m1 m2 m, isSubModule m m2 -> isSubModule m (ConcatMod m1 m2).
@@ -4161,15 +4163,75 @@ Admitted.
 
 Hint Resolve DisjKey_getAllMethods_processorCore_floatRegFile : wfMod_ConcatMod_Helper.
 
+(*Theorem has_reg_cons:
+  forall s k s' k' r' rest,
+    (has_reg s k ((s', existT RegInitValT k' r')::rest)) = (((s=?s')=true /\ k=k') \/ has_reg s k rest).
+Admitted.
+
+Theorem has_reg_app:
+  forall s k first rest,
+    has_reg s k (first++rest) = (has_reg s k first \/ has_reg s k rest).
+Admitted.*)
+
+Theorem WfActionT_SubList_expand:
+  forall ty k l1 l2 a, @WfActionT_new ty l1 k a -> SubList l1 l2 -> @WfActionT_new ty l2 k a.
+Admitted.
+
+Theorem In_cons2: forall t (e:t) f r, In e (f::r)=((f=e) \/ In e r).
+Proof.
+  intros.
+  simpl.
+  reflexivity.
+Qed.
+
 Theorem WfMod_processorCore:
   WfMod ty (processorCore func_units deviceTree memParams).
-(*Proof.
-  unfold processorCore.
+Proof.
+  (*unfold processorCore.
   autorewrite with kami_rewrite_db.
   apply WfMod_new_WfMod.
   compute [WfMod_new WfBaseModule_new].
   split.
-  unfold Csrs.
+  time (autorewrite with kami_rewrite_db).
+  compute [WfRules].
+  split; try (compute [WfRules]; apply I).
+  split; try (compute [WfRules]; apply I).
+  - compute [debugInterruptRule ProcessorCore.pipeline impl snd regs].
+    eapply WfActionT_SubList_expand.
+    apply WfActionT_new_debugInterruptRule.
+    apply nil.
+    apply deviceTree.
+    apply memParams.
+    compute [SubList].
+    intros.
+    rewrite In_cons2.
+    right.
+    rewrite In_cons2.
+    right.
+    rewrite in_app.
+    right.
+    rewrite in_app.
+    right.
+
+    rewrite In_cons2.
+    left.
+    simpl in H.
+    inversion H; subst; clear H.
+    + reflexivity.
+    + inversion H0.
+  - split.
+    + compute [snd externalInterruptRule ProcessorCore.pipeline impl snd].
+    eapply WfActionT_new_externalInterruptRule.
+    rewrite ?has_reg_cons.
+    rewrite ?has_reg_app.
+    rewrite ?has_reg_cons.
+    right.
+    right.
+    left.
+    unfold Csrs.
+    unfold csr_regs.
+    time (autorewrite with simp_csrs).
+  unfold Csrs. ++(csr_regs Csrs)++
   unfold csr_regs.
   time (autorewrite with kami_rewrite_db).
   time (autorewrite with simp_csrs).*)
