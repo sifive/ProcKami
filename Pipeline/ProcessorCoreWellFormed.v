@@ -330,7 +330,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_pmpField:
   forall l n, map csr_reg_csr_field ((pmpField n)::l)=
-                [(@^ ("pmp" ++ nat_decimal_string n ++ "cfg"),
+                [(@^ ("pmp" ++ natToHexStr n ++ "cfg"),
    existT RegInitValT (SyntaxKind PmpCfg) (Some (SyntaxConst Default)))]::
           (map csr_reg_csr_field l).
 Proof.
@@ -4019,11 +4019,12 @@ Proof.
       simpl in H.
 Admitted.
 
+
 Theorem DisjKey_getAllRegisters_processorCore_deviceTree:
   DisjKey (getAllRegisters (processorCore func_units deviceTree memParams))
-    (concat
-       (map (fun mm : RegFileBase => getRegFileRegisters mm)
-            (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
+    (getAllRegisters
+       (deviceMod deviceTree
+                  (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
 Proof.
   (*unfold processorCore.
   autorewrite with kami_rewrite_db;repeat (decide equality).
@@ -4033,60 +4034,11 @@ Proof.
 Admitted.
 Hint Resolve DisjKey_getAllRegisters_processorCore_deviceTree : wfMod_ConcatMod_Helper.
 
-Theorem DisjKey_getAllRegisters_processorCore_deviceBaseMod:
-  DisjKey (getAllRegisters (processorCore func_units deviceTree memParams))
-    (getAllRegisters
-       (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_processorCore_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_intRegFile_deviceTree:
- DisjKey (getAllRegisters intRegFile)
-   (concat
-      (map (fun mm : RegFileBase => getRegFileRegisters mm)
-           (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_intRegFile_deviceTree : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_intRegFile_deviceBaseMod:
- DisjKey (getAllRegisters intRegFile)
-   (getAllRegisters
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_intRegFile_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_floatRegFile_deviceTree:
-  DisjKey (getAllRegisters floatRegFile)
-   (concat
-      (map (fun mm : RegFileBase => getRegFileRegisters mm)
-           (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_floatRegFile_deviceTree : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_floatRegFile_deviceBaseMod:
- DisjKey (getAllRegisters floatRegFile)
-   (getAllRegisters
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_floatRegFile_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRules_processorCore_deviceBaseMod:
-  DisjKey (getAllRules (processorCore func_units deviceTree memParams))
-          (getAllRules (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllRules_processorCore_deviceBaseMod : wfMod_ConcatMod_Helper.
-
 Theorem DisjKey_getAllRules_processorCore_deviceTree:
- DisjKey (getAllMethods (processorCore func_units deviceTree memParams))
-   (concat
-      (map (fun mm : RegFileBase => getRegFileMethods mm)
-           (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
+ DisjKey (getAllRules (processorCore func_units deviceTree memParams))
+   (getAllRules
+      (deviceMod deviceTree
+         (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
 Admitted.
 
 Hint Resolve DisjKey_getAllRules_processorCore_deviceTree : wfMod_ConcatMod_Helper.
@@ -4094,84 +4046,11 @@ Hint Resolve DisjKey_getAllRules_processorCore_deviceTree : wfMod_ConcatMod_Help
 Theorem DisjKey_getAllMethods_processorCore_deviceBaseMod:
  DisjKey (getAllMethods (processorCore func_units deviceTree memParams))
    (getAllMethods
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
+      (deviceMod deviceTree
+         (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
 Admitted.
 
 Hint Resolve DisjKey_getAllMethods_processorCore_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_intRegFile_deviceTree:
- DisjKey (getAllMethods intRegFile)
-   (concat
-      (map (fun mm : RegFileBase => getRegFileMethods mm)
-           (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_intRegFile_deviceTree : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_intRegFile_deviceBaseMod:
- DisjKey (getAllMethods intRegFile)
-   (getAllMethods
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_intRegFile_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_floatRegFile_deviceTree:
- DisjKey (getAllMethods floatRegFile)
-   (concat
-      (map (fun mm : RegFileBase => getRegFileMethods mm)
-           (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_floatRegFile_deviceTree : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_floatRegFile_deviceBaseMod:
- DisjKey (getAllMethods floatRegFile)
-   (getAllMethods
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_floatRegFile_deviceBaseMod : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_processorCore_intRegFile:
-  DisjKey (getAllRegisters (processorCore func_units deviceTree memParams)) (getAllRegisters intRegFile).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_processorCore_intRegFile : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRegisters_processorCore_floatRegFile:
-  DisjKey (getAllRegisters (processorCore func_units deviceTree memParams)) (getAllRegisters floatRegFile).
-Admitted.
-
-Hint Resolve DisjKey_getAllRegisters_processorCore_floatRegFile : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllRules_processorCore_intRegFile:
-  DisjKey (getAllRules (processorCore func_units deviceTree memParams)) (getAllRules intRegFile).
-Admitted.
-
-Hint Resolve  DisjKey_getAllRules_processorCore_intRegFile : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_processorCore_intRegFile:
-  DisjKey (getAllMethods (processorCore func_units deviceTree memParams)) (getAllMethods intRegFile).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_processorCore_intRegFile : wfMod_ConcatMod_Helper.
-
-Theorem DisjKey_getAllMethods_processorCore_floatRegFile:
-  DisjKey (getAllMethods (processorCore func_units deviceTree memParams)) (getAllMethods floatRegFile).
-Admitted.
-
-Hint Resolve DisjKey_getAllMethods_processorCore_floatRegFile : wfMod_ConcatMod_Helper.
-
-(*Theorem has_reg_cons:
-  forall s k s' k' r' rest,
-    (has_reg s k ((s', existT RegInitValT k' r')::rest)) = (((s=?s')=true /\ k=k') \/ has_reg s k rest).
-Admitted.
-
-Theorem has_reg_app:
-  forall s k first rest,
-    has_reg s k (first++rest) = (has_reg s k first \/ has_reg s k rest).
-Admitted.*)
 
 Theorem WfActionT_SubList_expand:
   forall ty k l1 l2 a, @WfActionT_new ty l1 k a -> SubList l1 l2 -> @WfActionT_new ty l2 k a.
@@ -4237,78 +4116,7 @@ Proof.
   time (autorewrite with simp_csrs).*)
 Admitted.
 
-  
-  (*compute [csr_regs Csrs csrViews csr_reg_csr_field nilCsr csrFieldAny csrFieldValue csrFieldNoReg csr_reg_csr_field_reg map concat repeatCsrView csrViewFields nubBy app csrFieldRegAny csrFieldRegisterName csrFieldRegisterValue fold_right].
-  makeModule getRegisters makeModule_regs Registers map Csrs csr_regs nubBy concat fold_right csrViews repeatCsrView app nilCsr csrViewFields csr_reg_csr_field csrFieldAny csrFieldValue csrFieldNoReg csr_reg_csr_field_reg].
-  autorewrite with kami_rewrite_db.
-Admitted.*)
-
 Hint Resolve WfMod_processorCore : wfMod_ConcatMod_Helper.
-
-Theorem WfMod_ConcatMod_intRegFile_floatRegFile:
-  WfMod ty (ConcatMod intRegFile floatRegFile).
-Admitted.
-
-Hint Resolve WfMod_ConcatMod_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_getAllRules_processorCore:
- forall rule : RuleT,
- In rule (getAllRules (processorCore func_units deviceTree memParams)) ->
- WfConcatActionT (snd rule ty) (ConcatMod intRegFile floatRegFile).
-Admitted.
-
-Hint Resolve WfConcatActionT_getAllRules_processorCore : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_getAllMethods_processorCore:
- forall meth : string * {x : Signature & MethodT x},
- In meth (getAllMethods (processorCore func_units deviceTree memParams)) ->
- forall v : ty (fst (projT1 (snd meth))), WfConcatActionT (projT2 (snd meth) ty v) (ConcatMod intRegFile floatRegFile).
-Admitted.
-
-Hint Resolve WfConcatActionT_getAllMethods_processorCore : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_getAllRules_intRegFile:
- forall rule : RuleT,
-   In rule (getAllRules intRegFile) -> WfConcatActionT (snd rule ty) (processorCore func_units deviceTree memParams).
-Admitted.
-
-Hint Resolve WfConcatActionT_getAllRules_intRegFile : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_getAllMethods_intRegFile_floatRegFile:
- forall meth : string * {x : Signature & MethodT x},
- In meth (getAllMethods intRegFile ++ getAllMethods floatRegFile) ->
- forall v : ty (fst (projT1 (snd meth))),
-   WfConcatActionT (projT2 (snd meth) ty v) (processorCore func_units deviceTree memParams).
-Admitted.
-
-Hint Resolve WfConcatActionT_getAllMethods_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
-
-Theorem wfMod_processorCore_intRegFile_floatRegFile:
-  WfMod ty (ConcatMod (processorCore func_units deviceTree memParams) (ConcatMod intRegFile floatRegFile)).
-Proof.
-  apply ConcatModWf;try (unfold processorPipeline; autorewrite with kami_rewrite_db; repeat (decide equality); repeat split; try (unfold deviceMod; autorewrite with kami_rewrite_db; repeat (decide equality); repeat split)).
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - auto with wfMod_ConcatMod_Helper.
-  - intros.
-    apply WfConcatActionT_getAllRules_processorCore.
-    apply H.
-  - intros.
-    apply WfConcatActionT_getAllMethods_processorCore.
-    apply H.
-  - intros.
-    apply WfConcatActionT_getAllRules_intRegFile.
-    apply H.
-  - intros.
-    apply WfConcatActionT_getAllMethods_intRegFile_floatRegFile.
-    apply H.
-Qed.
-
-Hint Resolve wfMod_processorCore_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
 
 Theorem wfMod_fold_right_ConcatMod_deviceBaseMod_deviceTree:
  WfMod ty
@@ -4319,53 +4127,22 @@ Admitted.
 
 Hint Resolve wfMod_fold_right_ConcatMod_deviceBaseMod_deviceTree : wfMod_ConcatMod_Helper.
 
-Theorem WfConcatActionT_processorCore_deviceTree:
- forall rule : RuleT,
- In rule (getAllRules (processorCore func_units deviceTree memParams)) ->
- WfConcatActionT (snd rule ty)
-   (fold_right ConcatMod
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))
-      (map (fun m : RegFileBase => Base (BaseRegFile m)) (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
+Theorem wfConcat_processorCore:
+ WfConcat ty (processorCore func_units deviceTree memParams)
+   (deviceMod deviceTree
+              (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams))).
 Admitted.
 
-Hint Resolve WfConcatActionT_processorCore_deviceTree : wfMod_ConcatMod_Helper.
+Hint Resolve wfConcat_processorCore : wfMod_ConcatMod_Helper.
 
-Theorem WfConcatActionT_processorCore_intRegFile_floatRegFile:
- forall meth : string * {x : Signature & MethodT x},
- In meth
-   (getAllMethods (processorCore func_units deviceTree memParams) ++ getAllMethods intRegFile ++ getAllMethods floatRegFile) ->
- forall v : ty (fst (projT1 (snd meth))),
- WfConcatActionT (projT2 (snd meth) ty v)
-   (fold_right ConcatMod
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))
-      (map (fun m : RegFileBase => Base (BaseRegFile m)) (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree))))).
+Theorem wfConcat_deviceTree:
+ WfConcat ty
+   (deviceMod deviceTree
+      (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))
+   (processorCore func_units deviceTree memParams).
 Admitted.
 
-Hint Resolve WfConcatActionT_processorCore_intRegFile_floatRegFile : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_processorCore_intRegFile_floatRegFile2:
- forall rule : RuleT,
- In rule
-   (getAllRules (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))) ->
- WfConcatActionT (snd rule ty) (ConcatMod (processorCore func_units deviceTree memParams) (ConcatMod intRegFile floatRegFile)).
-Admitted.
-
-Hint Resolve WfConcatActionT_processorCore_intRegFile_floatRegFile2 : wfMod_ConcatMod_Helper.
-
-Theorem WfConcatActionT_deviceTree_pipeline:
- forall meth : string * {x : Signature & MethodT x},
- In meth
-   (concat
-      (map (fun mm : RegFileBase => getRegFileMethods mm)
-         (concat (map (fun dev : Device => Device.regFiles dev) (devices deviceTree)))) ++
-    getAllMethods
-      (DeviceMod.deviceBaseMod deviceTree (Ifc.ArbiterTag (ProcessorCore.pipeline func_units deviceTree memParams)))) ->
- forall v : ty (fst (projT1 (snd meth))),
- WfConcatActionT (projT2 (snd meth) ty v)
-   (ConcatMod (processorCore func_units deviceTree memParams) (ConcatMod intRegFile floatRegFile)).
-Admitted.
-
-Hint Resolve WfConcatActionT_deviceTree_pipeline : wfMod_ConcatMod_Helper.
+Hint Resolve wfConcat_deviceTree : wfMod_ConcatMod_Helper.
 
 Lemma WfModProcessor:
         WfMod ty (@processor procParams func_units deviceTree memParams).
@@ -4385,29 +4162,8 @@ Lemma WfModProcessor:
         + auto with wfMod_ConcatMod_Helper.
         + auto with wfMod_ConcatMod_Helper.
         + auto with wfMod_ConcatMod_Helper.
-        + apply DisjKey_nil2.
         + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + auto with wfMod_ConcatMod_Helper.
-        + intros.
-          eapply WfConcatActionT_processorCore_deviceTree.
-          apply H.
-        + intros.
-          eapply  WfConcatActionT_processorCore_intRegFile_floatRegFile.
-          apply H.
-        + intros.
-          eapply  WfConcatActionT_processorCore_intRegFile_floatRegFile2.
-          apply H.
-        + intros.
-          eapply  WfConcatActionT_deviceTree_pipeline.
-          apply H.
-    Qed.
+Qed.
 
 Close Scope kami_expr.
 

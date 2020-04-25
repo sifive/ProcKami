@@ -234,7 +234,7 @@ Qed.
 
 Lemma map_csr_reg_csr_field_pmpField:
   forall l n, map csr_reg_csr_field ((pmpField n)::l)=
-                [(@^ ("pmp" ++ nat_decimal_string n ++ "cfg"),
+                [(@^ ("pmp" ++ natToHexStr n ++ "cfg"),
    existT RegInitValT (SyntaxKind PmpCfg) (Some (SyntaxConst Default)))]::
           (map csr_reg_csr_field l).
 Proof.
