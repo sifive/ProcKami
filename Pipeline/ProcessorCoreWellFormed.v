@@ -4063,10 +4063,55 @@ Proof.
   reflexivity.
 Qed.
 
+Theorem NoDup_WfMod_processorCore:
+  NoDup
+    (map fst
+       ((@^ ("mode"),
+        existT RegInitValT (SyntaxKind PrivMode) (Some (makeConst $ (MachineMode)%word)))
+        :: (@^ ("reservation"),
+           existT RegInitValT (SyntaxKind (Maybe Reservation)) (Some (makeConst Default)))
+           :: csr_regs Csrs ++
+              ([(@^ ("initReg"),
+                existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false)));
+               (@^ ("pc"),
+               existT RegInitValT (SyntaxKind (Bit Xlen)) (Some (SyntaxConst pcInit)));
+               (@^ ("realPc"),
+               existT RegInitValT (SyntaxKind (Bit Xlen)) (Some (SyntaxConst pcInit)));
+               (@^ ("isWfi"), existT RegInitValT (SyntaxKind Bool) (Some (SyntaxConst false)))] ++
+               Fifo.Ifc.regs Impl.tokenFifo ++
+               Fifo.Ifc.regs Impl.decExecFifo ++
+               Mem.Ifc.regs (Impl.mem deviceTree memParams) ++
+               RegArray.Ifc.regs intRegArray ++ RegArray.Ifc.regs floatRegArray) ++
+              (@^ ("debugMode"),
+              existT RegInitValT (SyntaxKind Bool) (Some (makeConst Default)))
+              :: (@^ ("debugPending"),
+                 existT RegInitValT (SyntaxKind Bool) (Some (makeConst Default)))
+              :: getRegisters (makeModule []))).
+Admitted.
+
+Theorem meip_in_Csrs:
+  forall x, In
+    ((procName ++ "_meip")%string,
+    existT (fun x : FullKind => RegInitValT x) (SyntaxKind Bool) x) 
+    (csr_regs Csrs).
+Admitted.
+
+Check nth.
+Theorem inNthCsrs:
+  forall n r,
+    In r (csr_regs ((nth n Csrs (nilCsr "tselect" (CsrIdWidth 'h"7a0") accessMModeOnly))::nil)) -> In r (csr_regs Csrs).
+Admitted.
+
+Theorem in_nubby:
+  forall t (e:t) f l, In e (nubBy f l)=In e l.
+Admitted.
+
+Hint Rewrite in_nubby : simp_csrs.
+
 Theorem WfMod_processorCore:
   WfMod ty (processorCore func_units deviceTree memParams).
 Proof.
-  (*unfold processorCore.
+  unfold processorCore.
   autorewrite with kami_rewrite_db.
   apply WfMod_new_WfMod.
   compute [WfMod_new WfBaseModule_new].
@@ -4075,12 +4120,13 @@ Proof.
   compute [WfRules].
   split; try (compute [WfRules]; apply I).
   split; try (compute [WfRules]; apply I).
+  
   - compute [debugInterruptRule ProcessorCore.pipeline impl snd regs].
-    eapply WfActionT_SubList_expand.
+    eapply WfExpand_new.
+    Focus 3.
     apply WfActionT_new_debugInterruptRule.
-    apply nil.
-    apply deviceTree.
-    apply memParams.
+    + apply nil.
+    apply NoDup_WfMod_processorCore.
     compute [SubList].
     intros.
     rewrite In_cons2.
@@ -4091,29 +4137,89 @@ Proof.
     right.
     rewrite in_app.
     right.
-
     rewrite In_cons2.
     left.
-    simpl in H.
-    inversion H; subst; clear H.
+    inversion H;subst;clear H.
     + reflexivity.
     + inversion H0.
+    + apply deviceTree.
+    + apply memParams.
   - split.
     + compute [snd externalInterruptRule ProcessorCore.pipeline impl snd].
-    eapply WfActionT_new_externalInterruptRule.
-    rewrite ?has_reg_cons.
-    rewrite ?has_reg_app.
-    rewrite ?has_reg_cons.
-    right.
-    right.
-    left.
-    unfold Csrs.
-    unfold csr_regs.
-    time (autorewrite with simp_csrs).
-  unfold Csrs. ++(csr_regs Csrs)++
-  unfold csr_regs.
-  time (autorewrite with kami_rewrite_db).
-  time (autorewrite with simp_csrs).*)
+      eapply WfExpand_new.
+      Focus 3.
+      eapply WfActionT_new_externalInterruptRule.
+      apply NoDup_WfMod_processorCore.
+      compute [SubList].
+      intros.
+      rewrite In_cons2.
+      right.
+      rewrite In_cons2.
+      right.
+      rewrite in_app.
+      left.
+      simpl in H.
+      inversion H;subst;clear H.
+      eapply inNthCsrs.
+      instantiate (1 := 28).
+      unfold Csrs.
+      compute [nth].
+      unfold csr_regs.
+      time (autorewrite with simp_csrs).
+      simpl.
+      left.
+      reflexivity.
+      inversion H0.
+    + split.
+      * compute [snd sendPcRule ProcessorCore.pipeline impl snd tokenStartRule regs].
+        eapply WfExpand_new.
+        Focus 3.
+        apply WfActionT_new_tokenStartRule.
+        apply nil.
+        apply deviceTree.
+        apply memParams.
+        apply NoDup_WfMod_processorCore.
+        compute [SubList].
+        intros.
+        simpl in H.
+        inversion H; subst; clear H.
+        rewrite In_cons2.
+        right.
+        rewrite In_cons2.
+        right.
+        rewrite in_app.
+        right.
+        rewrite in_app.
+        left.
+        rewrite in_app.
+        left.
+        rewrite In_cons2.
+        left.
+        simpl.
+        reflexivity.
+        rewrite In_cons2.
+        right.
+        rewrite In_cons2.
+        right.
+        rewrite in_app.
+        right.
+        rewrite in_app.
+        left.
+        rewrite in_app.
+        right.
+        rewrite in_app.
+        left.
+        unfold Impl.tokenFifo.
+        unfold Fifo.Impl.impl.
+        simpl.
+        apply H0.
+      * split.
+        ++ compute [snd ProcessorCore.pipeline impl snd regs sendPcRule].
+           eapply WfExpand_new.
+           Focus 3.
+      
+    
+      
 Admitted.
 
 Hint Resolve WfMod_processorCore : wfMod_ConcatMod_Helper.
