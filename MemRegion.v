@@ -23,7 +23,7 @@ Section pmem.
     := {
         addr  : N;
         width : N;
-        device : Fin.t numDevices
+        device : Fin numDevices
       }.
 
   Record MemRegion
@@ -31,7 +31,7 @@ Section pmem.
          mem_region_addr : N;
          mem_region_width : N;
          mem_region_device_offset : N; (* device offset *)
-         mem_region_device : option (Fin.t numDevices)
+         mem_region_device : option (Fin numDevices)
        }.
 
   Local Definition list_sum : list N -> N := fold_right N.add 0%N.
