@@ -37,7 +37,7 @@ Section device.
                           rfWrite := "bootRomWrite";
                           rfIdxNum := (Nat.pow 2 LgMemSz);
                           rfData := (Bit 8);
-                          rfInit := RFFile true true "boot_rom" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
+                          rfInit := RFFile (Nat.pow 2 LgMemSz) true true "boot_rom" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
        baseRegs := nil;
        write := (fun _ _ => Ret $$false);
        readReq := (fun ty addr => ReadReqRf "bootRomReadReq" (SignExtendTruncLsb LgMemSz addr : Bit LgMemSz); Retv);

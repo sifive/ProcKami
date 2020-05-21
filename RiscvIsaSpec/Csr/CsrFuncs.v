@@ -98,7 +98,8 @@ Section CsrInterface.
          DispHex upd_pkt;
          DispString _ "\n"
        ];
-       LETA csr_value <- BuildStructAction (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
+       LETA csr_value <- BuildStructAction (length (csrViewFields view))
+                           (fun i => csrFieldKind (nth_Fin (csrViewFields view) i))
                            (fun i => csrFieldName (nth_Fin (csrViewFields view) i))
                            (fun i => match csrFieldValue (nth_Fin (csrViewFields view) i) with
                                      | csrFieldValueConst const => Ret $$const
@@ -127,7 +128,7 @@ Section CsrInterface.
            ];
            GatherActions
              (map
-               (fun fieldIndex : Fin.t (length (csrViewFields view))
+               (fun fieldIndex : Fin (length (csrViewFields view))
                  => let get_kind  := fun i => csrFieldKind (nth_Fin (csrViewFields view) i) in
                     let get_name  := fun i => csrFieldName (nth_Fin (csrViewFields view) i) in
                     let get_value := fun i => nth_Fin (csrViewFields view) i in
