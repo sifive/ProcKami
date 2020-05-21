@@ -15,6 +15,7 @@ Require Import FpuKami.ModDivSqrt.
 Require Import ProcKami.FU.
 Require Import List.
 Import ListNotations.
+Require Import String.
 
 Section Fpu.
   Context `{procParams: ProcParams}.

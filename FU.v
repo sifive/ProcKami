@@ -386,16 +386,16 @@ Section Params.
                    (names InitExtsReg)
                    (fun k => ext_init (nth_Fin InitExtsReg k))).
 
-    Definition extReg_misa_field_char (i: Fin.t 26) :=
+    Definition extReg_misa_field_char (i: Fin 26) :=
       substring (proj1_sig (Fin.to_nat i)) 1 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 
     Definition misa_extReg_match i j :=
       String.eqb (extReg_misa_field_char i) (ext_name (nth_Fin InitExtsReg j)).
 
-    Definition misaToExtRegFind (i: Fin.t 26) :=
+    Definition misaToExtRegFind (i: Fin 26) :=
       filter (fun j => misa_extReg_match i j) (getFins (length InitExtsReg)).
 
-    Definition extRegToMisaFind (i: Fin.t (length InitExtsReg)) :=
+    Definition extRegToMisaFind (i: Fin (length InitExtsReg)) :=
       find (fun j => misa_extReg_match j i) (getFins 26).
 
     Definition extRegToMisa ty (exts: ExtensionsReg @# ty): Array 26 Bool @# ty :=
