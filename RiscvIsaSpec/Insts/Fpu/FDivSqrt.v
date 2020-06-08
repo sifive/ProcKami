@@ -4,8 +4,6 @@
 
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
