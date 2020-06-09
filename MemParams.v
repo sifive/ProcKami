@@ -40,37 +40,37 @@ Section DeviceTree.
          {|
            addr := hex"0";
            width := hex"1000";
-           device := Fin.F1: Fin.t (length devicesInst) (* debug *)
+           device := Fin.F1: Fin (length devicesInst) (* debug *)
          |};
          {|
            addr := hex"1000";
            width := hex"1000";
-           device := Fin.FS Fin.F1: Fin.t (length devicesInst) (* boot rom *)
+           device := Fin.FS Fin.F1: Fin (length devicesInst) (* boot rom *)
          |};
          {|
            addr := hex"2000000";
            width := hex"8";
-           device := Fin.FS (Fin.FS Fin.F1): Fin.t (length devicesInst) (* msip *) 
+           device := Fin.FS (Fin.FS Fin.F1): Fin (length devicesInst) (* msip *) 
          |};
          {|
            addr := hex"2004000";
            width := hex"8";
-           device := Fin.FS (Fin.FS (Fin.FS Fin.F1)): Fin.t (length devicesInst) (* mtimecmp *)
+           device := Fin.FS (Fin.FS (Fin.FS Fin.F1)): Fin (length devicesInst) (* mtimecmp *)
          |};
          {|
            addr := hex"200bff8";
            width := hex"8";
-           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1))): Fin.t (length devicesInst) (* mtime *)
+           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1))): Fin (length devicesInst) (* mtime *)
          |};
          {|
            addr := hex"80000000";
            width := hex"100000";
-           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1)))): Fin.t (length devicesInst)
+           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1)))): Fin (length devicesInst)
          |};
          {|
            addr := hex"C0000000";
            width := hex"80";
-           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1))))): Fin.t (length devicesInst)
+           device := Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS (Fin.FS Fin.F1))))): Fin (length devicesInst)
          |}
       ].
 

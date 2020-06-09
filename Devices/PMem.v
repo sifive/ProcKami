@@ -28,7 +28,7 @@ Section device.
                           rfWrite := "pMemWrite";
                           rfIdxNum := (Nat.pow 2 LgMemSz);
                           rfData := (Bit 8);
-                          rfInit := RFFile true true "testfile" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
+                          rfInit := RFFile (Nat.pow 2 LgMemSz) true true "testfile" 0 (Nat.pow 2 LgMemSz) (fun _ => wzero _) |} :: nil;
        baseRegs := nil;
        write := (fun ty req =>
                    LET writeRq

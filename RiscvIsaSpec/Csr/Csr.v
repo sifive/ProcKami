@@ -1,13 +1,6 @@
-(* Defines the standard Csrs. *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
-
-
-
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
-
 Import ListNotations.
 
 Section csrs.

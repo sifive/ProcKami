@@ -165,4 +165,5 @@ Separate Extraction
          init_state
          sim_step
          initialize_files_zero
+         option_map
          .

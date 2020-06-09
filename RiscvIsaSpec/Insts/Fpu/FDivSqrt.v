@@ -4,8 +4,6 @@
 
   TODO: WARNING: check that the instructions set exceptions on invalid rounding modes.
 *)
-Require Import Vector.
-Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import FpuKami.Definitions.
 Require Import FpuKami.MulAdd.
@@ -18,6 +16,7 @@ Require Import ProcKami.FU.
 Require Import ProcKami.RiscvIsaSpec.Insts.Fpu.FpuFuncs.
 Require Import List.
 Import ListNotations.
+Require Import String.
 
 Section Fpu.
   Context `{procParams: ProcParams}.
