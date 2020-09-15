@@ -4,9 +4,9 @@ Import VectorNotations.
 Require Import Kami.AllNotations.
 Require Import ProcKami.FU.
 
-
-
 Require Import ProcKami.RiscvIsaSpec.Csr.CsrFuncs.
+
+Require Import ProcKami.Trigger.
 
 Import ListNotations.
 
@@ -1256,9 +1256,80 @@ Section csrs.
          nilCsr "mhpmevent29" (CsrIdWidth 'h"33d") accessMModeOnly;
          nilCsr "mhpmevent30" (CsrIdWidth 'h"33e") accessMModeOnly;
          nilCsr "mhpmevent31" (CsrIdWidth 'h"33f") accessMModeOnly;
-         nilCsr "tselect" (CsrIdWidth 'h"7a0") accessMModeOnly;
-         nilCsr "tdata1" (CsrIdWidth 'h"7a1") accessMModeOnly;
-         nilCsr "tdata2" (CsrIdWidth 'h"7a2") accessMModeOnly;
+         {|
+           csrName := "tselect";
+           csrAddr := CsrIdWidth 'h"7a0";
+           csrViews
+             := [
+                  let fields := [
+                    @csrFieldAny _ "tselect" (Bit 32)
+                      (Bit (Nat.log2_up (lgNumTrigs trigCfg))) None
+                  ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [
+                    @csrFieldAny _ "tselect" (Bit 64)
+                      (Bit (Nat.log2_up (lgNumTrigs trigCfg))) None
+                  ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trigCsrAccess
+         |};
+         {|
+           csrName := "tdata1";
+           csrAddr := CsrIdWidth 'h"7a1";
+           csrViews
+             := 
+                [
+                  let fields := [ @trigData1CsrField _ 32 ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [ @trigData1CsrField _ 64 ] in
+                  {|
+                    csrViewContext    := fun ty => $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trigCsrAccess
+         |};
+         {|
+           csrName := "tdata2";
+           csrAddr := CsrIdWidth 'h"7a2";
+           csrViews
+             := 
+                [
+                  let fields := [ @trigData2CsrField _ 32 ] in
+                  {|
+                    csrViewContext    := fun ty => $1;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |};
+                  let fields := [ @trigData2CsrField _ 64 ] in
+                  {|
+                    csrViewContext    := fun ty => $2;
+                    csrViewFields     := fields;
+                    csrViewReadXform  := (@csrViewDefaultReadXform _ fields);
+                    csrViewWriteXform := (@csrViewDefaultWriteXform _ fields)
+                  |}
+                ];
+           csrAccess := trigCsrAccess
+         |};
          nilCsr "tdata3" (CsrIdWidth 'h"7a3") accessMModeOnly;
          {|
            csrName := "dcsr";

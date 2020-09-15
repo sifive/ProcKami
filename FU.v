@@ -4,6 +4,7 @@
   and include units such as the fetch, decode, and memory elements.
 *)
 Require Import Kami.AllNotations.
+Require Import ProcKami.RegAbstraction.
 
 Import ListNotations.
 
@@ -165,6 +166,41 @@ Record SupportedExt :=
     ext_init : bool ;
     ext_edit : bool }.
 
+Inductive TrigType := AddressDataMatch | InstCount | TrigTypeBoth.
+
+Inductive TrigTiming := BeforeCommit | AfterCommit | TrigTimingBoth.
+
+Inductive TrigTimingDefault := 
+  DefaultBeforeCommit |
+  DefaultAfterCommit |
+  DefaultRecommended.
+
+Inductive TrigAction := EnterDebugMode | RaiseBreakpointException | TrigActionBoth.
+
+Record TrigTimingCfg := {
+  supportedTiming : TrigTiming;
+  timingDefault   : TrigTimingDefault;
+  timingWritable  : bool;
+}.
+
+Inductive TrigSelect := MatchVAddr | MatchData | TrigSelectBoth.
+
+Record TrigMatchCfg := {
+  maxChainLength : nat;
+  countFieldSz : nat
+}.
+
+Record TrigCfg := {
+  lgNumTrigs            : nat; (* log2 num of triggers *)
+  supportedTypes      : TrigType;
+  trigTimingCfg       : TrigTimingCfg;
+  trigMatchCfg        : TrigMatchCfg;
+  supportedSelect     : TrigSelect;
+  supportedActions    : TrigAction;
+  trigMContextSz      : nat;
+  trigSupportHitField : bool;
+}.
+
 Class ProcParams :=
   { procName : string ;
     Xlen_over_8: nat ;
@@ -176,7 +212,8 @@ Class ProcParams :=
     allow_inst_misaligned: bool;
     misaligned_access: bool;
     lgGranularity : nat; (* log2 (log2 n), where n represents the number of bits needed to represent the smallest reservation size *)
-    hasVirtualMem : bool
+    hasVirtualMem : bool;
+    trigCfg : TrigCfg;
   }.
 
 Notation "@^ x" := (procName ++ "_" ++ x)%string (at level 0).
@@ -429,6 +466,416 @@ Section Params.
 
   End Extensions.
 
+  Definition TrigTypeNone  := 0.
+  Definition TrigTypeValue := 2.
+  Definition TrigTypeCount := 3.
+  Definition TrigTypeInterrupt := 4.
+  Definition TrigTypeException := 5.
+
+  Definition TrigActBreak := 0.
+  Definition TrigActDebug := 1.
+
+  Local Definition numTrigTypes :=
+    match supportedTypes trigCfg with
+    | TrigTypeBoth => 2
+    | _ => 1
+    end.
+
+  Local Definition TrigTypeRegSz := Nat.log2_up (numTrigTypes + 1).
+
+  Local Definition TrigTypeReg := Bit TrigTypeRegSz.
+
+  Local Open Scope kami_expr.
+
+  Definition TrigHeader (contextKind : Kind) : AbsStruct contextKind := [
+    @Build_StructField contextKind "type"
+      (Bit 4)
+      TrigTypeReg
+      (Some (ConstBit $TrigTypeNone%word))
+      (fun ty _ value =>
+        match supportedTypes trigCfg with
+        | AddressDataMatch => IF value == $1 then $TrigTypeValue else $TrigTypeNone
+        | InstCount        => IF value == $2 then $TrigTypeCount else $TrigTypeNone
+        | TrigTypeBoth =>
+          Switch value Retn Bit 4 With {
+            ($0 : TrigTypeReg @# ty) ::= ($TrigTypeNone  : Bit 4 @# ty);
+            ($1 : TrigTypeReg @# ty) ::= ($TrigTypeValue : Bit 4 @# ty);
+            ($2 : TrigTypeReg @# ty) ::= ($TrigTypeCount : Bit 4 @# ty)
+          }
+        end)
+      (fun ty _ value =>
+        match supportedTypes trigCfg with
+        | AddressDataMatch =>
+          IF value == $TrigTypeValue
+          then $1 : TrigTypeReg @# ty
+          else $0 : TrigTypeReg @# ty
+        | InstCount =>
+          IF value == $TrigTypeCount
+          then $2 : TrigTypeReg @# ty
+          else $0 : TrigTypeReg @# ty
+        | TrigTypeBoth =>
+          Switch value Retn TrigTypeReg With {
+            ($TrigTypeNone  : Bit 4 @# ty) ::= ($0 : TrigTypeReg @# ty);
+            ($TrigTypeValue : Bit 4 @# ty) ::= ($1 : TrigTypeReg @# ty);
+            ($TrigTypeCount : Bit 4 @# ty) ::= ($2 : TrigTypeReg @# ty)
+          }
+        end); 
+    @Build_StructField contextKind "dmode" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
+  ].
+
+  Local Definition TrigHeaderField (contextKind : Kind) : StructField contextKind :=
+    @Build_StructField contextKind "header"
+      (StructPkt (TrigHeader Void))
+      (StructRegPkt (TrigHeader Void))
+      (Some (structInit (TrigHeader Void)))
+      (fun _ _ => regPktToStructPkt (struct := TrigHeader Void) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := TrigHeader Void) $$(wzero 0)).
+
+  Definition TrigStruct
+    (info : AbsStruct Void)
+    (data2 : AbsStruct Void) :
+    AbsStruct Void := [
+    TrigHeaderField Void;
+    @Build_StructField Void "info"
+      (StructPkt info)
+      (StructRegPkt info)
+      (Some (structInit info))
+      (fun _ _ => regPktToStructPkt (struct := info) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := info) $$(wzero 0));
+    @Build_StructField Void "data2"
+      (StructPkt data2)
+      (StructRegPkt data2)
+      (Some (structInit data2))
+      (fun _ _ => regPktToStructPkt (struct := data2) $$(wzero 0))
+      (fun _ _ => structPktToRegPkt (struct := data2) $$(wzero 0))
+  ].
+
+  Record Trig := {
+    trigInfo : AbsStruct Void;
+    trigData2 : AbsStruct Void;
+    trigData1 : AbsStruct Void := TrigHeader Void ++ trigInfo;
+    trig : AbsStruct Void := TrigStruct trigInfo trigData2
+  }.
+
+  Local Definition supportsXlen64 : bool := existsb (Nat.eqb Xlen64) supported_xlens.
+
+  Local Definition TrigSizeHiRegKind (supportsXlen64 : bool) : Kind :=
+    if supportsXlen64
+    then Bit 2
+    else Void.
+
+  Local Definition TrigHitRegKind (cfg : bool) : Kind :=
+    if cfg then Bool else Void.
+
+  Local Definition TrigTimingRegKind (cfg : TrigTiming) : Kind :=
+    match cfg with
+    | TrigTimingBoth => Bool
+    | _ => Void
+    end.
+
+  Local Definition TrigActionRegKind (cfg : TrigAction) : Kind :=
+    match cfg with
+    | TrigActionBoth => Bool
+    | _ => Void
+    end.
+
+  Local Definition numTrigMatchTypes := 5.
+  Local Definition TrigMatchRegKindSz := Nat.log2_up numTrigMatchTypes.
+  Local Definition TrigMatchRegKind : Kind := Bit TrigMatchRegKindSz.
+
+  Definition TrigValueData2RegSz (cfg : TrigSelect) : nat :=
+    match cfg with
+    | MatchVAddr => Xlen
+    | _ => Rlen
+    end.
+
+  Definition TrigValueData2RegKind (cfg : TrigSelect) : Kind := Bit (TrigValueData2RegSz cfg).
+
+  Local Definition trigHitField :=
+    @Build_StructField Void "hit" (Bool)
+      (TrigHitRegKind (trigSupportHitField trigCfg))
+      None
+      (fun ty _ =>
+        match trigSupportHitField trigCfg as x
+        return TrigHitRegKind x @# ty -> Bool @# ty with
+        | true => id
+        | false => fun _ => $$false
+        end)
+      (fun ty _ value =>
+        match trigSupportHitField trigCfg as x
+        return TrigHitRegKind x @# ty with
+        | true => value
+        | false => $$(wzero 0)
+        end).
+
+  Local Definition trigActionField (n : nat) :=
+    @Build_StructField Void "action" (Bit n)
+      (TrigActionRegKind (supportedActions trigCfg))
+      None
+      (fun ty _ =>
+        match supportedActions trigCfg as x
+        return TrigActionRegKind x @# ty -> Bit n @# ty with
+        | EnterDebugMode => fun _ => $TrigActDebug
+        | RaiseBreakpointException => fun _ => $TrigActBreak
+        | TrigActionBoth =>
+          fun regValue : Bool @# ty =>  
+            IF regValue then $TrigActBreak else $TrigActDebug
+        end)
+      (fun ty _ value =>
+        match supportedActions trigCfg as x
+        return TrigActionRegKind x @# ty with
+        | EnterDebugMode => $$(wzero 0)
+        | RaiseBreakpointException => $$(wzero 0)
+        | TrigActionBoth =>
+          IF value == $TrigActBreak then $$true else $$false
+        end).
+
+  Definition TrigValue : Trig := {|
+    trigInfo := [
+      @Build_StructField Void "maskmax" (Bit 6) (Bit 6) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "sizehi" (Bit 2)
+        (TrigSizeHiRegKind supportsXlen64)
+        None
+        (fun ty _ =>
+          match supportsXlen64 as x
+          return TrigSizeHiRegKind x @# ty -> Bit 2 @# ty with
+          | true  => id
+          | false => fun _ => $0
+          end)
+        (fun ty _ value => 
+          match supportsXlen64 as x
+          return TrigSizeHiRegKind x @# ty with
+          | true  => value
+          | false => $0
+          end);
+      trigHitField;
+      @Build_StructField Void "select" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "timing" (Bool)
+        (TrigTimingRegKind (supportedTiming (trigTimingCfg (@trigCfg procParams))))
+        (Some
+          (match supportedTiming (trigTimingCfg trigCfg) as x
+           return ConstT (TrigTimingRegKind x) with
+           | TrigTimingBoth =>
+             match timingDefault (trigTimingCfg trigCfg) with
+             | DefaultBeforeCommit => ConstBool true
+             | DefaultAfterCommit  => ConstBool false
+             | DefaultRecommended  => ConstBool true (* TODO: LLEE: review spec and set this based on the trigger type. *)
+             end
+           | _ => ConstBit (wzero 0)
+           end))
+        (fun ty _ =>
+          match supportedTiming (trigTimingCfg trigCfg) as x
+          return TrigTimingRegKind x @# ty -> Bool @# ty with
+          | BeforeCommit => fun _ => $$true
+          | AfterCommit  => fun _ => $$false
+          | TrigTimingBoth => fun value => value
+          end)
+        (fun ty _ =>
+          match supportedTiming (trigTimingCfg trigCfg) as x
+          return Bool @# ty -> TrigTimingRegKind x @# ty with
+          | TrigTimingBoth => fun value => value
+          | _ => fun _ => $$(wzero 0)
+          end);
+      @Build_StructField Void "sizelo" (Bit 2) (Bit 2) None (fun _ _ => id) (fun _ _ => id);
+      trigActionField 4;
+      @Build_StructField Void "chain" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "match" (Bit 4)
+        TrigMatchRegKind
+        None
+        (fun _ _ value => ZeroExtendTruncLsb 4 value)
+        (fun _ _ value => ZeroExtendTruncLsb TrigMatchRegKindSz value);
+      @Build_StructField Void "m" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "s" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "u" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "execute" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "store" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "load" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id)
+    ];
+    trigData2 := [
+      @Build_StructField Void "value" (Bit Rlen)
+        (TrigValueData2RegKind (supportedSelect trigCfg))
+        None
+        (fun ty _ =>
+          match supportedSelect trigCfg as x
+          return TrigValueData2RegKind x @# ty -> Bit Rlen @# ty with
+          | MatchVAddr => fun value => SignExtendTruncLsb _ value
+          | _ => id
+          end)
+        (fun ty _ value =>
+          match supportedSelect trigCfg as x
+          return TrigValueData2RegKind x @# ty with
+          | MatchVAddr => ZeroExtendTruncLsb _ value (* trunc *)
+          | _ => value
+          end)
+    ]
+  |}.
+
+  Definition TrigCount : Trig := {|
+    trigInfo := [
+      trigHitField;
+      @Build_StructField Void "count" (Bit 14)
+        (Bit (countFieldSz (trigMatchCfg trigCfg)))
+        None
+        (fun ty _ value =>
+          match countFieldSz (trigMatchCfg trigCfg) with
+          | 0 => $1
+          | _ => ZeroExtendTruncLsb _ value
+          end)
+        (fun ty _ value => ZeroExtendTruncLsb _ value);
+      @Build_StructField Void "m" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "s" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      @Build_StructField Void "u" (Bool) (Bool) None (fun _ _ => id) (fun _ _ => id);
+      trigActionField 6
+    ];
+    trigData2 := [nilStructField Void]
+  |}.
+
+  Local Definition list_max := fold_right Nat.max 0.
+
+  Local Definition maxSize (ks : list Kind) := list_max (map size ks).
+
+  (* TODO: LLEE: prove that the value and count struct packets are the same size: (xlen - headerSz). Then use bit size casts rather than ZeroExtendTrunctLsb. *)
+  Definition GenTrigInfoSz
+    := maxSize
+         [StructPkt (trigInfo TrigValue);
+          StructPkt (trigInfo TrigCount)].
+
+  Definition GenTrigInfoRegSz
+    := maxSize
+         [StructRegPkt (trigInfo TrigValue);
+          StructRegPkt (trigInfo TrigCount)].
+
+  Definition GenTrigData2Sz
+    := maxSize
+         [StructPkt (trigData2 TrigValue);
+          StructPkt (trigData2 TrigCount)].
+
+  Definition GenTrigData2RegSz
+    := maxSize
+         [StructRegPkt (trigData2 TrigValue);
+          StructRegPkt (trigData2 TrigCount)].
+
+  Definition GenTrigInfo:= Bit GenTrigInfoSz.
+
+  Definition GenTrigInfoReg := Bit GenTrigInfoRegSz.
+
+  Definition GenTrigData2 := Bit GenTrigData2Sz.
+
+  Definition GenTrigData2Reg := Bit GenTrigData2RegSz.
+
+  Definition genTrigContext (cfg : TrigType) : Kind :=
+    match cfg with
+    | TrigTypeBoth => Bool
+    | _ => Void
+    end.
+
+  Definition GenTrigContext : Kind := genTrigContext (supportedTypes trigCfg).
+
+  Definition genTrigContextValue ty (value : Bool @# ty) : GenTrigContext @# ty :=
+    match supportedTypes trigCfg as x
+    return genTrigContext x @# ty with
+    | TrigTypeBoth => value
+    | _ => $$(wzero 0)
+    end.
+
+  Definition selectGenTrigContext ty
+    (k : Kind)
+    (f : k @# ty)
+    (g : k @# ty)
+    : GenTrigContext @# ty -> k @# ty :=
+    match supportedTypes trigCfg as x
+    return genTrigContext x @# ty -> k @# ty with
+    | AddressDataMatch => fun _ => f
+    | InstCount => fun _ => g
+    | TrigTypeBoth => fun context => IF context then f else g
+    end.
+
+  Definition GenTrigInfoField : StructField GenTrigContext :=
+    @Build_StructField GenTrigContext "info"
+      GenTrigInfo
+      GenTrigInfoReg
+      None
+      (fun ty context value =>
+        selectGenTrigContext
+          (packedRegPktToPackedStructPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value)
+          (packedRegPktToPackedStructPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
+          context)
+      (fun ty context value =>
+        selectGenTrigContext
+          (packedStructPktToPackedRegPktUnsafe (trigInfo TrigValue) $$(wzero 0) _ value)
+          (packedStructPktToPackedRegPktUnsafe (trigInfo TrigCount) $$(wzero 0) _ value)
+          context).
+
+  Definition GenTrig : AbsStruct GenTrigContext := [
+    TrigHeaderField GenTrigContext;
+    GenTrigInfoField;
+    @Build_StructField GenTrigContext "data2"
+      GenTrigData2
+      GenTrigData2Reg
+      None
+      (fun ty context value =>
+        selectGenTrigContext
+          (packedRegPktToPackedStructPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value)
+          (packedRegPktToPackedStructPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+          context)
+      (fun ty context value =>
+        selectGenTrigContext
+          (packedStructPktToPackedRegPktUnsafe (trigData2 TrigValue) $$(wzero 0) _ value)
+          (packedStructPktToPackedRegPktUnsafe (trigData2 TrigCount) $$(wzero 0) _ value)
+          context)
+  ].
+
+  Definition GenTrigData1 := [TrigHeaderField GenTrigContext; GenTrigInfoField].
+
+  Definition genTrigPktToValuePkt ty
+    (statePkt : StructPkt GenTrig @# ty)
+    :  StructPkt (trig TrigValue) @# ty
+    := STRUCT {
+         "header" ::= statePkt @% "header";
+         "info" ::=
+           unpack (StructPkt (trigInfo TrigValue))
+             (ZeroExtendTruncLsb _ (pack (statePkt @% "info")));
+         "data2" ::=
+           unpack (StructPkt (trigData2 TrigValue))
+             (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
+       }.
+
+  Definition genTrigPktToCountPkt ty
+    (statePkt : StructPkt GenTrig @# ty)
+    :  StructPkt (trig TrigCount) @# ty
+    := STRUCT {
+         "header" ::= statePkt @% "header";
+         "info" ::=
+           unpack (StructPkt (trigInfo TrigCount))
+             (ZeroExtendTruncLsb _ (pack (statePkt @% "info")));
+         "data2" ::=
+           unpack (StructPkt (trigData2 TrigCount))
+             (ZeroExtendTruncLsb _ (pack (statePkt @% "data2")))
+       }.
+
+  Definition valuePktToGenTrigPkt ty
+    (trigPkt : StructPkt (trig TrigValue) @# ty)
+    :  StructPkt GenTrig @# ty :=
+    STRUCT {
+      "header" ::= trigPkt @% "header";
+      "info"   ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "info"));
+      "data2"  ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "data2"))
+    }.
+
+  Definition countPktToGenTrigPkt ty
+    (trigPkt : StructPkt (trig TrigCount) @# ty)
+    :  StructPkt GenTrig @# ty :=
+    STRUCT {
+      "header" ::= trigPkt @% "header";
+      "info"   ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "info"));
+      "data2"  ::= ZeroExtendTruncLsb _ (pack (trigPkt @% "data2"))
+    }.
+
+  Local Close Scope kami_expr.
+
+  Definition GenTrigs
+    := Array (Nat.pow 2 (lgNumTrigs trigCfg)) (StructRegPkt GenTrig).
+
   Definition CounterEnType
     := STRUCT_TYPE {
            "hpm_flags" :: Bit 29;
@@ -453,7 +900,7 @@ Section Params.
         "sum"              :: Bool; (* First read during vpc translation in fetch *)
         "mprv"             :: Bool; (* First read during vpc translation in fetch *)
         "mpp"              :: PrivMode; (* First read during vpc translation in fetch *)
-        "satp_ppn"         :: SatpPpn (* First read during vpc translation in fetch *)
+        "satp_ppn"         :: SatpPpn; (* First read during vpc translation in fetch *)
 (*
         "mcounteren"       :: CounterEnType;
         "scounteren"       :: CounterEnType;
@@ -461,6 +908,9 @@ Section Params.
         "sepc"             :: VAddr;
         "uepc"             :: VAddr
 *)
+        "debug"            :: Bool;
+        "tselect"          :: Bit (Nat.log2_up (lgNumTrigs trigCfg));
+        "trig_states"      :: GenTrigs
       }.
 
   Record InstEntry ik ok :=
@@ -895,7 +1345,7 @@ Section Params.
                                then $Xlen32
                                else $Xlen64)%kami_expr.
     End XlenInterface.
-    
+
     Local Open Scope kami_expr.
 
     (* See 3.1.1 and 3.1.15 *)
@@ -1044,4 +1494,3 @@ Section Params.
   Definition DebugCauseHalt   := 3.
   Definition DebugCauseStep   := 4.
 End Params.
-

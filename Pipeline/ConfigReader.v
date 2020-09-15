@@ -45,6 +45,9 @@ Section config_reader.
        Read sum : Bool <- @^"sum";
        Read mprv : Bool <- @^"mprv";
        Read mpp : PrivMode <- @^"mpp";
+       Read debug : Bool <- @^"debugMode";
+       Read tselect : Bit (Nat.log2_up (lgNumTrigs trigCfg)) <- @^"tselect";
+       Read trigStates : GenTrigs <- @^"trigs";
        LET retval <-
          (STRUCT {
             "xlen"             ::= #xlen;
@@ -60,7 +63,10 @@ Section config_reader.
             "sum"              ::= #sum;
             "mprv"             ::= #mprv;
             "mpp"              ::= #mpp;
-            "satp_ppn"         ::= #satp_ppn
+            "satp_ppn"         ::= #satp_ppn;
+            "debug"            ::= #debug;
+            "tselect"          ::= #tselect;
+            "trig_states"      ::= #trigStates
             } : ContextCfgPkt @# ty);
        System [DispString _ "Config: "; DispHex #retval; DispString _ "\n"];
        Ret #retval.
